@@ -27,7 +27,6 @@
     clearBtn.style.display = active ? 'flex' : 'none';
   }
 
-  // Restore saved data
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     try {
@@ -41,7 +40,6 @@
     }
   }
 
-  // Drag & drop
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
   dropZone.addEventListener('drop', e => {
@@ -52,9 +50,7 @@
   });
 
   uploadBtn.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) readFile(fileInput.files[0]);
-  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) readFile(fileInput.files[0]); });
 
   pasteArea.addEventListener('input', () => {
     const len = pasteArea.value.length;
@@ -98,10 +94,7 @@
         return;
       }
       currentData = data;
-      const toSave = {
-        ...data,
-        shifts: data.shifts.map(s => ({ ...s, date: s.date ? s.date.toISOString() : null }))
-      };
+      const toSave = { ...data, shifts: data.shifts.map(s => ({ ...s, date: s.date ? s.date.toISOString() : null })) };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
       setViewMode(true);
       renderSchedule(data, scheduleContainer);
@@ -110,21 +103,13 @@
     }
   }
 
-  function showError(msg) {
-    errorBox.textContent = msg;
-    errorBox.classList.remove('hidden');
-  }
+  function showError(msg) { errorBox.textContent = msg; errorBox.classList.remove('hidden'); }
+  function hideError() { errorBox.classList.add('hidden'); }
 
-  function hideError() {
-    errorBox.classList.add('hidden');
-  }
-
-  // Register SW
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
-  // Install prompt
   let deferredPrompt = null;
   const installBanner = document.getElementById('install-banner');
   const installBtn = document.getElementById('install-btn');
@@ -141,7 +126,5 @@
     if (installBanner) installBanner.classList.add('hidden');
   });
 
-  if (dismissBtn) dismissBtn.addEventListener('click', () => {
-    if (installBanner) installBanner.classList.add('hidden');
-  });
+  if (dismissBtn) dismissBtn.addEventListener('click', () => { if (installBanner) installBanner.classList.add('hidden'); });
 })();
