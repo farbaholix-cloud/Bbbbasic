@@ -9,22 +9,18 @@
   <meta name="apple-mobile-web-app-title" content="График">
   <meta name="description" content="Загрузи расписание смен — смотри красиво">
   <title>Мой График</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/css/style.css">
-
-  <!-- Inline SVG icon for iOS -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%236C63FF'/><text y='.9em' font-size='70' x='15'>📅</text></svg>">
 </head>
 <body>
 
-  <!-- Header -->
   <header class="app-header">
     <span class="header-icon">📅</span>
     <h1>Мой График</h1>
     <button class="btn-icon" id="clear-btn" title="Загрузить другое расписание" style="display:none">✏️</button>
   </header>
 
-  <!-- Install banner -->
   <div class="install-banner hidden" id="install-banner">
     <span>Добавь приложение на экран — всегда под рукой</span>
     <button class="btn-install" id="install-btn">Добавить</button>
@@ -36,36 +32,87 @@
     <div class="upload-hero">
       <span class="hero-emoji">📋</span>
       <h2>Загрузи своё расписание</h2>
-      <p>Поддерживаются CSV-файлы и вставка из Excel</p>
+      <p>Сфотографируй, загрузи файл или вставь текст</p>
     </div>
 
-    <!-- Drop zone -->
-    <div class="drop-zone" id="drop-zone">
-      <div class="drop-zone-icon">📂</div>
-      <p>Перетащи сюда CSV-файл<br>или нажми кнопку ниже</p>
-      <button class="btn-primary" id="upload-btn">
-        <span>Выбрать файл</span>
-      </button>
-      <input type="file" id="file-input" accept=".csv,.txt,.tsv" style="display:none">
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" data-tab="photo">📷 Фото</button>
+      <button class="tab" data-tab="file">📂 Файл</button>
+      <button class="tab" data-tab="paste">📋 Текст</button>
     </div>
 
-    <!-- Divider -->
-    <div class="divider">или вставь текст</div>
+    <!-- TAB: PHOTO -->
+    <div class="tab-panel active" id="tab-photo">
+      <div class="photo-upload-zone" id="photo-zone">
+        <div class="photo-zone-icon">📷</div>
+        <p>Сфотографируй распечатку расписания<br>или загрузи фото из галереи</p>
+        <button class="btn-primary" id="photo-btn">
+          <span>Выбрать фото</span>
+        </button>
+        <input type="file" id="photo-input" accept="image/*" style="display:none">
+      </div>
 
-    <!-- Paste -->
-    <div class="paste-section">
-      <label class="paste-label" for="paste-area">Скопируй таблицу из Excel / ATOSS и вставь сюда</label>
-      <textarea
-        id="paste-area"
-        class="paste-area"
-        placeholder="Tag	Von	Bis	Pause 1	Pause 2&#10;Mo 01.06.26	12:15	20:15	15:30	16:00&#10;Di 02.06.26	08:00	15:00&#10;..."
-        spellcheck="false"
-        autocorrect="off"
-        autocapitalize="off"
-      ></textarea>
-      <div class="paste-footer">
-        <span id="char-count" class="char-count"></span>
-        <button class="btn-primary" id="parse-btn">Показать график →</button>
+      <!-- Photo preview -->
+      <div id="photo-preview-wrap" class="hidden">
+        <div class="photo-preview-header">
+          <span class="photo-preview-label">Фото загружено</span>
+          <button class="btn-text" id="photo-change">Изменить</button>
+        </div>
+        <img id="photo-preview" class="photo-preview-img" alt="preview">
+        <button class="btn-primary btn-full" id="ocr-btn">
+          🔍 Распознать расписание
+        </button>
+      </div>
+
+      <!-- OCR Progress -->
+      <div id="ocr-progress" class="ocr-progress hidden">
+        <div class="ocr-progress-bar">
+          <div id="ocr-bar-fill" class="ocr-progress-fill" style="width:0%"></div>
+        </div>
+        <span id="ocr-status" class="ocr-status">Загружаю модуль...</span>
+        <p class="ocr-hint">Первый раз занимает ~30 сек — скачивается языковой пакет</p>
+      </div>
+
+      <!-- OCR Result preview -->
+      <div id="ocr-result-wrap" class="hidden">
+        <div class="ocr-result-header">
+          <span class="ocr-ok">✓ Текст распознан</span>
+          <button class="btn-text" id="ocr-edit-toggle">Показать текст</button>
+        </div>
+        <textarea id="ocr-result-text" class="paste-area ocr-text-area hidden" readonly></textarea>
+        <button class="btn-primary btn-full" id="ocr-parse-btn">Показать график →</button>
+      </div>
+    </div>
+
+    <!-- TAB: FILE -->
+    <div class="tab-panel hidden" id="tab-file">
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone-icon">📂</div>
+        <p>Перетащи сюда CSV-файл<br>или нажми кнопку ниже</p>
+        <button class="btn-primary" id="upload-btn">
+          <span>Выбрать файл</span>
+        </button>
+        <input type="file" id="file-input" accept=".csv,.txt,.tsv" style="display:none">
+      </div>
+    </div>
+
+    <!-- TAB: PASTE -->
+    <div class="tab-panel hidden" id="tab-paste">
+      <div class="paste-section">
+        <label class="paste-label" for="paste-area">Скопируй таблицу из Excel / ATOSS и вставь сюда</label>
+        <textarea
+          id="paste-area"
+          class="paste-area"
+          placeholder="Tag	Von	Bis	Pause 1	Pause 2&#10;Mo 01.06.26	12:15	20:15	15:30	16:00&#10;Di 02.06.26	08:00	15:00&#10;..."
+          spellcheck="false"
+          autocorrect="off"
+          autocapitalize="off"
+        ></textarea>
+        <div class="paste-footer">
+          <span id="char-count" class="char-count"></span>
+          <button class="btn-primary" id="parse-btn">Показать график →</button>
+        </div>
       </div>
     </div>
 
@@ -74,13 +121,11 @@
 
     <!-- Hint -->
     <div class="hint-box">
-      <h4>Как использовать</h4>
+      <h4>Подсказка по фото</h4>
       <p>
-        1. Открой ATOSS / Excel с расписанием<br>
-        2. Выдели таблицу → скопируй (<code>Ctrl+C</code>)<br>
-        3. Вставь в поле выше (<code>Ctrl+V</code>)<br>
-        4. Нажми <strong>«Показать график»</strong><br><br>
-        Или экспортируй из системы как <code>.csv</code> и загрузи файл.
+        Фотографируй <strong>ровно и при хорошем освещении</strong>.<br>
+        Таблица должна занимать большую часть кадра.<br>
+        Распознавание работает офлайн — данные никуда не отправляются.
       </p>
     </div>
   </main>
@@ -90,8 +135,9 @@
     <div id="schedule-container"></div>
   </div>
 
-  <script src="/js/parser.js"></script>
-  <script src="/js/renderer.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/ocr.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
