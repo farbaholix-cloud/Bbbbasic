@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6C63FF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="График">
+  <meta name="description" content="Загрузи расписание смен — смотри красиво">
+  <title>Мой График</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/style.css">
+
+  <!-- Inline SVG icon for iOS -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%236C63FF'/><text y='.9em' font-size='70' x='15'>📅</text></svg>">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <span class="header-icon">📅</span>
+    <h1>Мой График</h1>
+    <button class="btn-icon" id="clear-btn" title="Загрузить другое расписание" style="display:none">✏️</button>
+  </header>
+
+  <!-- Install banner -->
+  <div class="install-banner hidden" id="install-banner">
+    <span>Добавь приложение на экран — всегда под рукой</span>
+    <button class="btn-install" id="install-btn">Добавить</button>
+    <button class="btn-dismiss" id="dismiss-install">✕</button>
+  </div>
+
+  <!-- UPLOAD SCREEN -->
+  <main id="upload-screen" class="upload-screen">
+    <div class="upload-hero">
+      <span class="hero-emoji">📋</span>
+      <h2>Загрузи своё расписание</h2>
+      <p>Поддерживаются CSV-файлы и вставка из Excel</p>
+    </div>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-zone-icon">📂</div>
+      <p>Перетащи сюда CSV-файл<br>или нажми кнопку ниже</p>
+      <button class="btn-primary" id="upload-btn">
+        <span>Выбрать файл</span>
+      </button>
+      <input type="file" id="file-input" accept=".csv,.txt,.tsv" style="display:none">
+    </div>
+
+    <!-- Divider -->
+    <div class="divider">или вставь текст</div>
+
+    <!-- Paste -->
+    <div class="paste-section">
+      <label class="paste-label" for="paste-area">Скопируй таблицу из Excel / ATOSS и вставь сюда</label>
+      <textarea
+        id="paste-area"
+        class="paste-area"
+        placeholder="Tag	Von	Bis	Pause 1	Pause 2&#10;Mo 01.06.26	12:15	20:15	15:30	16:00&#10;Di 02.06.26	08:00	15:00&#10;..."
+        spellcheck="false"
+        autocorrect="off"
+        autocapitalize="off"
+      ></textarea>
+      <div class="paste-footer">
+        <span id="char-count" class="char-count"></span>
+        <button class="btn-primary" id="parse-btn">Показать график →</button>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-box" class="error-box hidden"></div>
+
+    <!-- Hint -->
+    <div class="hint-box">
+      <h4>Как использовать</h4>
+      <p>
+        1. Открой ATOSS / Excel с расписанием<br>
+        2. Выдели таблицу → скопируй (<code>Ctrl+C</code>)<br>
+        3. Вставь в поле выше (<code>Ctrl+V</code>)<br>
+        4. Нажми <strong>«Показать график»</strong><br><br>
+        Или экспортируй из системы как <code>.csv</code> и загрузи файл.
+      </p>
+    </div>
+  </main>
+
+  <!-- VIEW SCREEN -->
+  <div id="view-screen" class="view-screen hidden">
+    <div id="schedule-container"></div>
+  </div>
+
+  <script src="/js/parser.js"></script>
+  <script src="/js/renderer.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
