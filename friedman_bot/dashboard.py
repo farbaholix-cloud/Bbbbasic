@@ -1109,6 +1109,148 @@ function openTask(t){
   };
 }
 
+// ─── KANBAN ───
+let projStatus='current';
+function toggleProjStatus(){
+  const tog=document.getElementById('proj-tog');
+  tog.classList.toggle('on');
+  projStatus=tog.classList.contains('on')?'prospective':'current';
+  document.getElementById('ptlabel-curr').classList.toggle('on',!tog.classList.contains('on'));
+  document.getElementById('ptlabel-pros').classList.toggle('on',tog.classList.contains('on'));
+  if(tog.classList.contains('on')) spawnConfetti(tog);
+}
+function spawnConfetti(el){
+  const colors=['#5b9dff','#52e08a','#ffd07a','#ff9aa6','#b18bff','#41e3d4'];
+  const row=document.getElementById('proj-toggle-row');
+  for(let i=0;i<22;i++){
+    const p=document.createElement('div');p.className='confetti-particle';
+    const angle=Math.random()*Math.PI*2,dist=40+Math.random()*60;
+    p.style.cssText=`width:7px;height:7px;background:${colors[i%colors.length]};left:${el.offsetLeft+26}px;top:${el.offsetTop+14}px;--dx:${Math.cos(angle)*dist}px;--dy:${Math.sin(angle)*dist}px;animation-delay:${i*30}ms`;
+    row.appendChild(p);setTimeout(()=>p.remove(),1200);
+  }
+}
+
+function renderKanban(d){
+  const cols=d.kanban_cols||[];
+  const cards=d.kanban_cards||[];
+  const kb=document.getElementById('kanban');
+  kb.innerHTML=cols.map(col=>{
+    const cc=cards.filter(c=>c.column_id===col.id);
+    const cardsHtml=cc.map(c=>{
+      const done=c.checked?'done':'';
+      return `<div class="kcard ${done}" onclick="kcardClick(event,${c.id},${col.id})">
+        <div class="kt">${esc(c.title)}</div>
+        ${c.description?`<div class="kdesc">${esc(c.description)}</div>`:''}
+        <div class="krow">
+          <div class="kchk ${done}" onclick="kcheck(event,${c.id},${c.checked?0:1})">${done?'✓':''}</div>
+          <button class="karch" onclick="karchive(event,${c.id})">архив</button>
+        </div>
+      </div>`;
+    }).join('');
+    const colStyle=`background:${col.color}33;border-color:${col.color}66`;
+    return `<div class="kol">
+      <div class="kol-head" style="${colStyle}">${esc(col.name)} <span style="opacity:.5;font-weight:600">${cc.length}</span></div>
+      ${cardsHtml}
+      <button class="kadd" onclick="kaddCard(${col.id},'${esc(col.name)}')">＋ добавить карточку</button>
+    </div>`;
+  }).join('');
+}
+
+async function kcheck(e,id,val){e.stopPropagation();await api('/api/kcard_check',{id,checked:val});load();}
+async function karchive(e,id){e.stopPropagation();if(!confirm('Отправить в архив?'))return;await api('/api/kcard_archive',{id});load();}
+function kcardClick(e,id,colId){/* future: open detail sheet */}
+
+async function kaddCard(colId,colName){
+  const t=prompt(`Новая карточка в «${colName}»:`);
+  if(!t||!t.trim())return;
+  const desc=prompt('Описание (необязательно):')||'';
+  await api('/api/kcard_add',{col:colId,title:t.trim(),desc:desc.trim()});
+  load();
+}
+async function addKCol(){
+  const n=prompt('Название новой колонки:');
+  if(!n||!n.trim())return;
+  await api('/api/kcol_add',{name:n.trim()});load();
+}
+
+// ─── HAPPINESS ───
+const H_KEYS=['work','friendship','health','wellbeing','hobby','love'];
+const H_LABELS={work:'Работа',friendship:'Дружба',health:'Здоровье',wellbeing:'Благополучие',hobby:'Хобби',love:'Любовь'};
+let hValues={work:5,friendship:5,health:5,wellbeing:5,hobby:5,love:5};
+
+function renderHappiness(d){
+  const h=d.happiness||{};
+  hValues={work:h.work||5,friendship:h.friendship||5,health:h.health||5,
+    wellbeing:h.wellbeing||5,hobby:h.hobby||5,love:h.love||5};
+  updateHNodes();
+  drawHLines();
+  drawHChart(d.happiness_history||[]);
+}
+
+function updateHNodes(){
+  let total=0;
+  H_KEYS.forEach(k=>{
+    const el=document.getElementById('hv-'+k);
+    if(el){el.textContent=hValues[k];total+=hValues[k];}
+  });
+  const tc=document.getElementById('hv-total');
+  if(tc)tc.textContent=(total/6).toFixed(1);
+}
+
+function drawHLines(){
+  const svg=document.getElementById('hmap-lines');
+  if(!svg)return;
+  const cx=150,cy=180;
+  const nodes=[
+    {id:'work',x:216,y:72},{id:'friendship',x:84,y:72},
+    {id:'health',x:246,y:180},{id:'love',x:54,y:180},
+    {id:'wellbeing',x:216,y:288},{id:'hobby',x:84,y:288}
+  ];
+  const colors={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
+  svg.innerHTML=nodes.map(n=>`<line x1="${cx}" y1="${cy}" x2="${n.x}" y2="${n.y}" stroke="${colors[n.id]}" stroke-width="2.5" stroke-opacity="0.5" stroke-dasharray="5,4"/>`).join('');
+}
+
+function drawHChart(history){
+  const canvas=document.getElementById('hchart');
+  if(!canvas||!history.length)return;
+  canvas.width=canvas.offsetWidth*2;canvas.height=200;
+  const ctx=canvas.getContext('2d');
+  const colors={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
+  const w=canvas.width,h=canvas.height,pad=20;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='rgba(255,255,255,.05)';
+  for(let i=1;i<=10;i++){const y=pad+(h-2*pad)*(1-i/10);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  const n=history.length;
+  H_KEYS.forEach(k=>{
+    ctx.strokeStyle=colors[k];ctx.lineWidth=2.5;ctx.lineJoin='round';
+    ctx.beginPath();
+    history.slice().reverse().forEach((row,i)=>{
+      const x=pad+(w-2*pad)*i/(n-1||1);
+      const y=pad+(h-2*pad)*(1-(row[k]||5)/10);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });
+    ctx.stroke();
+  });
+}
+
+function editHNode(key){
+  const label=H_LABELS[key];
+  const cur=hValues[key];
+  const val=prompt(`${label} — текущая оценка: ${cur}\nВведи новую (1-10):`);
+  if(!val)return;
+  const n=Math.max(1,Math.min(10,parseInt(val)));
+  if(isNaN(n))return;
+  hValues[key]=n;
+  updateHNodes();
+  drawHLines();
+}
+
+async function editHappiness(){
+  const note=prompt('Заметка о настроении (необязательно):')||'';
+  await api('/api/happiness_save',{...hValues,note});
+  load();
+}
+
 load();
 setInterval(()=>{if(!document.getElementById('sheet'))load();},8000);
 </script></body></html>"""
