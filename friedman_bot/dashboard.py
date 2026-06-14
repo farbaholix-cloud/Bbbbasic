@@ -472,6 +472,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
   border:1px solid var(--rim);border-radius:17px;box-shadow:inset 0 1px 0 var(--rim2),0 4px 16px rgba(0,0,0,.2)}
 .pos{color:var(--green)} .neg{color:var(--red)}
 .wrap{padding:0 14px;padding-top:calc(8px + env(safe-area-inset-top))}
+#ptr{position:fixed;left:50%;top:0;transform:translate(-50%,-60px);width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:21px;z-index:60;opacity:0;pointer-events:none;
+  background:var(--glass2);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);
+  border:1px solid var(--rim);box-shadow:0 6px 20px rgba(0,0,0,.35),inset 0 1px 0 var(--rim2)}
+#ptr .i{display:block;transition:transform .05s linear}
+#ptr.spin .i{animation:ptrspin .8s linear infinite}
+@keyframes ptrspin{to{transform:rotate(360deg)}}
 .hdr{display:flex;align-items:center;gap:11px;margin:8px 0 14px}
 .anchor{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,rgba(91,157,255,.95),rgba(177,139,255,.95));
   display:flex;align-items:center;justify-content:center;font-size:23px;box-shadow:0 8px 20px rgba(91,157,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
@@ -691,6 +698,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 </style></head>
 <body>
 <div class="bgmesh"></div>
+<div id="ptr"><span class="i">⚓</span></div>
 <div class="wrap">
   <div class="hdr">
     <div class="anchor">⚓</div>
@@ -1276,6 +1284,39 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
+
+// Потяни вниз для обновления (pull-to-refresh) — работает и в standalone-режиме
+(function(){
+  const ptr=document.getElementById('ptr'),ind=ptr.querySelector('.i');
+  const TH=68;let startY=0,pulling=false,dist=0,busy=false;
+  window.addEventListener('touchstart',e=>{
+    if(busy||document.getElementById('sheet'))return;
+    if(window.scrollY<=0){startY=e.touches[0].clientY;pulling=true;dist=0;}
+  },{passive:true});
+  window.addEventListener('touchmove',e=>{
+    if(!pulling)return;
+    dist=e.touches[0].clientY-startY;
+    if(dist<=0){pulling=false;ptr.style.opacity=0;ptr.style.transform='translate(-50%,-60px)';return;}
+    const d=Math.min(dist,130);
+    ptr.style.transition='none';
+    ptr.style.opacity=Math.min(d/TH,1);
+    ptr.style.transform='translate(-50%,'+(d*0.6-46)+'px)';
+    ind.style.transform='rotate('+(d/TH*270)+'deg)';
+  },{passive:true});
+  window.addEventListener('touchend',async()=>{
+    if(!pulling)return;pulling=false;
+    ptr.style.transition='transform .3s cubic-bezier(.2,.8,.2,1),opacity .3s';
+    if(dist>=TH){
+      busy=true;
+      ptr.style.transform='translate(-50%,14px)';ptr.style.opacity=1;
+      ind.style.transform='';ptr.classList.add('spin');
+      try{await load();}catch(_){}
+      await new Promise(r=>setTimeout(r,420));
+      ptr.classList.remove('spin');busy=false;
+    }
+    ptr.style.transform='translate(-50%,-60px)';ptr.style.opacity=0;
+  },{passive:true});
+})();
 
 load();
 setInterval(()=>{if(!document.getElementById('sheet'))load();},8000);
