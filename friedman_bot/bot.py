@@ -1696,24 +1696,32 @@ def planned_spend(d0, d1):
     return items
 
 
-def frankfurt_coalition_sync() -> dict:
-    """Проверяет статус коалиции в городском парламенте Франкфурта-на-Майне через веб-поиск."""
+def frankfurt_wirtschaft_sync() -> dict:
+    """Мониторинг назначения Wirtschaftsdezernent Франкфурта. Проверяет PARLIS, FAZ, frankfurt.de."""
+    today = datetime.now().strftime("%d.%m.%Y")
     prompt = (
-        "Найди самые свежие новости о формировании коалиции в городском парламенте "
-        "Франкфурта-на-Майне (Stadtparlament / Römer) после последних местных выборов 2026 года. "
-        "Используй WebSearch с запросами: Frankfurt Koalition Stadtparlament 2026, "
-        "Frankfurt Römer Koalitionsvertrag, Frankfurt am Main Stadtrat Koalition. "
-        "Также попробуй WebFetch свежих новостей с fr.de или fnp.de. "
-        "Определи: подписан ли уже коалиционный договор (Koalitionsvertrag)? "
-        "Если да — кто входит в коалицию? Если нет — каков статус переговоров? "
-        "Верни СТРОГО JSON без пояснений: "
-        '{"formed":true/false/null,"parties":"список партий или null","status":"1-2 предложения по-русски о текущем статусе","source":"источник"}'
+        f"Сегодня {today}. Твоя задача — проверить статус назначения нового Wirtschaftsdezernent "
+        f"(главы департамента экономики) города Франкфурта-на-Майне. "
+        f"Коалиция CDU+Зелёные+SPD+Volt была сформирована 11 июня 2026 года. "
+        f"Проверь последовательно три источника:\n"
+        f"1. WebFetch https://www.frankfurt.de/sixcms/list.php?page=pp_suche&searchmode=1&Suchfeld=Wirtschaftsdezernent — "
+        f"ищи пресс-релизы о назначениях.\n"
+        f"2. WebSearch по запросу: Frankfurt Wirtschaftsdezernent 2026 Magistrat Wahl ernannt\n"
+        f"3. WebFetch https://www.faz.net/suche/?searchterm=Frankfurt+Wirtschaftsdezernent — "
+        f"ищи статьи FAZ о назначении.\n"
+        f"4. Дополнительно WebSearch: Frankfurt Wirtschaftsdezernat CDU SPD Grüne Dezernent Name\n"
+        f"Определи: назначен ли уже Wirtschaftsdezernent официально? "
+        f"Если да — верни имя, партию, дату вступления в должность. "
+        f"Если нет — верни текущий статус переговоров о назначении. "
+        f"Верни СТРОГО JSON без пояснений: "
+        '{"appointed":true/false/null,"name":"имя и фамилия или null","party":"партия или null",'
+        '"date":"дата вступления в должность или null","status":"1-2 предложения по-русски","source":"источник"}'
     )
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", prompt, "--model", "haiku",
-             "--allowedTools", "WebSearch,WebFetch", "--max-turns", "4"],
-            capture_output=True, text=True, timeout=90,
+             "--allowedTools", "WebSearch,WebFetch", "--max-turns", "6"],
+            capture_output=True, text=True, timeout=120,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
         )
         raw = result.stdout.strip()
@@ -1721,8 +1729,9 @@ def frankfurt_coalition_sync() -> dict:
         if s >= 0 and e > s:
             return jsonlib.loads(raw[s:e + 1])
     except Exception as ex:
-        log.error(f"frankfurt_coalition: {ex}")
-    return {"formed": None, "parties": None, "status": "Нет данных о коалиции", "source": ""}
+        log.error(f"frankfurt_wirtschaft: {ex}")
+    return {"appointed": None, "name": None, "party": None, "date": None,
+            "status": "Нет данных о назначении", "source": ""}
 
 
 def culture_for_today_sync() -> dict:
@@ -1779,21 +1788,26 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
     sum_week = sum(x["amount"] for x in spend_week)
 
     from wisdom import today_wisdom
-    # Запускаем параллельно: поиск новостей о коалиции + культурная справка
-    coalition, culture = await asyncio.gather(
-        asyncio.to_thread(frankfurt_coalition_sync),
+    # Запускаем параллельно: мониторинг Wirtschaftsdezernent + культурная справка
+    wirtschaft, culture = await asyncio.gather(
+        asyncio.to_thread(frankfurt_wirtschaft_sync),
         asyncio.to_thread(culture_for_today_sync),
     )
 
-    # ── Коалиция — первый блок сводки ──
-    if coalition.get("formed") is True:
-        coal_line = f"🏛 *Коалиция во Франкфурте ОБРАЗОВАНА!* {coalition.get('parties') or ''}\n_{coalition.get('status','')}_"
-    elif coalition.get("formed") is False:
-        coal_line = f"🏛 *Коалиция ещё не образована.*\n_{coalition.get('status','Переговоры продолжаются.')}_"
+    # ── Wirtschaftsdezernent — первый блок сводки ──
+    w = wirtschaft
+    if w.get("appointed") is True:
+        wirt_line = (
+            f"🏛 *Wirtschaftsdezernent назначен!*\n"
+            f"👤 {w.get('name','')} ({w.get('party','')})"
+            + (f" — вступает {w['date']}" if w.get("date") else "")
+        )
+    elif w.get("appointed") is False:
+        wirt_line = f"🏛 *Wirtschaftsdezernent ещё не назначен*\n_{w.get('status','Переговоры продолжаются.')}_"
     else:
-        coal_line = f"🏛 *Франкфурт / коалиция:* _{coalition.get('status','нет данных')}_"
+        wirt_line = f"🏛 *Франкфурт / Wirtschaftsdezernat:* _{w.get('status','нет данных')}_"
 
-    lines = [f"☀️ *Доброе утро, Слава!*\n", coal_line, "", f"_{today_wisdom()}_\n"]
+    lines = [f"☀️ *Доброе утро, Слава!*\n", wirt_line, "", f"_{today_wisdom()}_\n"]
 
     if high:
         lines.append("🔥 *Срочное на сегодня:*")
@@ -1833,7 +1847,7 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
     brief_data = {
         "date_str": datetime.now().strftime("%A, %d.%m · %H:%M"),
         "wisdom": today_wisdom(),
-        "coalition": coalition,
+        "wirtschaft": wirtschaft,
         "urgent": urgent,
         "reminders": [(t["due_at"][11:16], t["text"]) for t in todays],
         "spend_today": [(s["title"], s["amount"]) for s in spend_today],

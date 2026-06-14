@@ -78,24 +78,26 @@ def build_html(d):
                  f'<div class="greet">☀️ Доброе утро, Слава!</div>'
                  f'<div class="date">{_esc(d.get("date_str"))}</div></div></div>')
 
-    # Блок коалиции — всегда первым
-    coal = d.get("coalition") or {}
-    formed = coal.get("formed")
-    coal_status = _esc(coal.get("status") or "")
-    coal_parties = _esc(coal.get("parties") or "")
-    if formed is True:
-        coal_icon, coal_title, coal_color = "✅", "Коалиция образована!", "#52e08a"
-        coal_body = f'{coal_parties}<br><span style="opacity:.75">{coal_status}</span>'
-    elif formed is False:
-        coal_icon, coal_title, coal_color = "⏳", "Коалиция ещё не образована", "#ffd07a"
-        coal_body = coal_status
+    # Блок Wirtschaftsdezernent — всегда первым
+    w = d.get("wirtschaft") or {}
+    appointed = w.get("appointed")
+    w_status = _esc(w.get("status") or "")
+    if appointed is True:
+        w_icon, w_title, w_color = "✅", "Wirtschaftsdezernent назначен!", "#52e08a"
+        name_str = _esc(w.get("name") or "")
+        party_str = _esc(w.get("party") or "")
+        date_str = _esc(w.get("date") or "")
+        w_body = f'<b>{name_str}</b> ({party_str})' + (f'<br>Вступает: {date_str}' if date_str else "")
+    elif appointed is False:
+        w_icon, w_title, w_color = "⏳", "Wirtschaftsdezernent не назначен", "#ffd07a"
+        w_body = w_status
     else:
-        coal_icon, coal_title, coal_color = "🏛", "Франкфурт / коалиция", "rgba(235,240,250,.6)"
-        coal_body = coal_status or "нет данных"
+        w_icon, w_title, w_color = "🏛", "Франкфурт / Wirtschaftsdezernat", "rgba(235,240,250,.6)"
+        w_body = w_status or "нет данных"
     parts.append(
-        f'<div class="card glass" style="border-left:3px solid {coal_color}">'
-        f'<div class="h">{coal_icon} {coal_title}</div>'
-        f'<div class="li" style="color:{coal_color}">{coal_body}</div></div>'
+        f'<div class="card glass" style="border-left:3px solid {w_color}">'
+        f'<div class="h">{w_icon} {w_title}</div>'
+        f'<div class="li" style="color:{w_color}">{w_body}</div></div>'
     )
 
     if d.get("wisdom"):
