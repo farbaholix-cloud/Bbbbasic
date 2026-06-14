@@ -1027,8 +1027,188 @@ WALL_PROMPT = """Прочитай изображение по пути {path} (�
 4. Примерный расход краски (баллон 400мл ≈ 1-1.5 м² в один слой)
 Если ориентиров нет — скажи честно что оценка очень грубая."""
 
+DOC_KEYWORDS = ["чек", "счёт", "счет", "фактур", "rechnung", "kassenbon", "quittung",
+                "invoice", "receipt", "kontoauszug", "договор", "квитанция", "выписка",
+                "dokument", "документ", "pdf", "финанс", "расход", "доход", "оплат"]
+
+DOC_PROMPT = """Прочитай файл по пути {path} (инструмент Read).
+Это финансовый документ (чек, Rechnung, Kassenbon, Kontoauszug, договор, и т.д.).
+
+Проанализируй его по немецкому налоговому законодательству и верни ТОЛЬКО JSON без markdown:
+{{
+  "doc_type": "Kassenbon|Rechnung|Kontoauszug|Vertrag|Sonstiges",
+  "date": "YYYY-MM-DD или null",
+  "amount": число или null,
+  "currency": "EUR",
+  "is_expense": true/false,
+  "category": "краткая категория по-русски",
+  "counterparty": "название магазина/компании или null",
+  "mwst_rate": 7 или 19 или 0 или null,
+  "mwst_amount": число или null,
+  "vorsteuer": true если можно заявить Vorsteuerabzug (только если корректная Rechnung с MwSt-Ausweis),
+  "betriebsausgabe": true если деловой расход по §4 EStG,
+  "tax_note": "комментарий о налоговой значимости по немецкому праву, 1-2 предложения по-русски",
+  "recommendation": "что сделать с документом по-русски",
+  "finance_comment": "короткое описание для записи в финансы",
+  "add_to_finance": true если стоит записать в финансы
+}}"""
+
+
+def _is_doc_caption(caption: str) -> bool:
+    if not caption:
+        return False
+    low = caption.lower()
+    return any(k in low for k in DOC_KEYWORDS)
+
+
+def analyze_doc_sync(path: str) -> dict:
+    """Распознаёт финансовый документ через Claude CLI, возвращает dict."""
+    result = subprocess.run(
+        [CLAUDE_BIN, "-p", DOC_PROMPT.format(path=path),
+         "--allowedTools", "Read",
+         "--model", "sonnet",
+         "--max-turns", "5"],
+        capture_output=True, text=True, timeout=120,
+        env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+    )
+    raw = result.stdout.strip()
+    # Вытаскиваем JSON из ответа
+    m = re.search(r'\{[\s\S]*\}', raw)
+    if m:
+        return json.loads(m.group())
+    raise ValueError(f"no JSON in response: {raw[:200]}")
+
+
+async def _send_doc_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE, r: dict):
+    """Отправляет результат анализа документа с кнопкой добавления в финансы."""
+    import json as _json
+    sign = "📤 Расход" if r.get("is_expense", True) else "📥 Доход"
+    amt = r.get("amount")
+    amt_str = f"{amt:.2f} {r.get('currency','EUR')}" if amt else "сумма не определена"
+
+    lines = [
+        f"📄 *{r.get('doc_type','Документ')}*",
+        f"📅 {r.get('date') or 'дата не указана'}",
+        f"{sign}: *{amt_str}*",
+        f"🏪 {r.get('counterparty') or '—'}",
+        f"🏷 {r.get('category','—')}",
+    ]
+
+    mwst = r.get("mwst_rate")
+    if mwst is not None:
+        mwst_line = f"🧾 MwSt {mwst}%"
+        if r.get("mwst_amount"):
+            mwst_line += f" = {r['mwst_amount']:.2f}€"
+        lines.append(mwst_line)
+
+    flags = []
+    if r.get("vorsteuer"):
+        flags.append("✅ Vorsteuerabzug")
+    if r.get("betriebsausgabe"):
+        flags.append("✅ Betriebsausgabe")
+    if flags:
+        lines.append(" · ".join(flags))
+
+    if r.get("tax_note"):
+        lines.append(f"\n💡 _{r['tax_note']}_")
+    if r.get("recommendation"):
+        lines.append(f"📌 {r['recommendation']}")
+
+    text = "\n".join(lines)
+
+    keyboard = None
+    if r.get("add_to_finance") and amt:
+        signed_amt = round(amt * (-1 if r.get("is_expense", True) else 1), 2)
+        comment = (r.get("finance_comment") or r.get("category") or "документ")[:80]
+        cb = _json.dumps({"a": "doc_add", "v": signed_amt, "c": comment})
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("➕ В финансы", callback_data=cb),
+            InlineKeyboardButton("❌ Пропустить", callback_data='{"a":"doc_skip"}'),
+        ]])
+
+    try:
+        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception:
+        await update.message.reply_text(text, reply_markup=keyboard)
+
+
+async def handle_doc_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Обработчик файлов-документов (PDF и т.д.)."""
+    doc = update.message.document
+    if not doc:
+        return
+    allowed_mime = {"image/jpeg", "image/png", "image/webp", "application/pdf",
+                    "image/gif", "image/heic"}
+    if doc.mime_type not in allowed_mime and not (doc.file_name or "").lower().endswith(
+            (".jpg", ".jpeg", ".png", ".pdf", ".webp")):
+        await update.message.reply_text("📎 Пришли фото или PDF — проанализирую по немецким законам.")
+        return
+
+    wait = await update.message.reply_text("🔍 Анализирую документ...")
+    ext = os.path.splitext(doc.file_name or ".bin")[1] or ".jpg"
+    tmp = os.path.join(tempfile.gettempdir(), f"doc_{doc.file_id[:16]}{ext}")
+    tg_file = await ctx.bot.get_file(doc.file_id)
+    await tg_file.download_to_drive(tmp)
+
+    try:
+        r = await asyncio.to_thread(analyze_doc_sync, tmp)
+        await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
+        await _send_doc_analysis(update, ctx, r)
+    except Exception as e:
+        log.error(f"doc analysis: {e}")
+        await ctx.bot.edit_message_text("⚠️ Не удалось распознать документ.", update.effective_chat.id, wait.message_id)
+    finally:
+        try:
+            os.unlink(tmp)
+        except Exception:
+            pass
+
+
+async def doc_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Обработчик кнопок добавления документа в финансы."""
+    import json as _json
+    q = update.callback_query
+    await q.answer()
+    try:
+        data = _json.loads(q.data)
+    except Exception:
+        return
+    if data.get("a") == "doc_add":
+        v = float(data["v"])
+        c = data.get("c", "документ")
+        with db() as conn:
+            conn.execute("INSERT INTO finance (amount, comment, account) VALUES (?,?,?)",
+                         (v, c, "card"))
+        sign = "📤" if v < 0 else "📥"
+        await q.edit_message_reply_markup(None)
+        await q.message.reply_text(f"{sign} Записано: *{abs(v):.2f}€* — {c}", parse_mode="Markdown")
+    elif data.get("a") == "doc_skip":
+        await q.edit_message_reply_markup(None)
+
 
 async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    caption = update.message.caption or ""
+    if _is_doc_caption(caption):
+        # Фото с финансовой подписью → анализ документа
+        wait = await update.message.reply_text("🔍 Анализирую документ...")
+        photo = update.message.photo[-1]
+        tg_file = await ctx.bot.get_file(photo.file_id)
+        tmp = os.path.join(tempfile.gettempdir(), f"doc_{photo.file_id[:16]}.jpg")
+        await tg_file.download_to_drive(tmp)
+        try:
+            r = await asyncio.to_thread(analyze_doc_sync, tmp)
+            await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
+            await _send_doc_analysis(update, ctx, r)
+        except Exception as e:
+            log.error(f"doc photo: {e}")
+            await ctx.bot.edit_message_text("⚠️ Не удалось распознать документ.", update.effective_chat.id, wait.message_id)
+        finally:
+            try:
+                os.unlink(tmp)
+            except Exception:
+                pass
+        return
+
     await update.message.reply_text("📐 Изучаю стену...")
     photo = update.message.photo[-1]
     file = await ctx.bot.get_file(photo.file_id)
@@ -1716,7 +1896,9 @@ def main():
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
+    app.add_handler(CallbackQueryHandler(doc_callback, pattern=r'^\{"a":"doc_'))
 
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_doc_file))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
