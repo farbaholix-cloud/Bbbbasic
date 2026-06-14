@@ -465,9 +465,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
   display:flex;align-items:center;justify-content:center;font-size:23px;box-shadow:0 8px 20px rgba(91,157,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
 .hdr h1{font-size:20px;font-weight:800;letter-spacing:-.4px}
 .hdr .date{font-size:12px;color:var(--muted);margin-top:1px;font-weight:500}
-.seg{display:flex;gap:5px;padding:5px;border-radius:18px;margin-bottom:14px}
-.seg .s{flex:1;text-align:center;padding:11px 0;border-radius:14px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
+.seg{display:flex;gap:4px;padding:4px;border-radius:18px;margin-bottom:14px}
+.seg .s{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 2px;border-radius:13px;font-size:10.5px;font-weight:700;color:var(--muted);cursor:pointer;line-height:1;letter-spacing:-.1px;transition:color .2s,background .2s}
+.seg .s .e{font-size:19px;line-height:1;filter:grayscale(.35) opacity(.7);transition:filter .2s}
 .seg .s.on{color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.24),rgba(255,255,255,.1));box-shadow:0 5px 15px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.42)}
+.seg .s.on .e{filter:none}
 .balstrip{display:flex;align-items:center;padding:13px 16px;border-radius:18px;margin-bottom:13px;gap:8px}
 .balstrip .lk{font-size:13px;margin-right:4px}
 .balstrip .b{flex:1;text-align:center}
@@ -683,17 +685,26 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div><h1>Капитанский мостик</h1><div class="date" id="updated"></div></div>
   </div>
   <div class="seg glass-sm" id="seg">
-    <div class="s on" data-p="plan">🧭 Мостик</div>
-    <div class="s" data-p="fin">💰 Финансы</div>
-    <div class="s" data-p="proj">📁 Проекты</div>
-    <div class="s" data-p="hap">🌸 Счастье</div>
+    <div class="s on" data-p="plan"><span class="e">🧭</span>Мостик</div>
+    <div class="s" data-p="fin"><span class="e">💰</span>Финансы</div>
+    <div class="s" data-p="proj"><span class="e">📁</span>Проекты</div>
+    <div class="s" data-p="hap"><span class="e">🌸</span>Счастье</div>
   </div>
 
   <div class="page on" id="page-plan">
     <div class="balstrip glass-sm" id="balstrip"></div>
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
-      <div class="bh"><div class="t">🎯 Важно — срочно</div><div class="cnt">приоритеты</div></div>
+      <div class="bh"><div class="t">📋 Материализация хаоса <span class="sm">парковка</span></div><div class="cnt" id="chaos-cnt"></div></div>
+      <div id="chaos"></div>
+      <div class="addr" onclick="alert('Добавляй задачи через бота в Telegram — он спросит важность и срочность ⭐')"><span class="p">+</span> Новая задача<span class="badge">⭐ бот спросит<br>важность/срочность</span></div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🏔 Цели <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
+      <div id="projects"></div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🎯 Расстановка приоритетов <span class="sm">важно · срочно</span></div><div class="cnt">приоритеты</div></div>
       <div class="matrix" id="matrix"></div>
       <div class="legend">
         <div class="lg"><span class="d" style="background:var(--red)"></span>сам, сейчас</div>
@@ -704,18 +715,9 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       <div class="mhint">✋ тапни точку или задачу → оцени важность/срочность</div>
     </div>
     <div class="block glass">
-      <div class="bh"><div class="t">📋 Хаос — парковка</div><div class="cnt" id="chaos-cnt"></div></div>
-      <div id="chaos"></div>
-      <div class="addr" onclick="alert('Добавляй задачи через бота в Telegram — он спросит важность и срочность ⭐')"><span class="p">+</span> Новая задача<span class="badge">⭐ бот спросит<br>важность/срочность</span></div>
-    </div>
-    <div class="block glass">
-      <div class="bh"><div class="t">📅 Календарь</div><div class="cnt">эта неделя</div></div>
+      <div class="bh"><div class="t">📅 Прошивка календаря <span class="sm">эта неделя</span></div><div class="cnt">эта неделя</div></div>
       <div id="cal"></div>
       <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
-    </div>
-    <div class="block glass">
-      <div class="bh"><div class="t">🏔 Цели <span class="sm">декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
-      <div id="projects"></div>
     </div>
   </div>
 
@@ -1251,6 +1253,18 @@ async function editHappiness(){
   load();
 }
 
+// Блокировка при каждом сворачивании окна — при возврате снова рисуем круг
+let _wasHidden=false;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    _wasHidden=true;
+    try{navigator.sendBeacon('/api/lock');}catch(_){fetch('/api/lock',{method:'POST',keepalive:true});}
+  }else if(_wasHidden){
+    location.reload();
+  }
+});
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
+
 load();
 setInterval(()=>{if(!document.getElementById('sheet'))load();},8000);
 </script></body></html>"""
@@ -1392,9 +1406,16 @@ class Handler(BaseHTTPRequestHandler):
             result = _set_session(payload)
             extra = None
             if result.get("ok"):
+                # сессионная cookie (без Max-Age) — пропадает при закрытии вкладки
                 extra = [("Set-Cookie",
-                          f"dash={SESSION_TOKEN}; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly")]
+                          f"dash={SESSION_TOKEN}; Path=/; SameSite=Lax; HttpOnly")]
             self._send(json.dumps(result).encode(), "application/json; charset=utf-8", extra)
+            return
+
+        # блокировка при сворачивании окна — гасим cookie, тоже без сессии
+        if self.path == "/api/lock":
+            extra = [("Set-Cookie", "dash=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly")]
+            self._send(b'{"ok":true}', "application/json; charset=utf-8", extra)
             return
 
         if not self._authed():
