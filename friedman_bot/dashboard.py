@@ -193,6 +193,18 @@ def planned_spend(conn, d0, d1):
         if d0 <= dt <= d1:
             items.append({"date": dt.isoformat(), "title": d["name"],
                           "amount": float(d["total"]), "icon": d["icon"] or "🔴"})
+    # долгосрочные долги (рассрочки Klarna) — ежемесячный платёж в день due_date
+    for d in conn.execute("SELECT * FROM debts WHERE kind='long' AND monthly>0 AND due_date IS NOT NULL").fetchall():
+        try:
+            base = datetime.strptime(d["due_date"][:10], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            continue
+        for y, m in _month_iter(d0, d1):
+            dd = min(base.day, calendar.monthrange(y, m)[1])
+            dt = date(y, m, dd)
+            if d0 <= dt <= d1:
+                items.append({"date": dt.isoformat(), "title": d["name"],
+                              "amount": float(d["monthly"]), "icon": d["icon"] or "💳"})
     items.sort(key=lambda x: x["date"])
     return items
 

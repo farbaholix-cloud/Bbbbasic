@@ -1193,6 +1193,50 @@ async def doc_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await q.message.reply_text(f"{sign} Записано: *{abs(v):.2f}€* — {c}", parse_mode="Markdown")
     elif data.get("a") == "doc_skip":
         await q.edit_message_reply_markup(None)
+    elif data.get("a") == "klarna_skip":
+        await q.edit_message_reply_markup(None)
+    elif data.get("a") == "klarna_add":
+        plans = ctx.user_data.get("klarna_plans") or []
+        if not plans:
+            await q.edit_message_text("⚠️ Данные устарели, пришли скриншот заново.")
+            return
+        await q.edit_message_reply_markup(None)
+        today = date.today()
+        added = 0
+        with db() as conn:
+            for p in plans:
+                try:
+                    monthly = round(float(p.get("monthly") or 0), 2)
+                    if monthly <= 0:
+                        continue
+                    count = int(p["count"]) if p.get("count") else 0
+                    done = int(p["done"]) if p.get("done") else 0
+                    total = round(float(p["total"]), 2) if p.get("total") else round(monthly * (count or 1), 2)
+                    paid = round(total * done / count, 2) if count else round(monthly * done, 2)
+                    due_day = int(p["due_day"]) if p.get("due_day") else today.day
+                    # ближайшая дата списания
+                    dd = min(due_day, _calendar.monthrange(today.year, today.month)[1])
+                    nxt = date(today.year, today.month, dd)
+                    if nxt < today:
+                        ny, nm = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+                        dd = min(due_day, _calendar.monthrange(ny, nm)[1])
+                        nxt = date(ny, nm, dd)
+                    name = str(p.get("merchant") or "Klarna")
+                    if count:
+                        name = f"{name} ({done}/{count})"
+                    conn.execute(
+                        """INSERT INTO debts (name, kind, total, paid, due_date, monthly, icon, note)
+                           VALUES (?,?,?,?,?,?,?,?)""",
+                        (name, "long", total, paid, nxt.isoformat(), monthly,
+                         _klarna_icon(p.get("merchant")), "Klarna рассрочка")
+                    )
+                    added += 1
+                except Exception as ex:
+                    log.error(f"klarna insert: {ex}")
+        await q.message.reply_text(
+            f"✅ Добавил в долгосрочные долги: *{added}* {'план' if added == 1 else 'плана/планов'}.\n"
+            "Смотри на дашборде → 💰 Финансы → 🏦 Долгосрочные долги.",
+            parse_mode="Markdown")
     elif data.get("a") in ("img_doc", "img_wall"):
         # Пользователь вручную выбрал тип неоднозначного фото
         file_id = ctx.user_data.get("last_img_file_id")
@@ -1218,14 +1262,18 @@ async def doc_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 CLASSIFY_PROMPT = """Прочитай изображение по пути {path} (инструмент Read).
-Определи, что это: финансовый/официальный ДОКУМЕНТ (чек, счёт, Rechnung, Kassenbon,
-Kontoauszug, договор, письмо, квитанция, выписка, инвойс) ИЛИ это СТЕНА/поверхность
-для граффити (фото улицы, здания, забора, фасада).
-Ответь СТРОГО одним словом без пояснений: document ИЛИ wall ИЛИ other"""
+Определи, что это:
+- klarna — скриншот приложения рассрочек/платежей (Klarna, PayPal Ratenzahlung, и т.п.):
+  список предстоящих платежей, «Autopay», «Due in N days», рассрочка «X of Y», суммы в €.
+- document — финансовый/официальный ДОКУМЕНТ (чек, счёт, Rechnung, Kassenbon,
+  Kontoauszug, договор, письмо, квитанция, выписка, инвойс).
+- wall — СТЕНА/поверхность для граффити (фото улицы, здания, забора, фасада).
+- other — что-то ещё.
+Ответь СТРОГО одним словом: klarna ИЛИ document ИЛИ wall ИЛИ other"""
 
 
 def classify_image_sync(path: str) -> str:
-    """Быстрая классификация: document / wall / other через Claude CLI (haiku)."""
+    """Быстрая классификация: klarna / document / wall / other через Claude CLI (haiku)."""
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", CLASSIFY_PROMPT.format(path=path),
@@ -1234,6 +1282,8 @@ def classify_image_sync(path: str) -> str:
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
         )
         out = (result.stdout or "").strip().lower()
+        if "klarna" in out:
+            return "klarna"
         if "document" in out:
             return "document"
         if "wall" in out:
@@ -1242,6 +1292,93 @@ def classify_image_sync(path: str) -> str:
     except Exception as e:
         log.error(f"classify: {e}")
         return "other"
+
+
+KLARNA_PROMPT = """Прочитай изображение по пути {path} (инструмент Read).
+Это скриншот приложения рассрочек (Klarna или похожего). Извлеки ВСЕ планы рассрочки/платежи.
+Для каждого определи:
+- merchant: название продавца (eBay, Rex и т.п.)
+- monthly: сумма ОДНОГО ежемесячного платежа в евро (число)
+- total: полная сумма рассрочки в евро, если указана в скобках (число или null)
+- done: сколько платежей уже сделано (число из «X of Y» → X) или null
+- count: всего платежей в рассрочке (число из «X of Y» → Y) или null
+- due_day: день месяца списания (из даты «Sep 22» → 22) или null
+Объединяй дубликаты одного плана (один и тот же merchant с одинаковой суммой = один план).
+Верни СТРОГО JSON без пояснений:
+{{"plans":[{{"merchant":"...","monthly":12.65,"total":73,"done":3,"count":6,"due_day":1}}]}}"""
+
+
+def analyze_klarna_sync(path: str) -> dict:
+    """Разбирает скриншот Klarna в список планов рассрочки."""
+    result = subprocess.run(
+        [CLAUDE_BIN, "-p", KLARNA_PROMPT.format(path=path),
+         "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "5"],
+        capture_output=True, text=True, timeout=120,
+        env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+    )
+    raw = result.stdout.strip()
+    m = re.search(r'\{[\s\S]*\}', raw)
+    if m:
+        return jsonlib.loads(m.group())
+    raise ValueError(f"no JSON in response: {raw[:200]}")
+
+
+def _klarna_icon(merchant: str) -> str:
+    m = (merchant or "").lower()
+    if "ebay" in m:
+        return "🛒"
+    if "amazon" in m:
+        return "📦"
+    if "zalando" in m:
+        return "👟"
+    if "apple" in m:
+        return "🍎"
+    return "🛍"
+
+
+async def _analyze_as_klarna(update, ctx, path, wait):
+    import json as _json
+    chat_id = update.effective_chat.id
+    try:
+        data = await asyncio.to_thread(analyze_klarna_sync, path)
+        plans = data.get("plans") or []
+        # дедупликация по (merchant, monthly)
+        seen, uniq = set(), []
+        for p in plans:
+            key = (str(p.get("merchant", "")).lower(), round(float(p.get("monthly") or 0), 2))
+            if key in seen or key[1] <= 0:
+                continue
+            seen.add(key)
+            uniq.append(p)
+        if not uniq:
+            await ctx.bot.edit_message_text("🤔 Не нашёл планов рассрочки на скриншоте.",
+                                            chat_id, wait.message_id)
+            return
+        lines = ["💳 *Рассрочки Klarna* — нашёл:"]
+        total_monthly = 0.0
+        for p in uniq:
+            mon = float(p.get("monthly") or 0)
+            total_monthly += mon
+            prog = ""
+            if p.get("done") and p.get("count"):
+                prog = f" · {p['done']}/{p['count']}"
+            tot = f" из {float(p['total']):.0f}€" if p.get("total") else ""
+            day = f" · {p['due_day']}-го" if p.get("due_day") else ""
+            lines.append(f"{_klarna_icon(p.get('merchant'))} *{p.get('merchant','?')}* — {mon:.2f}€/мес{tot}{prog}{day}")
+        lines.append(f"\nИтого в месяц: *{total_monthly:.2f}€*")
+        ctx.user_data["klarna_plans"] = uniq
+        kbd = InlineKeyboardMarkup([[
+            InlineKeyboardButton("➕ В долги", callback_data='{"a":"klarna_add"}'),
+            InlineKeyboardButton("❌ Пропустить", callback_data='{"a":"klarna_skip"}'),
+        ]])
+        await ctx.bot.edit_message_text("\n".join(lines), chat_id, wait.message_id,
+                                        parse_mode="Markdown", reply_markup=kbd)
+    except Exception as e:
+        log.error(f"klarna: {e}")
+        try:
+            await ctx.bot.edit_message_text(f"⚠️ Ошибка разбора Klarna: {str(e)[:120]}", chat_id, wait.message_id)
+        except Exception:
+            await ctx.bot.send_message(chat_id, f"⚠️ Ошибка разбора Klarna: {str(e)[:120]}")
 
 
 async def _analyze_as_document(update, ctx, path, wait):
@@ -1308,7 +1445,14 @@ async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     else:
         kind = await asyncio.to_thread(classify_image_sync, tmp)
 
-    if kind == "document":
+    if kind == "klarna":
+        try:
+            await ctx.bot.edit_message_text("💳 Скриншот рассрочек — разбираю...",
+                                            update.effective_chat.id, wait.message_id)
+        except Exception:
+            pass
+        await _analyze_as_klarna(update, ctx, tmp, wait)
+    elif kind == "document":
         try:
             await ctx.bot.edit_message_text("🧾 Это документ — анализирую по немецким законам...",
                                             update.effective_chat.id, wait.message_id)
@@ -1767,6 +1911,24 @@ def planned_spend(d0, d1):
             if d0 <= dt <= d1:
                 items.append({"date": dt.isoformat(), "title": d["name"],
                               "amount": float(d["total"]), "icon": d["icon"] or "🔴"})
+        # долгосрочные долги (включая рассрочки Klarna) — ежемесячный платёж в день due_date
+        try:
+            long_debts = conn.execute(
+                "SELECT * FROM debts WHERE kind='long' AND monthly>0 AND due_date IS NOT NULL").fetchall()
+        except sqlite3.OperationalError:
+            long_debts = []
+        for d in long_debts:
+            try:
+                base = datetime.strptime(d["due_date"][:10], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                continue
+            day = base.day
+            for y, m in _month_iter(d0, d1):
+                dd = min(day, _calendar.monthrange(y, m)[1])
+                dt = date(y, m, dd)
+                if d0 <= dt <= d1:
+                    items.append({"date": dt.isoformat(), "title": d["name"],
+                                  "amount": float(d["monthly"]), "icon": d["icon"] or "💳"})
     items.sort(key=lambda x: x["date"])
     return items
 
@@ -2042,7 +2204,7 @@ def main():
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
-    app.add_handler(CallbackQueryHandler(doc_callback, pattern=r'^\{"a":\s*"(doc_|img_)'))
+    app.add_handler(CallbackQueryHandler(doc_callback, pattern=r'^\{"a":\s*"(doc_|img_|klarna_)'))
 
     app.add_handler(MessageHandler(filters.Document.ALL, handle_doc_file))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
