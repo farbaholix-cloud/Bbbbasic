@@ -1128,10 +1128,11 @@ async def _send_doc_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE, r: 
             InlineKeyboardButton("❌ Пропустить", callback_data='{"a":"doc_skip"}'),
         ]])
 
+    chat_id = update.effective_chat.id
     try:
-        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        await ctx.bot.send_message(chat_id, text, parse_mode="Markdown", reply_markup=keyboard)
     except Exception:
-        await update.message.reply_text(text, reply_markup=keyboard)
+        await ctx.bot.send_message(chat_id, text, reply_markup=keyboard)
 
 
 async def handle_doc_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -1192,51 +1193,79 @@ async def doc_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await q.message.reply_text(f"{sign} Записано: *{abs(v):.2f}€* — {c}", parse_mode="Markdown")
     elif data.get("a") == "doc_skip":
         await q.edit_message_reply_markup(None)
-
-
-async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    caption = update.message.caption or ""
-    if _is_doc_caption(caption):
-        # Фото с финансовой подписью → анализ документа
-        wait = await update.message.reply_text("🔍 Анализирую документ...")
-        photo = update.message.photo[-1]
-        tg_file = await ctx.bot.get_file(photo.file_id)
-        tmp = os.path.join(tempfile.gettempdir(), f"doc_{photo.file_id[:16]}.jpg")
+    elif data.get("a") in ("img_doc", "img_wall"):
+        # Пользователь вручную выбрал тип неоднозначного фото
+        file_id = ctx.user_data.get("last_img_file_id")
+        if not file_id:
+            await q.edit_message_text("⚠️ Фото устарело, пришли заново.")
+            return
+        await q.edit_message_reply_markup(None)
+        tg_file = await ctx.bot.get_file(file_id)
+        tmp = os.path.join(tempfile.gettempdir(), f"img_{file_id[:16]}.jpg")
         await tg_file.download_to_drive(tmp)
         try:
-            r = await asyncio.to_thread(analyze_doc_sync, tmp)
-            await _send_doc_analysis(update, ctx, r)
-            try:
-                await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
-            except Exception:
-                pass
-        except Exception as e:
-            log.error(f"doc photo: {e}")
-            try:
-                await ctx.bot.edit_message_text(f"⚠️ Ошибка: {str(e)[:120]}", update.effective_chat.id, wait.message_id)
-            except Exception:
-                await update.message.reply_text(f"⚠️ Ошибка анализа: {str(e)[:120]}")
+            if data["a"] == "img_doc":
+                wait = await q.message.reply_text("🧾 Анализирую документ...")
+                await _analyze_as_document(update, ctx, tmp, wait)
+            else:
+                wait = await q.message.reply_text("📐 Оцениваю размеры стены...")
+                await _analyze_as_wall(update, ctx, tmp, wait)
         finally:
             try:
                 os.unlink(tmp)
             except Exception:
                 pass
-        return
 
-    await update.message.reply_text("📐 Изучаю стену...")
-    photo = update.message.photo[-1]
-    file = await ctx.bot.get_file(photo.file_id)
 
-    photo_path = os.path.join(tempfile.gettempdir(), f"wall_{photo.file_id[:16]}.jpg")
-    await file.download_to_drive(photo_path)
+CLASSIFY_PROMPT = """Прочитай изображение по пути {path} (инструмент Read).
+Определи, что это: финансовый/официальный ДОКУМЕНТ (чек, счёт, Rechnung, Kassenbon,
+Kontoauszug, договор, письмо, квитанция, выписка, инвойс) ИЛИ это СТЕНА/поверхность
+для граффити (фото улицы, здания, забора, фасада).
+Ответь СТРОГО одним словом без пояснений: document ИЛИ wall ИЛИ other"""
 
+
+def classify_image_sync(path: str) -> str:
+    """Быстрая классификация: document / wall / other через Claude CLI (haiku)."""
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", CLASSIFY_PROMPT.format(path=path),
+             "--allowedTools", "Read", "--model", "haiku", "--max-turns", "2"],
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+        )
+        out = (result.stdout or "").strip().lower()
+        if "document" in out:
+            return "document"
+        if "wall" in out:
+            return "wall"
+        return "other"
+    except Exception as e:
+        log.error(f"classify: {e}")
+        return "other"
+
+
+async def _analyze_as_document(update, ctx, path, wait):
+    try:
+        r = await asyncio.to_thread(analyze_doc_sync, path)
+        await _send_doc_analysis(update, ctx, r)
+        try:
+            await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
+        except Exception:
+            pass
+    except Exception as e:
+        log.error(f"doc photo: {e}")
+        try:
+            await ctx.bot.edit_message_text(f"⚠️ Ошибка: {str(e)[:120]}", update.effective_chat.id, wait.message_id)
+        except Exception:
+            await ctx.bot.send_message(update.effective_chat.id, f"⚠️ Ошибка анализа: {str(e)[:120]}")
+
+
+async def _analyze_as_wall(update, ctx, path, wait):
     def analyze():
         try:
             result = subprocess.run(
-                [CLAUDE_BIN, "-p", WALL_PROMPT.format(path=photo_path),
-                 "--allowedTools", "Read",
-                 "--model", "sonnet",
-                 "--max-turns", "10"],
+                [CLAUDE_BIN, "-p", WALL_PROMPT.format(path=path),
+                 "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "10"],
                 capture_output=True, text=True, timeout=180,
                 env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
             )
@@ -1245,26 +1274,72 @@ async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             log.error(f"wall analyze: {e}")
             return ""
 
-    answer = await asyncio.get_event_loop().run_in_executor(None, analyze)
-
+    answer = await asyncio.to_thread(analyze)
     try:
-        os.unlink(photo_path)
+        await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
     except Exception:
         pass
-
+    chat_id = update.effective_chat.id
     if not answer:
-        await update.message.reply_text("Не получилось проанализировать фото 😔 Попробуй ещё раз.")
+        await ctx.bot.send_message(chat_id, "Не получилось проанализировать фото 😔 Попробуй ещё раз.")
         return
-
-    caption = update.message.caption or ""
+    caption = (update.message.caption if update.message else "") or ""
     if caption:
         remember("user", f"[фото стены] {caption}")
     remember("assistant", answer[:500])
+    try:
+        await ctx.bot.send_message(chat_id, f"📐 {answer}", parse_mode="Markdown")
+    except Exception:
+        await ctx.bot.send_message(chat_id, f"📐 {answer}")
+
+
+async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    caption = update.message.caption or ""
+    photo = update.message.photo[-1]
+    tg_file = await ctx.bot.get_file(photo.file_id)
+    tmp = os.path.join(tempfile.gettempdir(), f"img_{photo.file_id[:16]}.jpg")
+    await tg_file.download_to_drive(tmp)
+
+    wait = await update.message.reply_text("🔍 Смотрю на фото...")
+
+    # Подпись-подсказка имеет приоритет, иначе — автоклассификация
+    if _is_doc_caption(caption):
+        kind = "document"
+    else:
+        kind = await asyncio.to_thread(classify_image_sync, tmp)
+
+    if kind == "document":
+        try:
+            await ctx.bot.edit_message_text("🧾 Это документ — анализирую по немецким законам...",
+                                            update.effective_chat.id, wait.message_id)
+        except Exception:
+            pass
+        await _analyze_as_document(update, ctx, tmp, wait)
+    elif kind == "wall":
+        try:
+            await ctx.bot.edit_message_text("📐 Это стена — оцениваю размеры...",
+                                            update.effective_chat.id, wait.message_id)
+        except Exception:
+            pass
+        await _analyze_as_wall(update, ctx, tmp, wait)
+    else:
+        # неоднозначно — спрашиваем пользователя кнопками (file_id хватит, чтобы скачать заново)
+        import json as _json
+        kbd = InlineKeyboardMarkup([[
+            InlineKeyboardButton("🧾 Документ", callback_data=_json.dumps({"a": "img_doc"})),
+            InlineKeyboardButton("📐 Стена", callback_data=_json.dumps({"a": "img_wall"})),
+        ]])
+        ctx.user_data["last_img_file_id"] = photo.file_id
+        try:
+            await ctx.bot.edit_message_text("🤔 Не уверен, что это. Подскажи:",
+                                            update.effective_chat.id, wait.message_id, reply_markup=kbd)
+        except Exception:
+            await update.message.reply_text("🤔 Не уверен, что это. Подскажи:", reply_markup=kbd)
 
     try:
-        await update.message.reply_text(f"📐 {answer}", parse_mode="Markdown")
+        os.unlink(tmp)
     except Exception:
-        await update.message.reply_text(f"📐 {answer}")
+        pass
 
 
 # ─── Callback кнопки ──────────────────────────────────────────────────────────
@@ -1967,7 +2042,7 @@ def main():
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
-    app.add_handler(CallbackQueryHandler(doc_callback, pattern=r'^\{"a":"doc_'))
+    app.add_handler(CallbackQueryHandler(doc_callback, pattern=r'^\{"a":\s*"(doc_|img_)'))
 
     app.add_handler(MessageHandler(filters.Document.ALL, handle_doc_file))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
