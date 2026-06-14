@@ -105,6 +105,36 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE chaos ADD COLUMN importance INTEGER DEFAULT 0")
         if "urgency" not in cols:
             conn.execute("ALTER TABLE chaos ADD COLUMN urgency INTEGER DEFAULT 0")
+    conn.execute("""CREATE TABLE IF NOT EXISTS kanban_columns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL, color TEXT DEFAULT '#5b9dff',
+      position INTEGER DEFAULT 0, archived INTEGER DEFAULT 0
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS kanban_cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      column_id INTEGER, project_id INTEGER, chaos_id INTEGER,
+      title TEXT NOT NULL, description TEXT,
+      checked INTEGER DEFAULT 0, position INTEGER DEFAULT 0,
+      color TEXT, archived INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP, archived_at TEXT
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS project_meta (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL, color TEXT DEFAULT '#5b9dff',
+      status TEXT DEFAULT 'current', archived INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS happiness_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      work INTEGER DEFAULT 5, friendship INTEGER DEFAULT 5,
+      health INTEGER DEFAULT 5, wellbeing INTEGER DEFAULT 5,
+      hobby INTEGER DEFAULT 5, love INTEGER DEFAULT 5,
+      note TEXT, logged_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
+        conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
+            ("Идеи","#5b9dff",0),("В работе","#ff9aa6",1),
+            ("На паузе","#ffd07a",2),("Готово","#52e08a",3)])
 
 
 # ─── planned spend from recurring + planned payments + current debts ──────────
@@ -203,10 +233,21 @@ def get_data():
         today = date.today()
         spend_today = planned_spend(conn, today, today)
         spend_week = planned_spend(conn, today, today + timedelta(days=6))
+        kanban_cols = [dict(r) for r in conn.execute(
+            "SELECT * FROM kanban_columns WHERE archived=0 ORDER BY position").fetchall()]
+        kanban_cards = [dict(r) for r in conn.execute(
+            "SELECT * FROM kanban_cards WHERE archived=0 ORDER BY column_id,position").fetchall()]
+        hap_row = conn.execute(
+            "SELECT * FROM happiness_log ORDER BY logged_at DESC LIMIT 1").fetchone()
+        happiness = dict(hap_row) if hap_row else {"work":5,"friendship":5,"health":5,"wellbeing":5,"hobby":5,"love":5}
+        happiness_history = [dict(r) for r in conn.execute(
+            "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY logged_at DESC LIMIT 14").fetchall()]
     return {"chaos": chaos, "projects": projects, "cards": cards,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
+            "kanban_cols": kanban_cols, "kanban_cards": kanban_cards,
+            "happiness": happiness, "happiness_history": happiness_history,
             "wisdom": today_wisdom()}
 
 
@@ -346,6 +387,47 @@ def api_payment_add(payload):
 def api_payment_delete(payload):
     with db() as conn:
         conn.execute("UPDATE payments SET active=0 WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+def api_kcard_add(payload):
+    with db() as conn:
+        conn.execute("INSERT INTO kanban_cards(column_id,title,color,description) VALUES(?,?,?,?)",
+            (payload["col"], payload["title"], payload.get("color",""), payload.get("desc","")))
+    return {"ok": True}
+
+def api_kcard_check(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_cards SET checked=? WHERE id=?",
+            (1 if payload.get("checked") else 0, payload["id"]))
+    return {"ok": True}
+
+def api_kcard_archive(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_cards SET archived=1, archived_at=datetime('now') WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+def api_kcard_move(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_cards SET column_id=? WHERE id=?", (payload["col"], payload["id"]))
+    return {"ok": True}
+
+def api_kcol_add(payload):
+    COLORS = ["#5b9dff","#ff9aa6","#ffd07a","#52e08a","#b18bff","#41e3d4","#ff7ac0"]
+    with db() as conn:
+        pos = conn.execute("SELECT COALESCE(MAX(position)+1,0) FROM kanban_columns").fetchone()[0]
+        color = COLORS[pos % len(COLORS)]
+        conn.execute("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)",
+            (payload["name"], color, pos))
+    return {"ok": True}
+
+def api_happiness_save(payload):
+    with db() as conn:
+        conn.execute("""INSERT INTO happiness_log(work,friendship,health,wellbeing,hobby,love,note)
+            VALUES(?,?,?,?,?,?,?)""",
+            (payload.get("work",5), payload.get("friendship",5), payload.get("health",5),
+             payload.get("wellbeing",5), payload.get("hobby",5), payload.get("love",5),
+             payload.get("note","")))
     return {"ok": True}
 
 
@@ -545,6 +627,53 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .sh-btn.prime{background:linear-gradient(135deg,var(--blue),var(--violet));border-color:rgba(255,255,255,.3)}
 .sh-btn.danger{color:#ff9aa6}
 .sh-divider{height:1px;background:var(--rim);margin:14px 0}
+
+/* kanban */
+.kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:20px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.kanban::-webkit-scrollbar{display:none}
+.kol{min-width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:9px}
+.kol-head{padding:11px 13px;border-radius:16px;font-weight:800;font-size:13px;margin-bottom:2px;border:1px solid rgba(255,255,255,.18)}
+.kcard{padding:12px 13px;border-radius:15px;cursor:pointer;transition:background .2s,opacity .25s;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.1)}
+.kcard.done{background:rgba(10,12,22,.62);opacity:.6}
+.kcard .kt{font-size:13px;font-weight:700;line-height:1.42}
+.kcard.done .kt{text-decoration:line-through;color:rgba(235,240,250,.4)}
+.kcard .kdesc{font-size:11px;color:rgba(235,240,250,.55);margin-top:4px;font-weight:500}
+.kcard .krow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.kchk{width:20px;height:20px;border-radius:6px;border:2px solid rgba(255,255,255,.3);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s}
+.kchk.done{background:#52e08a;border-color:#52e08a}
+.karch{margin-left:auto;font-size:10px;color:rgba(235,240,250,.35);background:none;border:none;cursor:pointer;font-weight:700;padding:2px 6px}
+.kadd{width:100%;padding:11px;border-radius:14px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);
+  color:rgba(235,240,250,.5);font-weight:700;font-size:12px;cursor:pointer;margin-top:2px;text-align:center}
+.kadd:active{background:rgba(255,255,255,.1)}
+.proj-toggle-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;margin-bottom:14px;position:relative;overflow:visible}
+.ptlabel{font-weight:800;font-size:13px;color:var(--muted)}
+.ptlabel.on{color:var(--txt)}
+.tog{width:52px;height:28px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid var(--rim);
+  cursor:pointer;position:relative;transition:background .3s;flex-shrink:0}
+.tog.on{background:linear-gradient(135deg,#52e08a,#5b9dff)}
+.tog-k{width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;
+  transition:left .3s;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.tog.on .tog-k{left:26px}
+.confetti-particle{position:absolute;pointer-events:none;border-radius:50%;animation:confetti-fly .9s ease-out forwards}
+@keyframes confetti-fly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+
+/* happiness */
+.hmap-wrap{position:relative;width:100%;height:400px;margin-bottom:14px}
+.hmap-svg{position:absolute;inset:0;width:100%;height:100%}
+.hnode{position:absolute;transform:translate(-50%,-50%);text-align:center;cursor:pointer;z-index:2}
+.hnode .hc{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:20px;margin:0 auto 4px;backdrop-filter:blur(16px);border:2px solid rgba(255,255,255,.3);
+  box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.hnode.center .hc{width:68px;height:68px;font-size:28px}
+.hnode .hl{font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.4px}
+.hnode .hv{font-size:18px;font-weight:900;line-height:1}
+.hdyn{margin-top:6px}
+.hdyn canvas{border-radius:12px;width:100%;display:block}
+.hslider-wrap{padding:14px 16px;border-radius:18px;margin-bottom:10px}
+.hslider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;font-weight:800}
+.hslider-label span{font-size:20px;font-weight:900;color:var(--blue)}
+input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 </style></head>
 <body>
 <div class="bgmesh"></div>
@@ -554,8 +683,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
     <div><h1>Капитанский мостик</h1><div class="date" id="updated"></div></div>
   </div>
   <div class="seg glass-sm" id="seg">
-    <div class="s on" data-p="plan">🧭 Планирование</div>
+    <div class="s on" data-p="plan">🧭 Мостик</div>
     <div class="s" data-p="fin">💰 Финансы</div>
+    <div class="s" data-p="proj">📁 Проекты</div>
+    <div class="s" data-p="hap">🌸 Счастье</div>
   </div>
 
   <div class="page on" id="page-plan">
@@ -620,6 +751,64 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
       <div id="fin-log"></div>
     </div>
   </div>
+  <div class="page" id="page-proj">
+    <div class="glass proj-toggle-row" id="proj-toggle-row">
+      <div class="ptlabel on" id="ptlabel-curr">Текущие</div>
+      <div class="tog" id="proj-tog" onclick="toggleProjStatus()"><div class="tog-k"></div></div>
+      <div class="ptlabel" id="ptlabel-pros">Перспективные</div>
+    </div>
+    <div class="block glass" style="padding:14px">
+      <div class="bh"><div class="t">📁 Канбан-доска</div><div class="btn-sm glass-sm" onclick="addKCol()" style="padding:6px 12px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ колонка</div></div>
+      <div class="kanban" id="kanban"></div>
+    </div>
+    <div class="block glass" id="arch-block" style="display:none">
+      <div class="bh"><div class="t">🗄 Архив карточек</div><div class="cnt" id="arch-cnt"></div></div>
+      <div id="arch-cards"></div>
+    </div>
+    <div class="addr" onclick="document.getElementById('arch-block').style.display=document.getElementById('arch-block').style.display==='none'?'block':'none'" style="margin-top:0;cursor:pointer">📦 Показать/скрыть архив</div>
+  </div>
+
+  <div class="page" id="page-hap">
+    <div class="block glass" style="padding:16px">
+      <div class="bh"><div class="t">🌸 Карта счастья</div><div class="cnt">Гандапас</div></div>
+      <div class="hmap-wrap" id="hmap-wrap">
+        <svg class="hmap-svg" id="hmap-lines" viewBox="0 0 300 360" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="hnode center" id="hn-center" style="left:50%;top:50%" onclick="editHappiness()">
+          <div class="hc" style="background:linear-gradient(135deg,rgba(255,198,87,.35),rgba(255,122,192,.35))">🌟</div>
+          <div class="hl">СЧАСТЬЕ</div>
+          <div class="hv" id="hv-total">—</div>
+        </div>
+        <div class="hnode" id="hn-work" style="left:72%;top:20%" onclick="editHNode('work')">
+          <div class="hc" style="background:linear-gradient(135deg,rgba(91,157,255,.35),rgba(91,157,255,.15))">💼</div>
+          <div class="hl">РАБОТА</div><div class="hv" id="hv-work">5</div>
+        </div>
+        <div class="hnode" id="hn-friendship" style="left:28%;top:20%" onclick="editHNode('friendship')">
+          <div class="hc" style="background:linear-gradient(135deg,rgba(255,122,192,.35),rgba(177,139,255,.2))">🤝</div>
+          <div class="hl">ДРУЖБА</div><div class="hv" id="hv-friendship">5</div>
+        </div>
+        <div class="hnode" id="hn-health" style="left:82%;top:50%" onclick="editHNode('health')">
+          <div class="hc" style="background:linear-gradient(135deg,rgba(82,224,138,.35),rgba(65,227,212,.2))">🌿</div>
+          <div class="hl">ЗДОРОВЬЕ</div><div class="hv" id="hv-health">5</div>
+        </div>
+        <div class="hnode" id="hn-love" style="left:18%;top:50%" onclick="editHNode('love')">
+          <div class="hc" style="background:linear-gradient(135deg,rgba(255,107,125,.35),rgba(255,122,192,.2))">❤️</div>
+          <div class="hl">ЛЮБОВЬ</div><div class="hv" id="hv-love">5</div>
+        </div>
+        <div class="hnode" id="hn-wellbeing" style="left:72%;top:80%" onclick="editHNode('wellbeing')">
+          <div class="hc" style="background:linear-gradient(135deg,rgba(255,198,87,.35),rgba(255,107,125,.2))">💰</div>
+          <div class="hl">БЛАГОПОЛУЧИЕ</div><div class="hv" id="hv-wellbeing">5</div>
+        </div>
+        <div class="hnode" id="hn-hobby" style="left:28%;top:80%" onclick="editHNode('hobby')">
+          <div class="hc" style="background:linear-gradient(135deg,rgba(177,139,255,.35),rgba(91,157,255,.2))">🎨</div>
+          <div class="hl">ХОББИ</div><div class="hv" id="hv-hobby">5</div>
+        </div>
+      </div>
+    </div>
+    <div class="block glass hdyn">
+      <div class="bh"><div class="t">📈 Динамика счастья</div><div class="cnt">последние 14 дней</div></div>
+      <canvas id="hchart" height="100"></canvas>
+    </div>
+  </div>
   <div class="home-ind"></div>
 </div>
 
@@ -641,8 +830,7 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   document.querySelectorAll('#seg .s').forEach(x=>x.classList.remove('on'));
   s.classList.add('on');
   const p=s.dataset.p;
-  document.getElementById('page-plan').classList.toggle('on',p==='plan');
-  document.getElementById('page-fin').classList.toggle('on',p==='fin');
+  ['plan','fin','proj','hap'].forEach(n=>document.getElementById('page-'+n).classList.toggle('on',p===n));
   window.scrollTo(0,0);
 });
 
@@ -707,6 +895,8 @@ function render(){
   }).join(''):'<div class="empty">целей нет — скажи боту «добавь цель ...»</div>';
 
   renderFinance();
+  renderKanban(d);
+  renderHappiness(d);
 }
 
 function renderMatrix(open){
@@ -951,29 +1141,60 @@ let DPR=Math.max(1,window.devicePixelRatio||1);
 function resize(){cv.width=innerWidth*DPR;cv.height=innerHeight*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
 resize();addEventListener('resize',resize);
 let drawing=false,pts=[],busy=false;
-function pen(){ctx.strokeStyle='#ff3b30';ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.shadowColor='rgba(255,59,48,.9)';ctx.shadowBlur=14;}
-function clearC(){ctx.clearRect(0,0,cv.width,cv.height);}
-function pos(e){const t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY};}
-function start(e){if(busy)return;e.preventDefault();drawing=true;pts=[];clearC();pen();
-  const p=pos(e);pts.push([p.x,p.y]);ctx.beginPath();ctx.moveTo(p.x,p.y);
-  const h=document.getElementById('hint');h.style.opacity=0;}
-function move(e){if(!drawing||busy)return;e.preventDefault();const p=pos(e);
-  pts.push([p.x,p.y]);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);}
+function clearC(){ctx.clearRect(0,0,innerWidth,innerHeight);}
+function pos(e){const t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY,t:Date.now()};}
+
+function drawStroke(points,alpha){
+  if(points.length<2)return;
+  ctx.save();ctx.globalAlpha=alpha;
+  for(let i=1;i<points.length;i++){
+    const p0=points[i-1],p1=points[i];
+    const dx=p1.x-p0.x,dy=p1.y-p0.y;
+    const dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const dt=Math.max(1,(p1.t||1)-(p0.t||0));
+    const speed=dist/dt;
+    const w=Math.max(2,Math.min(18,16-speed*5));
+    const mx=(p0.x+p1.x)/2,my=(p0.y+p1.y)/2;
+    const g=ctx.createRadialGradient(mx,my,0,mx,my,w*1.8);
+    g.addColorStop(0,'rgba(230,20,10,0.9)');
+    g.addColorStop(0.5,'rgba(190,0,0,0.55)');
+    g.addColorStop(1,'rgba(120,0,0,0)');
+    ctx.beginPath();ctx.arc(mx,my,w*1.1,0,Math.PI*2);
+    ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
+    ctx.strokeStyle='rgba(210,10,5,0.88)';ctx.lineWidth=w*0.65;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.shadowColor='rgba(255,40,0,0.75)';ctx.shadowBlur=w*2;
+    ctx.stroke();ctx.shadowBlur=0;
+  }
+  if(points.length>3&&alpha===1){
+    for(let k=0;k<4;k++){
+      const p=points[0];
+      const ang=Math.random()*Math.PI*2,d=4+Math.random()*10;
+      ctx.beginPath();ctx.arc(p.x+Math.cos(ang)*d,p.y+Math.sin(ang)*d,0.7+Math.random()*2.8,0,Math.PI*2);
+      ctx.fillStyle='rgba(200,0,0,0.4)';ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function start(e){if(busy)return;e.preventDefault();drawing=true;pts=[];clearC();
+  pts.push(pos(e));document.getElementById('hint').style.opacity=0;}
+function move(e){if(!drawing||busy)return;e.preventDefault();
+  pts.push(pos(e));clearC();drawStroke(pts,1);}
 async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
   if(pts.length<10){fade();return;}
   busy=true;
   try{
-    const r=await fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({points:pts})});
+    const r=await fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({points:pts.map(p=>[p.x,p.y])})});
     const j=await r.json();
     if(j.ok){success();return;}
   }catch(_){}
   busy=false;fade();
 }
-function fade(){let a=1;const id=setInterval(()=>{a-=0.08;ctx.clearRect(0,0,cv.width,cv.height);
-  if(a<=0){clearInterval(id);return;}ctx.save();ctx.globalAlpha=a;pen();ctx.beginPath();
-  pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();ctx.restore();},28);}
-function success(){const f=document.getElementById('flash');const d=document.getElementById('dot');
+function fade(){let a=1;const id=setInterval(()=>{a-=0.06;clearC();if(a<=0){clearInterval(id);return;}drawStroke(pts,a);},28);}
+function success(){const f=document.getElementById('flash'),d=document.getElementById('dot');
   d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
   f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
 cv.addEventListener('pointerdown',start);cv.addEventListener('pointermove',move);cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
@@ -1046,6 +1267,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/finance_add": api_finance_add, "/api/finance_delete": api_finance_delete,
             "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,
             "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
+            "/api/kcard_add": api_kcard_add, "/api/kcard_check": api_kcard_check,
+            "/api/kcard_archive": api_kcard_archive, "/api/kcard_move": api_kcard_move,
+            "/api/kcol_add": api_kcol_add, "/api/happiness_save": api_happiness_save,
         }
         if self.path in routes:
             result = routes[self.path](payload)
