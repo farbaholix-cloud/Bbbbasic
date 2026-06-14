@@ -1066,13 +1066,12 @@ def analyze_doc_sync(path: str) -> dict:
     result = subprocess.run(
         [CLAUDE_BIN, "-p", DOC_PROMPT.format(path=path),
          "--allowedTools", "Read",
-         "--model", "sonnet",
-         "--max-turns", "5"],
-        capture_output=True, text=True, timeout=120,
+         "--model", "haiku",
+         "--max-turns", "3"],
+        capture_output=True, text=True, timeout=90,
         env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
     )
     raw = result.stdout.strip()
-    # Вытаскиваем JSON из ответа
     m = re.search(r'\{[\s\S]*\}', raw)
     if m:
         return jsonlib.loads(m.group())
@@ -1083,7 +1082,10 @@ async def _send_doc_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE, r: 
     """Отправляет результат анализа документа с кнопкой добавления в финансы."""
     import json as _json
     sign = "📤 Расход" if r.get("is_expense", True) else "📥 Доход"
-    amt = r.get("amount")
+    try:
+        amt = float(r["amount"]) if r.get("amount") is not None else None
+    except (TypeError, ValueError):
+        amt = None
     amt_str = f"{amt:.2f} {r.get('currency','EUR')}" if amt else "сумма не определена"
 
     lines = [
@@ -1152,11 +1154,17 @@ async def handle_doc_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     try:
         r = await asyncio.to_thread(analyze_doc_sync, tmp)
-        await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
         await _send_doc_analysis(update, ctx, r)
+        try:
+            await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
+        except Exception:
+            pass
     except Exception as e:
         log.error(f"doc analysis: {e}")
-        await ctx.bot.edit_message_text("⚠️ Не удалось распознать документ.", update.effective_chat.id, wait.message_id)
+        try:
+            await ctx.bot.edit_message_text(f"⚠️ Не удалось распознать: {str(e)[:120]}", update.effective_chat.id, wait.message_id)
+        except Exception:
+            await update.message.reply_text(f"⚠️ Ошибка анализа: {str(e)[:120]}")
     finally:
         try:
             os.unlink(tmp)
@@ -1197,11 +1205,17 @@ async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await tg_file.download_to_drive(tmp)
         try:
             r = await asyncio.to_thread(analyze_doc_sync, tmp)
-            await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
             await _send_doc_analysis(update, ctx, r)
+            try:
+                await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
+            except Exception:
+                pass
         except Exception as e:
             log.error(f"doc photo: {e}")
-            await ctx.bot.edit_message_text("⚠️ Не удалось распознать документ.", update.effective_chat.id, wait.message_id)
+            try:
+                await ctx.bot.edit_message_text(f"⚠️ Ошибка: {str(e)[:120]}", update.effective_chat.id, wait.message_id)
+            except Exception:
+                await update.message.reply_text(f"⚠️ Ошибка анализа: {str(e)[:120]}")
         finally:
             try:
                 os.unlink(tmp)
