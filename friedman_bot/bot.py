@@ -1075,7 +1075,7 @@ def analyze_doc_sync(path: str) -> dict:
     # Вытаскиваем JSON из ответа
     m = re.search(r'\{[\s\S]*\}', raw)
     if m:
-        return json.loads(m.group())
+        return jsonlib.loads(m.group())
     raise ValueError(f"no JSON in response: {raw[:200]}")
 
 
