@@ -77,8 +77,29 @@ def build_html(d):
     parts.append('<div class="head"><div class="anchor">⚓</div><div>'
                  f'<div class="greet">☀️ Доброе утро, Слава!</div>'
                  f'<div class="date">{_esc(d.get("date_str"))}</div></div></div>')
+
+    # Блок коалиции — всегда первым
+    coal = d.get("coalition") or {}
+    formed = coal.get("formed")
+    coal_status = _esc(coal.get("status") or "")
+    coal_parties = _esc(coal.get("parties") or "")
+    if formed is True:
+        coal_icon, coal_title, coal_color = "✅", "Коалиция образована!", "#52e08a"
+        coal_body = f'{coal_parties}<br><span style="opacity:.75">{coal_status}</span>'
+    elif formed is False:
+        coal_icon, coal_title, coal_color = "⏳", "Коалиция ещё не образована", "#ffd07a"
+        coal_body = coal_status
+    else:
+        coal_icon, coal_title, coal_color = "🏛", "Франкфурт / коалиция", "rgba(235,240,250,.6)"
+        coal_body = coal_status or "нет данных"
+    parts.append(
+        f'<div class="card glass" style="border-left:3px solid {coal_color}">'
+        f'<div class="h">{coal_icon} {coal_title}</div>'
+        f'<div class="li" style="color:{coal_color}">{coal_body}</div></div>'
+    )
+
     if d.get("wisdom"):
-        parts.append(f'<div class="wisdom glass"><span class="q">“</span><span>{_esc(d["wisdom"])}</span></div>')
+        parts.append(f'<div class="wisdom glass"><span class="q">"</span><span>{_esc(d["wisdom"])}</span></div>')
 
     if urgent:
         items = "".join(f'<div class="li">• {_esc(t)}</div>' for t in urgent[:4])

@@ -1696,6 +1696,35 @@ def planned_spend(d0, d1):
     return items
 
 
+def frankfurt_coalition_sync() -> dict:
+    """Проверяет статус коалиции в городском парламенте Франкфурта-на-Майне через веб-поиск."""
+    prompt = (
+        "Найди самые свежие новости о формировании коалиции в городском парламенте "
+        "Франкфурта-на-Майне (Stadtparlament / Römer) после последних местных выборов 2026 года. "
+        "Используй WebSearch с запросами: Frankfurt Koalition Stadtparlament 2026, "
+        "Frankfurt Römer Koalitionsvertrag, Frankfurt am Main Stadtrat Koalition. "
+        "Также попробуй WebFetch свежих новостей с fr.de или fnp.de. "
+        "Определи: подписан ли уже коалиционный договор (Koalitionsvertrag)? "
+        "Если да — кто входит в коалицию? Если нет — каков статус переговоров? "
+        "Верни СТРОГО JSON без пояснений: "
+        '{"formed":true/false/null,"parties":"список партий или null","status":"1-2 предложения по-русски о текущем статусе","source":"источник"}'
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--model", "haiku",
+             "--allowedTools", "WebSearch,WebFetch", "--max-turns", "4"],
+            capture_output=True, text=True, timeout=90,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+        )
+        raw = result.stdout.strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s >= 0 and e > s:
+            return jsonlib.loads(raw[s:e + 1])
+    except Exception as ex:
+        log.error(f"frankfurt_coalition: {ex}")
+    return {"formed": None, "parties": None, "status": "Нет данных о коалиции", "source": ""}
+
+
 def culture_for_today_sync() -> dict:
     """Праздник дня + день рождения легенды хип-хопа через Claude CLI. Тихо падает в {}."""
     today = datetime.now().strftime("%d %B")
@@ -1750,7 +1779,21 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
     sum_week = sum(x["amount"] for x in spend_week)
 
     from wisdom import today_wisdom
-    lines = ["☀️ *Доброе утро, Слава!*\n", f"_{today_wisdom()}_\n"]
+    # Запускаем параллельно: поиск новостей о коалиции + культурная справка
+    coalition, culture = await asyncio.gather(
+        asyncio.to_thread(frankfurt_coalition_sync),
+        asyncio.to_thread(culture_for_today_sync),
+    )
+
+    # ── Коалиция — первый блок сводки ──
+    if coalition.get("formed") is True:
+        coal_line = f"🏛 *Коалиция во Франкфурте ОБРАЗОВАНА!* {coalition.get('parties') or ''}\n_{coalition.get('status','')}_"
+    elif coalition.get("formed") is False:
+        coal_line = f"🏛 *Коалиция ещё не образована.*\n_{coalition.get('status','Переговоры продолжаются.')}_"
+    else:
+        coal_line = f"🏛 *Франкфурт / коалиция:* _{coalition.get('status','нет данных')}_"
+
+    lines = [f"☀️ *Доброе утро, Слава!*\n", coal_line, "", f"_{today_wisdom()}_\n"]
 
     if high:
         lines.append("🔥 *Срочное на сегодня:*")
@@ -1780,7 +1823,6 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
 
     lines.append(f"\n💰 *Баланс: {balance:.0f}€* (💵 {cash:.0f} · 💳 {card:.0f})")
 
-    culture = await asyncio.to_thread(culture_for_today_sync)
     if culture.get("holiday"):
         lines.append(f"\n🎉 *Праздник дня:* {culture['holiday']}")
     if culture.get("hiphop"):
@@ -1791,6 +1833,7 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
     brief_data = {
         "date_str": datetime.now().strftime("%A, %d.%m · %H:%M"),
         "wisdom": today_wisdom(),
+        "coalition": coalition,
         "urgent": urgent,
         "reminders": [(t["due_at"][11:16], t["text"]) for t in todays],
         "spend_today": [(s["title"], s["amount"]) for s in spend_today],
