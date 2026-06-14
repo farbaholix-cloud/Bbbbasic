@@ -1,0 +1,1062 @@
+import json
+import sqlite3
+import os
+import math
+import secrets
+import calendar
+from datetime import datetime, date, timedelta
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from wisdom import today_wisdom
+
+DB = os.path.join(os.path.dirname(__file__), "friedman.db")
+PORT = 8765
+
+
+def db():
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def get_session_token():
+    """Стабильный токен сессии (переживает рестарт), хранится в settings."""
+    with db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+        row = conn.execute("SELECT value FROM settings WHERE key='dash_token'").fetchone()
+        if row and row["value"]:
+            return row["value"]
+        tok = secrets.token_urlsafe(24)
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('dash_token', ?)", (tok,))
+        return tok
+
+
+SESSION_TOKEN = get_session_token()
+
+
+def is_circle(points):
+    """Похож ли нарисованный штрих на круг: замкнутость + ровный радиус + ~полный оборот."""
+    try:
+        pts = [(float(p[0]), float(p[1])) for p in points]
+    except (TypeError, ValueError, IndexError):
+        return False
+    if len(pts) < 12:
+        return False
+    cx = sum(x for x, _ in pts) / len(pts)
+    cy = sum(y for _, y in pts) / len(pts)
+    radii = [math.hypot(x - cx, y - cy) for x, y in pts]
+    r = sum(radii) / len(radii)
+    if r < 28:  # слишком маленький — скорее точка/каракуля
+        return False
+    std = (sum((ri - r) ** 2 for ri in radii) / len(radii)) ** 0.5
+    if std / r > 0.36:  # радиус скачет — не круг
+        return False
+    winding = 0.0
+    for i in range(1, len(pts)):
+        a0 = math.atan2(pts[i - 1][1] - cy, pts[i - 1][0] - cx)
+        a1 = math.atan2(pts[i][1] - cy, pts[i][0] - cx)
+        d = a1 - a0
+        while d > math.pi:
+            d -= 2 * math.pi
+        while d < -math.pi:
+            d += 2 * math.pi
+        winding += d
+    if abs(winding) < 1.6 * math.pi:  # не хватает оборота (нужно ~290°+)
+        return False
+    sx, sy = pts[0]
+    ex, ey = pts[-1]
+    if math.hypot(ex - sx, ey - sy) > r * 1.25:  # концы далеко — не замкнуто
+        return False
+    return True
+
+
+def ensure_schema(conn):
+    """Idempotent migrations so the dashboard never crashes on an old DB."""
+    conn.execute("""CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT, date TEXT, time TEXT, chaos_id INTEGER,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS debts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        kind TEXT DEFAULT 'current',
+        total REAL DEFAULT 0,
+        paid REAL DEFAULT 0,
+        due_date TEXT,
+        monthly REAL DEFAULT 0,
+        icon TEXT DEFAULT '💳',
+        note TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        account TEXT DEFAULT 'card',
+        kind TEXT DEFAULT 'recurring',
+        recur TEXT DEFAULT 'monthly',
+        day INTEGER DEFAULT 1,
+        date TEXT,
+        icon TEXT DEFAULT '💸',
+        active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
+    # chaos importance/urgency for the Eisenhower matrix (1..10)
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
+    if cols:
+        if "importance" not in cols:
+            conn.execute("ALTER TABLE chaos ADD COLUMN importance INTEGER DEFAULT 0")
+        if "urgency" not in cols:
+            conn.execute("ALTER TABLE chaos ADD COLUMN urgency INTEGER DEFAULT 0")
+
+
+# ─── planned spend from recurring + planned payments + current debts ──────────
+
+def _month_iter(d0, d1):
+    y, m = d0.year, d0.month
+    while (y, m) <= (d1.year, d1.month):
+        yield y, m
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+
+
+def payment_occurrences(p, d0, d1):
+    """All dates in [d0,d1] when payment p is due."""
+    out = []
+    if p["kind"] == "planned" and p["date"]:
+        try:
+            dt = datetime.strptime(p["date"][:10], "%Y-%m-%d").date()
+            if d0 <= dt <= d1:
+                out.append(dt)
+        except ValueError:
+            pass
+        return out
+    recur = (p["recur"] or "monthly")
+    day = p["day"] or 1
+    if recur == "monthly":
+        for y, m in _month_iter(d0, d1):
+            last = calendar.monthrange(y, m)[1]
+            dd = min(day, last)
+            dt = date(y, m, dd)
+            if d0 <= dt <= d1:
+                out.append(dt)
+    elif recur == "weekly":
+        cur = d0
+        while cur <= d1:
+            if cur.weekday() == (day % 7):
+                out.append(cur)
+            cur += timedelta(days=1)
+    return out
+
+
+def planned_spend(conn, d0, d1):
+    """Returns list of {date,title,amount,icon} due in [d0,d1], sorted."""
+    items = []
+    for p in conn.execute("SELECT * FROM payments WHERE active=1").fetchall():
+        for dt in payment_occurrences(p, d0, d1):
+            items.append({"date": dt.isoformat(), "title": p["title"],
+                          "amount": float(p["amount"]), "icon": p["icon"] or "💸"})
+    for d in conn.execute("SELECT * FROM debts WHERE kind='current' AND due_date IS NOT NULL").fetchall():
+        try:
+            dt = datetime.strptime(d["due_date"][:10], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            continue
+        if d0 <= dt <= d1:
+            items.append({"date": dt.isoformat(), "title": d["name"],
+                          "amount": float(d["total"]), "icon": d["icon"] or "🔴"})
+    items.sort(key=lambda x: x["date"])
+    return items
+
+
+def get_data():
+    with db() as conn:
+        ensure_schema(conn)
+        chaos = [dict(r) for r in conn.execute(
+            "SELECT * FROM chaos ORDER BY done, importance DESC, urgency DESC, created_at DESC").fetchall()]
+        projects = []
+        for p in conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall():
+            steps = [dict(s) for s in conn.execute(
+                "SELECT * FROM steps WHERE project_id=? ORDER BY id", (p["id"],)).fetchall()]
+            proj = dict(p)
+            proj["steps"] = steps
+            projects.append(proj)
+        cards = []
+        for r in conn.execute("SELECT * FROM events").fetchall():
+            cards.append({"kind": "event", "id": r["id"], "date": r["date"],
+                          "time": r["time"] or "", "text": r["text"], "chaos_id": r["chaos_id"]})
+        try:
+            for r in conn.execute("SELECT * FROM reminders WHERE sent=0").fetchall():
+                cards.append({"kind": "reminder", "id": r["id"], "date": r["due_at"][:10],
+                              "time": r["due_at"][11:16], "text": "⏰ " + r["text"]})
+        except sqlite3.OperationalError:
+            pass
+        try:
+            balance = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
+            cash = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
+            card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
+            fin_log = [dict(r) for r in conn.execute(
+                "SELECT id, amount, comment, account, created_at FROM finance ORDER BY id DESC LIMIT 25").fetchall()]
+        except sqlite3.OperationalError:
+            balance, cash, card, fin_log = 0, 0, 0, []
+        debts = [dict(r) for r in conn.execute("SELECT * FROM debts ORDER BY kind, due_date").fetchall()]
+        payments = [dict(r) for r in conn.execute(
+            "SELECT * FROM payments WHERE active=1 ORDER BY kind, day").fetchall()]
+        today = date.today()
+        spend_today = planned_spend(conn, today, today)
+        spend_week = planned_spend(conn, today, today + timedelta(days=6))
+    return {"chaos": chaos, "projects": projects, "cards": cards,
+            "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
+            "debts": debts, "payments": payments,
+            "spend_today": spend_today, "spend_week": spend_week,
+            "wisdom": today_wisdom()}
+
+
+# ─── planning APIs (kept compatible with the bot) ─────────────────────────────
+
+def api_move(payload):
+    kind = payload["kind"]
+    new_date = payload["date"]
+    with db() as conn:
+        if kind == "event":
+            conn.execute("UPDATE events SET date=? WHERE id=?", (new_date, payload["id"]))
+        elif kind == "reminder":
+            row = conn.execute("SELECT due_at FROM reminders WHERE id=?", (payload["id"],)).fetchone()
+            if row:
+                t = row["due_at"][11:] or "09:00"
+                conn.execute("UPDATE reminders SET due_at=? WHERE id=?", (f"{new_date} {t}", payload["id"]))
+        elif kind == "chaos":
+            row = conn.execute("SELECT text FROM chaos WHERE id=?", (payload["id"],)).fetchone()
+            if row:
+                conn.execute("INSERT INTO events (text, date, time, chaos_id) VALUES (?,?,?,?)",
+                             (row["text"], new_date, payload.get("time", ""), payload["id"]))
+    return {"ok": True}
+
+
+def api_unplan(payload):
+    with db() as conn:
+        if payload["kind"] == "event":
+            conn.execute("DELETE FROM events WHERE id=?", (payload["id"],))
+        elif payload["kind"] == "reminder":
+            conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (payload["id"],))
+        elif payload["kind"] == "chaos":
+            conn.execute("DELETE FROM events WHERE chaos_id=?", (payload["id"],))
+            conn.execute("DELETE FROM chaos WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+def api_complete(payload):
+    with db() as conn:
+        if payload["kind"] == "event":
+            row = conn.execute("SELECT chaos_id FROM events WHERE id=?", (payload["id"],)).fetchone()
+            if row and row["chaos_id"]:
+                conn.execute("UPDATE chaos SET done=1 WHERE id=?", (row["chaos_id"],))
+            conn.execute("DELETE FROM events WHERE id=?", (payload["id"],))
+        elif payload["kind"] == "reminder":
+            conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (payload["id"],))
+        elif payload["kind"] == "chaos":
+            conn.execute("UPDATE chaos SET done=1 WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+def api_rate(payload):
+    imp = max(0, min(10, int(payload.get("importance", 5))))
+    urg = max(0, min(10, int(payload.get("urgency", 5))))
+    pri = "high" if (imp >= 6 and urg >= 6) else ("low" if (imp < 6 and urg < 6) else "mid")
+    with db() as conn:
+        conn.execute("UPDATE chaos SET importance=?, urgency=?, priority=? WHERE id=?",
+                     (imp, urg, pri, payload["id"]))
+    return {"ok": True}
+
+
+def api_steps(path, payload):
+    with db() as conn:
+        if path == "/api/step_toggle":
+            conn.execute("UPDATE steps SET done = 1 - done WHERE id=?", (payload["id"],))
+        elif path == "/api/step_delete":
+            conn.execute("DELETE FROM steps WHERE id=?", (payload["id"],))
+        elif path == "/api/step_add":
+            conn.execute("INSERT INTO steps (project_id, text) VALUES (?,?)",
+                         (payload["project_id"], payload["text"]))
+        elif path == "/api/proj_rename":
+            conn.execute("UPDATE projects SET name=? WHERE id=?", (payload["name"], payload["id"]))
+        elif path == "/api/proj_delete":
+            conn.execute("DELETE FROM steps WHERE project_id=?", (payload["id"],))
+            conn.execute("DELETE FROM projects WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+# ─── finance APIs ─────────────────────────────────────────────────────────────
+
+def api_finance_add(payload):
+    try:
+        amount = float(payload["amount"])
+    except (KeyError, ValueError, TypeError):
+        return {"ok": False, "error": "bad amount"}
+    account = payload.get("account") if payload.get("account") in ("cash", "card") else "card"
+    comment = (payload.get("comment") or "").strip() or "коррекция"
+    with db() as conn:
+        conn.execute("INSERT INTO finance (amount, comment, account) VALUES (?,?,?)",
+                     (amount, comment, account))
+    return {"ok": True}
+
+
+def api_finance_delete(payload):
+    with db() as conn:
+        conn.execute("DELETE FROM finance WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+def api_debt_add(payload):
+    with db() as conn:
+        ensure_schema(conn)
+        conn.execute("""INSERT INTO debts (name, kind, total, paid, due_date, monthly, icon, note)
+            VALUES (?,?,?,?,?,?,?,?)""", (
+            (payload.get("name") or "Долг").strip(),
+            payload.get("kind") if payload.get("kind") in ("current", "long") else "current",
+            float(payload.get("total") or 0),
+            float(payload.get("paid") or 0),
+            payload.get("due_date") or None,
+            float(payload.get("monthly") or 0),
+            payload.get("icon") or ("🏦" if payload.get("kind") == "long" else "🔴"),
+            payload.get("note") or ""))
+    return {"ok": True}
+
+
+def api_debt_delete(payload):
+    with db() as conn:
+        conn.execute("DELETE FROM debts WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+def api_payment_add(payload):
+    with db() as conn:
+        ensure_schema(conn)
+        conn.execute("""INSERT INTO payments (title, amount, account, kind, recur, day, date, icon)
+            VALUES (?,?,?,?,?,?,?,?)""", (
+            (payload.get("title") or "Платёж").strip(),
+            float(payload.get("amount") or 0),
+            payload.get("account") if payload.get("account") in ("cash", "card") else "card",
+            payload.get("kind") if payload.get("kind") in ("recurring", "planned") else "recurring",
+            payload.get("recur") if payload.get("recur") in ("monthly", "weekly") else "monthly",
+            int(payload.get("day") or 1),
+            payload.get("date") or None,
+            payload.get("icon") or "💸"))
+    return {"ok": True}
+
+
+def api_payment_delete(payload):
+    with db() as conn:
+        conn.execute("UPDATE payments SET active=0 WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+PAGE = r"""<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Капитанский мостик</title>
+<style>
+:root{
+  --txt:#f4f6fb;--muted:rgba(235,240,250,.64);--faint:rgba(235,240,250,.42);
+  --blue:#5b9dff;--cyan:#41e3d4;--green:#52e08a;--amber:#ffc657;--red:#ff6b7d;--violet:#b18bff;--pink:#ff7ac0;
+  --glass:rgba(255,255,255,.08);--glass2:rgba(255,255,255,.13);--rim:rgba(255,255,255,.20);--rim2:rgba(255,255,255,.34);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(--txt);-webkit-font-smoothing:antialiased;
+  background:#0a0b14;padding:0 0 40px;max-width:560px;margin:0 auto;position:relative;min-height:100vh}
+.bgmesh{position:fixed;inset:-20%;z-index:-1;filter:saturate(125%);
+  background:
+   radial-gradient(46% 32% at 16% 6%, rgba(91,157,255,.6), transparent 60%),
+   radial-gradient(44% 30% at 88% 4%, rgba(177,139,255,.55), transparent 60%),
+   radial-gradient(54% 34% at 92% 60%, rgba(65,227,212,.4), transparent 62%),
+   radial-gradient(56% 36% at 6% 84%, rgba(255,122,192,.4), transparent 60%),
+   radial-gradient(50% 30% at 50% 40%, rgba(255,198,87,.16), transparent 60%),
+   linear-gradient(165deg,#0e1126,#0a0b14 65%)}
+.glass{background:var(--glass);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);
+  border:1px solid var(--rim);border-radius:24px;box-shadow:0 8px 30px rgba(0,0,0,.32),inset 0 1px 0 var(--rim2)}
+.glass-sm{background:var(--glass);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);
+  border:1px solid var(--rim);border-radius:17px;box-shadow:inset 0 1px 0 var(--rim2),0 4px 16px rgba(0,0,0,.2)}
+.pos{color:var(--green)} .neg{color:var(--red)}
+.wrap{padding:0 14px;padding-top:calc(8px + env(safe-area-inset-top))}
+.hdr{display:flex;align-items:center;gap:11px;margin:8px 0 14px}
+.anchor{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,rgba(91,157,255,.95),rgba(177,139,255,.95));
+  display:flex;align-items:center;justify-content:center;font-size:23px;box-shadow:0 8px 20px rgba(91,157,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+.hdr h1{font-size:20px;font-weight:800;letter-spacing:-.4px}
+.hdr .date{font-size:12px;color:var(--muted);margin-top:1px;font-weight:500}
+.seg{display:flex;gap:5px;padding:5px;border-radius:18px;margin-bottom:14px}
+.seg .s{flex:1;text-align:center;padding:11px 0;border-radius:14px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
+.seg .s.on{color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.24),rgba(255,255,255,.1));box-shadow:0 5px 15px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.42)}
+.balstrip{display:flex;align-items:center;padding:13px 16px;border-radius:18px;margin-bottom:13px;gap:8px}
+.balstrip .lk{font-size:13px;margin-right:4px}
+.balstrip .b{flex:1;text-align:center}
+.balstrip .b .l{font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.7px;font-weight:800}
+.balstrip .b .v{font-size:17px;font-weight:900;letter-spacing:-.4px;margin-top:2px}
+.balstrip .dv{width:1px;height:26px;background:var(--rim)}
+.wisdom{padding:13px 16px;border-radius:17px;font-style:italic;font-size:13px;font-weight:500;color:#fbeec6;margin-bottom:14px;display:flex;gap:9px;line-height:1.4}
+.wisdom .q{font-size:24px;line-height:.7;color:var(--amber);font-style:normal}
+.block{padding:16px;margin-bottom:14px}
+.bh{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.bh .t{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+.bh .t .sm{font-size:10px;color:var(--faint);font-weight:700}
+.bh .cnt{font-size:10.5px;color:var(--muted);font-weight:700;padding:3px 10px;border-radius:12px;background:var(--glass2);border:1px solid var(--rim)}
+.matrix{position:relative;width:100%;height:344px;border-radius:20px;overflow:hidden;border:1px solid var(--rim);
+  background:
+   radial-gradient(62% 60% at 100% 0%, rgba(255,107,125,.32), transparent 58%),
+   radial-gradient(62% 60% at 0% 0%, rgba(255,198,87,.28), transparent 58%),
+   radial-gradient(62% 60% at 100% 100%, rgba(91,157,255,.28), transparent 58%),
+   radial-gradient(62% 60% at 0% 100%, rgba(235,240,250,.07), transparent 58%),
+   rgba(255,255,255,.04)}
+.axis-v{position:absolute;left:50%;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.16);border-radius:2px}
+.axis-h{position:absolute;top:50%;left:8px;right:8px;height:2px;background:rgba(255,255,255,.16);border-radius:2px}
+.qc{position:absolute;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.3px;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.qc .em{font-size:13px}
+.qc .s{font-size:8px;font-weight:600;color:var(--faint);text-transform:none;letter-spacing:0}
+.q1{top:11px;right:12px;text-align:right;color:#ff8b98}
+.q2{top:11px;left:12px;color:#ffd07a}
+.q3{bottom:11px;right:12px;text-align:right;color:#86b8ff}
+.q4{bottom:11px;left:12px;color:var(--faint)}
+.dot{position:absolute;border-radius:50%;transform:translate(-50%,-50%);border:1.5px solid rgba(255,255,255,.55);
+  box-shadow:0 3px 11px rgba(0,0,0,.4),inset 0 1px 2px rgba(255,255,255,.5);cursor:pointer}
+.dot.r{background:radial-gradient(circle at 35% 30%,#ff9aa6,#ff5d6c)}
+.dot.a{background:radial-gradient(circle at 35% 30%,#ffd98a,#ffb340)}
+.dot.b{background:radial-gradient(circle at 35% 30%,#9bc2ff,#5b9dff)}
+.dot.g{background:radial-gradient(circle at 35% 30%,rgba(235,240,250,.7),rgba(235,240,250,.35))}
+.axl{position:absolute;font-size:8.5px;font-weight:900;letter-spacing:1.5px;color:var(--faint);text-transform:uppercase;pointer-events:none}
+.legend{display:flex;gap:11px;margin-top:13px;flex-wrap:wrap;justify-content:center}
+.lg{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--muted);font-weight:600}
+.lg .d{width:10px;height:10px;border-radius:50%;box-shadow:inset 0 1px 1px rgba(255,255,255,.5)}
+.mhint{text-align:center;font-size:10.5px;color:var(--faint);font-weight:600;margin-top:9px}
+.task{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:15px;margin-bottom:9px;cursor:pointer}
+.task .pdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 1px 1px rgba(255,255,255,.5)}
+.task .area{font-size:17px}
+.task .tx{font-size:14px;font-weight:600;flex:1;line-height:1.3}
+.task .pr{font-size:8.5px;font-weight:900;padding:3px 7px;border-radius:8px;letter-spacing:.4px}
+.task .chev{color:var(--faint);font-size:15px;font-weight:700}
+.pr.hi{background:rgba(255,107,125,.2);color:#ff9aa6} .pr.mi{background:rgba(255,198,87,.2);color:#ffd07a} .pr.lo{background:rgba(82,224,138,.18);color:#9ff0bd} .pr.none{background:var(--glass2);color:var(--faint)}
+.pdot.hi{background:var(--red)} .pdot.mi{background:var(--amber)} .pdot.lo{background:var(--green)} .pdot.none{background:var(--faint)}
+.addr{display:flex;align-items:center;gap:9px;padding:13px 14px;border:1.5px dashed var(--rim);border-radius:15px;color:var(--muted);font-size:12.5px;font-weight:700;margin-top:3px;cursor:pointer}
+.addr .p{width:22px;height:22px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.addr .badge{margin-left:auto;font-size:9px;color:#fff;font-weight:700;background:rgba(91,157,255,.4);padding:4px 9px;border-radius:10px;border:1px solid var(--rim);text-align:right;line-height:1.3}
+.cell{padding:11px 13px;border-radius:15px;margin-bottom:9px}
+.cell.today{border:1px solid rgba(91,157,255,.55);box-shadow:0 0 18px rgba(91,157,255,.26),inset 0 1px 0 rgba(255,255,255,.25)}
+.cell.past{opacity:.72}
+.cd{font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+.cd .td{color:#86b8ff}
+.ev{border-radius:11px;padding:8px 11px;margin-bottom:6px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:7px;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(91,157,255,.55));border:1px solid rgba(255,255,255,.2);line-height:1.3;word-break:break-word}
+.ev .t{font-weight:900;opacity:.95;font-size:10px;flex-shrink:0}
+.ev.rem{background:linear-gradient(135deg,rgba(177,139,255,.85),rgba(177,139,255,.5))}
+.ev:last-child{margin-bottom:0}
+.goal{padding:14px 15px;border-radius:16px;margin-bottom:11px}
+.goal:last-child{margin-bottom:0}
+.gh{display:flex;align-items:center;gap:9px;margin-bottom:3px;cursor:pointer}
+.gh .em{font-size:16px}
+.gh .gn{font-size:14px;font-weight:700;flex:1}
+.gh .gp{font-size:11.5px;font-weight:800;color:var(--muted)}
+.gh .gp b{color:var(--green)}
+.gbar{height:8px;border-radius:6px;background:rgba(0,0,0,.28);overflow:hidden;margin-top:9px;border:1px solid rgba(255,255,255,.08)}
+.gfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--green),var(--cyan));box-shadow:0 0 12px rgba(82,224,138,.5)}
+.gsteps{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.gstep{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:10px;background:var(--glass2);border:1px solid var(--rim);color:var(--muted);cursor:pointer}
+.gstep.done{color:#9ff0bd;border-color:rgba(82,224,138,.4);background:rgba(82,224,138,.14)}
+.gstep.done::before{content:'✓ ';font-weight:900}
+.gact{display:flex;gap:7px;margin-top:10px}
+.gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
+.gact button.danger{color:#ff9aa6}
+.fin-cards{display:flex;gap:10px;margin-bottom:14px}
+.fc{flex:1;padding:15px 13px;border-radius:19px;position:relative;overflow:hidden;text-align:center}
+.fc .glow{position:absolute;width:80px;height:80px;border-radius:50%;filter:blur(26px);opacity:.55;right:-12px;top:-18px}
+.fc.cash .glow{background:var(--green)} .fc.card .glow{background:var(--blue)} .fc.total .glow{background:var(--amber)}
+.fc .ic{font-size:22px;margin-bottom:8px;display:block}
+.fc .l{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.6px;font-weight:800}
+.fc .v{font-size:20px;font-weight:900;letter-spacing:-.6px;margin-top:3px}
+.daysum{display:flex;gap:11px;margin-bottom:14px}
+.daysum .ds{flex:1;padding:15px 16px;border-radius:18px}
+.daysum .ds .l{font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.6px;font-weight:800}
+.daysum .ds .v{font-size:23px;font-weight:900;margin-top:5px;letter-spacing:-.6px}
+.daysum .ds.today{border-color:rgba(255,198,87,.4)}
+.daysum .ds.today .v{color:var(--amber)}
+.daysum .ds .mini{font-size:10px;color:var(--muted);margin-top:8px;font-weight:600;line-height:1.6}
+.debt{display:flex;align-items:center;gap:11px;padding:13px 14px;border-radius:15px;margin-bottom:9px}
+.debt .nm{flex:1}
+.debt .nm .t{font-size:13.5px;font-weight:700}
+.debt .nm .due-pill{font-size:9px;font-weight:800;padding:3px 8px;border-radius:9px;background:rgba(255,107,125,.18);color:#ff9aa6;margin-top:5px;display:inline-block}
+.debt .nm .due-pill.ok{background:rgba(255,198,87,.16);color:#ffd07a}
+.debt .amt{font-size:16px;font-weight:900;color:#ff9aa6}
+.debt .x{color:var(--faint);font-size:17px;padding:0 2px;cursor:pointer}
+.debt.soon{border-color:rgba(255,107,125,.45);box-shadow:0 0 16px rgba(255,107,125,.12),inset 0 1px 0 var(--rim2)}
+.ldebt{padding:14px 15px;border-radius:16px;margin-bottom:11px}
+.ldebt .lh{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.ldebt .lh .em{font-size:16px}
+.ldebt .lh .t{font-size:13.5px;font-weight:700;flex:1}
+.ldebt .lh .p{font-size:11.5px;font-weight:800;color:var(--muted)}
+.ldebt .lh .x{color:var(--faint);font-size:16px;cursor:pointer}
+.ldebt .lbar{height:8px;border-radius:5px;background:rgba(0,0,0,.28);overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.ldebt .lfill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--amber),var(--pink));box-shadow:0 0 12px rgba(255,122,192,.4)}
+.ldebt .lm{font-size:10.5px;color:var(--faint);font-weight:600;margin-top:8px;display:flex;justify-content:space-between}
+.ldebt .lm b{color:var(--muted)}
+.recur{display:flex;align-items:center;gap:11px;padding:12px 13px;border-radius:14px;margin-bottom:8px}
+.recur .ic{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--glass2);border:1px solid var(--rim)}
+.recur .nm{flex:1;font-size:13.5px;font-weight:700}
+.recur .when{font-size:10px;color:var(--muted);font-weight:700;background:var(--glass2);padding:4px 9px;border-radius:10px;border:1px solid var(--rim)}
+.recur .amt{font-size:14.5px;font-weight:900;min-width:52px;text-align:right}
+.recur .x{color:var(--faint);font-size:16px;cursor:pointer;padding-left:2px}
+.fin-add{padding:17px;margin-bottom:14px}
+.ft{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:13px}
+.fin-row{display:flex;gap:9px;margin-bottom:10px}
+.fin-inp,.fin-sel{flex:1;padding:13px 14px;border-radius:13px;color:var(--txt);font-size:13.5px;font-weight:600;background:rgba(0,0,0,.28);border:1px solid var(--rim);-webkit-appearance:none}
+.fin-inp::placeholder{color:var(--faint)}
+.fin-btns{display:flex;gap:10px;margin-top:3px}
+.fbtn{flex:1;border-radius:14px;padding:14px;font-size:14px;font-weight:900;text-align:center;color:#fff;border:1px solid rgba(255,255,255,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.35);cursor:pointer}
+.fbtn.in{background:linear-gradient(135deg,rgba(82,224,138,.95),rgba(65,227,212,.85))}
+.fbtn.out{background:linear-gradient(135deg,rgba(255,107,125,.95),rgba(255,122,192,.8))}
+.fin-log{padding:17px}
+.fl{display:flex;align-items:center;gap:11px;padding:11px 2px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13.5px}
+.fl:last-child{border:none}
+.fl .amt{font-weight:900;min-width:74px;text-align:right;letter-spacing:-.3px}
+.fl .acc{font-size:15px}
+.fl .cm{flex:1;color:var(--muted);font-weight:600;font-size:13px}
+.fl .dt{font-size:11px;color:var(--faint);font-weight:600}
+.fl .x{color:var(--faint);cursor:pointer;font-size:15px;padding:0 2px}
+.empty{color:var(--faint);font-size:12.5px;padding:8px 2px;font-weight:600}
+.home-ind{width:135px;height:5px;border-radius:3px;background:rgba(255,255,255,.4);margin:14px auto 0}
+.page{display:none}.page.on{display:block}
+/* bottom sheet */
+#sheet-bg{position:fixed;inset:0;background:rgba(5,6,12,.55);backdrop-filter:blur(3px);z-index:40}
+#sheet{position:fixed;left:8px;right:8px;bottom:10px;z-index:41;padding:18px 18px calc(20px + env(safe-area-inset-bottom));border-radius:30px;max-width:544px;margin:0 auto}
+.grab{width:42px;height:5px;border-radius:3px;background:var(--rim2);margin:0 auto 16px}
+.stitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:3px}
+.ssub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;font-weight:600}
+.slider-row{margin-bottom:16px}
+.sl-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:9px}
+.sl-top .val{color:var(--blue)}
+input[type=range]{-webkit-appearance:none;width:100%;height:10px;border-radius:6px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);outline:none}
+input[type=range].imp{background:linear-gradient(90deg,var(--amber),var(--red))}
+input[type=range].urg{background:linear-gradient(90deg,var(--cyan),var(--blue))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.45);cursor:pointer}
+.sh-quad{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:14px;font-size:13px;font-weight:800;margin:14px 0}
+.sh-days{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.sh-day{background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 4px;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
+.sh-picker{display:flex;gap:8px;margin-bottom:12px}
+.sh-picker select{flex:1;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px;font-size:15px;-webkit-appearance:none;text-align:center}
+.sh-picker button{flex:1.1;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:12px;color:#fff;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
+.sh-actions{display:flex;gap:10px;margin-top:4px}
+.sh-btn{flex:1;padding:14px;border-radius:15px;font-size:13.5px;font-weight:800;text-align:center;border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer}
+.sh-btn.prime{background:linear-gradient(135deg,var(--blue),var(--violet));border-color:rgba(255,255,255,.3)}
+.sh-btn.danger{color:#ff9aa6}
+.sh-divider{height:1px;background:var(--rim);margin:14px 0}
+</style></head>
+<body>
+<div class="bgmesh"></div>
+<div class="wrap">
+  <div class="hdr">
+    <div class="anchor">⚓</div>
+    <div><h1>Капитанский мостик</h1><div class="date" id="updated"></div></div>
+  </div>
+  <div class="seg glass-sm" id="seg">
+    <div class="s on" data-p="plan">🧭 Планирование</div>
+    <div class="s" data-p="fin">💰 Финансы</div>
+  </div>
+
+  <div class="page on" id="page-plan">
+    <div class="balstrip glass-sm" id="balstrip"></div>
+    <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🎯 Важно — срочно</div><div class="cnt">приоритеты</div></div>
+      <div class="matrix" id="matrix"></div>
+      <div class="legend">
+        <div class="lg"><span class="d" style="background:var(--red)"></span>сам, сейчас</div>
+        <div class="lg"><span class="d" style="background:var(--amber)"></span>в календарь</div>
+        <div class="lg"><span class="d" style="background:var(--blue)"></span>делегировать</div>
+        <div class="lg"><span class="d" style="background:var(--faint)"></span>отказаться</div>
+      </div>
+      <div class="mhint">✋ тапни точку или задачу → оцени важность/срочность</div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">📋 Хаос — парковка</div><div class="cnt" id="chaos-cnt"></div></div>
+      <div id="chaos"></div>
+      <div class="addr" onclick="alert('Добавляй задачи через бота в Telegram — он спросит важность и срочность ⭐')"><span class="p">+</span> Новая задача<span class="badge">⭐ бот спросит<br>важность/срочность</span></div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">📅 Календарь</div><div class="cnt">эта неделя</div></div>
+      <div id="cal"></div>
+      <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🏔 Цели <span class="sm">декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
+      <div id="projects"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-fin">
+    <div class="fin-cards" id="fin-cards"></div>
+    <div class="daysum" id="daysum"></div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🔴 Текущие задолженности</div><div class="cnt" id="cur-cnt"></div></div>
+      <div id="cur-debts"></div>
+      <div class="addr" onclick="addDebt('current')"><span class="p">+</span> Добавить задолженность</div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🏦 Долгосрочные долги</div><div class="cnt" id="long-cnt"></div></div>
+      <div id="long-debts"></div>
+      <div class="addr" onclick="addDebt('long')"><span class="p">+</span> Добавить долгосрочный долг</div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">📆 Регулярные платежи</div><div class="cnt" id="pay-cnt"></div></div>
+      <div id="payments"></div>
+      <div class="addr" onclick="addPayment()"><span class="p">+</span> Добавить регулярный / разовый платёж</div>
+    </div>
+    <div class="fin-add glass">
+      <div class="ft">＋ операция</div>
+      <div class="fin-row">
+        <select class="fin-sel" id="fin-acc" style="max-width:140px"><option value="cash">💵 Наличные</option><option value="card" selected>💳 Карта</option></select>
+        <input class="fin-inp" id="fin-amt" type="number" inputmode="decimal" placeholder="Сумма €"/>
+      </div>
+      <div class="fin-row"><input class="fin-inp" id="fin-cm" type="text" placeholder="Комментарий"/></div>
+      <div class="fin-btns"><div class="fbtn in" onclick="finAdd(1)">+ приход</div><div class="fbtn out" onclick="finAdd(-1)">− расход</div></div>
+    </div>
+    <div class="fin-log glass">
+      <div class="ft">последние операции</div>
+      <div id="fin-log"></div>
+    </div>
+  </div>
+  <div class="home-ind"></div>
+</div>
+
+<script>
+const AREAS={work:"💼",health:"🌿",money:"💰",people:"👥",home:"🏠",self:"📚",other:"⚡"};
+const MONTHS=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const DOW=['пн','вт','ср','чт','пт','сб','вс'];
+let DATA=null;
+const openProjects=new Set();
+
+function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+async function api(path,body){await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});}
+async function load(){const r=await fetch('/api/data');DATA=await r.json();render();}
+
+// segmented control
+document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
+  document.querySelectorAll('#seg .s').forEach(x=>x.classList.remove('on'));
+  s.classList.add('on');
+  const p=s.dataset.p;
+  document.getElementById('page-plan').classList.toggle('on',p==='plan');
+  document.getElementById('page-fin').classList.toggle('on',p==='fin');
+  window.scrollTo(0,0);
+});
+
+function quadClass(imp,urg){
+  if(imp>=6&&urg>=6)return 'r';
+  if(imp>=6&&urg<6)return 'a';
+  if(imp<6&&urg>=6)return 'b';
+  return 'g';
+}
+function priClass(c){return c.importance||c.urgency?({r:'hi',a:'mi',b:'lo',g:'lo'})[quadClass(c.importance,c.urgency)]:'none';}
+function priLabel(c){
+  if(!c.importance&&!c.urgency)return ['none','ОЦЕНИТЬ'];
+  const q=quadClass(c.importance,c.urgency);
+  return {r:['hi','СЕЙЧАС'],a:['mi','ПЛАН'],b:['lo','ДЕЛЕГ'],g:['lo','ПОТОМ']}[q];
+}
+
+function render(){
+  const d=DATA;
+  document.getElementById('updated').textContent='Обновлено '+new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('wisdom').textContent=d.wisdom||'';
+  // balance read-only strip
+  document.getElementById('balstrip').innerHTML=
+    '<span class="lk">🔒</span>'+
+    '<div class="b"><div class="l">Наличные</div><div class="v '+((d.cash||0)<0?'neg':'pos')+'">'+eur(d.cash||0)+'</div></div>'+
+    '<div class="dv"></div>'+
+    '<div class="b"><div class="l">Карта</div><div class="v '+((d.card||0)<0?'neg':'pos')+'">'+eur(d.card||0)+'</div></div>'+
+    '<div class="dv"></div>'+
+    '<div class="b"><div class="l">Всего</div><div class="v">'+eur(d.balance||0)+'</div></div>';
+
+  const planned=new Set(d.cards.filter(c=>c.chaos_id).map(c=>c.chaos_id));
+  const open=d.chaos.filter(c=>!c.done);
+  const parking=open.filter(c=>!planned.has(c.id));
+  renderMatrix(open);
+  // chaos parking
+  document.getElementById('chaos-cnt').textContent=parking.length?parking.length+' задач':'пусто';
+  document.getElementById('chaos').innerHTML=parking.length?parking.map(c=>{
+    const[cls,lbl]=priLabel(c);
+    return '<div class="task glass-sm" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency})+')\'>'+
+      '<span class="pdot '+priClass(c)+'"></span><span class="area">'+(AREAS[c.area]||'⚡')+'</span>'+
+      '<span class="tx">'+esc(c.text)+'</span><span class="pr '+cls+'">'+lbl+'</span><span class="chev">›</span></div>';
+  }).join(''):'<div class="empty">парковка пуста — всё запланировано 🎉</div>';
+  // calendar
+  renderCal();
+  // goals
+  document.getElementById('goals-cnt').textContent=d.projects.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length+' в работе';
+  document.getElementById('projects').innerHTML=d.projects.length?d.projects.map(p=>{
+    const done=p.steps.filter(s=>s.done).length,total=p.steps.length;
+    const pct=total?Math.round(done/total*100):0;const opened=openProjects.has(p.id);
+    let h='<div class="goal glass-sm"><div class="gh" onclick="toggleProj('+p.id+')">'+
+      '<span class="em">'+(AREAS[p.area]||'⚡')+'</span><span class="gn">'+(opened?'▾ ':'▸ ')+esc(p.name)+'</span>'+
+      '<span class="gp"><b>'+pct+'%</b> · '+done+'/'+total+'</span></div>'+
+      '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div>';
+    if(opened){
+      h+='<div class="gsteps">'+p.steps.map(s=>'<span class="gstep '+(s.done?'done':'')+'" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>').join('')+'</div>'+
+        '<div class="gact"><button onclick="stepAdd('+p.id+')">+ шаг</button>'+
+        '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">✏️ имя</button>'+
+        '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑</button></div>';
+    } else if(total){
+      h+='<div class="gsteps">'+p.steps.slice(0,4).map(s=>'<span class="gstep '+(s.done?'done':'')+'">'+esc(s.text)+'</span>').join('')+'</div>';
+    }
+    h+='</div>';return h;
+  }).join(''):'<div class="empty">целей нет — скажи боту «добавь цель ...»</div>';
+
+  renderFinance();
+}
+
+function renderMatrix(open){
+  const m=document.getElementById('matrix');
+  const W=m.clientWidth||340,H=344,PAD=30;
+  let html='<div class="axis-v"></div><div class="axis-h"></div>'+
+    '<div class="qc q1"><span class="em">🔴</span>Сейчас<span class="s">важно·срочно</span></div>'+
+    '<div class="qc q2"><span class="em">🟡</span>Планируй<span class="s">важно·не срочно</span></div>'+
+    '<div class="qc q3"><span class="em">🔵</span>Делегируй<span class="s">не важно·срочно</span></div>'+
+    '<div class="qc q4"><span class="em">⚪</span>Удали<span class="s">не важно·не срочно</span></div>'+
+    '<div class="axl" style="bottom:5px;left:50%;transform:translateX(-50%)">срочность →</div>'+
+    '<div class="axl" style="left:4px;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:left">важность →</div>';
+  const rated=open.filter(c=>c.importance||c.urgency);
+  rated.forEach(c=>{
+    const x=PAD+(c.urgency/10)*(W-2*PAD);
+    const y=H-PAD-(c.importance/10)*(H-2*PAD);
+    const sz=13+Math.round((Math.max(c.importance,c.urgency)/10)*11);
+    html+='<div class="dot '+quadClass(c.importance,c.urgency)+'" style="left:'+x+'px;top:'+y+'px;width:'+sz+'px;height:'+sz+'px" '+
+      'onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency})+')\'></div>';
+  });
+  if(!rated.length){
+    html+='<div class="axl" style="left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;letter-spacing:0;color:var(--faint)">оцени задачи — точки появятся здесь</div>';
+  }
+  m.innerHTML=html;
+}
+
+function renderCal(){
+  const now=new Date();const dow=(now.getDay()+6)%7;
+  const mon=new Date(now);mon.setDate(now.getDate()-dow);
+  const todayISO=localISO(now);
+  const dates=new Set();
+  for(let i=0;i<7;i++){const dd=new Date(mon);dd.setDate(mon.getDate()+i);const ds=localISO(dd);if(ds>=todayISO)dates.add(ds);}
+  DATA.cards.forEach(c=>{if(c.date)dates.add(c.date);});
+  const sorted=[...dates].sort();
+  let html='';
+  for(const ds of sorted){
+    const dd=new Date(ds+'T00:00');
+    const evs=DATA.cards.filter(e=>e.date===ds);
+    const today=ds===todayISO;const past=ds<todayISO;
+    const inWeek=dd>=mon&&(dd-mon)<7*864e5;
+    const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(inWeek?'':' '+MONTHS[dd.getMonth()])+(past?' ⚠️':'')+(today?' · сегодня':'');
+    html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past?'past':'')+'">'+
+      '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
+      evs.map(e=>'<div class="ev '+(e.kind==='reminder'?'rem':'')+'" onclick=\'openTask('+JSON.stringify({kind:e.kind,id:e.id,text:e.text})+')\'>'+
+        (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+'</div>').join('')+'</div>';
+  }
+  document.getElementById('cal').innerHTML=html||'<div class="empty">на этой неделе пусто</div>';
+}
+
+function renderFinance(){
+  const d=DATA;
+  document.getElementById('fin-cards').innerHTML=
+    '<div class="fc cash glass"><span class="glow"></span><span class="ic">💵</span><div class="l">Нал</div><div class="v '+((d.cash||0)<0?'neg':'pos')+'">'+eur(d.cash||0)+'</div></div>'+
+    '<div class="fc card glass"><span class="glow"></span><span class="ic">💳</span><div class="l">Карта</div><div class="v '+((d.card||0)<0?'neg':'pos')+'">'+eur(d.card||0)+'</div></div>'+
+    '<div class="fc total glass"><span class="glow"></span><span class="ic">👛</span><div class="l">Всего</div><div class="v">'+eur(d.balance||0)+'</div></div>';
+  // day summary
+  const st=d.spend_today||[],sw=d.spend_week||[];
+  const sumT=st.reduce((a,b)=>a+b.amount,0),sumW=sw.reduce((a,b)=>a+b.amount,0);
+  const tlist=st.length?st.map(s=>'• '+esc(s.title)+' — '+eur(s.amount)).join('<br>'):'нет платежей';
+  const wnames=[...new Set(sw.map(s=>s.title))].slice(0,4).join(' · ')||'нет платежей';
+  document.getElementById('daysum').innerHTML=
+    '<div class="ds today glass"><div class="l">📅 сегодня к оплате</div><div class="v">'+eur(sumT)+'</div><div class="mini">'+tlist+'</div></div>'+
+    '<div class="ds glass"><div class="l">🗓 ближайшие 7 дней</div><div class="v">'+eur(sumW)+'</div><div class="mini">'+esc(wnames)+'</div></div>';
+  // debts
+  const cur=(d.debts||[]).filter(x=>x.kind==='current'),lng=(d.debts||[]).filter(x=>x.kind==='long');
+  document.getElementById('cur-cnt').textContent=cur.length?cur.length+' · '+eur(cur.reduce((a,b)=>a+b.total,0)):'нет';
+  document.getElementById('cur-debts').innerHTML=cur.length?cur.map(x=>{
+    let pill='',soon='';
+    if(x.due_date){const days=Math.ceil((new Date(x.due_date)-new Date())/864e5);
+      soon=(days<=5)?'soon':'';pill='<span class="due-pill '+(days<=5?'':'ok')+'">'+(days<0?'просрочено':((days<=5?'⏳ ':'')+'до '+fmtDate(x.due_date)+' · '+days+' дн'))+'</span>';}
+    return '<div class="debt glass-sm '+soon+'"><div class="nm"><div class="t">'+esc(x.name)+'</div>'+pill+'</div>'+
+      '<div class="amt">'+eur(x.total)+'</div><span class="x" onclick="delDebt('+x.id+')">×</span></div>';
+  }).join(''):'<div class="empty">задолженностей нет 👍</div>';
+  document.getElementById('long-cnt').textContent=lng.length||'нет';
+  document.getElementById('long-debts').innerHTML=lng.length?lng.map(x=>{
+    const pct=x.total?Math.round(x.paid/x.total*100):0;
+    return '<div class="ldebt glass-sm"><div class="lh"><span class="em">'+(x.icon||'🏦')+'</span><span class="t">'+esc(x.name)+'</span>'+
+      '<span class="p">'+pct+'%</span><span class="x" onclick="delDebt('+x.id+')">×</span></div>'+
+      '<div class="lbar"><div class="lfill" style="width:'+pct+'%"></div></div>'+
+      '<div class="lm"><span>выплачено <b>'+eur(x.paid)+'</b> из '+eur(x.total)+'</span>'+(x.monthly?'<span>'+eur(x.monthly)+'/мес</span>':'')+'</div></div>';
+  }).join(''):'<div class="empty">долгосрочных долгов нет</div>';
+  // payments
+  const pays=d.payments||[];
+  const monthly=pays.filter(p=>p.kind==='recurring'&&p.recur==='monthly').reduce((a,b)=>a+b.amount,0);
+  document.getElementById('pay-cnt').textContent=pays.length?pays.length+' · '+eur(monthly)+'/мес':'нет';
+  document.getElementById('payments').innerHTML=pays.length?pays.map(p=>{
+    let when=p.kind==='planned'?fmtDate(p.date):(p.recur==='weekly'?'каждый '+DOW[(p.day||0)%7]:p.day+' числа');
+    return '<div class="recur glass-sm"><div class="ic">'+(p.icon||'💸')+'</div><div class="nm">'+esc(p.title)+'</div>'+
+      '<div class="when">'+when+'</div><div class="amt">'+eur(p.amount)+'</div><span class="x" onclick="delPayment('+p.id+')">×</span></div>';
+  }).join(''):'<div class="empty">платежей нет</div>';
+  // log
+  const log=d.fin_log||[];
+  document.getElementById('fin-log').innerHTML=log.length?log.map(r=>{
+    const a=r.amount||0;const acc=r.account==='cash'?'💵':'💳';
+    const dt=(r.created_at||'').slice(5,10).replace('-','.');
+    return '<div class="fl"><span class="amt '+(a>=0?'pos':'neg')+'">'+(a>=0?'+':'−')+Math.abs(a).toLocaleString('ru')+' €</span>'+
+      '<span class="acc">'+acc+'</span><span class="cm">'+esc(r.comment||'')+'</span><span class="dt">'+dt+'</span>'+
+      '<span class="x" onclick="finDel('+r.id+')">×</span></div>';
+  }).join(''):'<div class="empty">операций пока нет</div>';
+}
+function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');return d.getDate()+' '+MONTHS[d.getMonth()];}
+
+// ─── project actions ───
+function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
+async function stepToggle(id){await api('/api/step_toggle',{id});load();}
+async function stepAdd(pid){const t=prompt('Новый шаг:');if(t&&t.trim()){await api('/api/step_add',{project_id:pid,text:t.trim()});load();}}
+async function projRename(id,old){const t=prompt('Название цели:',old);if(t&&t.trim()){await api('/api/proj_rename',{id,name:t.trim()});load();}}
+async function projDel(id,name){if(confirm('Удалить цель «'+name+'»?')){await api('/api/proj_delete',{id});load();}}
+
+// ─── finance actions ───
+async function finAdd(sign){
+  const amt=parseFloat(document.getElementById('fin-amt').value);
+  if(!amt||isNaN(amt)){document.getElementById('fin-amt').focus();return;}
+  await api('/api/finance_add',{amount:Math.abs(amt)*sign,account:document.getElementById('fin-acc').value,comment:document.getElementById('fin-cm').value});
+  document.getElementById('fin-amt').value='';document.getElementById('fin-cm').value='';load();
+}
+async function finDel(id){if(confirm('Удалить операцию?')){await api('/api/finance_delete',{id});load();}}
+async function addDebt(kind){
+  const name=prompt(kind==='long'?'Долгосрочный долг — название:':'Задолженность — название:');
+  if(!name||!name.trim())return;
+  const total=parseFloat(prompt('Сумма €:'))||0;
+  if(kind==='long'){
+    const paid=parseFloat(prompt('Уже выплачено €:','0'))||0;
+    const monthly=parseFloat(prompt('Платёж в месяц € (можно пусто):','0'))||0;
+    await api('/api/debt_add',{name:name.trim(),kind:'long',total,paid,monthly,icon:'🏦'});
+  } else {
+    const due=prompt('Срок оплаты ГГГГ-ММ-ДД (можно пусто):','');
+    await api('/api/debt_add',{name:name.trim(),kind:'current',total,due_date:due&&due.trim()?due.trim():null,icon:'🔴'});
+  }
+  load();
+}
+async function delDebt(id){if(confirm('Удалить?')){await api('/api/debt_delete',{id});load();}}
+async function addPayment(){
+  const title=prompt('Платёж — название:');
+  if(!title||!title.trim())return;
+  const amount=parseFloat(prompt('Сумма €:'))||0;
+  const isRec=confirm('Регулярный платёж?\nОК — регулярный (каждый месяц)\nОтмена — разовый запланированный');
+  const icon=prompt('Иконка (эмодзи):','💸')||'💸';
+  if(isRec){
+    const day=parseInt(prompt('Какого числа каждый месяц? (1-31):','1'))||1;
+    await api('/api/payment_add',{title:title.trim(),amount,kind:'recurring',recur:'monthly',day,icon});
+  } else {
+    const date=prompt('Дата ГГГГ-ММ-ДД:','');
+    await api('/api/payment_add',{title:title.trim(),amount,kind:'planned',date:date&&date.trim()?date.trim():null,icon});
+  }
+  load();
+}
+async function delPayment(id){if(confirm('Удалить платёж?')){await api('/api/payment_delete',{id});load();}}
+
+// ─── bottom sheet (rate / move) ───
+function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();const b=document.getElementById('sheet-bg');if(b)b.remove();}
+function openTask(t){
+  closeSheet();
+  const now=new Date();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  let dayBtns='';
+  for(let i=0;i<8;i++){const dd=new Date(now);dd.setDate(now.getDate()+i);const ds=localISO(dd);
+    const lbl=i===0?'сегодня':i===1?'завтра':DOW[(dd.getDay()+6)%7]+' '+dd.getDate();
+    dayBtns+='<button class="sh-day" data-date="'+ds+'">'+lbl+'</button>';}
+  let rateBlock='';
+  if(t.kind==='chaos'){
+    const imp=t.imp||5,urg=t.urg||5;
+    rateBlock='<div class="slider-row"><div class="sl-top"><span>🔴 Важность</span><span class="val" id="imp-val">'+imp+' / 10</span></div>'+
+      '<input type="range" class="imp" id="imp" min="0" max="10" value="'+imp+'"></div>'+
+      '<div class="slider-row"><div class="sl-top"><span>⚡ Срочность</span><span class="val" id="urg-val">'+urg+' / 10</span></div>'+
+      '<input type="range" class="urg" id="urg" min="0" max="10" value="'+urg+'"></div>'+
+      '<div class="sh-quad" id="quad"></div>'+
+      '<div class="sh-actions"><button class="sh-btn prime" id="rate-save">💾 Сохранить оценку</button></div>'+
+      '<div class="sh-divider"></div>';
+  }
+  sheet.innerHTML='<div class="grab"></div><div class="stitle">'+esc(t.text||'')+'</div>'+
+    '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'перенести / закрыть')+'</div>'+
+    rateBlock+
+    '<div class="sh-days">'+dayBtns+'</div>'+
+    '<div class="sh-picker"><select id="sh-month">'+MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===now.getMonth()?'selected':'')+'>'+m+'</option>').join('')+'</select>'+
+    '<select id="sh-day">'+Array.from({length:31},(_,i)=>'<option value="'+(i+1)+'" '+(i+1===now.getDate()?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select>'+
+    '<button id="sh-go">📅 в день</button></div>'+
+    '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
+    '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>';
+  document.body.appendChild(sheet);
+
+  if(t.kind==='chaos'){
+    const impEl=sheet.querySelector('#imp'),urgEl=sheet.querySelector('#urg'),quad=sheet.querySelector('#quad');
+    function upd(){
+      const i=+impEl.value,u=+urgEl.value;
+      sheet.querySelector('#imp-val').textContent=i+' / 10';
+      sheet.querySelector('#urg-val').textContent=u+' / 10';
+      const q=(i>=6&&u>=6)?['🔴 Делай сейчас — важно и срочно','rgba(255,107,125,.16)','rgba(255,107,125,.4)','#ff9aa6']
+        :(i>=6&&u<6)?['🟡 Запланируй — важно, не срочно','rgba(255,198,87,.16)','rgba(255,198,87,.4)','#ffd07a']
+        :(i<6&&u>=6)?['🔵 Делегируй — не важно, срочно','rgba(91,157,255,.16)','rgba(91,157,255,.4)','#86b8ff']
+        :['⚪ Может, удалить? — не важно и не срочно','rgba(235,240,250,.08)','var(--rim)','var(--muted)'];
+      quad.textContent=q[0];quad.style.background=q[1];quad.style.borderColor=q[2];quad.style.color=q[3];
+    }
+    impEl.oninput=upd;urgEl.oninput=upd;upd();
+    sheet.querySelector('#rate-save').onclick=async()=>{await api('/api/rate',{id:t.id,importance:+impEl.value,urgency:+urgEl.value});closeSheet();load();};
+  }
+  sheet.querySelectorAll('.sh-day').forEach(b=>b.onclick=async()=>{await api('/api/move',{kind:t.kind,id:t.id,date:b.dataset.date});closeSheet();load();});
+  sheet.querySelector('#sh-go').onclick=async()=>{
+    const m=+sheet.querySelector('#sh-month').value;let day=+sheet.querySelector('#sh-day').value;
+    let y=now.getFullYear();const last=new Date(y,m+1,0).getDate();if(day>last)day=last;
+    let target=new Date(y,m,day);const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    if(target<todayMid)target=new Date(y+1,m,day);
+    await api('/api/move',{kind:t.kind,id:t.id,date:localISO(target)});closeSheet();load();
+  };
+  sheet.querySelector('#sh-done').onclick=async()=>{await api('/api/complete',{kind:t.kind,id:t.id});closeSheet();load();};
+  sheet.querySelector('#sh-del').onclick=async()=>{
+    if(t.kind==='chaos'&&!confirm('Удалить задачу навсегда?'))return;
+    await api('/api/unplan',{kind:t.kind,id:t.id});closeSheet();load();
+  };
+}
+
+load();
+setInterval(()=>{if(!document.getElementById('sheet'))load();},8000);
+</script></body></html>"""
+
+
+LOCK_PAGE = r"""<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>•</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
+#dot{position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;
+  box-shadow:0 0 22px 6px rgba(255,255,255,.55);animation:pulse 2.6s ease-in-out infinite;z-index:1}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.5);opacity:1}}
+#c{position:fixed;inset:0;z-index:2;touch-action:none}
+#hint{position:fixed;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));text-align:center;color:rgba(255,255,255,.20);
+  font-family:-apple-system,sans-serif;font-size:13px;font-weight:500;letter-spacing:.5px;z-index:1;transition:opacity 1s;pointer-events:none}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;z-index:3;pointer-events:none;transition:opacity .45s}
+</style></head>
+<body>
+<div id="dot"></div>
+<canvas id="c"></canvas>
+<div id="hint">обведи точку</div>
+<div id="flash"></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let DPR=Math.max(1,window.devicePixelRatio||1);
+function resize(){cv.width=innerWidth*DPR;cv.height=innerHeight*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+resize();addEventListener('resize',resize);
+let drawing=false,pts=[],busy=false;
+function pen(){ctx.strokeStyle='#ff3b30';ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.shadowColor='rgba(255,59,48,.9)';ctx.shadowBlur=14;}
+function clearC(){ctx.clearRect(0,0,cv.width,cv.height);}
+function pos(e){const t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY};}
+function start(e){if(busy)return;e.preventDefault();drawing=true;pts=[];clearC();pen();
+  const p=pos(e);pts.push([p.x,p.y]);ctx.beginPath();ctx.moveTo(p.x,p.y);
+  const h=document.getElementById('hint');h.style.opacity=0;}
+function move(e){if(!drawing||busy)return;e.preventDefault();const p=pos(e);
+  pts.push([p.x,p.y]);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x,p.y);}
+async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
+  if(pts.length<10){fade();return;}
+  busy=true;
+  try{
+    const r=await fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({points:pts})});
+    const j=await r.json();
+    if(j.ok){success();return;}
+  }catch(_){}
+  busy=false;fade();
+}
+function fade(){let a=1;const id=setInterval(()=>{a-=0.08;ctx.clearRect(0,0,cv.width,cv.height);
+  if(a<=0){clearInterval(id);return;}ctx.save();ctx.globalAlpha=a;pen();ctx.beginPath();
+  pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();ctx.restore();},28);}
+function success(){const f=document.getElementById('flash');const d=document.getElementById('dot');
+  d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
+  f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
+cv.addEventListener('pointerdown',start);cv.addEventListener('pointermove',move);cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+cv.addEventListener('touchstart',start,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',end,{passive:false});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+</script></body></html>"""
+
+
+def _set_session(payload):
+    if is_circle((payload or {}).get("points") or []):
+        return {"ok": True}
+    return {"ok": False}
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def _authed(self):
+        cookie = self.headers.get("Cookie", "") or ""
+        for part in cookie.split(";"):
+            k, _, v = part.strip().partition("=")
+            if k == "dash" and v == SESSION_TOKEN:
+                return True
+        return False
+
+    def _send(self, body, ctype, extra_headers=None):
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", len(body))
+        for h, v in (extra_headers or []):
+            self.send_header(h, v)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        if not self._authed():
+            # любой путь без сессии → экран-замок (рисуй круг)
+            self._send(LOCK_PAGE.encode(), "text/html; charset=utf-8")
+            return
+        if self.path == "/api/data":
+            self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+        else:
+            self._send(PAGE.encode(), "text/html; charset=utf-8")
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        payload = json.loads(self.rfile.read(length)) if length else {}
+
+        # разблокировка кругом — единственный POST без сессии
+        if self.path == "/api/unlock":
+            result = _set_session(payload)
+            extra = None
+            if result.get("ok"):
+                extra = [("Set-Cookie",
+                          f"dash={SESSION_TOKEN}; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly")]
+            self._send(json.dumps(result).encode(), "application/json; charset=utf-8", extra)
+            return
+
+        if not self._authed():
+            self.send_response(403)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
+        routes = {
+            "/api/move": api_move, "/api/unplan": api_unplan, "/api/complete": api_complete,
+            "/api/rate": api_rate,
+            "/api/finance_add": api_finance_add, "/api/finance_delete": api_finance_delete,
+            "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,
+            "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
+        }
+        if self.path in routes:
+            result = routes[self.path](payload)
+        elif self.path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
+                           "/api/proj_rename", "/api/proj_delete"):
+            result = api_steps(self.path, payload)
+        else:
+            result = {"ok": False}
+        self._send(json.dumps(result).encode(), "application/json; charset=utf-8")
+
+
+if __name__ == "__main__":
+    print(f"Дашборд: http://localhost:{PORT}")
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

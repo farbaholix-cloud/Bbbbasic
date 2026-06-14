@@ -1,0 +1,1734 @@
+import os
+import re
+import sqlite3
+import logging
+import tempfile
+import asyncio
+import calendar as _calendar
+from datetime import datetime, time, date, timedelta
+from dotenv import load_dotenv
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
+    ContextTypes, filters, JobQueue
+)
+
+load_dotenv()
+TOKEN = os.getenv("BOT_TOKEN", "")
+DB = os.path.join(os.path.dirname(__file__), "friedman.db")
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
+
+# ─── Данные ────────────────────────────────────────────────────────────────────
+
+AREAS = {
+    "work":   "💼 работа",
+    "health": "🌿 здоровье",
+    "money":  "💰 деньги",
+    "people": "👥 люди",
+    "home":   "🏠 дом",
+    "self":   "📚 саморазвитие",
+    "other":  "⚡ другое",
+}
+
+# Ключевые слова для автоматической категоризации
+AREA_KEYWORDS = {
+    "health": ["врач", "доктор", "больниц", "аптек", "таблетк", "здоровь", "тромбоз", "болит",
+               "зуб", "стоматол", "анализ", "медицин", "спорт", "бег", "тренировк", "сон",
+               "питани", "диет", "страховк"],
+    "money":  ["деньги", "деньг", "евро", "€", "$", "заплатить", "оплатить", "купить", "банк",
+               "счёт", "счет", "долг", "кредит", "бюджет", "налог", "доход", "расход", "перевод"],
+    "people": ["позвони", "написать", "встреч", "свидани", "друг", "мама", "папа", "брат",
+               "сестра", "жена", "муж", "ребён", "детям", "роберт", "стефан", "руслан"],
+    "home":   ["дом", "квартир", "ремонт", "уборк", "кухн", "ванн", "кот", "кошк", "еда",
+               "готовить", "магазин", "продукт", "окн", "дверь", "сантехник", "мебель"],
+    "self":   ["книг", "курс", "учи", "прочитать", "посмотреть", "изучить", "развитие",
+               "медитац", "дневник", "план", "цел", "мечт"],
+    "work":   ["проект", "работ", "клиент", "встреч", "презентац", "дедлайн", "задач",
+               "farbaholix", "граффити", "carhartt", "south bags", "партнёр", "спонсор",
+               "письмо", "договор", "счёт"],
+}
+
+PRIORITY_KEYWORDS = {
+    "high": ["срочно", "важно", "сегодня", "обязательно", "критично", "горит", "asap",
+             "немедленно", "прямо сейчас", "не забыть", "!"],
+    "low":  ["когда-нибудь", "потом", "не срочно", "когда будет время", "в будущем", "можно"],
+}
+
+
+def db():
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    with db() as conn:
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS chaos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL,
+            area TEXT DEFAULT 'other',
+            priority TEXT DEFAULT 'mid',
+            done INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            area TEXT DEFAULT 'work',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS steps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER REFERENCES projects(id),
+            text TEXT NOT NULL,
+            done INTEGER DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL,
+            area TEXT DEFAULT 'work',
+            period TEXT DEFAULT 'week',
+            done INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT, date TEXT, time TEXT, chaos_id INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS finance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            amount REAL NOT NULL,
+            comment TEXT,
+            account TEXT DEFAULT 'card',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            due_at TEXT NOT NULL,
+            text TEXT NOT NULL,
+            sent INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            note TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            number TEXT,
+            date TEXT,
+            recipient TEXT,
+            customer_no TEXT,
+            description TEXT,
+            total REAL,
+            source TEXT DEFAULT 'bot',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role TEXT,
+            text TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS bridge (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            period TEXT,
+            done_text TEXT,
+            missed_text TEXT,
+            insight_text TEXT,
+            next_text TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS debts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            kind TEXT DEFAULT 'current',
+            total REAL DEFAULT 0,
+            paid REAL DEFAULT 0,
+            due_date TEXT,
+            monthly REAL DEFAULT 0,
+            icon TEXT DEFAULT '💳',
+            note TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            amount REAL NOT NULL,
+            account TEXT DEFAULT 'card',
+            kind TEXT DEFAULT 'recurring',
+            recur TEXT DEFAULT 'monthly',
+            day INTEGER DEFAULT 1,
+            date TEXT,
+            icon TEXT DEFAULT '💸',
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+    with db() as conn:
+        fcols = [r[1] for r in conn.execute("PRAGMA table_info(finance)").fetchall()]
+        if "account" not in fcols:
+            conn.execute("ALTER TABLE finance ADD COLUMN account TEXT DEFAULT 'card'")
+            conn.execute("UPDATE finance SET account='card' WHERE account IS NULL")
+        ccols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
+        if "importance" not in ccols:
+            conn.execute("ALTER TABLE chaos ADD COLUMN importance INTEGER DEFAULT 0")
+        if "urgency" not in ccols:
+            conn.execute("ALTER TABLE chaos ADD COLUMN urgency INTEGER DEFAULT 0")
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(invoices)").fetchall()]
+        for col, ddl in [("date", "TEXT"), ("customer_no", "TEXT"),
+                         ("description", "TEXT"), ("source", "TEXT DEFAULT 'bot'")]:
+            if col not in cols:
+                conn.execute(f"ALTER TABLE invoices ADD COLUMN {col} {ddl}")
+
+
+# ─── Умная категоризация ───────────────────────────────────────────────────────
+
+def detect_area(text: str) -> str:
+    t = text.lower()
+    scores = {area: 0 for area in AREA_KEYWORDS}
+    for area, keywords in AREA_KEYWORDS.items():
+        for kw in keywords:
+            if kw in t:
+                scores[area] += 1
+    best = max(scores, key=scores.get)
+    return best if scores[best] > 0 else "other"
+
+
+def detect_priority(text: str) -> str:
+    t = text.lower()
+    for kw in PRIORITY_KEYWORDS["high"]:
+        if kw in t:
+            return "high"
+    for kw in PRIORITY_KEYWORDS["low"]:
+        if kw in t:
+            return "low"
+    return "mid"
+
+
+def detect_intent(text: str) -> str:
+    t = text.lower().strip()
+    if any(w in t for w in ["список", "покажи", "что у меня", "что есть", "обзор", "итого"]):
+        return "list"
+    if any(w in t for w in ["статистик", "сколько", "прогресс", "как дела"]):
+        return "stats"
+    if any(w in t for w in ["проект", "задач по проекту", "шаги"]):
+        return "projects"
+    if any(w in t for w in ["цел", "хочу достичь", "планирую"]):
+        return "goals"
+    if any(w in t for w in ["разбор", "итоги", "мостик", "что сделал"]):
+        return "bridge"
+    if any(w in t for w in ["готово", "сделал", "выполнил", "закрыл", "✅"]):
+        return "done_hint"
+    return "add"
+
+
+def area_emoji(area: str) -> str:
+    return AREAS.get(area, "⚡").split(" ")[0]
+
+
+def priority_text(p: str) -> str:
+    return {"high": "срочно 🔴", "mid": "обычный", "low": "не срочно 🟢"}.get(p, "")
+
+
+def friendly_time() -> str:
+    h = datetime.now().hour
+    if h < 6:
+        return "ночью"
+    if h < 12:
+        return "утром"
+    if h < 17:
+        return "днём"
+    if h < 21:
+        return "вечером"
+    return "поздно вечером"
+
+
+# ─── Обработка голоса ─────────────────────────────────────────────────────────
+
+async def transcribe_voice(file_path: str) -> str:
+    try:
+        import whisper
+        model = whisper.load_model("tiny")
+        result = model.transcribe(file_path, language="ru")
+        return result["text"].strip()
+    except Exception as e:
+        log.error(f"Whisper error: {e}")
+        return ""
+
+
+# ─── Клавиатуры ───────────────────────────────────────────────────────────────
+
+def area_kbd(prefix: str) -> InlineKeyboardMarkup:
+    rows = []
+    items = list(AREAS.items())
+    for i in range(0, len(items), 2):
+        row = []
+        for k, v in items[i:i+2]:
+            row.append(InlineKeyboardButton(v, callback_data=f"{prefix}:{k}"))
+        rows.append(row)
+    return InlineKeyboardMarkup(rows)
+
+
+def confirm_kbd(item_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ закрыть", callback_data=f"done:{item_id}"),
+        InlineKeyboardButton("🗑 удалить", callback_data=f"del:{item_id}"),
+        InlineKeyboardButton("✏️ область", callback_data=f"rezone:{item_id}"),
+    ]])
+
+
+MAIN_KBD = ReplyKeyboardMarkup(
+    [[KeyboardButton("📋 Хаос"), KeyboardButton("🧾 Архив инвойсов")]],
+    resize_keyboard=True, is_persistent=True
+)
+
+
+def list_filter_kbd() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("все", callback_data="list:all"),
+         InlineKeyboardButton("💼", callback_data="list:work"),
+         InlineKeyboardButton("🌿", callback_data="list:health"),
+         InlineKeyboardButton("💰", callback_data="list:money")],
+        [InlineKeyboardButton("👥", callback_data="list:people"),
+         InlineKeyboardButton("🏠", callback_data="list:home"),
+         InlineKeyboardButton("📚", callback_data="list:self"),
+         InlineKeyboardButton("⚡", callback_data="list:other")],
+        [InlineKeyboardButton("✅ только открытые", callback_data="list:open")],
+    ])
+
+
+# ─── Сохранение и красивый ответ ──────────────────────────────────────────────
+
+def save_item(text: str, area: str, priority: str, importance: int = 0, urgency: int = 0) -> int:
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
+            (text, area, priority, importance, urgency)
+        )
+        return cur.lastrowid
+
+
+CONFIRM_PHRASES = [
+    "Записала ✍️", "Поймала! ✍️", "Готово, зафиксировала ✅",
+    "Отлично, взяла в работу 📌", "Уже в списке 🗂",
+]
+
+import random
+
+def confirm_phrase() -> str:
+    return random.choice(CONFIRM_PHRASES)
+
+
+async def save_and_reply(update: Update, text: str, source: str = "text"):
+    area = detect_area(text)
+    priority = detect_priority(text)
+    item_id = save_item(text, area, priority)
+
+    icon = area_emoji(area)
+    pri = priority_text(priority)
+
+    phrase = confirm_phrase()
+    msg = f"{phrase}\n\n*{text}*\n{icon} {AREAS[area]} · {pri}"
+
+    if source == "voice":
+        msg = f"🎤 Услышала: _{text}_\n\n{msg[msg.index(chr(10))+1:]}"
+
+    await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=confirm_kbd(item_id))
+
+
+# ─── Мозг: Claude CLI ─────────────────────────────────────────────────────────
+
+import subprocess
+import json as jsonlib
+
+CLAUDE_BIN = os.path.expanduser("~/.local/bin/claude")
+
+# Загрузка OAuth-токена Claude (для работы на сервере без интерактивного входа)
+_token_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".claude_token")
+if os.path.exists(_token_file):
+    with open(_token_file) as _tf:
+        _tok = _tf.read().strip()
+    if _tok:
+        os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = _tok
+
+SECRETARY_PROMPT = """Ты — личный секретарь-ассистент. Тёплый, дружелюбный, краткий. Общаешься на «ты», по-русски.
+Твой хозяин — стрит-арт художник (бренд FARBAHOLIX) в Германии. Он строит жизнь по системе планирования Фридмана (материализация хаоса, проекты, цели, капитанский мостик).
+
+Твои навыки:
+1. ЗАДАЧИ: задача/идея/тревога в сообщении → action save. Сделал что-то → поздравь, action done с id из контекста. Для save ОБЯЗАТЕЛЬНО оцени по матрице Фридмана два числа 0-10: importance (важность — влияет ли на цели/деньги/здоровье/репутацию) и urgency (срочность — горит ли по времени). Оцени сам по смыслу; если задача явно значимая, но непонятно насколько горит (или наоборот) — задай ОДИН короткий уточняющий вопрос в reply («Насколько это срочно — на этой неделе или просто в планах?») и всё равно проставь свою оценку. priority выведется из них автоматически.
+1а. ЦЕЛИ/ПРОЕКТЫ: если человек говорит слово «цель» («добавь цель...», «новая цель...», «цель — ...») или называет большое дело (не разовую задачу: «хочу выпустить книгу», «сделать сайт») → ОБЯЗАТЕЛЬНО action project (НЕ save!): придумай 4-8 конкретных шагов (декомпозиция по Фридману) и перечисли их в reply. Если человек сообщает о прогрессе по существующему проекту («продвинулся по книге», «сделал эскиз для выставки») → action progress с project_id из контекста и count (сколько шагов закрыть, обычно 1). Не создавай проект повторно если он уже есть в контексте.
+2. ДЕНЬГИ: «получил 300 от Роберта» → action finance amount=300. «потратил 40 на баллоны» → amount=-40. Поле account: "cash" если наличные/кэш/cash, "card" если карта/перевод/счёт/банк/Überweisung (по умолчанию card). Спросят баланс — он в контексте (наличные, карта, всего).
+3. НАПОМИНАНИЯ: «напомни завтра в 9 про страховку» → action remind, when в формате YYYY-MM-DD HH:MM. Сегодня: {today}.
+4. КОНТАКТЫ: важная информация о человеке («Роберт должен 500», «Стефан — контакт по фасадам») → action contact. Спросят про человека — собери всё из контекста.
+5. ПИСЬМА НА НЕМЕЦКОМ: попросят письмо/ответ для немецкого заказчика, фирмы, ведомства — напиши готовый текст письма на немецком прямо в reply (профессиональный тон), плюс 1 строка по-русски о чём оно.
+6. СМЕТЫ: «стена 6 на 3, сколько краски/цена» → посчитай: грунт ~1л/5м², баллон 400мл ~1-1.5м²/слой, обычно 2 слоя фон + детали. Работа стрит-арт в Германии ориентир 50-150€/м² по сложности.
+6в. СЧЕТА (RECHNUNG): «выстави счёт», «сделай инвойс», «Rechnung для X на сумму Y за работу Z» -> action invoice. Извлеки: recipient (получатель: название + адрес, каждая часть с новой строки через \n), items (позиции: desc — описание работы НА НЕМЕЦКОМ профессионально с правильными умляутами ä ö ü ß, напр. «Künstlerische Gestaltung der Fassade ...», price — сумма в евро числом), salutation (обращение если знаешь: «Frau Kluegling» / «Herr Schmidt»), customer_no (если назван). Если не хватает получателя или суммы — спроси одним вопросом, не выдумывай.
+7. Отвечай по-человечески: коротко, тепло. Максимум один уточняющий вопрос.
+8. Не выдумывай данные которых нет в контексте.
+
+Области: work, health, money, people, home, self, other. Приоритеты: high, mid, low.
+
+ВСЕГДА отвечай строго в JSON:
+{"reply": "ответ человеку", "actions": [
+ {"type": "save", "text": "...", "area": "...", "priority": "...", "importance": 8, "urgency": 5},
+ {"type": "done", "id": 5},
+ {"type": "finance", "amount": -40, "comment": "баллоны", "account": "cash"},
+ {"type": "remind", "when": "2026-06-13 09:00", "text": "страховка"},
+ {"type": "contact", "name": "Роберт", "note": "должен 500€"},
+ {"type": "invoice", "recipient": "Café Sa'Sis\nAdlerstraße 1\n65812 Bad Soden", "items": [{"desc": "Künstlerische Gestaltung der Fassade", "price": 800}], "salutation": "Frau Klügling", "customer_no": ""},
+ {"type": "project", "name": "КНИГА 3.0", "area": "work", "steps": ["шаг 1", "шаг 2"]},
+ {"type": "progress", "project_id": 1, "count": 1}
+]}
+actions может быть пустым []. Никакого текста вне JSON."""
+
+
+def get_context() -> str:
+    with db() as conn:
+        open_items = conn.execute(
+            "SELECT id, text, area, priority FROM chaos WHERE done=0 ORDER BY priority='high' DESC, created_at DESC LIMIT 30"
+        ).fetchall()
+        history = conn.execute(
+            "SELECT role, text FROM messages ORDER BY id DESC LIMIT 10"
+        ).fetchall()
+        balance = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
+        cash_bal = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
+        card_bal = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
+        fin_last = conn.execute(
+            "SELECT amount, comment, created_at FROM finance ORDER BY id DESC LIMIT 8"
+        ).fetchall()
+        contacts = conn.execute(
+            "SELECT name, note, created_at FROM contacts ORDER BY id DESC LIMIT 30"
+        ).fetchall()
+        reminders = conn.execute(
+            "SELECT due_at, text FROM reminders WHERE sent=0 ORDER BY due_at LIMIT 10"
+        ).fetchall()
+
+    with db() as conn:
+        planned = {r["chaos_id"]: (r["date"], r["time"]) for r in conn.execute(
+            "SELECT chaos_id, date, time FROM events WHERE chaos_id IS NOT NULL").fetchall()}
+
+    lines = ["ПАРКОВКА (хаос, не запланировано):"]
+    parking = [r for r in open_items if r["id"] not in planned]
+    for r in parking:
+        lines.append(f"[{r['id']}] ({r['area']}, {r['priority']}) {r['text']}")
+    if not parking:
+        lines.append("(пусто)")
+
+    cal_items = [r for r in open_items if r["id"] in planned]
+    if cal_items:
+        lines.append("\nЗАПЛАНИРОВАНО В КАЛЕНДАРЕ:")
+        for r in cal_items:
+            d, t = planned[r["id"]]
+            lines.append(f"[{r['id']}] {d}{' ' + t if t else ''} — {r['text']}")
+
+    with db() as conn:
+        projs = conn.execute("SELECT * FROM projects").fetchall()
+        proj_lines = []
+        for p in projs:
+            stats = conn.execute(
+                "SELECT COUNT(*) total, COALESCE(SUM(done),0) done FROM steps WHERE project_id=?",
+                (p["id"],)).fetchone()
+            pct = int(stats["done"] / stats["total"] * 100) if stats["total"] else 0
+            next_step = conn.execute(
+                "SELECT text FROM steps WHERE project_id=? AND done=0 ORDER BY id LIMIT 1",
+                (p["id"],)).fetchone()
+            proj_lines.append(
+                f"[project_id={p['id']}] {p['name']}: {stats['done']}/{stats['total']} шагов ({pct}%)"
+                + (f", следующий шаг: {next_step['text']}" if next_step else " — завершён"))
+    if proj_lines:
+        lines.append("\nПРОЕКТЫ (цели с декомпозицией):")
+        lines.extend(proj_lines)
+
+    lines.append(f"\nДЕНЬГИ: наличные {cash_bal:+.2f}€ | карта {card_bal:+.2f}€ | всего {balance:+.2f}€")
+    if fin_last:
+        lines.append("ПОСЛЕДНИЕ ОПЕРАЦИИ:")
+        for f in fin_last:
+            lines.append(f"  {f['amount']:+.0f}€ — {f['comment']} ({f['created_at'][:10]})")
+
+    if contacts:
+        lines.append("\nЗАМЕТКИ О ЛЮДЯХ:")
+        for c in contacts:
+            lines.append(f"  {c['name']}: {c['note']} ({c['created_at'][:10]})")
+
+    if reminders:
+        lines.append("\nНАПОМИНАНИЯ:")
+        for r in reminders:
+            lines.append(f"  {r['due_at']} — {r['text']}")
+
+    lines.append("\nПОСЛЕДНИЕ СООБЩЕНИЯ:")
+    for h in reversed(history):
+        who = "Человек" if h["role"] == "user" else "Ты"
+        lines.append(f"{who}: {h['text'][:200]}")
+
+    return "\n".join(lines)
+
+
+def ask_claude_sync(user_text: str) -> dict:
+    context = get_context()
+    prompt = f"{context}\n\nНОВОЕ СООБЩЕНИЕ ОТ ЧЕЛОВЕКА:\n{user_text}"
+    sys_prompt = SECRETARY_PROMPT.replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A"))
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt,
+             "--append-system-prompt", sys_prompt,
+             "--model", "haiku",
+             "--max-turns", "8",
+             "--tools", ""],
+            capture_output=True, text=True, timeout=120,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+        )
+        raw = result.stdout.strip()
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            return jsonlib.loads(raw[start:end+1])
+        if raw.startswith("Error:") or "max turns" in raw.lower() or not raw:
+            return {"reply": "", "actions": []}
+        return {"reply": raw, "actions": []}
+    except Exception as e:
+        log.error(f"Claude CLI: {e}")
+        return {"reply": "", "actions": []}
+
+
+def next_invoice_number() -> str:
+    base = datetime.now().strftime("%d%m%y")
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT number FROM invoices WHERE number = ? OR number LIKE ?",
+            (base, base + "-%")
+        ).fetchall()
+    n = len(rows)
+    return base if n == 0 else f"{base}-{n}"
+
+
+def apply_actions(actions: list) -> list:
+    results = []
+    for a in actions:
+        try:
+            if a.get("type") == "save":
+                area = a.get("area") if a.get("area") in AREAS else detect_area(a.get("text", ""))
+
+                def _clamp(v):
+                    try:
+                        return max(0, min(10, int(v)))
+                    except (ValueError, TypeError):
+                        return 0
+                imp = _clamp(a.get("importance", 0))
+                urg = _clamp(a.get("urgency", 0))
+                if imp or urg:
+                    pri = "high" if (imp >= 6 and urg >= 6) else ("low" if (imp < 6 and urg < 6) else "mid")
+                else:
+                    pri = a.get("priority") if a.get("priority") in ("high", "mid", "low") else "mid"
+                item_id = save_item(a["text"], area, pri, imp, urg)
+                results.append(("save", item_id, a["text"], area, pri))
+            elif a.get("type") == "done":
+                with db() as conn:
+                    row = conn.execute("SELECT text FROM chaos WHERE id=?", (a["id"],)).fetchone()
+                    conn.execute("UPDATE chaos SET done=1 WHERE id=?", (a["id"],))
+                if row:
+                    results.append(("done", a["id"], row["text"], "", ""))
+            elif a.get("type") == "finance":
+                amount = float(a["amount"])
+                comment = a.get("comment", "")
+                account = a.get("account") if a.get("account") in ("cash", "card") else "card"
+                with db() as conn:
+                    conn.execute("INSERT INTO finance (amount, comment, account) VALUES (?,?,?)",
+                                 (amount, comment, account))
+                    total = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
+                acc_ru = "наличные" if account == "cash" else "карта"
+                results.append(("finance", 0, f"{amount:+.0f}€ {comment} ({acc_ru}) · всего {total:+.2f}€", "", ""))
+            elif a.get("type") == "remind":
+                with db() as conn:
+                    conn.execute("INSERT INTO reminders (due_at, text) VALUES (?,?)",
+                                 (a["when"], a["text"]))
+                results.append(("remind", 0, f"{a['when']} — {a['text']}", "", ""))
+            elif a.get("type") == "contact":
+                with db() as conn:
+                    conn.execute("INSERT INTO contacts (name, note) VALUES (?,?)",
+                                 (a["name"], a["note"]))
+                results.append(("contact", 0, f"{a['name']}: {a['note']}", "", ""))
+            elif a.get("type") == "invoice":
+                from invoice import generate_invoice
+                recipient = a.get("recipient", "")
+                items = a.get("items", [])
+                if recipient and items:
+                    path, total, number = generate_invoice(
+                        recipient=recipient, items=items,
+                        salutation=a.get("salutation"),
+                        customer_no=a.get("customer_no", ""),
+                        number=next_invoice_number(),
+                    )
+                    desc = "; ".join(it.get("desc", "") for it in items)
+                    with db() as conn:
+                        conn.execute(
+                            "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
+                            "VALUES (?,?,?,?,?,?, 'bot')",
+                            (number, datetime.now().strftime("%d.%m.%Y"),
+                             recipient.split(chr(10))[0], a.get("customer_no", ""), desc, total))
+                    results.append(("invoice", 0, f"Rechnung {number} · {total:.2f}€", path, ""))
+            elif a.get("type") == "project":
+                area = a.get("area") if a.get("area") in AREAS else "work"
+                with db() as conn:
+                    exists = conn.execute("SELECT id FROM projects WHERE LOWER(name)=LOWER(?)",
+                                          (a["name"],)).fetchone()
+                    if not exists:
+                        cur = conn.execute("INSERT INTO projects (name, area) VALUES (?,?)",
+                                           (a["name"], area))
+                        pid = cur.lastrowid
+                        for s in a.get("steps", []):
+                            conn.execute("INSERT INTO steps (project_id, text) VALUES (?,?)", (pid, s))
+                        results.append(("project", pid,
+                                        f"{a['name']} · {len(a.get('steps', []))} шагов", area, ""))
+            elif a.get("type") == "progress":
+                pid = int(a["project_id"])
+                count = int(a.get("count", 1))
+                with db() as conn:
+                    proj = conn.execute("SELECT name FROM projects WHERE id=?", (pid,)).fetchone()
+                    steps = conn.execute(
+                        "SELECT id FROM steps WHERE project_id=? AND done=0 ORDER BY id LIMIT ?",
+                        (pid, count)).fetchall()
+                    for s in steps:
+                        conn.execute("UPDATE steps SET done=1 WHERE id=?", (s["id"],))
+                    stats = conn.execute(
+                        "SELECT COUNT(*) total, COALESCE(SUM(done),0) done FROM steps WHERE project_id=?",
+                        (pid,)).fetchone()
+                if proj and steps:
+                    pct = int(stats["done"] / stats["total"] * 100) if stats["total"] else 0
+                    results.append(("progress", pid, f"{proj['name']}: {pct}% ({stats['done']}/{stats['total']})", "", ""))
+        except Exception as e:
+            log.error(f"action error: {e}")
+    return results
+
+
+def remember(role: str, text: str):
+    with db() as conn:
+        conn.execute("INSERT INTO messages (role, text) VALUES (?,?)", (role, text))
+        conn.execute("DELETE FROM messages WHERE id NOT IN (SELECT id FROM messages ORDER BY id DESC LIMIT 50)")
+
+
+async def ai_converse(update: Update, user_text: str, source: str = "text"):
+    save_chat_id(update.effective_chat.id)
+    remember("user", user_text)
+
+    resp = await asyncio.get_event_loop().run_in_executor(None, lambda: ask_claude_sync(user_text))
+
+    reply = resp.get("reply", "")
+    actions = resp.get("actions", [])
+    applied = apply_actions(actions)
+
+    if not reply:
+        # Фоллбэк: старый механизм
+        await save_and_reply(update, user_text, source=source)
+        return
+
+    remember("assistant", reply)
+
+    prefix = f"🎤 _{user_text}_\n\n" if source == "voice" else ""
+
+    extras = []
+    for kind, item_id, text, area, pri in applied:
+        if kind == "save":
+            extras.append(f"📌 {area_emoji(area)} _{text}_")
+        elif kind == "done":
+            extras.append(f"✅ закрыто: _{text}_")
+        elif kind == "finance":
+            extras.append(f"💰 _{text}_")
+        elif kind == "remind":
+            extras.append(f"⏰ _{text}_")
+        elif kind == "contact":
+            extras.append(f"👤 _{text}_")
+        elif kind == "project":
+            extras.append(f"🎯 новый проект: _{text}_ — смотри прогресс на дашборде")
+        elif kind == "progress":
+            extras.append(f"📊 _{text}_")
+        elif kind == "invoice":
+            extras.append(f"🧾 _{text}_ — PDF ниже")
+
+    msg = prefix + reply
+    if extras:
+        msg += "\n\n" + "\n".join(extras)
+
+    try:
+        await update.message.reply_text(msg, parse_mode="Markdown")
+    except Exception:
+        await update.message.reply_text(prefix.replace("_", "") + reply)
+
+    for kind, _id, _text, path, _pri in applied:
+        if kind == "invoice" and path:
+            try:
+                with open(path, "rb") as doc:
+                    await update.message.reply_document(doc, filename=path.split("/")[-1])
+            except Exception as e:
+                log.error(f"send invoice: {e}")
+
+
+# ─── Главный обработчик текста ────────────────────────────────────────────────
+
+async def show_invoice_archive(update: Update):
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT number, date, recipient, total, COALESCE(date,created_at) AS d "
+            "FROM invoices ORDER BY d DESC, id DESC"
+        ).fetchall()
+    if not rows:
+        await update.message.reply_text(
+            "🧾 Архив инвойсов пуст.\n\nВыстави счёт через бота или пришли старые — занесу в архив.")
+        return
+
+    def year_of(r):
+        d = r["date"] or ""
+        # формат dd.mm.yyyy или ISO
+        if "." in d:
+            return d.split(".")[-1][:4]
+        return (d or "")[:4] or "—"
+
+    years = {}
+    grand = 0.0
+    for r in rows:
+        y = year_of(r)
+        years.setdefault(y, []).append(r)
+        grand += (r["total"] or 0)
+
+    lines = [f"🧾 *Архив инвойсов* — всего {len(rows)} на {grand:,.0f}€\n".replace(",", " ")]
+    for y in sorted(years.keys(), reverse=True):
+        ys = years[y]
+        ysum = sum(x["total"] or 0 for x in ys)
+        lines.append(f"*{y}* — {len(ys)} шт · {ysum:,.0f}€".replace(",", " "))
+        for r in ys[:30]:
+            rec = (r["recipient"] or "").split(chr(10))[0][:28]
+            lines.append(f"  `{r['number'] or '—'}` {r['date'] or ''} · {rec} · {r['total'] or 0:.0f}€")
+        if len(ys) > 30:
+            lines.append(f"  …ещё {len(ys)-30}")
+        lines.append("")
+
+    msg = "\n".join(lines)
+    if len(msg) > 4000:
+        msg = msg[:3950] + "\n…"
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+
+async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    if not text:
+        return
+
+    if text == "📋 Хаос":
+        await show_list(update, area_filter="open")
+        return
+
+    if text == "🧾 Архив инвойсов":
+        await show_invoice_archive(update)
+        return
+
+    # Проверяем не ждём ли мы ввода от пользователя
+    state = ctx.user_data.get("state")
+
+    if state == "bridge_done":
+        ctx.user_data["bridge_done"] = text
+        ctx.user_data["state"] = "bridge_missed"
+        await update.message.reply_text("Хорошо. Что *не* удалось сделать — и почему?\n_Напиши «—» если всё ок_", parse_mode="Markdown")
+        return
+
+    if state == "bridge_missed":
+        ctx.user_data["bridge_missed"] = text
+        ctx.user_data["state"] = "bridge_insight"
+        await update.message.reply_text("Понятно. Какой главный вывод из этого периода?", parse_mode="Markdown")
+        return
+
+    if state == "bridge_insight":
+        ctx.user_data["bridge_insight"] = text
+        ctx.user_data["state"] = "bridge_next"
+        await update.message.reply_text("Отлично! И последнее — *что главное на следующий период?*", parse_mode="Markdown")
+        return
+
+    if state == "bridge_next":
+        d = ctx.user_data
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO bridge (period, done_text, missed_text, insight_text, next_text) VALUES (?,?,?,?,?)",
+                (d.get("bridge_period", "day"), d.get("bridge_done", ""),
+                 d.get("bridge_missed", ""), d.get("bridge_insight", ""), text)
+            )
+        period_ru = {"day": "день", "week": "неделю", "month": "месяц"}.get(d.get("bridge_period"), "период")
+        ctx.user_data.clear()
+        await update.message.reply_text(
+            f"⚓ Разбор за {period_ru} сохранён. Хорошая работа!\n\n"
+            f"Впереди: _{text}_",
+            parse_mode="Markdown"
+        )
+        return
+
+    if state == "proj_name":
+        ctx.user_data["proj_name"] = text
+        ctx.user_data["state"] = None
+        area = detect_area(text)
+        with db() as conn:
+            cur = conn.execute("INSERT INTO projects (name, area) VALUES (?,?)", (text, area))
+            proj_id = cur.lastrowid
+        await update.message.reply_text(
+            f"📁 Проект создан: *{text}*\n\n"
+            f"Добавляй шаги — просто пиши «шаг: текст» или /proj_{proj_id}",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Быстрое закрытие по паттерну "готово N" или "✅ N"
+    match = re.match(r'^(готово|done|✅|закрыл|сделал)\s+(\d+)$', text.lower())
+    if match:
+        item_id = int(match.group(2))
+        with db() as conn:
+            row = conn.execute("SELECT text FROM chaos WHERE id=?", (item_id,)).fetchone()
+            conn.execute("UPDATE chaos SET done=1 WHERE id=?", (item_id,))
+        if row:
+            await update.message.reply_text(f"✅ Закрыла: _{row['text']}_\n\nМолодец! 💪", parse_mode="Markdown")
+        return
+
+    # Быстрое добавление шага "шаг: текст"
+    if text.lower().startswith("шаг:") or text.lower().startswith("шаг "):
+        step_text = text[4:].strip() if text.lower().startswith("шаг:") else text[4:].strip()
+        with db() as conn:
+            projs = conn.execute("SELECT * FROM projects ORDER BY created_at DESC LIMIT 1").fetchone()
+        if projs:
+            with db() as conn:
+                conn.execute("INSERT INTO steps (project_id, text) VALUES (?,?)", (projs["id"], step_text))
+            await update.message.reply_text(
+                f"📌 Шаг добавлен в *{projs['name']}*: _{step_text}_",
+                parse_mode="Markdown"
+            )
+            return
+
+    # Явное добавление цели: «добавь цель ...» / «цель: ...» / «новая цель ...»
+    goal_match = re.match(r'^(?:добавь\s+|новая\s+)?цель[:\s—-]+(.+)$', text, re.IGNORECASE | re.DOTALL)
+    if goal_match:
+        await create_goal_project(update, goal_match.group(1).strip())
+        return
+
+    # Явный счёт: «выстави счёт …», «сделай инвойс …», «Rechnung …»
+    if re.search(r"(выстав|сдела|выпиш|оформ|подготов)\w*\s+(сч[ёе]т|инвойс|rechnung)", text, re.IGNORECASE) \
+       or re.search(r"(сч[ёе]т|инвойс|rechnung)\b.{0,40}(на |для )", text, re.IGNORECASE):
+        await create_invoice_from_text(update, text)
+        return
+
+    # Всё остальное — живой разговор через Claude
+    await ai_converse(update, text)
+
+
+async def create_invoice_from_text(update: Update, text: str):
+    await update.message.reply_text("🧾 Готовлю счёт...")
+
+    def extract():
+        prompt = (
+            "Из сообщения извлеки данные для немецкого счёта (Rechnung). Сообщение: «" + text + "».\n"
+            "Описание работы сформулируй НА НЕМЕЦКОМ профессионально, с умляутами ä ö ü ß "
+            "(напр. «Künstlerische Gestaltung der Fassade»).\n"
+            "Ответь строго JSON без иного текста: {\"recipient\": \"получатель: название и адрес, "
+            "каждая часть с новой строки \\n\", \"items\": [{\"desc\": \"работа по-немецки\", "
+            "\"price\": 1200}], \"salutation\": \"Frau Müller или Herr Schmidt если известно, иначе пусто\", "
+            "\"customer_no\": \"\"}. Если получатель или сумма не названы — верни {\"need\": \"чего не хватает\"}."
+        )
+        try:
+            result = subprocess.run(
+                [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""],
+                capture_output=True, text=True, timeout=120,
+                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+            )
+            raw = result.stdout.strip()
+            s, e = raw.find("{"), raw.rfind("}")
+            if s >= 0 and e > s:
+                return jsonlib.loads(raw[s:e+1])
+        except Exception as ex:
+            log.error(f"invoice extract: {ex}")
+        return None
+
+    data = await asyncio.get_event_loop().run_in_executor(None, extract)
+
+    if not data or data.get("need") or not data.get("recipient") or not data.get("items"):
+        miss = (data or {}).get("need", "получателя (название, адрес) и сумму")
+        await update.message.reply_text(
+            f"Чтобы выставить счёт, не хватает: {miss}.\nНапиши, например: "
+            "_«счёт Galerie Hertz, Bahnhofstraße 12, 60311 Frankfurt, роспись фасада 1200€»_",
+            parse_mode="Markdown")
+        return
+
+    from invoice import generate_invoice
+    try:
+        path, total, number = generate_invoice(
+            recipient=data["recipient"], items=data["items"],
+            salutation=data.get("salutation") or None,
+            customer_no=data.get("customer_no", ""),
+            number=next_invoice_number(),
+        )
+    except Exception as ex:
+        log.error(f"invoice gen: {ex}")
+        await update.message.reply_text("Не получилось собрать PDF 😔 Проверь данные и попробуй ещё раз.")
+        return
+
+    desc = "; ".join(it.get("desc", "") for it in data["items"])
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
+            "VALUES (?,?,?,?,?,?, 'bot')",
+            (number, datetime.now().strftime("%d.%m.%Y"),
+             data["recipient"].split(chr(10))[0], data.get("customer_no", ""), desc, total))
+
+    remember("user", "счёт: " + text)
+    remember("assistant", f"выставлен счёт Rechnung {number} на {total:.2f}€")
+
+    await update.message.reply_text(
+        f"🧾 Готово! *Rechnung {number}* на *{total:.2f}€*\nПолучатель: {data['recipient'].split(chr(10))[0]}",
+        parse_mode="Markdown")
+    try:
+        with open(path, "rb") as doc:
+            await update.message.reply_document(doc, filename=path.split("/")[-1])
+    except Exception as ex:
+        log.error(f"invoice send: {ex}")
+
+
+async def create_goal_project(update: Update, goal_text: str):
+    await update.message.reply_text("🎯 Принято! Раскладываю цель на шаги...")
+
+    def decompose():
+        prompt = (
+            f"Цель человека: «{goal_text}». Он стрит-арт художник (FARBAHOLIX) в Германии.\n"
+            "Разбей цель на 4-8 конкретных выполнимых шагов (декомпозиция по Фридману).\n"
+            'Ответь строго JSON без другого текста: {"name": "короткое название проекта", '
+            '"area": "work|health|money|people|home|self|other", "steps": ["шаг 1", "шаг 2"]}'
+        )
+        try:
+            result = subprocess.run(
+                [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--max-turns", "8", "--tools", ""],
+                capture_output=True, text=True, timeout=120,
+                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+            )
+            raw = result.stdout.strip()
+            start, end = raw.find("{"), raw.rfind("}")
+            if start >= 0 and end > start:
+                return jsonlib.loads(raw[start:end+1])
+        except Exception as e:
+            log.error(f"decompose: {e}")
+        return None
+
+    data = await asyncio.get_event_loop().run_in_executor(None, decompose)
+
+    if not data or not data.get("steps"):
+        # Создаём проект без шагов, чтобы цель не потерялась
+        with db() as conn:
+            conn.execute("INSERT INTO projects (name, area) VALUES (?,?)", (goal_text[:80], "work"))
+        await update.message.reply_text(
+            f"🎯 Цель записана: *{goal_text}*\n"
+            "Шаги придумать не получилось — добавь их сам или попроси меня позже.",
+            parse_mode="Markdown")
+        return
+
+    name = data.get("name", goal_text[:80])
+    area = data.get("area") if data.get("area") in AREAS else "work"
+    steps = data["steps"]
+
+    with db() as conn:
+        exists = conn.execute("SELECT id FROM projects WHERE LOWER(name)=LOWER(?)", (name,)).fetchone()
+        if exists:
+            await update.message.reply_text(f"Проект «{name}» уже есть — смотри на дашборде.")
+            return
+        cur = conn.execute("INSERT INTO projects (name, area) VALUES (?,?)", (name, area))
+        pid = cur.lastrowid
+        for s in steps:
+            conn.execute("INSERT INTO steps (project_id, text) VALUES (?,?)", (pid, s))
+
+    remember("user", f"цель: {goal_text}")
+    remember("assistant", f"создан проект {name} с шагами: {'; '.join(steps)}")
+
+    steps_text = "\n".join(f"  {i+1}. {s}" for i, s in enumerate(steps))
+    await update.message.reply_text(
+        f"🎯 *{name}* {area_emoji(area)}\n\nШаги:\n{steps_text}\n\n"
+        f"📊 Прогресс-бар уже на дашборде. Говори «продвинулся по {name.lower()}» — буду отмечать.",
+        parse_mode="Markdown")
+
+
+# ─── Голос ────────────────────────────────────────────────────────────────────
+
+async def handle_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🎤 Слушаю...")
+    voice = update.message.voice
+    file = await ctx.bot.get_file(voice.file_id)
+
+    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp:
+        await file.download_to_drive(tmp.name)
+        tmp_path = tmp.name
+
+    text = await asyncio.get_event_loop().run_in_executor(None, lambda: _transcribe_sync(tmp_path))
+    os.unlink(tmp_path)
+
+    if not text:
+        await update.message.reply_text("Не смогла разобрать голос 😔 Попробуй написать текстом.")
+        return
+
+    await ai_converse(update, text, source="voice")
+
+
+_whisper_model = None
+
+def _transcribe_sync(path: str) -> str:
+    global _whisper_model
+    try:
+        import imageio_ffmpeg
+        import subprocess
+        import whisper
+
+        ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+
+        wav_path = path.replace(".ogg", ".wav")
+        subprocess.run(
+            [ffmpeg_bin, "-y", "-i", path, "-ar", "16000", "-ac", "1", wav_path],
+            check=True, capture_output=True
+        )
+
+        if _whisper_model is None:
+            _whisper_model = whisper.load_model("small")
+        result = _whisper_model.transcribe(wav_path, language="ru")
+        try:
+            os.unlink(wav_path)
+        except Exception:
+            pass
+        return result["text"].strip()
+    except Exception as e:
+        log.error(f"Whisper: {e}")
+        return ""
+
+
+# ─── Фото: оценка размеров стены ──────────────────────────────────────────────
+
+WALL_PROMPT = """Прочитай изображение по пути {path} (инструмент Read).
+Это фото стены/поверхности для граффити. Оцени её размеры.
+
+Метод: найди на фото объекты с известными размерами и посчитай от них:
+- дверь ~2.0-2.1 м высотой
+- ряд кирпичной кладки ~7.5 см (с швом), кирпич ~25 см длиной
+- этаж здания ~2.8-3.0 м
+- человек ~1.7-1.8 м
+- окно ~1.2-1.5 м высотой
+- гаражные ворота ~2.5-3 м
+- поддон/паллета 1.2 м, евроконтейнер, машина ~4.5 м длиной
+
+Ответь по-русски кратко:
+1. Ширина и высота стены (диапазон, м)
+2. Площадь (м²)
+3. По каким ориентирам считал
+4. Примерный расход краски (баллон 400мл ≈ 1-1.5 м² в один слой)
+Если ориентиров нет — скажи честно что оценка очень грубая."""
+
+
+async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📐 Изучаю стену...")
+    photo = update.message.photo[-1]
+    file = await ctx.bot.get_file(photo.file_id)
+
+    photo_path = os.path.join(tempfile.gettempdir(), f"wall_{photo.file_id[:16]}.jpg")
+    await file.download_to_drive(photo_path)
+
+    def analyze():
+        try:
+            result = subprocess.run(
+                [CLAUDE_BIN, "-p", WALL_PROMPT.format(path=photo_path),
+                 "--allowedTools", "Read",
+                 "--model", "sonnet",
+                 "--max-turns", "10"],
+                capture_output=True, text=True, timeout=180,
+                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+            )
+            return result.stdout.strip()
+        except Exception as e:
+            log.error(f"wall analyze: {e}")
+            return ""
+
+    answer = await asyncio.get_event_loop().run_in_executor(None, analyze)
+
+    try:
+        os.unlink(photo_path)
+    except Exception:
+        pass
+
+    if not answer:
+        await update.message.reply_text("Не получилось проанализировать фото 😔 Попробуй ещё раз.")
+        return
+
+    caption = update.message.caption or ""
+    if caption:
+        remember("user", f"[фото стены] {caption}")
+    remember("assistant", answer[:500])
+
+    try:
+        await update.message.reply_text(f"📐 {answer}", parse_mode="Markdown")
+    except Exception:
+        await update.message.reply_text(f"📐 {answer}")
+
+
+# ─── Callback кнопки ──────────────────────────────────────────────────────────
+
+async def callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    data = q.data
+
+    if data.startswith("done:"):
+        item_id = int(data.split(":")[1])
+        with db() as conn:
+            row = conn.execute("SELECT text FROM chaos WHERE id=?", (item_id,)).fetchone()
+            conn.execute("UPDATE chaos SET done=1 WHERE id=?", (item_id,))
+        await q.edit_message_text(f"✅ Закрыто: _{row['text'] if row else item_id}_", parse_mode="Markdown")
+
+    elif data.startswith("del:"):
+        item_id = int(data.split(":")[1])
+        with db() as conn:
+            row = conn.execute("SELECT text FROM chaos WHERE id=?", (item_id,)).fetchone()
+            conn.execute("DELETE FROM chaos WHERE id=?", (item_id,))
+        await q.edit_message_text(f"🗑 Удалено: _{row['text'] if row else item_id}_", parse_mode="Markdown")
+
+    elif data.startswith("rezone:"):
+        item_id = int(data.split(":")[1])
+        ctx.user_data["rezone_id"] = item_id
+        await q.edit_message_reply_markup(reply_markup=area_kbd(f"setzone:{item_id}"))
+
+    elif data.startswith("setzone:"):
+        parts = data.split(":")
+        item_id = int(parts[1])
+        area = parts[2]
+        with db() as conn:
+            conn.execute("UPDATE chaos SET area=? WHERE id=?", (area, item_id))
+        await q.edit_message_text(f"Область обновлена: {AREAS[area]}")
+
+    elif data.startswith("list:"):
+        area = data.split(":")[1]
+        await show_list_edit(q, area)
+
+    elif data.startswith("bridge:"):
+        period = data.split(":")[1]
+        ctx.user_data["bridge_period"] = period
+        ctx.user_data["state"] = "bridge_done"
+        period_ru = {"day": "день", "week": "неделю", "month": "месяц"}.get(period, "период")
+        await q.edit_message_text(
+            f"⚓ Разбор за {period_ru}.\n\n*Что сделано?* Перечисли главные результаты:",
+            parse_mode="Markdown"
+        )
+
+    elif data.startswith("proj:"):
+        proj_id = int(data.split(":")[1])
+        await show_proj_detail_msg(q.message, proj_id, edit=True, query=q)
+
+
+# ─── Показ списков ────────────────────────────────────────────────────────────
+
+def build_list_text(rows, title="📋 Список") -> str:
+    if not rows:
+        return f"{title}\n\n_Пусто! Всё под контролем_ 🎉"
+    done_count = sum(1 for r in rows if r["done"])
+    lines = [f"{title} — {done_count}/{len(rows)} закрыто\n"]
+    for r in rows:
+        if r["done"]:
+            continue
+        icon = area_emoji(r["area"])
+        pri = "🔴 " if r["priority"] == "high" else ""
+        lines.append(f"{pri}{icon} `[{r['id']}]` {r['text']}")
+    if done_count:
+        lines.append(f"\n_+ {done_count} закрытых_")
+    return "\n".join(lines)
+
+
+async def show_list(update: Update, area_filter: str = None):
+    with db() as conn:
+        if area_filter and area_filter not in ("all", "open"):
+            rows = conn.execute(
+                "SELECT * FROM chaos WHERE area=? ORDER BY done, priority='high' DESC, created_at DESC",
+                (area_filter,)
+            ).fetchall()
+            title = f"📋 {AREAS.get(area_filter, 'Список')}"
+        elif area_filter == "open":
+            rows = conn.execute(
+                "SELECT * FROM chaos WHERE done=0 AND id NOT IN "
+                "(SELECT chaos_id FROM events WHERE chaos_id IS NOT NULL) "
+                "ORDER BY priority='high' DESC, created_at DESC"
+            ).fetchall()
+            title = "📋 Парковка"
+        else:
+            rows = conn.execute(
+                "SELECT * FROM chaos ORDER BY done, priority='high' DESC, created_at DESC"
+            ).fetchall()
+            title = "📋 Все записи"
+
+    text = build_list_text(rows, title)
+    if len(text) > 4000:
+        text = text[:3900] + "\n…"
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=list_filter_kbd())
+
+
+async def show_list_edit(query, area_filter: str):
+    with db() as conn:
+        if area_filter == "open":
+            rows = conn.execute(
+                "SELECT * FROM chaos WHERE done=0 ORDER BY priority='high' DESC"
+            ).fetchall()
+            title = "📋 Открытые задачи"
+        elif area_filter == "all":
+            rows = conn.execute(
+                "SELECT * FROM chaos ORDER BY done, priority='high' DESC"
+            ).fetchall()
+            title = "📋 Все записи"
+        else:
+            rows = conn.execute(
+                "SELECT * FROM chaos WHERE area=? ORDER BY done, priority='high' DESC",
+                (area_filter,)
+            ).fetchall()
+            title = f"📋 {AREAS.get(area_filter, '')}"
+
+    text = build_list_text(rows, title)
+    if len(text) > 4000:
+        text = text[:3900] + "\n…"
+    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=list_filter_kbd())
+
+
+async def show_projects(update: Update):
+    with db() as conn:
+        projs = conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+
+    if not projs:
+        kbd = InlineKeyboardMarkup([[InlineKeyboardButton("➕ создать проект", callback_data="newproj")]])
+        await update.message.reply_text("Проектов пока нет. Создать первый?", reply_markup=kbd)
+        return
+
+    lines = ["📁 *Проекты*\n"]
+    kbd_rows = []
+    with db() as conn:
+        for p in projs:
+            steps = conn.execute("SELECT * FROM steps WHERE project_id=?", (p["id"],)).fetchall()
+            done = sum(1 for s in steps if s["done"])
+            total = len(steps)
+            pct = f"{done}/{total}" if total else "нет шагов"
+            icon = area_emoji(p["area"])
+            lines.append(f"{icon} *{p['name']}* — {pct}")
+            kbd_rows.append([InlineKeyboardButton(f"📁 {p['name']}", callback_data=f"proj:{p['id']}")])
+
+    kbd_rows.append([InlineKeyboardButton("➕ новый проект", callback_data="newproj")])
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(kbd_rows)
+    )
+
+
+async def show_proj_detail_msg(message, proj_id: int, edit=False, query=None):
+    with db() as conn:
+        proj = conn.execute("SELECT * FROM projects WHERE id=?", (proj_id,)).fetchone()
+        steps = conn.execute("SELECT * FROM steps WHERE project_id=? ORDER BY id", (proj_id,)).fetchall()
+    if not proj:
+        return
+
+    done = sum(1 for s in steps if s["done"])
+    total = len(steps)
+    pct = int(done / total * 100) if total else 0
+    bar = "█" * (pct // 10) + "░" * (10 - pct // 10)
+
+    lines = [f"📁 *{proj['name']}*  {AREAS.get(proj['area'], '')}\n"]
+    for s in steps:
+        mark = "✅" if s["done"] else "◻️"
+        lines.append(f"{mark} {s['text']}")
+
+    if not steps:
+        lines.append("_Шагов пока нет_")
+    else:
+        lines.append(f"\n{bar} {pct}%")
+
+    lines.append(f"\n_Добавить шаг: напиши «шаг: текст»_")
+
+    text = "\n".join(lines)
+    kbd = InlineKeyboardMarkup([[
+        InlineKeyboardButton("◀️ все проекты", callback_data="back:projects"),
+    ]])
+
+    if edit and query:
+        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=kbd)
+    else:
+        await message.reply_text(text, parse_mode="Markdown", reply_markup=kbd)
+
+
+async def show_stats(update: Update):
+    with db() as conn:
+        chaos_total = conn.execute("SELECT COUNT(*) FROM chaos").fetchone()[0]
+        chaos_done = conn.execute("SELECT COUNT(*) FROM chaos WHERE done=1").fetchone()[0]
+        chaos_high = conn.execute("SELECT COUNT(*) FROM chaos WHERE priority='high' AND done=0").fetchone()[0]
+        proj_count = conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
+        steps_total = conn.execute("SELECT COUNT(*) FROM steps").fetchone()[0]
+        steps_done = conn.execute("SELECT COUNT(*) FROM steps WHERE done=1").fetchone()[0]
+        goals_open = conn.execute("SELECT COUNT(*) FROM goals WHERE done=0").fetchone()[0]
+        bridge_count = conn.execute("SELECT COUNT(*) FROM bridge").fetchone()[0]
+
+    chaos_pct = int(chaos_done / chaos_total * 100) if chaos_total else 0
+    steps_pct = int(steps_done / steps_total * 100) if steps_total else 0
+
+    msg = (
+        f"📊 *Общая картина*\n\n"
+        f"📋 Записей: {chaos_total} · закрыто {chaos_pct}%"
+        + (f" · 🔴 срочных: {chaos_high}" if chaos_high else "") + "\n"
+        f"📁 Проектов: {proj_count}  |  шаги: {steps_pct}% выполнено\n"
+        f"🎯 Открытых целей: {goals_open}\n"
+        f"⚓ Разборов: {bridge_count}\n"
+    )
+
+    if chaos_high:
+        msg += f"\n⚠️ У тебя {chaos_high} срочных задач без закрытия"
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+
+# ─── Команды ──────────────────────────────────────────────────────────────────
+
+async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    h = datetime.now().hour
+    greeting = "Доброе утро" if h < 12 else ("Добрый день" if h < 17 else "Добрый вечер")
+    await update.message.reply_text(
+        f"{greeting}! 👋\n\n"
+        "Я твой личный секретарь. Просто пиши или диктуй — я сохраню, "
+        "разложу по полочкам и напомню.\n\n"
+        "*Примеры:*\n"
+        "• _Позвонить Роберту по поводу денег_\n"
+        "• _Срочно! Оплатить страховку_\n"
+        "• 🎤 Голосовое сообщение\n\n"
+        "*Меню:*\n"
+        "/list — все записи\n"
+        "/projects — проекты\n"
+        "/goals — цели\n"
+        "/bridge — разбор периода\n"
+        "/stats — обзор",
+        parse_mode="Markdown",
+        reply_markup=MAIN_KBD
+    )
+
+
+async def cmd_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await show_list(update)
+
+
+async def cmd_projects(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await show_projects(update)
+
+
+async def cmd_goals(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    args = ctx.args or ["week"]
+    period = args[0] if args and args[0] in ("week", "month", "quarter", "year") else "week"
+    period_names = {"week": "неделя", "month": "месяц", "quarter": "квартал", "year": "год"}
+
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM goals WHERE period=? ORDER BY done, created_at DESC", (period,)
+        ).fetchall()
+
+    period_kbd = InlineKeyboardMarkup([[
+        InlineKeyboardButton(v, callback_data=f"goals_period:{k}")
+        for k, v in period_names.items()
+    ]])
+
+    if not rows:
+        await update.message.reply_text(
+            f"🎯 *Цели — {period_names[period]}*\n\n_Целей нет. Пиши: «цель: текст»_",
+            parse_mode="Markdown", reply_markup=period_kbd
+        )
+        return
+
+    lines = [f"🎯 *Цели — {period_names[period]}*\n"]
+    for g in rows:
+        mark = "✅" if g["done"] else area_emoji(g["area"])
+        lines.append(f"{mark} {g['text']}")
+
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown", reply_markup=period_kbd)
+
+
+async def cmd_bridge(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    kbd = InlineKeyboardMarkup([[
+        InlineKeyboardButton("📅 день", callback_data="bridge:day"),
+        InlineKeyboardButton("🗓 неделю", callback_data="bridge:week"),
+        InlineKeyboardButton("📆 месяц", callback_data="bridge:month"),
+    ]])
+    await update.message.reply_text(
+        "⚓ *Капитанский мостик*\n\nЗа какой период делаем разбор?",
+        parse_mode="Markdown", reply_markup=kbd
+    )
+
+
+async def cmd_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await show_stats(update)
+
+
+# ─── Дополнительные callback ──────────────────────────────────────────────────
+
+async def extra_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+
+    if q.data == "newproj":
+        ctx.user_data["state"] = "proj_name"
+        await q.message.reply_text("📁 Как назовём проект?")
+
+    elif q.data == "back:projects":
+        await show_projects(q.message)
+
+    elif q.data.startswith("goals_period:"):
+        period = q.data.split(":")[1]
+        period_names = {"week": "неделя", "month": "месяц", "quarter": "квартал", "year": "год"}
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT * FROM goals WHERE period=? ORDER BY done, created_at DESC", (period,)
+            ).fetchall()
+        period_kbd = InlineKeyboardMarkup([[
+            InlineKeyboardButton(v, callback_data=f"goals_period:{k}")
+            for k, v in period_names.items()
+        ]])
+        if not rows:
+            await q.edit_message_text(
+                f"🎯 *Цели — {period_names[period]}*\n\n_Пусто_",
+                parse_mode="Markdown", reply_markup=period_kbd
+            )
+            return
+        lines = [f"🎯 *Цели — {period_names[period]}*\n"]
+        for g in rows:
+            mark = "✅" if g["done"] else area_emoji(g["area"])
+            lines.append(f"{mark} {g['text']}")
+        await q.edit_message_text("\n".join(lines), parse_mode="Markdown", reply_markup=period_kbd)
+
+
+# ─── Чат для рассылок ─────────────────────────────────────────────────────────
+
+def save_chat_id(chat_id: int):
+    with db() as conn:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('chat_id', ?)", (str(chat_id),))
+
+
+def get_chat_id():
+    with db() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key='chat_id'").fetchone()
+    return int(row["value"]) if row else None
+
+
+# ─── Фоновые задачи ───────────────────────────────────────────────────────────
+
+async def check_reminders(ctx: ContextTypes.DEFAULT_TYPE):
+    chat_id = get_chat_id()
+    if not chat_id:
+        return
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with db() as conn:
+        due = conn.execute(
+            "SELECT * FROM reminders WHERE sent=0 AND due_at <= ?", (now,)
+        ).fetchall()
+        for r in due:
+            conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (r["id"],))
+    for r in due:
+        try:
+            await ctx.bot.send_message(chat_id, f"⏰ Напоминание: *{r['text']}*", parse_mode="Markdown")
+        except Exception as e:
+            log.error(f"reminder send: {e}")
+
+
+# ─── Плановые затраты (регулярные + разовые платежи + текущие задолженности) ───
+
+def _month_iter(d0, d1):
+    y, m = d0.year, d0.month
+    while (y, m) <= (d1.year, d1.month):
+        yield y, m
+        m = 1 if m == 12 else m + 1
+        y = y + 1 if m == 1 else y
+
+
+def _payment_occurrences(p, d0, d1):
+    out = []
+    if p["kind"] == "planned" and p["date"]:
+        try:
+            dt = datetime.strptime(p["date"][:10], "%Y-%m-%d").date()
+            if d0 <= dt <= d1:
+                out.append(dt)
+        except ValueError:
+            pass
+        return out
+    recur = p["recur"] or "monthly"
+    day = p["day"] or 1
+    if recur == "monthly":
+        for y, m in _month_iter(d0, d1):
+            dd = min(day, _calendar.monthrange(y, m)[1])
+            dt = date(y, m, dd)
+            if d0 <= dt <= d1:
+                out.append(dt)
+    elif recur == "weekly":
+        cur = d0
+        while cur <= d1:
+            if cur.weekday() == (day % 7):
+                out.append(cur)
+            cur += timedelta(days=1)
+    return out
+
+
+def planned_spend(d0, d1):
+    """[{date,title,amount,icon}] к оплате в диапазоне [d0,d1]."""
+    items = []
+    with db() as conn:
+        try:
+            pays = conn.execute("SELECT * FROM payments WHERE active=1").fetchall()
+        except sqlite3.OperationalError:
+            pays = []
+        for p in pays:
+            for dt in _payment_occurrences(p, d0, d1):
+                items.append({"date": dt.isoformat(), "title": p["title"],
+                              "amount": float(p["amount"]), "icon": p["icon"] or "💸"})
+        try:
+            debts = conn.execute(
+                "SELECT * FROM debts WHERE kind='current' AND due_date IS NOT NULL").fetchall()
+        except sqlite3.OperationalError:
+            debts = []
+        for d in debts:
+            try:
+                dt = datetime.strptime(d["due_date"][:10], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                continue
+            if d0 <= dt <= d1:
+                items.append({"date": dt.isoformat(), "title": d["name"],
+                              "amount": float(d["total"]), "icon": d["icon"] or "🔴"})
+    items.sort(key=lambda x: x["date"])
+    return items
+
+
+def culture_for_today_sync() -> dict:
+    """Праздник дня + день рождения легенды хип-хопа через Claude CLI. Тихо падает в {}."""
+    today = datetime.now().strftime("%d %B")
+    prompt = (
+        f"Сегодня {today}. Верни СТРОГО JSON без пояснений: "
+        '{"holiday":"...","hiphop":"..."}. '
+        "holiday — один интересный праздник/событие где-либо в мире на эту дату, "
+        "который может быть интересен уличному художнику (искусство, культура, граффити, "
+        "необычные мировые дни); коротко, по-русски, с эмодзи. "
+        "hiphop — если на эту дату приходится день рождения значимой фигуры мировой "
+        "хип-хоп культуры (рэпер, продюсер, диджей, граффити-райтер) — назови имя, год и "
+        "одной фразой почему важен; если таких нет — пустая строка. По-русски."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--max-turns", "1", "--tools", ""],
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+        )
+        raw = result.stdout.strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s >= 0 and e > s:
+            return jsonlib.loads(raw[s:e + 1])
+    except Exception as ex:
+        log.error(f"culture: {ex}")
+    return {}
+
+
+async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
+    chat_id = get_chat_id()
+    if not chat_id:
+        return
+    today = datetime.now().strftime("%Y-%m-%d")
+    today_d = date.today()
+    with db() as conn:
+        high = conn.execute(
+            "SELECT text FROM chaos WHERE done=0 AND priority='high' ORDER BY importance DESC, urgency DESC, created_at LIMIT 5"
+        ).fetchall()
+        mid = conn.execute(
+            "SELECT text FROM chaos WHERE done=0 AND priority='mid' ORDER BY created_at LIMIT 3"
+        ).fetchall()
+        todays = conn.execute(
+            "SELECT due_at, text FROM reminders WHERE sent=0 AND due_at LIKE ?", (today + "%",)
+        ).fetchall()
+        cash = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
+        card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
+        balance = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
+
+    spend_today = planned_spend(today_d, today_d)
+    spend_week = planned_spend(today_d, today_d + timedelta(days=6))
+    sum_today = sum(x["amount"] for x in spend_today)
+    sum_week = sum(x["amount"] for x in spend_week)
+
+    from wisdom import today_wisdom
+    lines = ["☀️ *Доброе утро, Слава!*\n", f"_{today_wisdom()}_\n"]
+
+    if high:
+        lines.append("🔥 *Срочное на сегодня:*")
+        for h in high:
+            lines.append(f"• {h['text']}")
+    elif mid:
+        lines.append("🟡 *Важное на сегодня:*")
+        for m in mid:
+            lines.append(f"• {m['text']}")
+    else:
+        lines.append("✅ Срочного нет — день для важного.")
+
+    if todays:
+        lines.append("\n⏰ *Напоминания:*")
+        for t in todays:
+            lines.append(f"• {t['due_at'][11:16]} — {t['text']}")
+
+    lines.append(f"\n💸 *Расходы сегодня — {sum_today:.0f}€:*")
+    if spend_today:
+        for s in spend_today:
+            lines.append(f"• {s['title']} — {s['amount']:.0f}€")
+    else:
+        lines.append("• плановых платежей нет")
+    if sum_week:
+        wnames = " · ".join(dict.fromkeys(s["title"] for s in spend_week))
+        lines.append(f"_Ближайшие 7 дней: {sum_week:.0f}€ — {wnames}_")
+
+    lines.append(f"\n💰 *Баланс: {balance:.0f}€* (💵 {cash:.0f} · 💳 {card:.0f})")
+
+    culture = await asyncio.to_thread(culture_for_today_sync)
+    if culture.get("holiday"):
+        lines.append(f"\n🎉 *Праздник дня:* {culture['holiday']}")
+    if culture.get("hiphop"):
+        lines.append(f"🎤 *Хип-хоп календарь:* {culture['hiphop']}")
+
+    # Сначала пробуем красивую JPEG-сводку (постер под iPhone), иначе — текст
+    urgent = [h["text"] for h in high] if high else ([m["text"] for m in mid] if mid else [])
+    brief_data = {
+        "date_str": datetime.now().strftime("%A, %d.%m · %H:%M"),
+        "wisdom": today_wisdom(),
+        "urgent": urgent,
+        "reminders": [(t["due_at"][11:16], t["text"]) for t in todays],
+        "spend_today": [(s["title"], s["amount"]) for s in spend_today],
+        "sum_today": sum_today,
+        "sum_week": sum_week,
+        "week_names": " · ".join(dict.fromkeys(s["title"] for s in spend_week)),
+        "balance": balance, "cash": cash, "card": card,
+        "holiday": culture.get("holiday", ""),
+        "hiphop": culture.get("hiphop", ""),
+    }
+    img_path = os.path.join(os.path.dirname(__file__), "brief_today.jpg")
+    try:
+        from brief_render import render_brief_jpeg
+        await asyncio.to_thread(render_brief_jpeg, brief_data, img_path)
+        with open(img_path, "rb") as f:
+            await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
+        return
+    except Exception as e:
+        log.error(f"morning image failed, fallback to text: {e}")
+
+    try:
+        await ctx.bot.send_message(chat_id, "\n".join(lines), parse_mode="Markdown")
+    except Exception as e:
+        log.error(f"morning: {e}")
+
+
+async def sunday_bridge(ctx: ContextTypes.DEFAULT_TYPE):
+    chat_id = get_chat_id()
+    if not chat_id:
+        return
+    week_ago = datetime.now().strftime("%Y-%m-%d", )
+    with db() as conn:
+        closed_week = conn.execute(
+            "SELECT COUNT(*) FROM chaos WHERE done=1 AND created_at >= date('now','-7 days')"
+        ).fetchone()[0]
+        open_count = conn.execute("SELECT COUNT(*) FROM chaos WHERE done=0").fetchone()[0]
+        high_count = conn.execute(
+            "SELECT COUNT(*) FROM chaos WHERE done=0 AND priority='high'"
+        ).fetchone()[0]
+        fin_week = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) FROM finance WHERE created_at >= date('now','-7 days')"
+        ).fetchone()[0]
+
+    msg = (
+        "⚓ *Воскресный мостик*\n\n"
+        f"За неделю:\n"
+        f"✅ закрыто задач: {closed_week}\n"
+        f"📋 открыто сейчас: {open_count}" + (f" (🔴 {high_count} срочных)" if high_count else "") + "\n"
+        f"💰 движение денег: {fin_week:+.2f}€\n\n"
+        "Давай разберём неделю? Напиши /bridge — займёт 5 минут.\n"
+        "_Система живёт только когда мостик регулярный._"
+    )
+    try:
+        await ctx.bot.send_message(chat_id, msg, parse_mode="Markdown")
+    except Exception as e:
+        log.error(f"sunday: {e}")
+
+
+# ─── Утренний дайджест ────────────────────────────────────────────────────────
+
+async def morning_digest(ctx: ContextTypes.DEFAULT_TYPE):
+    chat_id = ctx.job.chat_id
+    with db() as conn:
+        high = conn.execute(
+            "SELECT * FROM chaos WHERE priority='high' AND done=0 ORDER BY created_at"
+        ).fetchall()
+        total_open = conn.execute("SELECT COUNT(*) FROM chaos WHERE done=0").fetchone()[0]
+        goals = conn.execute(
+            "SELECT * FROM goals WHERE period='week' AND done=0"
+        ).fetchall()
+
+    if not high and not goals:
+        return
+
+    lines = ["☀️ *Доброе утро!*\n"]
+    if high:
+        lines.append(f"🔴 Срочных задач: {len(high)}")
+        for h in high[:3]:
+            lines.append(f"  • {h['text']}")
+        if len(high) > 3:
+            lines.append(f"  _...и ещё {len(high)-3}_")
+    lines.append(f"\n📋 Всего открытых: {total_open}")
+    if goals:
+        lines.append(f"🎯 Целей на неделю: {len(goals)}")
+
+    await ctx.bot.send_message(chat_id=chat_id, text="\n".join(lines), parse_mode="Markdown")
+
+
+async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    ctx.job_queue.run_daily(
+        morning_digest,
+        time=time(8, 0),
+        chat_id=chat_id,
+        name=f"digest_{chat_id}"
+    )
+    await update.message.reply_text("✅ Буду присылать утренний дайджест в 08:00 каждый день!")
+
+
+# ─── main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    if not TOKEN:
+        log.error("BOT_TOKEN не задан в .env")
+        return
+
+    init_db()
+    app = Application.builder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("list", cmd_list))
+    app.add_handler(CommandHandler("projects", cmd_projects))
+    app.add_handler(CommandHandler("goals", cmd_goals))
+    app.add_handler(CommandHandler("bridge", cmd_bridge))
+    app.add_handler(CommandHandler("stats", cmd_stats))
+    app.add_handler(CommandHandler("digest", cmd_digest))
+
+    app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
+    app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
+
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    jq = app.job_queue
+    jq.run_repeating(check_reminders, interval=60, first=10)
+    jq.run_daily(morning_focus, time=time(8, 0))
+    jq.run_daily(sunday_bridge, time=time(19, 0), days=(6,))
+
+    log.info("Секретарь запущен 🗂")
+    app.run_polling(drop_pending_updates=False)
+
+
+if __name__ == "__main__":
+    main()
