@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "15.06 · 09:10"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "15.06 · 12:45"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1504,8 +1504,13 @@ function fade(){let a=1;const id=setInterval(()=>{a-=0.06;clearC();if(a<=0){clea
 function success(){const f=document.getElementById('flash'),d=document.getElementById('dot');
   d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
   f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
-cv.addEventListener('pointerdown',start);cv.addEventListener('pointermove',move);cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
-cv.addEventListener('touchstart',start,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',end,{passive:false});
+cv.addEventListener('touchstart',start,{passive:false});
+cv.addEventListener('touchmove',move,{passive:false});
+cv.addEventListener('touchend',end,{passive:false});
+cv.addEventListener('touchcancel',end,{passive:false});
+cv.addEventListener('mousedown',start);
+cv.addEventListener('mousemove',move);
+cv.addEventListener('mouseup',end);
 document.addEventListener('contextmenu',e=>e.preventDefault());
 </script></body></html>"""
 
