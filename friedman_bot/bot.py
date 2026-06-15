@@ -17,6 +17,17 @@ load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN", "")
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 
+# Таймзона Франкфурта — чтобы сводка приходила по местному времени, а не по UTC сервера
+try:
+    from zoneinfo import ZoneInfo
+    BERLIN = ZoneInfo("Europe/Berlin")
+except Exception:
+    try:
+        import pytz
+        BERLIN = pytz.timezone("Europe/Berlin")
+    except Exception:
+        BERLIN = None
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
@@ -2173,6 +2184,13 @@ async def morning_digest(ctx: ContextTypes.DEFAULT_TYPE):
     await ctx.bot.send_message(chat_id=chat_id, text="\n".join(lines), parse_mode="Markdown")
 
 
+async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Прислать утреннюю сводку прямо сейчас (ручной запуск)."""
+    save_chat_id(update.effective_chat.id)
+    await ctx.bot.send_message(update.effective_chat.id, "☀️ Собираю сводку…")
+    await morning_focus(ctx)
+
+
 async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     ctx.job_queue.run_daily(
@@ -2201,6 +2219,7 @@ def main():
     app.add_handler(CommandHandler("bridge", cmd_bridge))
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("digest", cmd_digest))
+    app.add_handler(CommandHandler("brief", cmd_brief))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
@@ -2213,8 +2232,10 @@ def main():
 
     jq = app.job_queue
     jq.run_repeating(check_reminders, interval=60, first=10)
-    jq.run_daily(morning_focus, time=time(8, 0))
-    jq.run_daily(sunday_bridge, time=time(19, 0), days=(6,))
+    brief_t = time(7, 0, tzinfo=BERLIN) if BERLIN else time(7, 0)
+    bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
+    jq.run_daily(morning_focus, time=brief_t)
+    jq.run_daily(sunday_bridge, time=bridge_t, days=(6,))
 
     log.info("Секретарь запущен 🗂")
     app.run_polling(drop_pending_updates=False)
