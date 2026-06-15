@@ -2191,6 +2191,60 @@ async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await morning_focus(ctx)
 
 
+# Откуда тянуть свежий код (raw GitHub, рабочая ветка)
+UPDATE_BASE = ("https://raw.githubusercontent.com/farbaholix-cloud/Bbbbasic/"
+               "claude/schedule-display-app-ixjt6b/friedman_bot")
+UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py"]
+
+
+async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Самообновление из Telegram: скачать свежий код, перезапустить дашборд и себя.
+    Больше не нужен Termius — пишешь /update боту, и всё."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return  # обновлять может только владелец
+    import sys
+    import urllib.request
+    d = os.path.dirname(os.path.abspath(__file__))
+    await ctx.bot.send_message(chat_id, "🔄 Качаю свежий код с GitHub…")
+    try:
+        downloaded = []
+        for f in UPDATE_FILES:
+            req = urllib.request.Request(f"{UPDATE_BASE}/{f}",
+                                         headers={"Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=40) as r:
+                data = r.read()
+            if len(data) < 100:
+                raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
+            with open(os.path.join(d, f), "wb") as out:
+                out.write(data)
+            downloaded.append(f)
+        await ctx.bot.send_message(
+            chat_id, "✅ Скачано: " + ", ".join(downloaded) +
+            "\n♻️ Перезапускаю дашборд и себя…")
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"⚠️ Не удалось обновить: {e}")
+        return
+
+    # перезапуск дашборда (отдельный процесс, освобождаем порт 8765)
+    py = sys.executable
+    try:
+        subprocess.run("pkill -9 -f dashboard.py; fuser -k 8765/tcp 2>/dev/null; true",
+                       shell=True)
+        await asyncio.sleep(1.5)
+        logf = open("/tmp/dash.log", "ab")
+        subprocess.Popen([py, "dashboard.py"], cwd=d,
+                         stdout=logf, stderr=logf, start_new_session=True)
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"⚠️ Дашборд не стартовал: {e}")
+
+    # перезапуск самого бота — заменяем процесс на свежий bot.py
+    await ctx.bot.send_message(chat_id, "🚀 Готово! Поднимаюсь на новой версии. "
+                                        "Через пару секунд напиши /brief для проверки.")
+    os.execv(py, [py, os.path.join(d, "bot.py")])
+
+
 async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     ctx.job_queue.run_daily(
@@ -2220,6 +2274,7 @@ def main():
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(CommandHandler("brief", cmd_brief))
+    app.add_handler(CommandHandler("update", cmd_update))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
