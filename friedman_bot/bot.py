@@ -2010,7 +2010,7 @@ def culture_for_today_sync() -> dict:
     return {}
 
 
-async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
+async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     chat_id = get_chat_id()
     if not chat_id:
         return
@@ -2115,6 +2115,12 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE):
         return
     except Exception as e:
         log.error(f"morning image failed, fallback to text: {e}")
+        if verbose:
+            await ctx.bot.send_message(
+                chat_id,
+                "ℹ️ Постер-картинка не собралась — шлю текстом.\n"
+                f"Причина: {type(e).__name__}: {str(e)[:300]}\n\n"
+                "Чтобы включить картинку, напиши /setupbrief")
 
     try:
         await ctx.bot.send_message(chat_id, "\n".join(lines), parse_mode="Markdown")
@@ -2188,7 +2194,53 @@ async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Прислать утреннюю сводку прямо сейчас (ручной запуск)."""
     save_chat_id(update.effective_chat.id)
     await ctx.bot.send_message(update.effective_chat.id, "☀️ Собираю сводку…")
-    await morning_focus(ctx)
+    await morning_focus(ctx, verbose=True)
+
+
+async def cmd_setupbrief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Разово доустановить Chromium (Playwright), чтобы сводка приходила красивым постером."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    import sys
+    d = os.path.dirname(os.path.abspath(__file__))
+    py = sys.executable
+    await ctx.bot.send_message(
+        chat_id, "🛠 Ставлю Chromium для красивой сводки.\n"
+                 "Это разово, ~1–3 минуты. Подожди, не закрывай чат…")
+
+    def _run():
+        steps = []
+        r1 = subprocess.run([py, "-m", "pip", "install", "-q", "playwright"],
+                            capture_output=True, text=True, cwd=d, timeout=900)
+        steps.append(("pip install playwright", r1.returncode,
+                      (r1.stderr or r1.stdout)))
+        r2 = subprocess.run([py, "-m", "playwright", "install", "--with-deps", "chromium"],
+                            capture_output=True, text=True, cwd=d, timeout=1200)
+        steps.append(("playwright install chromium", r2.returncode,
+                      (r2.stderr or r2.stdout)))
+        # шрифты эмодзи + кириллица — по возможности
+        subprocess.run("apt-get install -y fonts-noto-color-emoji fonts-dejavu "
+                       ">/dev/null 2>&1 || true", shell=True, timeout=300)
+        return steps
+
+    try:
+        steps = await asyncio.to_thread(_run)
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"⚠️ Установка прервалась: {type(e).__name__}: {e}")
+        return
+
+    if all(rc == 0 for _, rc, _ in steps):
+        await ctx.bot.send_message(chat_id, "✅ Chromium установлен! Собираю постер для проверки…")
+        await morning_focus(ctx, verbose=True)
+    else:
+        msg = "⚠️ Не всё установилось:\n"
+        for name, rc, out in steps:
+            msg += ("✅ " if rc == 0 else "❌ ") + name + "\n"
+            if rc != 0 and out:
+                msg += "   " + out.strip().replace("\n", " ")[-300:] + "\n"
+        await ctx.bot.send_message(chat_id, msg[:3800])
 
 
 # Откуда тянуть свежий код (raw GitHub, рабочая ветка)
@@ -2258,7 +2310,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "15.06 · 08:45"  # видимая метка сборки бота
+BOT_VERSION = "15.06 · 09:25"  # видимая метка сборки бота
 
 
 async def _on_start(app):
@@ -2272,6 +2324,7 @@ async def _on_start(app):
                 f"Версия: {BOT_VERSION}\n\n"
                 f"Команды:\n"
                 f"• /brief — сводка сейчас\n"
+                f"• /setupbrief — включить картинку-постер\n"
                 f"• /update — обновить код с GitHub",
             )
     except Exception as e:
@@ -2294,6 +2347,7 @@ def main():
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(CommandHandler("brief", cmd_brief))
+    app.add_handler(CommandHandler("setupbrief", cmd_setupbrief))
     app.add_handler(CommandHandler("update", cmd_update))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
