@@ -10,6 +10,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
+VERSION = "15.06 · 08:35"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -712,6 +713,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
   <div class="hdr">
     <div class="anchor">⚓</div>
     <div><h1>Капитанский мостик</h1><div class="date" id="updated"></div></div>
+    <div style="margin-left:auto;font-size:9px;color:rgba(235,240,250,.3);font-weight:700;align-self:flex-start">v__VERSION__</div>
   </div>
   <div class="seg glass-sm" id="seg">
     <div class="s on" data-p="plan"><span class="e">🧭</span>Мостик</div>
@@ -1468,6 +1470,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", len(body))
+        # запрет кэширования — iOS на домашнем экране иначе показывает старую версию
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         for h, v in (extra_headers or []):
             self.send_header(h, v)
         self.end_headers()
@@ -1482,7 +1488,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
         else:
-            self._send(PAGE.encode(), "text/html; charset=utf-8")
+            self._send(PAGE.replace("__VERSION__", VERSION).encode(), "text/html; charset=utf-8")
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
