@@ -2,6 +2,7 @@ import json
 import sqlite3
 import os
 import math
+import time
 import secrets
 import calendar
 from datetime import datetime, date, timedelta
@@ -10,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "15.06 · 08:35"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "15.06 · 09:10"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -33,6 +34,11 @@ def get_session_token():
 
 SESSION_TOKEN = get_session_token()
 
+# Авто-блокировка по бездействию: пока дашборд открыт, он каждые 8 с пингует сервер.
+# Свернул/закрыл приложение → пинги прекращаются → через IDLE_TIMEOUT сек снова нужен круг.
+IDLE_TIMEOUT = 45
+_last_seen = 0.0
+
 
 def is_circle(points):
     """Похож ли нарисованный штрих на круг: замкнутость + ровный радиус + ~полный оборот."""
@@ -40,16 +46,16 @@ def is_circle(points):
         pts = [(float(p[0]), float(p[1])) for p in points]
     except (TypeError, ValueError, IndexError):
         return False
-    if len(pts) < 12:
+    if len(pts) < 10:
         return False
     cx = sum(x for x, _ in pts) / len(pts)
     cy = sum(y for _, y in pts) / len(pts)
     radii = [math.hypot(x - cx, y - cy) for x, y in pts]
     r = sum(radii) / len(radii)
-    if r < 28:  # слишком маленький — скорее точка/каракуля
+    if r < 22:  # слишком маленький — скорее точка/каракуля
         return False
     std = (sum((ri - r) ** 2 for ri in radii) / len(radii)) ** 0.5
-    if std / r > 0.36:  # радиус скачет — не круг
+    if std / r > 0.48:  # радиус скачет — не круг (терпимее к овалам/дрожи)
         return False
     winding = 0.0
     for i in range(1, len(pts)):
@@ -61,11 +67,11 @@ def is_circle(points):
         while d < -math.pi:
             d += 2 * math.pi
         winding += d
-    if abs(winding) < 1.6 * math.pi:  # не хватает оборота (нужно ~290°+)
+    if abs(winding) < 1.3 * math.pi:  # хватает ~235° оборота (не нужен идеально полный круг)
         return False
     sx, sy = pts[0]
     ex, ey = pts[-1]
-    if math.hypot(ex - sx, ey - sy) > r * 1.25:  # концы далеко — не замкнуто
+    if math.hypot(ex - sx, ey - sy) > r * 1.6:  # концы не слишком далеко — примерно замкнуто
         return False
     return True
 
@@ -658,6 +664,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .sh-act{width:100%;padding:15px;border-radius:16px;font-size:14px;font-weight:800;text-align:center;
   border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer;letter-spacing:.2px}
 .sh-act.sh-del{color:var(--red)}
+.ui-input{width:100%;margin-top:14px;padding:14px;border-radius:14px;border:1px solid var(--rim);
+  background:rgba(0,0,0,.3);color:var(--txt);font-size:16px;font-weight:600;outline:none;-webkit-appearance:none}
+.ui-input:focus{border-color:var(--blue)}
+.ssub2{font-size:12.5px;color:var(--muted);text-align:center;margin-top:4px;font-weight:600;line-height:1.4}
 
 /* kanban */
 .kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:20px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -728,7 +738,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="block glass">
       <div class="bh"><div class="t">📋 Материализация хаоса <span class="sm">парковка</span></div><div class="cnt" id="chaos-cnt"></div></div>
       <div id="chaos"></div>
-      <div class="addr" onclick="alert('Добавляй задачи через бота в Telegram — он спросит важность и срочность ⭐')"><span class="p">+</span> Новая задача<span class="badge">⭐ бот спросит<br>важность/срочность</span></div>
+      <div class="addr" onclick="uiAlert('Добавляй задачи через бота в Telegram — он спросит важность и срочность ⭐','Новая задача')"><span class="p">+</span> Новая задача<span class="badge">⭐ бот спросит<br>важность/срочность</span></div>
     </div>
     <div class="block glass">
       <div class="bh"><div class="t">🏔 Цели <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
@@ -855,8 +865,8 @@ const openProjects=new Set();
 function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
-async function api(path,body){await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});}
-async function load(){const r=await fetch('/api/data');DATA=await r.json();render();}
+async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
+async function load(){const r=await fetch('/api/data');if(r.status===401||r.status===403){location.reload();return;}DATA=await r.json();if(!document.getElementById('sheet'))render();}
 
 // segmented control
 document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
@@ -1035,9 +1045,9 @@ function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');return d.getDat
 // ─── project actions ───
 function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
 async function stepToggle(id){await api('/api/step_toggle',{id});load();}
-async function stepAdd(pid){const t=prompt('Новый шаг:');if(t&&t.trim()){await api('/api/step_add',{project_id:pid,text:t.trim()});load();}}
-async function projRename(id,old){const t=prompt('Название цели:',old);if(t&&t.trim()){await api('/api/proj_rename',{id,name:t.trim()});load();}}
-async function projDel(id,name){if(confirm('Удалить цель «'+name+'»?')){await api('/api/proj_delete',{id});load();}}
+async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){await api('/api/step_add',{project_id:pid,text:t.trim()});load();}}
+async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){await api('/api/proj_rename',{id,name:t.trim()});load();}}
+async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){await api('/api/proj_delete',{id});load();}}
 
 // ─── finance actions ───
 async function finAdd(sign){
@@ -1046,41 +1056,99 @@ async function finAdd(sign){
   await api('/api/finance_add',{amount:Math.abs(amt)*sign,account:document.getElementById('fin-acc').value,comment:document.getElementById('fin-cm').value});
   document.getElementById('fin-amt').value='';document.getElementById('fin-cm').value='';load();
 }
-async function finDel(id){if(confirm('Удалить операцию?')){await api('/api/finance_delete',{id});load();}}
+async function finDel(id){if(await uiConfirm('Удалить операцию?',{danger:true,ok:'Удалить'})){await api('/api/finance_delete',{id});load();}}
 async function addDebt(kind){
-  const name=prompt(kind==='long'?'Долгосрочный долг — название:':'Задолженность — название:');
+  const name=await uiPrompt(kind==='long'?'Долгосрочный долг — название:':'Задолженность — название:','',{placeholder:'название'});
   if(!name||!name.trim())return;
-  const total=parseFloat(prompt('Сумма €:'))||0;
+  const total=parseFloat(await uiNum('Сумма €:',''))||0;
   if(kind==='long'){
-    const paid=parseFloat(prompt('Уже выплачено €:','0'))||0;
-    const monthly=parseFloat(prompt('Платёж в месяц € (можно пусто):','0'))||0;
+    const paid=parseFloat(await uiNum('Уже выплачено €:','0'))||0;
+    const monthly=parseFloat(await uiNum('Платёж в месяц € (можно пусто):','0'))||0;
     await api('/api/debt_add',{name:name.trim(),kind:'long',total,paid,monthly,icon:'🏦'});
   } else {
-    const due=prompt('Срок оплаты ГГГГ-ММ-ДД (можно пусто):','');
+    const due=await uiPrompt('Срок оплаты (можно пусто):','',{placeholder:'ГГГГ-ММ-ДД'});
     await api('/api/debt_add',{name:name.trim(),kind:'current',total,due_date:due&&due.trim()?due.trim():null,icon:'🔴'});
   }
   load();
 }
-async function delDebt(id){if(confirm('Удалить?')){await api('/api/debt_delete',{id});load();}}
+async function delDebt(id){if(await uiConfirm('Удалить долг?',{danger:true,ok:'Удалить'})){await api('/api/debt_delete',{id});load();}}
 async function addPayment(){
-  const title=prompt('Платёж — название:');
+  const title=await uiPrompt('Платёж — название:','',{placeholder:'за что'});
   if(!title||!title.trim())return;
-  const amount=parseFloat(prompt('Сумма €:'))||0;
-  const isRec=confirm('Регулярный платёж?\nОК — регулярный (каждый месяц)\nОтмена — разовый запланированный');
-  const icon=prompt('Иконка (эмодзи):','💸')||'💸';
+  const amount=parseFloat(await uiNum('Сумма €:',''))||0;
+  const isRec=await uiConfirm('Какой это платёж?',{ok:'🔁 Регулярный',cancel:'1️⃣ Разовый'});
+  const icon=(await uiPrompt('Иконка (эмодзи):','💸'))||'💸';
   if(isRec){
-    const day=parseInt(prompt('Какого числа каждый месяц? (1-31):','1'))||1;
+    const day=parseInt(await uiNum('Какого числа каждый месяц? (1-31):','1'))||1;
     await api('/api/payment_add',{title:title.trim(),amount,kind:'recurring',recur:'monthly',day,icon});
   } else {
-    const date=prompt('Дата ГГГГ-ММ-ДД:','');
+    const date=await uiPrompt('Дата платежа:','',{placeholder:'ГГГГ-ММ-ДД'});
     await api('/api/payment_add',{title:title.trim(),amount,kind:'planned',date:date&&date.trim()?date.trim():null,icon});
   }
   load();
 }
-async function delPayment(id){if(confirm('Удалить платёж?')){await api('/api/payment_delete',{id});load();}}
+async function delPayment(id){if(await uiConfirm('Удалить платёж?',{danger:true,ok:'Удалить'})){await api('/api/payment_delete',{id});load();}}
 
 // ─── bottom sheet (rate / move) ───
 function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();const b=document.getElementById('sheet-bg');if(b)b.remove();}
+
+// Свои диалоги вместо prompt/confirm/alert — нативные отключены в standalone-PWA на iOS
+function _openSheet(html){
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  sheet.innerHTML=html;document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  return {bg,sheet};
+}
+function uiPrompt(title,value='',opts={}){
+  return new Promise(resolve=>{
+    const sub=opts.sub?`<div class="ssub2">${esc(opts.sub)}</div>`:'';
+    const {bg,sheet}=_openSheet(
+      `<div class="grab"></div><div class="stitle">${esc(title)}</div>${sub}`+
+      `<input id="ui-inp" class="ui-input" type="${opts.type||'text'}" inputmode="${opts.inputmode||'text'}" `+
+      `placeholder="${esc(opts.placeholder||'')}" value="${esc(value==null?'':value)}">`+
+      `<div class="sh-actions" style="margin-top:14px">`+
+      `<button class="sh-btn" id="ui-cancel">Отмена</button>`+
+      `<button class="sh-btn prime" id="ui-ok">${esc(opts.ok||'Готово')}</button></div>`);
+    const inp=sheet.querySelector('#ui-inp');
+    setTimeout(()=>{try{inp.focus();}catch(_){}}, 140);
+    const done=v=>{closeSheet();resolve(v);};
+    bg.onclick=()=>done(null);
+    sheet.querySelector('#ui-cancel').onclick=()=>done(null);
+    sheet.querySelector('#ui-ok').onclick=()=>done(inp.value);
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();done(inp.value);}});
+  });
+}
+function uiConfirm(title,opts={}){
+  return new Promise(resolve=>{
+    const sub=opts.sub?`<div class="ssub2">${esc(opts.sub)}</div>`:'';
+    const okCls=opts.danger?'danger':'prime';
+    const {bg,sheet}=_openSheet(
+      `<div class="grab"></div><div class="stitle">${esc(title)}</div>${sub}`+
+      `<div class="sh-actions" style="margin-top:16px">`+
+      `<button class="sh-btn" id="ui-cancel">${esc(opts.cancel||'Отмена')}</button>`+
+      `<button class="sh-btn ${okCls}" id="ui-ok">${esc(opts.ok||'OK')}</button></div>`);
+    const done=v=>{closeSheet();resolve(v);};
+    bg.onclick=()=>done(false);
+    sheet.querySelector('#ui-cancel').onclick=()=>done(false);
+    sheet.querySelector('#ui-ok').onclick=()=>done(true);
+  });
+}
+function uiAlert(msg,title){
+  return new Promise(resolve=>{
+    const {bg,sheet}=_openSheet(
+      `<div class="grab"></div>`+(title?`<div class="stitle">${esc(title)}</div>`:'')+
+      `<div class="ssub2" style="font-size:14px">${esc(msg)}</div>`+
+      `<div class="sh-actions" style="margin-top:16px"><button class="sh-btn prime" id="ui-ok">Понятно</button></div>`);
+    const done=()=>{closeSheet();resolve();};
+    bg.onclick=done;sheet.querySelector('#ui-ok').onclick=done;
+  });
+}
+async function uiNum(title,value,opts={}){
+  const v=await uiPrompt(title,value,{...opts,type:'text',inputmode:'decimal'});
+  return v;
+}
 function openTask(t){
   closeSheet();
   const now=new Date();
@@ -1138,7 +1206,7 @@ function openTask(t){
   };
   sheet.querySelector('#sh-done').onclick=async()=>{await api('/api/complete',{kind:t.kind,id:t.id});closeSheet();load();};
   sheet.querySelector('#sh-del').onclick=async()=>{
-    if(t.kind==='chaos'&&!confirm('Удалить задачу навсегда?'))return;
+    if(t.kind==='chaos'&&!(await uiConfirm('Удалить задачу навсегда?',{danger:true,ok:'Удалить'})))return;
     await api('/api/unplan',{kind:t.kind,id:t.id});closeSheet();load();
   };
 }
@@ -1191,42 +1259,36 @@ function renderKanban(d){
 }
 
 async function kcheck(e,id,val){e.stopPropagation();await api('/api/kcard_check',{id,checked:val});load();}
-async function karchive(e,id){e.stopPropagation();if(!confirm('Отправить в архив?'))return;await api('/api/kcard_archive',{id});load();}
+async function karchive(e,id){e.stopPropagation();if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;await api('/api/kcard_archive',{id});load();}
 function kcardClick(e,id,colId,el){
   if(e.target.closest('.kchk,.karch'))return;
   e.stopPropagation();
   const title=el.querySelector('.kt').textContent;
-  closeSheet();
-  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
-  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
-  sheet.innerHTML=`<div class="grab"></div><div class="stitle">${esc(title)}</div>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
-      <button class="sh-act" id="kren-btn">✏️ Переименовать</button>
-      <button class="sh-act sh-del" id="karch-btn">📦 В архив</button>
-    </div>`;
-  document.body.appendChild(sheet);
-  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  const {sheet}=_openSheet(`<div class="grab"></div><div class="stitle">${esc(title)}</div>`+
+    `<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">`+
+    `<button class="sh-act" id="kren-btn">✏️ Переименовать</button>`+
+    `<button class="sh-act sh-del" id="karch-btn">📦 В архив</button></div>`);
   sheet.querySelector('#kren-btn').onclick=async()=>{
-    const nv=prompt('Новое название:',title);
+    const nv=await uiPrompt('Новое название:',title);
     if(!nv||!nv.trim())return;
     await api('/api/kcard_rename',{id,title:nv.trim()});
     closeSheet();load();
   };
   sheet.querySelector('#karch-btn').onclick=async()=>{
-    if(!confirm('Отправить в архив?'))return;
+    if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;
     await api('/api/kcard_archive',{id});closeSheet();load();
   };
 }
 
 async function kaddCard(colId,colName){
-  const t=prompt(`Новая карточка в «${colName}»:`);
+  const t=await uiPrompt(`Новая карточка в «${colName}»:`,'',{placeholder:'заголовок'});
   if(!t||!t.trim())return;
-  const desc=prompt('Описание (необязательно):')||'';
+  const desc=(await uiPrompt('Описание (необязательно):',''))||'';
   await api('/api/kcard_add',{col:colId,title:t.trim(),desc:desc.trim()});
   load();
 }
 async function addKCol(){
-  const n=prompt('Название новой колонки:');
+  const n=await uiPrompt('Название новой колонки:','',{placeholder:'например: Готово'});
   if(!n||!n.trim())return;
   await api('/api/kcol_add',{name:n.trim()});load();
 }
@@ -1291,11 +1353,11 @@ function drawHChart(history){
   });
 }
 
-function editHNode(key){
+async function editHNode(key){
   const label=H_LABELS[key];
   const cur=hValues[key];
-  const val=prompt(`${label} — текущая оценка: ${cur}\nВведи новую (1-10):`);
-  if(!val)return;
+  const val=await uiNum(`${label} — оценка (1-10):`,String(cur),{sub:`сейчас: ${cur}`});
+  if(val==null||val==='')return;
   const n=Math.max(1,Math.min(10,parseInt(val)));
   if(isNaN(n))return;
   hValues[key]=n;
@@ -1304,7 +1366,7 @@ function editHNode(key){
 }
 
 async function editHappiness(){
-  const note=prompt('Заметка о настроении (необязательно):')||'';
+  const note=(await uiPrompt('Заметка о настроении (необязательно):','',{placeholder:'как ты сейчас'}))||'';
   await api('/api/happiness_save',{...hValues,note});
   load();
 }
@@ -1355,7 +1417,7 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();
 
 load();
-setInterval(()=>{if(!document.getElementById('sheet'))load();},8000);
+setInterval(load,8000);
 </script></body></html>"""
 
 
@@ -1459,12 +1521,20 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _authed(self):
+        global _last_seen
         cookie = self.headers.get("Cookie", "") or ""
-        for part in cookie.split(";"):
-            k, _, v = part.strip().partition("=")
-            if k == "dash" and v == SESSION_TOKEN:
-                return True
-        return False
+        has_token = any(
+            part.strip().partition("=")[0] == "dash"
+            and part.strip().partition("=")[2] == SESSION_TOKEN
+            for part in cookie.split(";")
+        )
+        if not has_token:
+            return False
+        now = time.time()
+        if (now - _last_seen) > IDLE_TIMEOUT:
+            return False  # давно нет активности (или рестарт сервера) → снова рисуем круг
+        _last_seen = now
+        return True
 
     def _send(self, body, ctype, extra_headers=None):
         self.send_response(200)
@@ -1481,7 +1551,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if not self._authed():
-            # любой путь без сессии → экран-замок (рисуй круг)
+            # для API отвечаем 401, чтобы клиент перезагрузился на экран-замок
+            if self.path.startswith("/api/"):
+                self.send_response(401)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            # любой обычный путь без сессии → экран-замок (рисуй круг)
             self._send(LOCK_PAGE.encode(), "text/html; charset=utf-8")
             return
         if self.path == "/api/data":
@@ -1496,17 +1572,20 @@ class Handler(BaseHTTPRequestHandler):
 
         # разблокировка кругом — единственный POST без сессии
         if self.path == "/api/unlock":
+            global _last_seen
             result = _set_session(payload)
             extra = None
             if result.get("ok"):
+                _last_seen = time.time()  # запускаем отсчёт бездействия заново
                 # сессионная cookie (без Max-Age) — пропадает при закрытии вкладки
                 extra = [("Set-Cookie",
                           f"dash={SESSION_TOKEN}; Path=/; SameSite=Lax; HttpOnly")]
             self._send(json.dumps(result).encode(), "application/json; charset=utf-8", extra)
             return
 
-        # блокировка при сворачивании окна — гасим cookie, тоже без сессии
+        # блокировка при сворачивании окна — гасим cookie и сбрасываем активность
         if self.path == "/api/lock":
+            _last_seen = 0.0
             extra = [("Set-Cookie", "dash=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly")]
             self._send(b'{"ok":true}', "application/json; charset=utf-8", extra)
             return
