@@ -424,6 +424,11 @@ def api_kcard_move(payload):
         conn.execute("UPDATE kanban_cards SET column_id=? WHERE id=?", (payload["col"], payload["id"]))
     return {"ok": True}
 
+def api_kcard_rename(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_cards SET title=? WHERE id=?", (payload["title"], payload["id"]))
+    return {"ok": True}
+
 def api_kcol_add(payload):
     COLORS = ["#5b9dff","#ff9aa6","#ffd07a","#52e08a","#b18bff","#41e3d4","#ff7ac0"]
     with db() as conn:
@@ -626,7 +631,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .page{display:none}.page.on{display:block}
 /* bottom sheet */
 #sheet-bg{position:fixed;inset:0;background:rgba(5,6,12,.55);backdrop-filter:blur(3px);z-index:40}
-#sheet{position:fixed;left:8px;right:8px;bottom:10px;z-index:41;padding:18px 18px calc(20px + env(safe-area-inset-bottom));border-radius:30px;max-width:544px;margin:0 auto}
+#sheet{position:fixed;left:8px;right:8px;bottom:10px;z-index:41;padding:18px 18px calc(20px + env(safe-area-inset-bottom));border-radius:30px;max-width:544px;margin:0 auto;
+  transform:translateY(40px);opacity:0;transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .25s}
 .grab{width:42px;height:5px;border-radius:3px;background:var(--rim2);margin:0 auto 16px}
 .stitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:3px}
 .ssub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;font-weight:600}
@@ -648,6 +654,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .sh-btn.prime{background:linear-gradient(135deg,var(--blue),var(--violet));border-color:rgba(255,255,255,.3)}
 .sh-btn.danger{color:#ff9aa6}
 .sh-divider{height:1px;background:var(--rim);margin:14px 0}
+.sh-act{width:100%;padding:15px;border-radius:16px;font-size:14px;font-weight:800;text-align:center;
+  border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer;letter-spacing:.2px}
+.sh-act.sh-del{color:var(--red)}
 
 /* kanban */
 .kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:20px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -1100,6 +1109,7 @@ function openTask(t){
     '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
     '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>';
   document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
 
   if(t.kind==='chaos'){
     const impEl=sheet.querySelector('#imp'),urgEl=sheet.querySelector('#urg'),quad=sheet.querySelector('#quad');
@@ -1160,7 +1170,7 @@ function renderKanban(d){
     const cc=cards.filter(c=>c.column_id===col.id);
     const cardsHtml=cc.map(c=>{
       const done=c.checked?'done':'';
-      return `<div class="kcard ${done}" onclick="kcardClick(event,${c.id},${col.id})">
+      return `<div class="kcard ${done}" onclick="kcardClick(event,${c.id},${col.id},this)">
         <div class="kt">${esc(c.title)}</div>
         ${c.description?`<div class="kdesc">${esc(c.description)}</div>`:''}
         <div class="krow">
@@ -1180,7 +1190,31 @@ function renderKanban(d){
 
 async function kcheck(e,id,val){e.stopPropagation();await api('/api/kcard_check',{id,checked:val});load();}
 async function karchive(e,id){e.stopPropagation();if(!confirm('Отправить в архив?'))return;await api('/api/kcard_archive',{id});load();}
-function kcardClick(e,id,colId){/* future: open detail sheet */}
+function kcardClick(e,id,colId,el){
+  if(e.target.closest('.kchk,.karch'))return;
+  e.stopPropagation();
+  const title=el.querySelector('.kt').textContent;
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  sheet.innerHTML=`<div class="grab"></div><div class="stitle">${esc(title)}</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+      <button class="sh-act" id="kren-btn">✏️ Переименовать</button>
+      <button class="sh-act sh-del" id="karch-btn">📦 В архив</button>
+    </div>`;
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  sheet.querySelector('#kren-btn').onclick=async()=>{
+    const nv=prompt('Новое название:',title);
+    if(!nv||!nv.trim())return;
+    await api('/api/kcard_rename',{id,title:nv.trim()});
+    closeSheet();load();
+  };
+  sheet.querySelector('#karch-btn').onclick=async()=>{
+    if(!confirm('Отправить в архив?'))return;
+    await api('/api/kcard_archive',{id});closeSheet();load();
+  };
+}
 
 async function kaddCard(colId,colName){
   const t=prompt(`Новая карточка в «${colName}»:`);
@@ -1485,7 +1519,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
             "/api/kcard_add": api_kcard_add, "/api/kcard_check": api_kcard_check,
             "/api/kcard_archive": api_kcard_archive, "/api/kcard_move": api_kcard_move,
-            "/api/kcol_add": api_kcol_add, "/api/happiness_save": api_happiness_save,
+            "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add, "/api/happiness_save": api_happiness_save,
         }
         if self.path in routes:
             result = routes[self.path](payload)
