@@ -2258,13 +2258,33 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
+BOT_VERSION = "15.06 · 08:45"  # видимая метка сборки бота
+
+
+async def _on_start(app):
+    """При запуске бот сам пишет владельцу — так видно, что деплой сработал."""
+    try:
+        cid = get_chat_id()
+        if cid:
+            await app.bot.send_message(
+                cid,
+                f"🚀 Секретарь обновлён и запущен.\n"
+                f"Версия: {BOT_VERSION}\n\n"
+                f"Команды:\n"
+                f"• /brief — сводка сейчас\n"
+                f"• /update — обновить код с GitHub",
+            )
+    except Exception as e:
+        log.error(f"startup notify failed: {e}")
+
+
 def main():
     if not TOKEN:
         log.error("BOT_TOKEN не задан в .env")
         return
 
     init_db()
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).post_init(_on_start).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("list", cmd_list))
