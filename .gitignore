@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+
+# Bot runtime state (server-local, not source)
+friedman_bot/*.db
+friedman_bot/.env
+friedman_bot/.deployed_sha
+friedman_bot/.wisdom_cache.json
+friedman_bot/.claude_token
