@@ -2289,6 +2289,19 @@ def _restart_dashboard(d):
                      stdout=logf, stderr=logf, start_new_session=True)
 
 
+async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Присылает публичный IP сервера и прямую ссылку на дашборд."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen("https://api.ipify.org", timeout=8) as r:
+            ip = r.read().decode().strip()
+        await update.message.reply_text(
+            f"🌐 Дашборд:\nhttp://{ip}:8765\n\nСохрани как PWA в Safari:\n"
+            f"Поделиться → На экран «Домой»")
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Не удалось узнать IP: {e}")
+
+
 async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Самообновление из Telegram: скачать свежий код, перезапустить дашборд и себя.
     Больше не нужен Termius — пишешь /update боту, и всё."""
@@ -2388,7 +2401,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 11:25"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 13:55"  # видимая метка сборки бота
 
 
 async def _on_start(app):
@@ -2402,6 +2415,7 @@ async def _on_start(app):
                 f"Версия: {BOT_VERSION}\n\n"
                 f"Авто-деплой включён: новые изменения подхватываю сам за ~1.5 мин.\n\n"
                 f"Команды:\n"
+                f"• /ip — ссылка на дашборд\n"
                 f"• /brief — сводка сейчас\n"
                 f"• /setupbrief — включить картинку-постер\n"
                 f"• /update — обновить вручную прямо сейчас",
@@ -2428,6 +2442,7 @@ def main():
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("setupbrief", cmd_setupbrief))
     app.add_handler(CommandHandler("update", cmd_update))
+    app.add_handler(CommandHandler("ip", cmd_ip))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
