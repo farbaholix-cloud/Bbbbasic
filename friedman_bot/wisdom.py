@@ -1,7 +1,6 @@
 import os
 import json
-import time
-import random
+import threading
 import subprocess
 from datetime import datetime
 
@@ -90,23 +89,35 @@ def _generate() -> str:
     raise RuntimeError("generation failed")
 
 
-def today_wisdom() -> str:
-    key = _hour_key()
-    # читаем кэш
-    try:
-        with open(_CACHE) as f:
-            cached = json.load(f)
-        if cached.get("key") == key and cached.get("text") and not _looks_russian(cached["text"]):
-            return cached["text"]
-    except Exception:
-        pass
-    # генерируем свежую
+def _static_fallback() -> str:
+    n = datetime.now()
+    return WISDOM[(n.timetuple().tm_yday * 24 + n.hour) % len(WISDOM)]
+
+
+def _refresh_async(key: str):
+    """Генерирует новую мудрость в фоновом потоке — не блокирует HTTP."""
     try:
         text = _generate()
         with open(_CACHE, "w") as f:
             json.dump({"key": key, "text": text}, f, ensure_ascii=False)
-        return text
     except Exception:
-        # запасной вариант — из статичного списка, ротация по часу
-        n = datetime.now()
-        return WISDOM[(n.timetuple().tm_yday * 24 + n.hour) % len(WISDOM)]
+        pass
+
+
+def today_wisdom() -> str:
+    """Всегда возвращает мгновенно. Устаревший кэш обновляется в фоне."""
+    key = _hour_key()
+    try:
+        with open(_CACHE) as f:
+            cached = json.load(f)
+        text = cached.get("text", "")
+        if text and not _looks_russian(text):
+            if cached.get("key") != key:
+                # кэш устарел — обновляем в фоне, сейчас отдаём старое
+                threading.Thread(target=_refresh_async, args=(key,), daemon=True).start()
+            return text
+    except Exception:
+        pass
+    # нет кэша вообще — запускаем генерацию в фоне, сейчас отдаём статику
+    threading.Thread(target=_refresh_async, args=(key,), daemon=True).start()
+    return _static_fallback()

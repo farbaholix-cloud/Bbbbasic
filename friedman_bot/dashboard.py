@@ -34,6 +34,10 @@ def get_session_token():
 
 SESSION_TOKEN = get_session_token()
 
+# schema migrations once at startup
+with db() as _conn:
+    ensure_schema(_conn)
+
 # Авто-блокировка по бездействию: пока дашборд открыт, он каждые 8 с пингует сервер.
 # Свернул/закрыл приложение → пинги прекращаются → через IDLE_TIMEOUT сек снова нужен круг.
 IDLE_TIMEOUT = 45
@@ -218,16 +222,14 @@ def planned_spend(conn, d0, d1):
 
 def get_data():
     with db() as conn:
-        ensure_schema(conn)
         chaos = [dict(r) for r in conn.execute(
             "SELECT * FROM chaos ORDER BY done, importance DESC, urgency DESC, created_at DESC").fetchall()]
-        projects = []
-        for p in conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall():
-            steps = [dict(s) for s in conn.execute(
-                "SELECT * FROM steps WHERE project_id=? ORDER BY id", (p["id"],)).fetchall()]
-            proj = dict(p)
-            proj["steps"] = steps
-            projects.append(proj)
+        _projs = {dict(p)["id"]: {**dict(p), "steps": []}
+                  for p in conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()}
+        for s in conn.execute("SELECT * FROM steps ORDER BY project_id, id").fetchall():
+            if s["project_id"] in _projs:
+                _projs[s["project_id"]]["steps"].append(dict(s))
+        projects = list(_projs.values())
         cards = []
         for r in conn.execute("SELECT * FROM events").fetchall():
             cards.append({"kind": "event", "id": r["id"], "date": r["date"],
@@ -859,14 +861,14 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 const AREAS={work:"💼",health:"🌿",money:"💰",people:"👥",home:"🏠",self:"📚",other:"⚡"};
 const MONTHS=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 const DOW=['пн','вт','ср','чт','пт','сб','вс'];
-let DATA=null;
+window.__INIT__=null;let DATA=null;
 const openProjects=new Set();
 
 function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
-async function load(){const r=await fetch('/api/data');if(r.status===401||r.status===403){location.reload();return;}DATA=await r.json();if(!document.getElementById('sheet'))render();}
+async function load(){if(window.__INIT__){DATA=window.__INIT__;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}const r=await fetch('/api/data');if(r.status===401||r.status===403){location.reload();return;}DATA=await r.json();if(!document.getElementById('sheet'))render();}
 
 // segmented control
 document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
@@ -1634,7 +1636,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
         else:
-            self._send(PAGE.replace("__VERSION__", VERSION).encode(), "text/html; charset=utf-8")
+            # вшиваем данные прямо в HTML — браузеру не нужен второй запрос
+            data_json = json.dumps(get_data(), ensure_ascii=False)
+            page = (PAGE.replace("__VERSION__", VERSION)
+                        .replace("window.__INIT__=null",
+                                 "window.__INIT__=" + data_json))
+            self._send(page.encode(), "text/html; charset=utf-8")
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
