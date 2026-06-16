@@ -35,8 +35,11 @@ def get_session_token():
 SESSION_TOKEN = get_session_token()
 
 # schema migrations once at startup
-with db() as _conn:
-    ensure_schema(_conn)
+try:
+    with db() as _conn:
+        ensure_schema(_conn)
+except Exception:
+    pass
 
 # Авто-блокировка по бездействию: пока дашборд открыт, он каждые 8 с пингует сервер.
 # Свернул/закрыл приложение → пинги прекращаются → через IDLE_TIMEOUT сек снова нужен круг.
@@ -1637,10 +1640,13 @@ class Handler(BaseHTTPRequestHandler):
                        "application/json; charset=utf-8")
         else:
             # вшиваем данные прямо в HTML — браузеру не нужен второй запрос
-            data_json = json.dumps(get_data(), ensure_ascii=False)
-            page = (PAGE.replace("__VERSION__", VERSION)
-                        .replace("window.__INIT__=null",
-                                 "window.__INIT__=" + data_json))
+            try:
+                data_json = json.dumps(get_data(), ensure_ascii=False)
+                page = (PAGE.replace("__VERSION__", VERSION)
+                            .replace("window.__INIT__=null",
+                                     "window.__INIT__=" + data_json))
+            except Exception:
+                page = PAGE.replace("__VERSION__", VERSION)
             self._send(page.encode(), "text/html; charset=utf-8")
 
     def do_POST(self):
