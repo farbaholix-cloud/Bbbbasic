@@ -2287,21 +2287,20 @@ def _self_restart(d: str):
     """Перезапускает bot.py через nohup-shell-скрипт в отдельной сессии.
 
     Не использует execv, потому что при падении нового процесса
-    некому его поднять. shell-скрипт с nohup запускает новый бот
-    в независимой сессии, затем текущий процесс завершается.
+    некому его поднять. Запускает новый бот в независимой сессии
+    через subprocess.Popen с detach_process, затем текущий процесс завершается.
     """
-    import sys, stat
-    script = os.path.join(d, "_restart.sh")
-    with open(script, "w") as f:
-        f.write(
-            f"#!/bin/bash\n"
-            f"sleep 2\n"
-            f"cd {d}\n"
-            f"nohup {sys.executable} -u bot.py >> /tmp/bot.log 2>&1 &\n"
-            f"echo \"$(date) bot restarted PID $!\" >> /tmp/bot_restart.log\n"
+    import sys
+    log.info("перезапуск через detached subprocess")
+    try:
+        subprocess.Popen(
+            [sys.executable, "-u", os.path.join(d, "bot.py")],
+            cwd=d, stdout=open("/tmp/bot.log", "ab"), stderr=subprocess.STDOUT,
+            start_new_session=True, close_fds=True
         )
-    os.chmod(script, stat.S_IRWXU)
-    subprocess.Popen(["bash", script], start_new_session=True, close_fds=True)
+        log.info("новый процесс запущен")
+    except Exception as e:
+        log.error(f"не удалось перезапустить: {e}")
 
 
 def _restart_dashboard(d):
@@ -2723,7 +2722,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 19:00"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 19:25"  # видимая метка сборки бота
 
 
 async def _on_start(app):
