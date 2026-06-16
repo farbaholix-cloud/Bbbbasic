@@ -2252,7 +2252,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py"]
+UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 
 
@@ -2401,6 +2401,126 @@ async def cmd_setupvoice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await ctx.bot.send_message(chat_id, f"⚠️ Не вышло поднять голос: {e}")
 
 
+# ─── Живой голосовой разговор (Gemini Live + PWA по HTTPS) ─────────────────────
+
+_GEMINI_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gemini_key")
+_VOICE_URL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".voice_url")
+_CFD = os.path.expanduser("~/.local/bin/cloudflared")
+
+
+async def cmd_setkey(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Сохраняет ключ Gemini: /setkey <ключ>  (ключ AI Studio, бесплатный)."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    args = ctx.args or []
+    key = args[-1].strip() if args else ""
+    if not key or len(key) < 20:
+        await update.message.reply_text(
+            "Пришли ключ так: /setkey ВАШ_КЛЮЧ\n"
+            "Бесплатный ключ — на aistudio.google.com → Get API key.")
+        return
+    with open(_GEMINI_KEY_FILE, "w") as f:
+        f.write(key)
+    try:
+        await update.message.delete()  # убираем ключ из чата
+    except Exception:
+        pass
+    await ctx.bot.send_message(chat_id, "🔑 Ключ Gemini сохранён. Теперь /setupvoicelive.")
+
+
+def _voice_url():
+    try:
+        with open(_VOICE_URL_FILE) as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
+async def cmd_voiceapp(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Показывает адрес живого голосового приложения."""
+    url = _voice_url()
+    if url:
+        await update.message.reply_text(
+            f"🎙 Живой разговор:\n{url}\n\n"
+            f"Открой в Safari → Поделиться → На экран «Домой».\n"
+            f"Нет звука? Перезапусти /setupvoicelive.")
+    else:
+        await update.message.reply_text("Пока не поднято. Запусти /setupvoicelive.")
+
+
+async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Ставит зависимости, поднимает голосовой сервер и HTTPS-туннель, шлёт ссылку."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    if not os.path.exists(_GEMINI_KEY_FILE):
+        await ctx.bot.send_message(chat_id, "Сначала пришли ключ: /setkey ВАШ_КЛЮЧ "
+                                            "(бесплатный на aistudio.google.com).")
+        return
+    import sys
+    import re as _re
+    import urllib.request
+    d = os.path.dirname(os.path.abspath(__file__))
+    await ctx.bot.send_message(chat_id, "🛠 Готовлю живой голос: ставлю зависимости и туннель…")
+
+    def work():
+        subprocess.run([sys.executable, "-m", "pip", "install", "--user", "-q",
+                        "aiohttp", "google-genai"], capture_output=True)
+        # cloudflared — бесплатный HTTPS-туннель без домена и проброса портов
+        if not os.path.exists(_CFD):
+            os.makedirs(os.path.dirname(_CFD), exist_ok=True)
+            urllib.request.urlretrieve(
+                "https://github.com/cloudflare/cloudflared/releases/latest/download/"
+                "cloudflared-linux-amd64", _CFD)
+            os.chmod(_CFD, 0o755)
+        # перезапуск процессов
+        subprocess.run("pkill -9 -f voicelive.py; pkill -9 -f 'cloudflared.*8766'; true",
+                       shell=True)
+        import time as _t
+        _t.sleep(1)
+        vlog = open("/tmp/voicelive.log", "ab")
+        subprocess.Popen([sys.executable, "voicelive.py"], cwd=d,
+                         stdout=vlog, stderr=vlog, start_new_session=True)
+        clog_path = "/tmp/cftunnel.log"
+        open(clog_path, "w").close()
+        clog = open(clog_path, "ab")
+        subprocess.Popen([_CFD, "tunnel", "--no-autoupdate", "--url",
+                          "http://localhost:8766"], stdout=clog, stderr=clog,
+                         start_new_session=True)
+        url = ""
+        for _ in range(30):
+            _t.sleep(1)
+            try:
+                with open(clog_path) as f:
+                    m = _re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", f.read())
+                if m:
+                    url = m.group(0)
+                    break
+            except Exception:
+                pass
+        if url:
+            with open(_VOICE_URL_FILE, "w") as f:
+                f.write(url)
+        return url
+
+    try:
+        url = await asyncio.get_event_loop().run_in_executor(None, work)
+        if url:
+            await ctx.bot.send_message(
+                chat_id, f"✅ Готово!\n🎙 Живой разговор:\n{url}\n\n"
+                         f"Открой в Safari → Поделиться → На экран «Домой».\n"
+                         f"Нажми «Поговорить» и общайся без кнопок.")
+        else:
+            await ctx.bot.send_message(
+                chat_id, "⚠️ Туннель не поднялся. Загляну в /tmp/cftunnel.log при отладке. "
+                         "Повтори /setupvoicelive ещё раз.")
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"⚠️ Не вышло поднять живой голос: {e}")
+
+
 async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Самообновление из Telegram: скачать свежий код, перезапустить дашборд и себя.
     Больше не нужен Termius — пишешь /update боту, и всё."""
@@ -2500,7 +2620,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 15:40"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 16:30"  # видимая метка сборки бота
 
 
 async def _on_start(app):
@@ -2514,7 +2634,10 @@ async def _on_start(app):
                 f"Версия: {BOT_VERSION}\n\n"
                 f"Авто-деплой включён: новые изменения подхватываю сам за ~1.5 мин.\n\n"
                 f"Команды:\n"
-                f"• /setupvoice — включить живой голос\n"
+                f"• /setkey — ключ Gemini для живого разговора\n"
+                f"• /setupvoicelive — поднять живой разговор (PWA)\n"
+                f"• /voiceapp — ссылка на живой разговор\n"
+                f"• /setupvoice — озвучка в боте (голосовые)\n"
                 f"• /voice — голосовые ответы вкл/выкл\n"
                 f"• /ip — ссылка на дашборд\n"
                 f"• /brief — сводка сейчас\n"
@@ -2546,6 +2669,9 @@ def main():
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("voice", cmd_voice))
     app.add_handler(CommandHandler("setupvoice", cmd_setupvoice))
+    app.add_handler(CommandHandler("setkey", cmd_setkey))
+    app.add_handler(CommandHandler("setupvoicelive", cmd_setupvoicelive))
+    app.add_handler(CommandHandler("voiceapp", cmd_voiceapp))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
