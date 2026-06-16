@@ -2450,6 +2450,37 @@ async def cmd_voiceapp(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Пока не поднято. Запусти /setupvoicelive.")
 
 
+async def cmd_voicelog(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Показывает хвост логов голосового сервера и туннеля — для отладки."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    import socket as _socket
+
+    def _port_open(port):
+        s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+        s.settimeout(0.5)
+        try:
+            return s.connect_ex(("127.0.0.1", port)) == 0
+        finally:
+            s.close()
+
+    parts = [f"порт 8766: {'слушает ✅' if _port_open(8766) else 'молчит ❌'}"]
+    for label, path in [("voicelive", "/tmp/voicelive.log"), ("tunnel", "/tmp/cftunnel.log")]:
+        try:
+            with open(path) as f:
+                tail = f.read()[-1000:].strip()
+        except Exception:
+            tail = "(нет файла)"
+        parts.append(f"*{label}*:\n```\n{tail or '(пусто)'}\n```")
+    msg = "\n\n".join(parts)
+    try:
+        await ctx.bot.send_message(chat_id, msg[:4000], parse_mode="Markdown")
+    except Exception:
+        await ctx.bot.send_message(chat_id, msg[:4000])
+
+
 async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Ставит зависимости, поднимает голосовой сервер и HTTPS-туннель, шлёт ссылку."""
     chat_id = update.effective_chat.id
@@ -2462,13 +2493,29 @@ async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     import sys
     import re as _re
+    import socket as _socket
     import urllib.request
     d = os.path.dirname(os.path.abspath(__file__))
     await ctx.bot.send_message(chat_id, "🛠 Готовлю живой голос: ставлю зависимости и туннель…")
 
+    def _port_open(port: int) -> bool:
+        s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+        s.settimeout(0.5)
+        try:
+            return s.connect_ex(("127.0.0.1", port)) == 0
+        finally:
+            s.close()
+
     def work():
-        subprocess.run([sys.executable, "-m", "pip", "install", "--user", "-q",
-                        "aiohttp", "google-genai"], capture_output=True)
+        # В venv нельзя ставить с --user (там user-site выключен) — иначе пакеты
+        # «ставятся», но не импортируются и voicelive.py падает на старте.
+        in_venv = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
+        pip_cmd = [sys.executable, "-m", "pip", "install", "-q", "aiohttp", "google-genai"]
+        if not in_venv:
+            pip_cmd.insert(4, "--user")
+        pip = subprocess.run(pip_cmd, capture_output=True, text=True)
+        pip_err = (pip.stderr or "").strip()
+
         # cloudflared — бесплатный HTTPS-туннель без домена и проброса портов
         if not os.path.exists(_CFD):
             os.makedirs(os.path.dirname(_CFD), exist_ok=True)
@@ -2481,9 +2528,28 @@ async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                        shell=True)
         import time as _t
         _t.sleep(1)
+        # лог пишем заново, чтобы видеть свежий стек при падении
+        open("/tmp/voicelive.log", "w").close()
         vlog = open("/tmp/voicelive.log", "ab")
         subprocess.Popen([sys.executable, "voicelive.py"], cwd=d,
                          stdout=vlog, stderr=vlog, start_new_session=True)
+
+        # ждём, пока сервер реально начнёт слушать порт 8766
+        up = False
+        for _ in range(15):
+            _t.sleep(1)
+            if _port_open(8766):
+                up = True
+                break
+        if not up:
+            tail = ""
+            try:
+                with open("/tmp/voicelive.log") as f:
+                    tail = f.read()[-1500:]
+            except Exception:
+                pass
+            return {"ok": False, "stage": "server", "log": tail, "pip_err": pip_err}
+
         clog_path = "/tmp/cftunnel.log"
         open(clog_path, "w").close()
         clog = open(clog_path, "ab")
@@ -2501,21 +2567,29 @@ async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                     break
             except Exception:
                 pass
-        if url:
-            with open(_VOICE_URL_FILE, "w") as f:
-                f.write(url)
-        return url
+        if not url:
+            return {"ok": False, "stage": "tunnel"}
+        with open(_VOICE_URL_FILE, "w") as f:
+            f.write(url)
+        return {"ok": True, "url": url}
 
     try:
-        url = await asyncio.get_event_loop().run_in_executor(None, work)
-        if url:
+        res = await asyncio.get_event_loop().run_in_executor(None, work)
+        if res.get("ok"):
             await ctx.bot.send_message(
-                chat_id, f"✅ Готово!\n🎙 Живой разговор:\n{url}\n\n"
+                chat_id, f"✅ Готово!\n🎙 Живой разговор:\n{res['url']}\n\n"
                          f"Открой в Safari → Поделиться → На экран «Домой».\n"
                          f"Нажми «Поговорить» и общайся без кнопок.")
+        elif res.get("stage") == "server":
+            log_tail = (res.get("log") or "").strip() or "(пусто)"
+            extra = f"\n\npip: {res['pip_err'][-300:]}" if res.get("pip_err") else ""
+            await ctx.bot.send_message(
+                chat_id, "⚠️ Голосовой сервер не поднялся (порт 8766 молчит). "
+                         f"Лог:\n```\n{log_tail[-1200:]}\n```{extra}",
+                parse_mode="Markdown")
         else:
             await ctx.bot.send_message(
-                chat_id, "⚠️ Туннель не поднялся. Загляну в /tmp/cftunnel.log при отладке. "
+                chat_id, "⚠️ Сервер поднялся, но туннель не вышел. "
                          "Повтори /setupvoicelive ещё раз.")
     except Exception as e:
         await ctx.bot.send_message(chat_id, f"⚠️ Не вышло поднять живой голос: {e}")
@@ -2620,7 +2694,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 17:45"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 18:10"  # видимая метка сборки бота
 
 
 async def _on_start(app):
@@ -2637,6 +2711,7 @@ async def _on_start(app):
                 f"• /setkey — ключ Gemini для живого разговора\n"
                 f"• /setupvoicelive — поднять живой разговор (PWA)\n"
                 f"• /voiceapp — ссылка на живой разговор\n"
+                f"• /voicelog — диагностика голосового сервера\n"
                 f"• /setupvoice — озвучка в боте (голосовые)\n"
                 f"• /voice — голосовые ответы вкл/выкл\n"
                 f"• /ip — ссылка на дашборд\n"
@@ -2672,6 +2747,7 @@ def main():
     app.add_handler(CommandHandler("setkey", cmd_setkey))
     app.add_handler(CommandHandler("setupvoicelive", cmd_setupvoicelive))
     app.add_handler(CommandHandler("voiceapp", cmd_voiceapp))
+    app.add_handler(CommandHandler("voicelog", cmd_voicelog))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
