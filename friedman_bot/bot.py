@@ -2534,7 +2534,8 @@ async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         # В venv нельзя ставить с --user (там user-site выключен) — иначе пакеты
         # «ставятся», но не импортируются и voicelive.py падает на старте.
         in_venv = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
-        pip_cmd = [sys.executable, "-m", "pip", "install", "-q", "aiohttp", "google-genai"]
+        pip_cmd = [sys.executable, "-m", "pip", "install", "-q",
+                   "aiohttp", "edge-tts", "openai-whisper"]
         if not in_venv:
             pip_cmd.insert(4, "--user")
         pip = subprocess.run(pip_cmd, capture_output=True, text=True)
@@ -2722,7 +2723,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 20:30"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 21:00"  # видимая метка сборки бота
 
 
 async def _on_start(app):
