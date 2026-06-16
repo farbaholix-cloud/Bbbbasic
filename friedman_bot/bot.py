@@ -675,6 +675,10 @@ async def ai_converse(update: Update, user_text: str, source: str = "text"):
     except Exception:
         await update.message.reply_text(prefix.replace("_", "") + reply)
 
+    # отвечаем голосом, если обратились голосом и озвучка включена
+    if source == "voice" and voice_enabled():
+        await speak_reply(update, reply)
+
     for kind, _id, _text, path, _pri in applied:
         if kind == "invoice" and path:
             try:
@@ -2248,7 +2252,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py"]
+UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 
 
@@ -2300,6 +2304,98 @@ async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"Поделиться → На экран «Домой»")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Не удалось узнать IP: {e}")
+
+
+# ─── Голос секретаря (TTS) ────────────────────────────────────────────────────
+
+_VOICE_PREF = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".voice_pref")
+
+
+def voice_enabled() -> bool:
+    try:
+        with open(_VOICE_PREF) as f:
+            return f.read().strip() != "off"
+    except Exception:
+        return True  # по умолчанию отвечаем голосом на голос
+
+
+def set_voice(on: bool):
+    try:
+        with open(_VOICE_PREF, "w") as f:
+            f.write("on" if on else "off")
+    except Exception:
+        pass
+
+
+async def speak_reply(update: Update, text: str):
+    """Озвучивает ответ и шлёт его голосовым сообщением."""
+    try:
+        import tts
+        path, is_voice = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: tts.synthesize(text))
+        if not path:
+            return
+        with open(path, "rb") as f:
+            if is_voice:
+                await update.message.reply_voice(f)
+            else:
+                await update.message.reply_audio(f)
+        try:
+            os.unlink(path)
+        except Exception:
+            pass
+    except Exception as e:
+        log.error(f"TTS: {e}")
+
+
+async def cmd_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Вкл/выкл голосовые ответы: /voice [on|off]."""
+    import tts
+    arg = (ctx.args[0].lower() if ctx.args else "")
+    if arg in ("on", "вкл", "1"):
+        set_voice(True)
+    elif arg in ("off", "выкл", "0"):
+        set_voice(False)
+    else:
+        set_voice(not voice_enabled())
+    state = "включён ✅" if voice_enabled() else "выключен ⏹"
+    await update.message.reply_text(
+        f"🔊 Голосовые ответы {state}\nГолос: {tts.active_backend()}\n\n"
+        f"Шли голосовое — отвечу голосом. Не разговаривает вслух? Запусти /setupvoice.")
+
+
+async def cmd_setupvoice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Ставит и прогревает голосовую модель прямо с сервера — Termius не нужен."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    import sys
+    await ctx.bot.send_message(chat_id, "🎙 Готовлю голос (ставлю модель Silero, первый раз ~1 мин)…")
+
+    def work():
+        subprocess.run([sys.executable, "-m", "pip", "install", "--user", "-q", "omegaconf"],
+                       capture_output=True)
+        import tts
+        return tts.synthesize("Привет! Я секретарь Фридмана. Теперь я умею говорить вслух.")
+
+    try:
+        path, is_voice = await asyncio.get_event_loop().run_in_executor(None, work)
+        set_voice(True)
+        with open(path, "rb") as f:
+            if is_voice:
+                await ctx.bot.send_voice(chat_id, f)
+            else:
+                await ctx.bot.send_audio(chat_id, f)
+        try:
+            os.unlink(path)
+        except Exception:
+            pass
+        await ctx.bot.send_message(
+            chat_id, "✅ Голос готов. Шли голосовое — отвечу голосом.\n"
+                     "/voice — включить/выключить озвучку.")
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"⚠️ Не вышло поднять голос: {e}")
 
 
 async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -2401,7 +2497,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 13:55"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 15:20"  # видимая метка сборки бота
 
 
 async def _on_start(app):
@@ -2415,6 +2511,8 @@ async def _on_start(app):
                 f"Версия: {BOT_VERSION}\n\n"
                 f"Авто-деплой включён: новые изменения подхватываю сам за ~1.5 мин.\n\n"
                 f"Команды:\n"
+                f"• /setupvoice — включить живой голос\n"
+                f"• /voice — голосовые ответы вкл/выкл\n"
                 f"• /ip — ссылка на дашборд\n"
                 f"• /brief — сводка сейчас\n"
                 f"• /setupbrief — включить картинку-постер\n"
@@ -2443,6 +2541,8 @@ def main():
     app.add_handler(CommandHandler("setupbrief", cmd_setupbrief))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("ip", cmd_ip))
+    app.add_handler(CommandHandler("voice", cmd_voice))
+    app.add_handler(CommandHandler("setupvoice", cmd_setupvoice))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
