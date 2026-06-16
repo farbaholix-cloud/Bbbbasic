@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "16.06 · 14:05"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "16.06 · 14:25"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1430,53 +1430,100 @@ LOCK_PAGE = r"""<!DOCTYPE html>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
 #dot{position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;
-  box-shadow:0 0 22px 6px rgba(255,255,255,.55);animation:pulse 2.6s ease-in-out infinite;z-index:1}
-@keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.5);opacity:1}}
-/* SVG-след — рисуется в CSS-пикселях, без canvas и без DPR-математики */
-#ink{position:fixed;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;transition:opacity .5s}
-#glow{fill:none;stroke:#ff2a0c;stroke-width:11;stroke-linecap:round;stroke-linejoin:round;opacity:.55;
-  filter:drop-shadow(0 0 6px #ff3a14) drop-shadow(0 0 16px #ff1500) drop-shadow(0 0 30px rgba(255,0,0,.7))}
-#trail{fill:none;stroke:#ff6a38;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
-#core{fill:none;stroke:#ffd9b8;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-#head{fill:#ff5a2a;filter:drop-shadow(0 0 8px #ff3000) drop-shadow(0 0 18px #ff0000);
-  transform-box:fill-box;transform-origin:center;animation:hpulse 1.1s ease-in-out infinite;opacity:0}
-@keyframes hpulse{0%,100%{transform:scale(.7);opacity:.85}50%{transform:scale(1.35);opacity:1}}
-#hint{position:fixed;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));text-align:center;color:rgba(255,255,255,.20);
-  font-family:-apple-system,sans-serif;font-size:13px;font-weight:500;letter-spacing:.5px;z-index:1;transition:opacity 1s;pointer-events:none}
+  box-shadow:0 0 22px 6px rgba(255,255,255,.45);animation:pulse 2.6s ease-in-out infinite;z-index:1}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.5);opacity:1}}
+#ink{position:fixed;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;transition:opacity .6s}
+/* пульсирующая точка-кисть на конце следа */
+#head{fill:#8b0a06;transform-box:fill-box;transform-origin:center;
+  animation:hpulse 1.3s ease-in-out infinite;opacity:0}
+@keyframes hpulse{0%,100%{transform:scale(.75);opacity:.7}50%{transform:scale(1.3);opacity:1}}
+#hint{position:fixed;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));text-align:center;
+  color:rgba(255,255,255,.18);font-family:-apple-system,sans-serif;font-size:13px;font-weight:500;
+  letter-spacing:.5px;z-index:1;transition:opacity 1s;pointer-events:none}
 #surface{position:fixed;inset:0;z-index:4;touch-action:none;background:transparent}
 #flash{position:fixed;inset:0;background:#fff;opacity:0;z-index:5;pointer-events:none;transition:opacity .45s}
 </style></head>
 <body>
 <div id="dot"></div>
 <svg id="ink" xmlns="http://www.w3.org/2000/svg">
-  <polyline id="glow"/><polyline id="trail"/><polyline id="core"/>
-  <circle id="head" r="9"/>
+  <defs>
+    <!-- размытие имитирует впитывание чернил в бумагу -->
+    <filter id="bleed" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3.5"/>
+    </filter>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="0.9"/>
+    </filter>
+  </defs>
+  <g id="glayer"></g>
+  <g id="slayer"></g>
+  <circle id="head" r="13" cx="0" cy="0"/>
 </svg>
 <div id="hint">обведи точку</div>
 <div id="surface"></div>
 <div id="flash"></div>
 <script>
+const NS='http://www.w3.org/2000/svg';
 const hint=document.getElementById('hint'),ink=document.getElementById('ink'),
-      glow=document.getElementById('glow'),trail=document.getElementById('trail'),
-      core=document.getElementById('core'),head=document.getElementById('head'),
-      surface=document.getElementById('surface');
-let drawing=false,pts=[],busy=false;
+      gl=document.getElementById('glayer'),sl=document.getElementById('slayer'),
+      head=document.getElementById('head'),surface=document.getElementById('surface');
+let drawing=false,pts=[],busy=false,lastXY=null,lastT=0;
 
 function pt(e){const t=(e.touches&&e.touches[0])?e.touches[0]:e;return[t.clientX,t.clientY];}
-function redraw(){
-  const s=pts.map(p=>p[0]+','+p[1]).join(' ');
-  glow.setAttribute('points',s);trail.setAttribute('points',s);core.setAttribute('points',s);
-  const h=pts[pts.length-1];
-  if(h){head.setAttribute('cx',h[0]);head.setAttribute('cy',h[1]);head.style.opacity=1;}
-}
-function clearInk(){pts=[];glow.removeAttribute('points');trail.removeAttribute('points');
-  core.removeAttribute('points');head.style.opacity=0;ink.style.opacity=1;}
 
-function start(e){if(busy)return;e.preventDefault();drawing=true;ink.style.opacity=1;pts=[pt(e)];redraw();hint.style.opacity=0;}
+function mkCircle(x,y,r,fill,filter){
+  const c=document.createElementNS(NS,'circle');
+  c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',r);c.setAttribute('fill',fill);
+  if(filter)c.setAttribute('filter',filter);
+  return c;
+}
+
+function addBlob(x,y){
+  const now=performance.now();
+  let r=15;
+  if(lastXY){
+    const dist=Math.hypot(x-lastXY[0],y-lastXY[1]);
+    const dt=Math.max(6,now-lastT);
+    const speed=dist/dt;                         // px/ms: медленно→0.1, быстро→8+
+    r=Math.max(3.5,Math.min(17,17-speed*2.2));   // медленно→толсто, быстро→тонко
+  }
+  // внешний слой: расплывание чернил по волокнам бумаги
+  const alpha=(0.22+Math.random()*0.1).toFixed(2);
+  gl.appendChild(mkCircle(x,y,r*2.1,`rgba(60,0,0,${alpha})`,'url(#bleed)'));
+  // средний слой: тело мазка
+  const a2=(0.78+Math.random()*0.18).toFixed(2);
+  sl.appendChild(mkCircle(x,y,r,`rgba(130,10,6,${a2})`,'url(#soft)'));
+  // тонкая светлая жилка по центру — блик на влажных чернилах
+  if(r>6)sl.appendChild(mkCircle(x,y,r*0.28,`rgba(210,80,60,0.55)`,null));
+  lastXY=[x,y];lastT=now;
+}
+
+function splash(x,y){
+  // капли при касании кисти к поверхности
+  for(let i=0;i<7;i++){
+    const ang=Math.random()*Math.PI*2,d=3+Math.random()*12;
+    const sr=0.6+Math.random()*2.8;
+    sl.appendChild(mkCircle(x+Math.cos(ang)*d,y+Math.sin(ang)*d,sr,
+      `rgba(110,8,5,${(0.25+Math.random()*0.35).toFixed(2)})`,null));
+  }
+}
+
+function start(e){if(busy)return;e.preventDefault();
+  drawing=true;ink.style.opacity=1;pts=[];gl.innerHTML='';sl.innerHTML='';
+  lastXY=null;lastT=performance.now();
+  const p=pt(e);pts.push(p);
+  splash(p[0],p[1]);addBlob(p[0],p[1]);
+  head.setAttribute('cx',p[0]);head.setAttribute('cy',p[1]);head.style.opacity=1;
+  hint.style.opacity=0;}
+
 function move(e){if(!drawing||busy)return;e.preventDefault();
-  const p=pt(e),last=pts[pts.length-1];
-  if(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>=1.5){pts.push(p);redraw();}}
-async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
+  const p=pt(e),lp=pts[pts.length-1];
+  if(lp&&Math.hypot(p[0]-lp[0],p[1]-lp[1])<2)return;
+  pts.push(p);addBlob(p[0],p[1]);
+  head.setAttribute('cx',p[0]);head.setAttribute('cy',p[1]);}
+
+async function end(e){if(!drawing||busy)return;e.preventDefault();
+  drawing=false;head.style.opacity=0;
   if(pts.length<10){fade();return;}
   busy=true;
   try{
@@ -1485,12 +1532,12 @@ async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
     const j=await r.json();
     if(j.ok){success();return;}
   }catch(_){}
-  busy=false;fade();
-}
-function fade(){ink.style.opacity=0;head.style.opacity=0;
-  setTimeout(()=>{clearInk();hint.style.opacity='';},520);}
-function success(){
-  const f=document.getElementById('flash'),d=document.getElementById('dot');
+  busy=false;fade();}
+
+function fade(){ink.style.opacity=0;
+  setTimeout(()=>{gl.innerHTML='';sl.innerHTML='';pts=[];lastXY=null;
+    ink.style.opacity=1;hint.style.opacity='';},640);}
+function success(){const f=document.getElementById('flash'),d=document.getElementById('dot');
   d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
   f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
 surface.addEventListener('touchstart',start,{passive:false});
