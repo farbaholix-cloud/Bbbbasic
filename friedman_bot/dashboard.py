@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "15.06 · 12:45"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "16.06 · 14:05"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1432,100 +1432,74 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavi
 #dot{position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;
   box-shadow:0 0 22px 6px rgba(255,255,255,.55);animation:pulse 2.6s ease-in-out infinite;z-index:1}
 @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.5);opacity:1}}
-#c{position:fixed;inset:0;z-index:2;touch-action:none}
+/* SVG-след — рисуется в CSS-пикселях, без canvas и без DPR-математики */
+#ink{position:fixed;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;transition:opacity .5s}
+#glow{fill:none;stroke:#ff2a0c;stroke-width:11;stroke-linecap:round;stroke-linejoin:round;opacity:.55;
+  filter:drop-shadow(0 0 6px #ff3a14) drop-shadow(0 0 16px #ff1500) drop-shadow(0 0 30px rgba(255,0,0,.7))}
+#trail{fill:none;stroke:#ff6a38;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+#core{fill:none;stroke:#ffd9b8;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#head{fill:#ff5a2a;filter:drop-shadow(0 0 8px #ff3000) drop-shadow(0 0 18px #ff0000);
+  transform-box:fill-box;transform-origin:center;animation:hpulse 1.1s ease-in-out infinite;opacity:0}
+@keyframes hpulse{0%,100%{transform:scale(.7);opacity:.85}50%{transform:scale(1.35);opacity:1}}
 #hint{position:fixed;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));text-align:center;color:rgba(255,255,255,.20);
   font-family:-apple-system,sans-serif;font-size:13px;font-weight:500;letter-spacing:.5px;z-index:1;transition:opacity 1s;pointer-events:none}
-#flash{position:fixed;inset:0;background:#fff;opacity:0;z-index:3;pointer-events:none;transition:opacity .45s}
+#surface{position:fixed;inset:0;z-index:4;touch-action:none;background:transparent}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;z-index:5;pointer-events:none;transition:opacity .45s}
 </style></head>
 <body>
 <div id="dot"></div>
-<canvas id="c"></canvas>
+<svg id="ink" xmlns="http://www.w3.org/2000/svg">
+  <polyline id="glow"/><polyline id="trail"/><polyline id="core"/>
+  <circle id="head" r="9"/>
+</svg>
 <div id="hint">обведи точку</div>
+<div id="surface"></div>
 <div id="flash"></div>
 <script>
-const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-let DPR=Math.max(1,window.devicePixelRatio||1);
-function resize(){cv.width=innerWidth*DPR;cv.height=innerHeight*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
-resize();addEventListener('resize',resize);
-const hint=document.getElementById('hint');
-let drawing=false,pts=[],busy=false,fadeA=1,anim=0;
+const hint=document.getElementById('hint'),ink=document.getElementById('ink'),
+      glow=document.getElementById('glow'),trail=document.getElementById('trail'),
+      core=document.getElementById('core'),head=document.getElementById('head'),
+      surface=document.getElementById('surface');
+let drawing=false,pts=[],busy=false;
 
-function pos(e){const t=(e.touches&&e.touches[0])?e.touches[0]:e;return{x:t.clientX,y:t.clientY,t:performance.now()};}
-
-// один кадр чернильного следа — рисуется каждый animation frame
-function inkPass(points,alpha,now){
-  if(!points.length)return;
-  ctx.save();
-  ctx.globalAlpha=alpha;
-  ctx.lineCap='round';ctx.lineJoin='round';
-  // 1) широкое красное свечение — один путь, одна дешёвая тень
-  if(points.length>1){
-    ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
-    for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
-    ctx.strokeStyle='rgba(255,40,10,0.40)';
-    ctx.lineWidth=9;
-    ctx.shadowColor='rgba(255,30,0,0.95)';ctx.shadowBlur=24;
-    ctx.stroke();
-    ctx.shadowBlur=0;
-  }
-  // 2) яркое ядро с переменной толщиной — японская кисть
-  for(let i=1;i<points.length;i++){
-    const p0=points[i-1],p1=points[i];
-    const dist=Math.hypot(p1.x-p0.x,p1.y-p0.y)||1;
-    const dt=Math.max(8,(p1.t||0)-(p0.t||0));
-    const speed=dist/dt;                       // px/ms
-    const w=Math.max(2.5,Math.min(13,12-speed*7));
-    ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
-    ctx.strokeStyle='rgba(255,90,40,0.95)';ctx.lineWidth=w;ctx.stroke();
-    ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
-    ctx.strokeStyle='rgba(255,215,180,0.85)';ctx.lineWidth=Math.max(1,w*0.34);ctx.stroke();
-  }
-  // 3) пульсирующая «капля чернил» в голове следа — видна даже если палец стоит
-  const h=points[points.length-1];
-  const R=14*(1+0.35*Math.sin(now/170));
-  const g=ctx.createRadialGradient(h.x,h.y,0,h.x,h.y,R);
-  g.addColorStop(0,'rgba(255,190,150,0.95)');
-  g.addColorStop(0.35,'rgba(255,40,10,0.70)');
-  g.addColorStop(1,'rgba(180,0,0,0)');
-  ctx.beginPath();ctx.arc(h.x,h.y,R,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
-  ctx.restore();
+function pt(e){const t=(e.touches&&e.touches[0])?e.touches[0]:e;return[t.clientX,t.clientY];}
+function redraw(){
+  const s=pts.map(p=>p[0]+','+p[1]).join(' ');
+  glow.setAttribute('points',s);trail.setAttribute('points',s);core.setAttribute('points',s);
+  const h=pts[pts.length-1];
+  if(h){head.setAttribute('cx',h[0]);head.setAttribute('cy',h[1]);head.style.opacity=1;}
 }
+function clearInk(){pts=[];glow.removeAttribute('points');trail.removeAttribute('points');
+  core.removeAttribute('points');head.style.opacity=0;ink.style.opacity=1;}
 
-// непрерывный цикл отрисовки — гарантирует, что след виден и анимирован
-function frame(now){
-  ctx.clearRect(0,0,innerWidth,innerHeight);
-  if(pts.length)inkPass(pts,fadeA,now);
-  anim=requestAnimationFrame(frame);
-}
-anim=requestAnimationFrame(frame);
-
-function start(e){if(busy)return;e.preventDefault();drawing=true;fadeA=1;pts=[pos(e)];hint.style.opacity=0;}
+function start(e){if(busy)return;e.preventDefault();drawing=true;ink.style.opacity=1;pts=[pt(e)];redraw();hint.style.opacity=0;}
 function move(e){if(!drawing||busy)return;e.preventDefault();
-  const p=pos(e),last=pts[pts.length-1];
-  if(!last||Math.hypot(p.x-last.x,p.y-last.y)>=1.5)pts.push(p);}
+  const p=pt(e),last=pts[pts.length-1];
+  if(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>=1.5){pts.push(p);redraw();}}
 async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
   if(pts.length<10){fade();return;}
   busy=true;
   try{
     const r=await fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({points:pts.map(p=>[p.x,p.y])})});
+      body:JSON.stringify({points:pts})});
     const j=await r.json();
     if(j.ok){success();return;}
   }catch(_){}
   busy=false;fade();
 }
-function fade(){const id=setInterval(()=>{fadeA-=0.05;if(fadeA<=0){fadeA=0;pts=[];clearInterval(id);hint.style.opacity='';}},24);}
-function success(){cancelAnimationFrame(anim);
+function fade(){ink.style.opacity=0;head.style.opacity=0;
+  setTimeout(()=>{clearInk();hint.style.opacity='';},520);}
+function success(){
   const f=document.getElementById('flash'),d=document.getElementById('dot');
   d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
   f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
-cv.addEventListener('touchstart',start,{passive:false});
-cv.addEventListener('touchmove',move,{passive:false});
-cv.addEventListener('touchend',end,{passive:false});
-cv.addEventListener('touchcancel',end,{passive:false});
-cv.addEventListener('mousedown',start);
-cv.addEventListener('mousemove',move);
-cv.addEventListener('mouseup',end);
+surface.addEventListener('touchstart',start,{passive:false});
+surface.addEventListener('touchmove',move,{passive:false});
+surface.addEventListener('touchend',end,{passive:false});
+surface.addEventListener('touchcancel',end,{passive:false});
+surface.addEventListener('mousedown',start);
+surface.addEventListener('mousemove',move);
+surface.addEventListener('mouseup',end);
 document.addEventListener('contextmenu',e=>e.preventDefault());
 </script></body></html>"""
 
