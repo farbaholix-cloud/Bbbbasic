@@ -1447,48 +1447,62 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 let DPR=Math.max(1,window.devicePixelRatio||1);
 function resize(){cv.width=innerWidth*DPR;cv.height=innerHeight*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
 resize();addEventListener('resize',resize);
-let drawing=false,pts=[],busy=false;
-function clearC(){ctx.clearRect(0,0,innerWidth,innerHeight);}
-function pos(e){const t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY,t:Date.now()};}
+const hint=document.getElementById('hint');
+let drawing=false,pts=[],busy=false,fadeA=1,anim=0;
 
-function drawStroke(points,alpha){
-  if(points.length<2)return;
-  ctx.save();ctx.globalAlpha=alpha;
+function pos(e){const t=(e.touches&&e.touches[0])?e.touches[0]:e;return{x:t.clientX,y:t.clientY,t:performance.now()};}
+
+// один кадр чернильного следа — рисуется каждый animation frame
+function inkPass(points,alpha,now){
+  if(!points.length)return;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.lineCap='round';ctx.lineJoin='round';
+  // 1) широкое красное свечение — один путь, одна дешёвая тень
+  if(points.length>1){
+    ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
+    for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
+    ctx.strokeStyle='rgba(255,40,10,0.40)';
+    ctx.lineWidth=9;
+    ctx.shadowColor='rgba(255,30,0,0.95)';ctx.shadowBlur=24;
+    ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+  // 2) яркое ядро с переменной толщиной — японская кисть
   for(let i=1;i<points.length;i++){
     const p0=points[i-1],p1=points[i];
-    const dx=p1.x-p0.x,dy=p1.y-p0.y;
-    const dist=Math.sqrt(dx*dx+dy*dy)||1;
-    const dt=Math.max(1,(p1.t||1)-(p0.t||0));
-    const speed=dist/dt;
-    const w=Math.max(2,Math.min(18,16-speed*5));
-    const mx=(p0.x+p1.x)/2,my=(p0.y+p1.y)/2;
-    const g=ctx.createRadialGradient(mx,my,0,mx,my,w*1.8);
-    g.addColorStop(0,'rgba(230,20,10,0.9)');
-    g.addColorStop(0.5,'rgba(190,0,0,0.55)');
-    g.addColorStop(1,'rgba(120,0,0,0)');
-    ctx.beginPath();ctx.arc(mx,my,w*1.1,0,Math.PI*2);
-    ctx.fillStyle=g;ctx.fill();
+    const dist=Math.hypot(p1.x-p0.x,p1.y-p0.y)||1;
+    const dt=Math.max(8,(p1.t||0)-(p0.t||0));
+    const speed=dist/dt;                       // px/ms
+    const w=Math.max(2.5,Math.min(13,12-speed*7));
     ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
-    ctx.strokeStyle='rgba(210,10,5,0.88)';ctx.lineWidth=w*0.65;
-    ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.shadowColor='rgba(255,40,0,0.75)';ctx.shadowBlur=w*2;
-    ctx.stroke();ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(255,90,40,0.95)';ctx.lineWidth=w;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
+    ctx.strokeStyle='rgba(255,215,180,0.85)';ctx.lineWidth=Math.max(1,w*0.34);ctx.stroke();
   }
-  if(points.length>3&&alpha===1){
-    for(let k=0;k<4;k++){
-      const p=points[0];
-      const ang=Math.random()*Math.PI*2,d=4+Math.random()*10;
-      ctx.beginPath();ctx.arc(p.x+Math.cos(ang)*d,p.y+Math.sin(ang)*d,0.7+Math.random()*2.8,0,Math.PI*2);
-      ctx.fillStyle='rgba(200,0,0,0.4)';ctx.fill();
-    }
-  }
+  // 3) пульсирующая «капля чернил» в голове следа — видна даже если палец стоит
+  const h=points[points.length-1];
+  const R=14*(1+0.35*Math.sin(now/170));
+  const g=ctx.createRadialGradient(h.x,h.y,0,h.x,h.y,R);
+  g.addColorStop(0,'rgba(255,190,150,0.95)');
+  g.addColorStop(0.35,'rgba(255,40,10,0.70)');
+  g.addColorStop(1,'rgba(180,0,0,0)');
+  ctx.beginPath();ctx.arc(h.x,h.y,R,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
   ctx.restore();
 }
 
-function start(e){if(busy)return;e.preventDefault();drawing=true;pts=[];clearC();
-  pts.push(pos(e));document.getElementById('hint').style.opacity=0;}
+// непрерывный цикл отрисовки — гарантирует, что след виден и анимирован
+function frame(now){
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  if(pts.length)inkPass(pts,fadeA,now);
+  anim=requestAnimationFrame(frame);
+}
+anim=requestAnimationFrame(frame);
+
+function start(e){if(busy)return;e.preventDefault();drawing=true;fadeA=1;pts=[pos(e)];hint.style.opacity=0;}
 function move(e){if(!drawing||busy)return;e.preventDefault();
-  pts.push(pos(e));clearC();drawStroke(pts,1);}
+  const p=pos(e),last=pts[pts.length-1];
+  if(!last||Math.hypot(p.x-last.x,p.y-last.y)>=1.5)pts.push(p);}
 async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
   if(pts.length<10){fade();return;}
   busy=true;
@@ -1500,8 +1514,9 @@ async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
   }catch(_){}
   busy=false;fade();
 }
-function fade(){let a=1;const id=setInterval(()=>{a-=0.06;clearC();if(a<=0){clearInterval(id);return;}drawStroke(pts,a);},28);}
-function success(){const f=document.getElementById('flash'),d=document.getElementById('dot');
+function fade(){const id=setInterval(()=>{fadeA-=0.05;if(fadeA<=0){fadeA=0;pts=[];clearInterval(id);hint.style.opacity='';}},24);}
+function success(){cancelAnimationFrame(anim);
+  const f=document.getElementById('flash'),d=document.getElementById('dot');
   d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
   f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
 cv.addEventListener('touchstart',start,{passive:false});

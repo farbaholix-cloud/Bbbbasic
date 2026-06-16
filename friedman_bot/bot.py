@@ -2244,9 +2244,49 @@ async def cmd_setupbrief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 # Откуда тянуть свежий код (raw GitHub, рабочая ветка)
-UPDATE_BASE = ("https://raw.githubusercontent.com/farbaholix-cloud/Bbbbasic/"
-               "claude/schedule-display-app-ixjt6b/friedman_bot")
+REPO = "farbaholix-cloud/Bbbbasic"
+BRANCH = "claude/schedule-display-app-ixjt6b"
+RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
+REPO_API = f"https://api.github.com/repos/{REPO}"
 UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py"]
+_SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
+
+
+def _remote_sha():
+    """Текущий SHA ветки на GitHub. Лёгкий запрос — отдаёт только хеш."""
+    import urllib.request
+    req = urllib.request.Request(
+        f"{REPO_API}/commits/{BRANCH}",
+        headers={"Accept": "application/vnd.github.sha", "User-Agent": "friedman-bot"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return r.read().decode().strip()
+
+
+def _download_code(d, sha):
+    """Скачать файлы по неизменяемому SHA — такие URL CDN никогда не отдаёт устаревшими."""
+    import urllib.request
+    downloaded = []
+    for f in UPDATE_FILES:
+        req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}",
+                                     headers={"User-Agent": "friedman-bot"})
+        with urllib.request.urlopen(req, timeout=40) as r:
+            data = r.read()
+        if len(data) < 100:
+            raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
+        with open(os.path.join(d, f), "wb") as out:
+            out.write(data)
+        downloaded.append(f)
+    return downloaded
+
+
+def _restart_dashboard(d):
+    """Перезапуск дашборда — освобождаем порт 8765 и поднимаем свежий процесс."""
+    import sys
+    subprocess.run("pkill -9 -f dashboard.py; fuser -k 8765/tcp 2>/dev/null; true",
+                   shell=True)
+    logf = open("/tmp/dash.log", "ab")
+    subprocess.Popen([sys.executable, "dashboard.py"], cwd=d,
+                     stdout=logf, stderr=logf, start_new_session=True)
 
 
 async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -2257,44 +2297,82 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if owner and chat_id != owner:
         return  # обновлять может только владелец
     import sys
-    import urllib.request
     d = os.path.dirname(os.path.abspath(__file__))
     await ctx.bot.send_message(chat_id, "🔄 Качаю свежий код с GitHub…")
     try:
-        downloaded = []
-        for f in UPDATE_FILES:
-            req = urllib.request.Request(f"{UPDATE_BASE}/{f}",
-                                         headers={"Cache-Control": "no-cache"})
-            with urllib.request.urlopen(req, timeout=40) as r:
-                data = r.read()
-            if len(data) < 100:
-                raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
-            with open(os.path.join(d, f), "wb") as out:
-                out.write(data)
-            downloaded.append(f)
+        sha = _remote_sha()
+        downloaded = _download_code(d, sha)
+        try:
+            with open(_SHA_FILE, "w") as f:
+                f.write(sha)
+        except Exception:
+            pass
         await ctx.bot.send_message(
-            chat_id, "✅ Скачано: " + ", ".join(downloaded) +
+            chat_id, f"✅ Скачано ({sha[:7]}): " + ", ".join(downloaded) +
             "\n♻️ Перезапускаю дашборд и себя…")
     except Exception as e:
         await ctx.bot.send_message(chat_id, f"⚠️ Не удалось обновить: {e}")
         return
 
-    # перезапуск дашборда (отдельный процесс, освобождаем порт 8765)
-    py = sys.executable
     try:
-        subprocess.run("pkill -9 -f dashboard.py; fuser -k 8765/tcp 2>/dev/null; true",
-                       shell=True)
+        _restart_dashboard(d)
         await asyncio.sleep(1.5)
-        logf = open("/tmp/dash.log", "ab")
-        subprocess.Popen([py, "dashboard.py"], cwd=d,
-                         stdout=logf, stderr=logf, start_new_session=True)
     except Exception as e:
         await ctx.bot.send_message(chat_id, f"⚠️ Дашборд не стартовал: {e}")
 
     # перезапуск самого бота — заменяем процесс на свежий bot.py
     await ctx.bot.send_message(chat_id, "🚀 Готово! Поднимаюсь на новой версии. "
                                         "Через пару секунд напиши /brief для проверки.")
-    os.execv(py, [py, os.path.join(d, "bot.py")])
+    os.execv(sys.executable, [sys.executable, os.path.join(d, "bot.py")])
+
+
+async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
+    """Раз в ~90 сек проверяет GitHub: появился новый коммит — тянет и перезапускается.
+    Так изменения долетают сами, без ручного /update."""
+    import sys
+    d = os.path.dirname(os.path.abspath(__file__))
+    try:
+        sha = _remote_sha()
+    except Exception:
+        return  # сети нет — молча ждём следующего тика
+    cur = None
+    if os.path.exists(_SHA_FILE):
+        try:
+            with open(_SHA_FILE) as f:
+                cur = f.read().strip()
+        except Exception:
+            cur = None
+    if cur is None:
+        # первый запуск — фиксируем базовую точку, без перезапуска
+        try:
+            with open(_SHA_FILE, "w") as f:
+                f.write(sha)
+        except Exception:
+            pass
+        return
+    if sha == cur:
+        return  # ничего нового
+    # есть свежий коммит — обновляемся
+    try:
+        _download_code(d, sha)
+        with open(_SHA_FILE, "w") as f:
+            f.write(sha)
+    except Exception as e:
+        log.error(f"auto-update failed: {e}")
+        return
+    cid = get_chat_id()
+    if cid:
+        try:
+            await ctx.bot.send_message(
+                cid, f"🔄 Новая версия ({sha[:7]}) — обновляюсь автоматически…")
+        except Exception:
+            pass
+    try:
+        _restart_dashboard(d)
+        await asyncio.sleep(1.5)
+    except Exception:
+        pass
+    os.execv(sys.executable, [sys.executable, os.path.join(d, "bot.py")])
 
 
 async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -2310,7 +2388,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "15.06 · 09:25"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 11:25"  # видимая метка сборки бота
 
 
 async def _on_start(app):
@@ -2322,10 +2400,11 @@ async def _on_start(app):
                 cid,
                 f"🚀 Секретарь обновлён и запущен.\n"
                 f"Версия: {BOT_VERSION}\n\n"
+                f"Авто-деплой включён: новые изменения подхватываю сам за ~1.5 мин.\n\n"
                 f"Команды:\n"
                 f"• /brief — сводка сейчас\n"
                 f"• /setupbrief — включить картинку-постер\n"
-                f"• /update — обновить код с GitHub",
+                f"• /update — обновить вручную прямо сейчас",
             )
     except Exception as e:
         log.error(f"startup notify failed: {e}")
@@ -2361,6 +2440,7 @@ def main():
 
     jq = app.job_queue
     jq.run_repeating(check_reminders, interval=60, first=10)
+    jq.run_repeating(auto_update, interval=90, first=30)  # авто-деплой: ловим новые коммиты
     brief_t = time(7, 0, tzinfo=BERLIN) if BERLIN else time(7, 0)
     bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
     jq.run_daily(morning_focus, time=brief_t)
