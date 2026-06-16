@@ -2531,8 +2531,10 @@ async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         # лог пишем заново, чтобы видеть свежий стек при падении
         open("/tmp/voicelive.log", "w").close()
         vlog = open("/tmp/voicelive.log", "ab")
-        subprocess.Popen([sys.executable, "voicelive.py"], cwd=d,
-                         stdout=vlog, stderr=vlog, start_new_session=True)
+        # -u: без буферизации, иначе лог пустой и падения не видно
+        subprocess.Popen([sys.executable, "-u", "voicelive.py"], cwd=d,
+                         stdout=vlog, stderr=vlog, start_new_session=True,
+                         env={**os.environ, "PYTHONUNBUFFERED": "1"})
 
         # ждём, пока сервер реально начнёт слушать порт 8766
         up = False
@@ -2694,7 +2696,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 18:10"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 18:30"  # видимая метка сборки бота
 
 
 async def _on_start(app):

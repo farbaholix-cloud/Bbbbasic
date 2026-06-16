@@ -12,11 +12,16 @@ import os
 import json
 import sqlite3
 import asyncio
+import logging
 import datetime
 
 from aiohttp import web, WSMsgType
 from google import genai
 from google.genai import types
+
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("voicelive")
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(_BASE, "friedman.db")
@@ -183,8 +188,10 @@ SYS = (
 async def ws_handler(request):
     ws = web.WebSocketResponse(heartbeat=20)
     await ws.prepare(request)
+    log.info("браузер подключился (%s)", request.remote)
     key = _key()
     if not key:
+        log.error("нет ключа Gemini")
         await ws.send_str(json.dumps({"type": "error", "text": "нет ключа Gemini"}))
         await ws.close()
         return ws
@@ -200,7 +207,9 @@ async def ws_handler(request):
     }
 
     try:
+        log.info("подключаюсь к Gemini Live (model=%s)…", MODEL)
         async with client.aio.live.connect(model=MODEL, config=config) as session:
+            log.info("Gemini Live сессия открыта")
             await ws.send_str(json.dumps({"type": "ready"}))
 
             async def browser_to_gemini():
@@ -262,11 +271,13 @@ async def ws_handler(request):
             for t in pending:
                 t.cancel()
     except Exception as e:
+        log.exception("ошибка сессии Gemini: %s", e)
         try:
             await ws.send_str(json.dumps({"type": "error", "text": str(e)}))
         except Exception:
             pass
     finally:
+        log.info("сессия закрыта")
         if not ws.closed:
             await ws.close()
     return ws
@@ -274,6 +285,10 @@ async def ws_handler(request):
 
 async def index(request):
     return web.Response(text=PAGE, content_type="text/html")
+
+
+async def health(request):
+    return web.json_response({"ok": True, "model": MODEL, "has_key": bool(_key())})
 
 
 async def manifest(request):
@@ -296,6 +311,7 @@ async def icon(request):
 def make_app():
     app = web.Application()
     app.router.add_get("/", index)
+    app.router.add_get("/health", health)
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/manifest.webmanifest", manifest)
     app.router.add_get("/icon.svg", icon)
@@ -423,6 +439,8 @@ btn.addEventListener('click',()=>{running?stop():start();});
 
 
 if __name__ == "__main__":
+    log.info("старт voicelive: порт=%s, model=%s, ключ=%s",
+             PORT, MODEL, "есть" if _key() else "НЕТ")
     if not _key():
-        print("⚠️  Нет ключа Gemini. Задай GEMINI_API_KEY или файл .gemini_key")
-    web.run_app(make_app(), host="0.0.0.0", port=PORT)
+        log.warning("Нет ключа Gemini. Задай GEMINI_API_KEY или файл .gemini_key")
+    web.run_app(make_app(), host="0.0.0.0", port=PORT, print=lambda *a: log.info(" ".join(map(str, a))))
