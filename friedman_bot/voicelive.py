@@ -26,7 +26,7 @@ log = logging.getLogger("voicelive")
 _BASE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(_BASE, "friedman.db")
 PORT = int(os.getenv("VOICE_PORT", "8766"))
-MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-1.5-flash")
+MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-2.0-flash-exp")
 
 
 def _key() -> str:
@@ -271,7 +271,7 @@ async def ws_handler(request):
             for t in pending:
                 t.cancel()
     except Exception as e:
-        log.exception("ошибка сессии Gemini: %s", e)
+        log.exception("ошибка сессии Gemini (model=%s): %s", MODEL, e)
         try:
             await ws.send_str(json.dumps({"type": "error", "text": str(e)}))
         except Exception:
