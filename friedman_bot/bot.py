@@ -2283,6 +2283,27 @@ def _download_code(d, sha):
     return downloaded
 
 
+def _self_restart(d: str):
+    """Перезапускает bot.py через nohup-shell-скрипт в отдельной сессии.
+
+    Не использует execv, потому что при падении нового процесса
+    некому его поднять. shell-скрипт с nohup запускает новый бот
+    в независимой сессии, затем текущий процесс завершается.
+    """
+    import sys, stat
+    script = os.path.join(d, "_restart.sh")
+    with open(script, "w") as f:
+        f.write(
+            f"#!/bin/bash\n"
+            f"sleep 2\n"
+            f"cd {d}\n"
+            f"nohup {sys.executable} -u bot.py >> /tmp/bot.log 2>&1 &\n"
+            f"echo \"$(date) bot restarted PID $!\" >> /tmp/bot_restart.log\n"
+        )
+    os.chmod(script, stat.S_IRWXU)
+    subprocess.Popen(["bash", script], start_new_session=True, close_fds=True)
+
+
 def _restart_dashboard(d):
     """Перезапуск дашборда — освобождаем порт 8765 и поднимаем свежий процесс."""
     import sys
@@ -2291,6 +2312,10 @@ def _restart_dashboard(d):
     logf = open("/tmp/dash.log", "ab")
     subprocess.Popen([sys.executable, "dashboard.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
+
+
+async def cmd_ping(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"🏓 {BOT_VERSION}")
 
 
 async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -2631,7 +2656,8 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     # перезапуск самого бота — заменяем процесс на свежий bot.py
     await ctx.bot.send_message(chat_id, "🚀 Готово! Поднимаюсь на новой версии. "
                                         "Через пару секунд напиши /brief для проверки.")
-    os.execv(sys.executable, [sys.executable, os.path.join(d, "bot.py")])
+    _self_restart(d)
+    sys.exit(0)
 
 
 async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
@@ -2680,7 +2706,8 @@ async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(1.5)
     except Exception:
         pass
-    os.execv(sys.executable, [sys.executable, os.path.join(d, "bot.py")])
+    _self_restart(d)
+    sys.exit(0)
 
 
 async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -2696,7 +2723,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 18:30"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 19:00"  # видимая метка сборки бота
 
 
 async def _on_start(app):
@@ -2743,6 +2770,7 @@ def main():
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("setupbrief", cmd_setupbrief))
     app.add_handler(CommandHandler("update", cmd_update))
+    app.add_handler(CommandHandler("ping", cmd_ping))
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("voice", cmd_voice))
     app.add_handler(CommandHandler("setupvoice", cmd_setupvoice))
