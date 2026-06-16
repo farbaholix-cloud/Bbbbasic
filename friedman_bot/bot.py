@@ -2371,12 +2371,15 @@ async def cmd_setupvoice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if owner and chat_id != owner:
         return
     import sys
-    await ctx.bot.send_message(chat_id, "🎙 Готовлю голос (ставлю модель Silero, первый раз ~1 мин)…")
+    await ctx.bot.send_message(chat_id, "🎙 Готовлю голос (ставлю движки, первый раз ~1 мин)…")
 
     def work():
-        subprocess.run([sys.executable, "-m", "pip", "install", "--user", "-q", "omegaconf"],
-                       capture_output=True)
+        # edge-tts — бесплатный нейроголос Microsoft (основной); omegaconf — для офлайн-Silero
+        subprocess.run([sys.executable, "-m", "pip", "install", "--user", "-q",
+                        "edge-tts", "omegaconf"], capture_output=True)
+        import importlib
         import tts
+        importlib.reload(tts)  # подхватить только что установленный edge-tts
         return tts.synthesize("Привет! Я секретарь Фридмана. Теперь я умею говорить вслух.")
 
     try:
@@ -2497,7 +2500,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 15:20"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 15:40"  # видимая метка сборки бота
 
 
 async def _on_start(app):

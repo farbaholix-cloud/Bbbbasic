@@ -2,8 +2,8 @@ python-telegram-bot==20.7
 python-dotenv==1.0.0
 playwright==1.48.0
 
-# Голос (TTS). Бесплатный движок Silero работает на torch (уже стоит для whisper).
-# Ставится автоматически командой /setupvoice; здесь для справки:
-# omegaconf        # нужен silero_tts через torch.hub
+# Голос (TTS). Ставится автоматически командой /setupvoice; здесь для справки:
+# edge-tts         # основной бесплатный движок — нейроголоса Microsoft (нужен интернет)
+# omegaconf        # офлайн-движок Silero через torch.hub
 # torch            # уже установлен для whisper (STT)
 # imageio-ffmpeg   # уже установлен — конвертация в OGG/Opus

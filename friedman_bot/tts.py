@@ -9,7 +9,8 @@
   1. LAPTOP_TTS_URL      — твой ноутбук в сети (XTTS/своя модель), если поднят
   2. ELEVENLABS_API_KEY  — ElevenLabs, самый живой голос
   3. OPENAI_API_KEY      — OpenAI TTS, очень натуральный
-  4. Silero (по умолчанию)— бесплатно, на сервере, без ключей
+  4. Edge TTS            — бесплатно, нейроголоса Microsoft (нужен только интернет)
+  5. Silero              — бесплатно и офлайн, последний запасной
 """
 import os
 import re
@@ -21,6 +22,7 @@ import urllib.request
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
 # ── параметры голоса (можно переопределить в .env) ──────────────────────────
+EDGE_VOICE = os.getenv("EDGE_TTS_VOICE", "ru-RU-SvetlanaNeural")  # или ru-RU-DmitryNeural (муж.)
 SILERO_SPEAKER = os.getenv("SILERO_SPEAKER", "baya")        # baya/xenia/kseniya/aidar/eugene
 OPENAI_VOICE = os.getenv("OPENAI_TTS_VOICE", "nova")        # nova/shimmer/alloy/...
 OPENAI_TTS_MODEL = os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
@@ -89,6 +91,28 @@ def _silero(text: str):
     return wav_path, "wav"
 
 
+def _edge(text: str):
+    import asyncio
+    import edge_tts
+    fd, p = tempfile.mkstemp(suffix=".mp3"); os.close(fd)
+
+    async def go():
+        await edge_tts.Communicate(text, EDGE_VOICE).save(p)
+
+    asyncio.run(go())
+    if os.path.getsize(p) < 256:
+        raise RuntimeError("edge-tts: пустой ответ")
+    return p, "mp3"
+
+
+def _edge_available() -> bool:
+    try:
+        import edge_tts  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
 def _openai(text: str):
     key = os.getenv("OPENAI_API_KEY", "").strip()
     body = json.dumps({"model": OPENAI_TTS_MODEL, "voice": OPENAI_VOICE,
@@ -142,6 +166,8 @@ def active_backend() -> str:
         return "elevenlabs"
     if os.getenv("OPENAI_API_KEY", "").strip():
         return "openai"
+    if _edge_available():
+        return "edge (Microsoft, бесплатно)"
     return "silero"
 
 
@@ -161,7 +187,9 @@ def synthesize(text: str):
         order.append(_elevenlabs)
     if os.getenv("OPENAI_API_KEY", "").strip():
         order.append(_openai)
-    order.append(_silero)  # бесплатный запасной — всегда в конце
+    if _edge_available():
+        order.append(_edge)   # бесплатный нейроголос Microsoft (нужен интернет)
+    order.append(_silero)     # офлайн-запасной — всегда в конце
     last_err = None
     for engine in order:
         try:
