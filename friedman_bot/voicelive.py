@@ -26,7 +26,7 @@ log = logging.getLogger("voicelive")
 _BASE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(_BASE, "friedman.db")
 PORT = int(os.getenv("VOICE_PORT", "8766"))
-MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-2.0-flash-live-001")
+MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-1.5-flash")
 
 
 def _key() -> str:

@@ -2722,7 +2722,7 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 19:25"  # видимая метка сборки бота
+BOT_VERSION = "16.06 · 20:05"  # видимая метка сборки бота
 
 
 async def _on_start(app):
