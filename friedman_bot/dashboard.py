@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "16.06 · 14:25"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "16.06 · 14:55"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1433,10 +1433,6 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavi
   box-shadow:0 0 22px 6px rgba(255,255,255,.45);animation:pulse 2.6s ease-in-out infinite;z-index:1}
 @keyframes pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.5);opacity:1}}
 #ink{position:fixed;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;transition:opacity .6s}
-/* пульсирующая точка-кисть на конце следа */
-#head{fill:#8b0a06;transform-box:fill-box;transform-origin:center;
-  animation:hpulse 1.3s ease-in-out infinite;opacity:0}
-@keyframes hpulse{0%,100%{transform:scale(.75);opacity:.7}50%{transform:scale(1.3);opacity:1}}
 #hint{position:fixed;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));text-align:center;
   color:rgba(255,255,255,.18);font-family:-apple-system,sans-serif;font-size:13px;font-weight:500;
   letter-spacing:.5px;z-index:1;transition:opacity 1s;pointer-events:none}
@@ -1447,17 +1443,17 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavi
 <div id="dot"></div>
 <svg id="ink" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- размытие имитирует впитывание чернил в бумагу -->
-    <filter id="bleed" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="3.5"/>
-    </filter>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="0.9"/>
-    </filter>
+    <!-- мягкое облако распыла (overspray) -->
+    <filter id="mist" x="-130%" y="-130%" width="360%" height="360%"><feGaussianBlur stdDeviation="6.5"/></filter>
+    <!-- лёгкое тело струи -->
+    <filter id="body" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="3"/></filter>
+    <!-- плотные края — почти резкие -->
+    <filter id="edge" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1"/></filter>
   </defs>
-  <g id="glayer"></g>
-  <g id="slayer"></g>
-  <circle id="head" r="13" cx="0" cy="0"/>
+  <g id="mistL"></g>
+  <g id="bodyL"></g>
+  <g id="edgeL"></g>
+  <g id="dripL"></g>
 </svg>
 <div id="hint">обведи точку</div>
 <div id="surface"></div>
@@ -1465,65 +1461,99 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavi
 <script>
 const NS='http://www.w3.org/2000/svg';
 const hint=document.getElementById('hint'),ink=document.getElementById('ink'),
-      gl=document.getElementById('glayer'),sl=document.getElementById('slayer'),
-      head=document.getElementById('head'),surface=document.getElementById('surface');
-let drawing=false,pts=[],busy=false,lastXY=null,lastT=0;
+      mistL=document.getElementById('mistL'),bodyL=document.getElementById('bodyL'),
+      edgeL=document.getElementById('edgeL'),dripL=document.getElementById('dripL'),
+      surface=document.getElementById('surface');
+// матовый красный баллон — без неона
+const R='208,22,16', RD='150,10,8', RH='234,52,38';
+const rgba=(rgb,a)=>`rgba(${rgb},${a})`;
+let drawing=false,pts=[],busy=false,lastXY=null,lastT=0,drips=[],raf=0;
 
 function pt(e){const t=(e.touches&&e.touches[0])?e.touches[0]:e;return[t.clientX,t.clientY];}
-
-function mkCircle(x,y,r,fill,filter){
+function circ(layer,x,y,r,fill,filter){
   const c=document.createElementNS(NS,'circle');
-  c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',r);c.setAttribute('fill',fill);
+  c.setAttribute('cx',x.toFixed(1));c.setAttribute('cy',y.toFixed(1));
+  c.setAttribute('r',r.toFixed(1));c.setAttribute('fill',fill);
   if(filter)c.setAttribute('filter',filter);
-  return c;
+  layer.appendChild(c);return c;
 }
 
-function addBlob(x,y){
-  const now=performance.now();
-  let r=15;
-  if(lastXY){
-    const dist=Math.hypot(x-lastXY[0],y-lastXY[1]);
-    const dt=Math.max(6,now-lastT);
-    const speed=dist/dt;                         // px/ms: медленно→0.1, быстро→8+
-    r=Math.max(3.5,Math.min(17,17-speed*2.2));   // медленно→толсто, быстро→тонко
+// ── подтёки: капля сползает вниз с ускорением, оставляя тонкий след ──
+function spawnDrip(x,y,w){
+  if(drips.filter(d=>!d.done).length>16)return;
+  const ln=document.createElementNS(NS,'line');
+  ln.setAttribute('x1',x.toFixed(1));ln.setAttribute('y1',y.toFixed(1));
+  ln.setAttribute('x2',x.toFixed(1));ln.setAttribute('y2',y.toFixed(1));
+  ln.setAttribute('stroke',rgba(R,0.8));ln.setAttribute('stroke-width',Math.max(1.6,w*0.42).toFixed(1));
+  ln.setAttribute('stroke-linecap','round');
+  dripL.appendChild(ln);
+  const hd=circ(dripL,x,y,Math.max(1.8,w*0.55),rgba(R,0.9),'url(#edge)');
+  drips.push({x,y0:y,y,vy:0.2+Math.random()*0.3,
+              maxLen:18+Math.random()*150,ln,hd,done:false});
+  if(!raf)raf=requestAnimationFrame(tick);
+}
+function tick(){
+  let alive=false;
+  for(const d of drips){
+    if(d.done)continue;
+    d.vy=Math.min(d.vy+0.05,2.6);d.y+=d.vy;
+    if(d.y-d.y0>=d.maxLen){d.y=d.y0+d.maxLen;d.done=true;}else alive=true;
+    d.ln.setAttribute('y2',d.y.toFixed(1));d.hd.setAttribute('cy',d.y.toFixed(1));
   }
-  // внешний слой: расплывание чернил по волокнам бумаги
-  const alpha=(0.22+Math.random()*0.1).toFixed(2);
-  gl.appendChild(mkCircle(x,y,r*2.1,`rgba(60,0,0,${alpha})`,'url(#bleed)'));
-  // средний слой: тело мазка
-  const a2=(0.78+Math.random()*0.18).toFixed(2);
-  sl.appendChild(mkCircle(x,y,r,`rgba(130,10,6,${a2})`,'url(#soft)'));
-  // тонкая светлая жилка по центру — блик на влажных чернилах
-  if(r>6)sl.appendChild(mkCircle(x,y,r*0.28,`rgba(210,80,60,0.55)`,null));
+  raf=alive?requestAnimationFrame(tick):0;
+}
+
+// ── один «пшик» фэткэпа вдоль струи ──
+function spray(x,y){
+  const now=performance.now();
+  let hw=12,speed=0,nx=0,ny=1;
+  if(lastXY){
+    const dx=x-lastXY[0],dy=y-lastXY[1],dist=Math.hypot(dx,dy)||1;
+    speed=dist/Math.max(6,now-lastT);                 // px/ms
+    nx=-dy/dist;ny=dx/dist;                            // нормаль к движению
+  }
+  hw=Math.max(4,Math.min(15,14-speed*1.7));            // медленно→широко, быстро→узко
+  // 1) overspray-туман вокруг струи (редко, чтоб не зашумлять)
+  if(Math.random()<0.55)
+    circ(mistL,x,y,hw*2.4,rgba(RD,(0.05+Math.random()*0.05).toFixed(3)),'url(#mist)');
+  // 2) пустоватое тело по центру — еле заметное
+  circ(bodyL,x,y,hw*0.9,rgba(R,(0.07+Math.random()*0.05).toFixed(3)),'url(#body)');
+  // 3) ПЛОТНЫЕ КРАЯ струи — две «рельсы» по нормали
+  for(const s of [hw,-hw]){
+    circ(edgeL,x+nx*s,y+ny*s,2.4+Math.random()*1.3,
+         rgba(Math.random()<0.3?RH:R,(0.72+Math.random()*0.2).toFixed(2)),'url(#edge)');
+  }
+  // 4) зернистость распыла в центре — редкие сухие точки
+  const grains=1+(Math.random()*2|0);
+  for(let i=0;i<grains;i++){
+    const t=(Math.random()*2-1)*hw*0.75, a=(Math.random()*2-1)*hw*0.4;
+    circ(edgeL,x+nx*t-ny*a*0,y+ny*t+nx*a,0.4+Math.random()*1.2,
+         rgba(R,(0.15+Math.random()*0.25).toFixed(2)),null);
+  }
+  // 5) подтёк — где ведёшь медленно и широко, краска копится и течёт
+  if(speed<0.45 && Math.random()<0.08*(hw/15))
+    spawnDrip(x+(Math.random()*2-1)*hw*0.4, y+hw*0.6, hw);
   lastXY=[x,y];lastT=now;
 }
 
-function splash(x,y){
-  // капли при касании кисти к поверхности
-  for(let i=0;i<7;i++){
-    const ang=Math.random()*Math.PI*2,d=3+Math.random()*12;
-    const sr=0.6+Math.random()*2.8;
-    sl.appendChild(mkCircle(x+Math.cos(ang)*d,y+Math.sin(ang)*d,sr,
-      `rgba(110,8,5,${(0.25+Math.random()*0.35).toFixed(2)})`,null));
+function splat(x,y){           // первичный «плевок» при нажатии клапана
+  for(let i=0;i<9;i++){
+    const ang=Math.random()*Math.PI*2,d=2+Math.random()*16,sr=0.5+Math.random()*2.6;
+    circ(edgeL,x+Math.cos(ang)*d,y+Math.sin(ang)*d,sr,
+         rgba(R,(0.2+Math.random()*0.35).toFixed(2)),null);
   }
 }
+function clearAll(){mistL.innerHTML='';bodyL.innerHTML='';edgeL.innerHTML='';dripL.innerHTML='';
+  drips=[];if(raf){cancelAnimationFrame(raf);raf=0;}}
 
 function start(e){if(busy)return;e.preventDefault();
-  drawing=true;ink.style.opacity=1;pts=[];gl.innerHTML='';sl.innerHTML='';
-  lastXY=null;lastT=performance.now();
-  const p=pt(e);pts.push(p);
-  splash(p[0],p[1]);addBlob(p[0],p[1]);
-  head.setAttribute('cx',p[0]);head.setAttribute('cy',p[1]);head.style.opacity=1;
-  hint.style.opacity=0;}
-
+  drawing=true;ink.style.opacity=1;clearAll();pts=[];lastXY=null;lastT=performance.now();
+  const p=pt(e);pts.push(p);splat(p[0],p[1]);spray(p[0],p[1]);hint.style.opacity=0;}
 function move(e){if(!drawing||busy)return;e.preventDefault();
   const p=pt(e),lp=pts[pts.length-1];
-  if(lp&&Math.hypot(p[0]-lp[0],p[1]-lp[1])<2)return;
-  pts.push(p);addBlob(p[0],p[1]);
-  head.setAttribute('cx',p[0]);head.setAttribute('cy',p[1]);}
-
-async function end(e){if(!drawing||busy)return;e.preventDefault();
-  drawing=false;head.style.opacity=0;
+  if(lp&&Math.hypot(p[0]-lp[0],p[1]-lp[1])<2.5)return;
+  pts.push(p);spray(p[0],p[1]);}
+async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
   if(pts.length<10){fade();return;}
   busy=true;
   try{
@@ -1535,8 +1565,7 @@ async function end(e){if(!drawing||busy)return;e.preventDefault();
   busy=false;fade();}
 
 function fade(){ink.style.opacity=0;
-  setTimeout(()=>{gl.innerHTML='';sl.innerHTML='';pts=[];lastXY=null;
-    ink.style.opacity=1;hint.style.opacity='';},640);}
+  setTimeout(()=>{clearAll();pts=[];lastXY=null;ink.style.opacity=1;hint.style.opacity='';},640);}
 function success(){const f=document.getElementById('flash'),d=document.getElementById('dot');
   d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
   f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
