@@ -21,7 +21,7 @@ from google.genai import types
 _BASE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(_BASE, "friedman.db")
 PORT = int(os.getenv("VOICE_PORT", "8766"))
-MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-3.1-flash-live-preview")
+MODEL = os.getenv("GEMINI_LIVE_MODEL", "gemini-2.0-flash-live-001")
 
 
 def _key() -> str:
@@ -217,11 +217,24 @@ async def ws_handler(request):
 
             async def gemini_to_browser():
                 async for response in session.receive():
-                    data = getattr(response, "data", None)
-                    if data:
-                        await ws.send_bytes(data)
+                    # ─ аудио: сначала response.data (новые SDK), затем через parts
+                    raw = getattr(response, "data", None)
+                    if raw:
+                        await ws.send_bytes(raw)
+
                     sc = getattr(response, "server_content", None)
                     if sc:
+                        mt = getattr(sc, "model_turn", None)
+                        if mt:
+                            for part in (getattr(mt, "parts", None) or []):
+                                blob = getattr(part, "inline_data", None)
+                                if blob and getattr(blob, "data", None):
+                                    if not raw:  # не дублировать если уже послали
+                                        await ws.send_bytes(blob.data)
+                                txt = getattr(part, "text", None)
+                                if txt:
+                                    await ws.send_str(json.dumps({"type": "say", "text": txt}))
+
                         ot = getattr(sc, "output_transcription", None)
                         if ot and getattr(ot, "text", None):
                             await ws.send_str(json.dumps({"type": "say", "text": ot.text}))
@@ -230,8 +243,9 @@ async def ws_handler(request):
                             await ws.send_str(json.dumps({"type": "heard", "text": it.text}))
                         if getattr(sc, "interrupted", False):
                             await ws.send_str(json.dumps({"type": "interrupted"}))
+
                     tc = getattr(response, "tool_call", None)
-                    if tc and tc.function_calls:
+                    if tc and getattr(tc, "function_calls", None):
                         responses = []
                         for fc in tc.function_calls:
                             args = dict(fc.args) if fc.args else {}
@@ -393,6 +407,7 @@ async function start(){
     else if(m.type==='tool'){statusEl.textContent='смотрю в базу…';}
     else if(m.type==='error'){setState('idle','ошибка: '+m.text);}
   };
+  ws.onerror=()=>{setState('idle','нет связи с сервером — проверь /setupvoicelive');};
   ws.onclose=()=>{if(running){running=false;setState('idle','связь закрыта');reset();}};
 }
 function reset(){btn.textContent='Поговорить';btn.classList.remove('stop');}
