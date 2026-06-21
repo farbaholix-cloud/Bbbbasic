@@ -758,15 +758,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 @keyframes confetti-fly{0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--dr)) scale(0);opacity:0}}
 
 /* happiness */
-.hmap-wrap{position:relative;width:100%;height:400px;margin-bottom:14px}
+.hmap-wrap{position:relative;width:100%;height:420px;margin-bottom:14px;
+  background:radial-gradient(ellipse 80% 65% at 50% 50%,rgba(255,255,255,.04),transparent 72%);border-radius:18px}
 .hmap-svg{position:absolute;inset:0;width:100%;height:100%}
-.hnode{position:absolute;transform:translate(-50%,-50%);text-align:center;cursor:pointer;z-index:2}
-.hnode .hc{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:20px;margin:0 auto 4px;backdrop-filter:blur(16px);border:2px solid rgba(255,255,255,.3);
-  box-shadow:0 4px 16px rgba(0,0,0,.3)}
-.hnode.center .hc{width:68px;height:68px;font-size:28px}
-.hnode .hl{font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.4px}
-.hnode .hv{font-size:18px;font-weight:900;line-height:1}
+.hnode{position:absolute;transform:translate(-50%,-50%);text-align:center;cursor:pointer;z-index:2;transition:transform .15s}
+.hnode:active{transform:translate(-50%,-50%) scale(.91)}
+.hnode .hc{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:26px;margin:0 auto 5px;
+  backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);
+  border:1.5px solid rgba(255,255,255,.22)}
+.hnode.center .hc{width:86px;height:86px;font-size:36px;border-width:2px;border-color:rgba(255,255,255,.3)}
+.hnode .hl{font-size:9px;font-weight:900;color:rgba(255,255,255,.55);letter-spacing:.6px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.hnode .hv{font-size:22px;font-weight:900;line-height:1.15;text-shadow:0 2px 10px rgba(0,0,0,.5)}
 .hdyn{margin-top:6px}
 .hdyn canvas{border-radius:12px;width:100%;display:block}
 .hslider-wrap{padding:14px 16px;border-radius:18px;margin-bottom:10px}
@@ -875,34 +878,34 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="block glass" style="padding:16px">
       <div class="bh"><div class="t">Ты счастлив?</div></div>
       <div class="hmap-wrap" id="hmap-wrap">
-        <svg class="hmap-svg" id="hmap-lines" viewBox="0 0 300 360" preserveAspectRatio="xMidYMid meet"></svg>
+        <svg class="hmap-svg" id="hmap-lines" viewBox="0 0 300 360" preserveAspectRatio="none"></svg>
         <div class="hnode center" id="hn-center" style="left:50%;top:50%" onclick="editHappiness()">
-          <div class="hc" style="background:linear-gradient(135deg,rgba(255,198,87,.35),rgba(255,122,192,.35))">🌟</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgba(255,198,87,.72),rgba(255,122,192,.6));box-shadow:0 0 0 2px rgba(255,198,87,.3),0 0 55px rgba(255,198,87,.55),0 0 90px rgba(255,122,192,.28),0 16px 50px rgba(0,0,0,.65),inset 0 2px 0 rgba(255,255,255,.55)">🌟</div>
           <div class="hl">СЧАСТЬЕ</div>
           <div class="hv" id="hv-total">—</div>
         </div>
         <div class="hnode" id="hn-work" onclick="editHNode('work')">
-          <div class="hc" style="background:linear-gradient(135deg,rgba(91,157,255,.35),rgba(91,157,255,.15))">💼</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgba(91,157,255,.78),rgba(50,100,220,.52));box-shadow:0 0 0 1px rgba(91,157,255,.4),0 0 32px rgba(91,157,255,.62),0 12px 32px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.5)">💼</div>
           <div class="hl">РАБОТА</div><div class="hv" id="hv-work">5</div>
         </div>
         <div class="hnode" id="hn-friendship" onclick="editHNode('friendship')">
-          <div class="hc" style="background:linear-gradient(135deg,rgba(255,122,192,.35),rgba(177,139,255,.2))">🤝</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgba(255,122,192,.78),rgba(200,60,160,.52));box-shadow:0 0 0 1px rgba(255,122,192,.4),0 0 32px rgba(255,122,192,.62),0 12px 32px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.5)">🤝</div>
           <div class="hl">ДРУЖБА</div><div class="hv" id="hv-friendship">5</div>
         </div>
         <div class="hnode" id="hn-health" onclick="editHNode('health')">
-          <div class="hc" style="background:linear-gradient(135deg,rgba(82,224,138,.35),rgba(65,227,212,.2))">🌿</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgba(82,224,138,.78),rgba(30,170,90,.52));box-shadow:0 0 0 1px rgba(82,224,138,.4),0 0 32px rgba(82,224,138,.62),0 12px 32px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.5)">🌿</div>
           <div class="hl">ЗДОРОВЬЕ</div><div class="hv" id="hv-health">5</div>
         </div>
         <div class="hnode" id="hn-love" onclick="editHNode('love')">
-          <div class="hc" style="background:linear-gradient(135deg,rgba(255,107,125,.35),rgba(255,122,192,.2))">❤️</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgba(255,107,125,.78),rgba(200,40,70,.52));box-shadow:0 0 0 1px rgba(255,107,125,.4),0 0 32px rgba(255,107,125,.62),0 12px 32px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.5)">❤️</div>
           <div class="hl">ЛЮБОВЬ</div><div class="hv" id="hv-love">5</div>
         </div>
         <div class="hnode" id="hn-wellbeing" onclick="editHNode('wellbeing')">
-          <div class="hc" style="background:linear-gradient(135deg,rgba(255,198,87,.35),rgba(255,107,125,.2))">💰</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgba(255,208,122,.78),rgba(200,140,30,.52));box-shadow:0 0 0 1px rgba(255,208,122,.4),0 0 32px rgba(255,208,122,.62),0 12px 32px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.5)">💰</div>
           <div class="hl">БЛАГОПОЛУЧИЕ</div><div class="hv" id="hv-wellbeing">5</div>
         </div>
         <div class="hnode" id="hn-hobby" onclick="editHNode('hobby')">
-          <div class="hc" style="background:linear-gradient(135deg,rgba(177,139,255,.35),rgba(91,157,255,.2))">🎨</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgba(177,139,255,.78),rgba(110,70,210,.52));box-shadow:0 0 0 1px rgba(177,139,255,.4),0 0 32px rgba(177,139,255,.62),0 12px 32px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.5)">🎨</div>
           <div class="hl">ХОББИ</div><div class="hv" id="hv-hobby">5</div>
         </div>
       </div>
@@ -1488,7 +1491,7 @@ function updateHNodes(){
   let total=0;
   H_KEYS.forEach(k=>{
     const el=document.getElementById('hv-'+k);
-    if(el){el.textContent=hValues[k];total+=hValues[k];}
+    if(el){el.textContent=hValues[k];el.style.color=H_COLORS[k];total+=hValues[k];}
     const n=H_NODES[k];
     if(n){
       const t=Math.max(0.05,Math.sqrt(hValues[k]/10));
@@ -1497,7 +1500,7 @@ function updateHNodes(){
     }
   });
   const tc=document.getElementById('hv-total');
-  if(tc)tc.textContent=(total/6).toFixed(1);
+  if(tc){tc.textContent=(total/6).toFixed(1);tc.style.color='#ffd07a';}
 }
 
 function drawHLines(){
@@ -1509,16 +1512,17 @@ function drawHLines(){
     {id:'health',mx:279,my:180},{id:'love',mx:21,my:180},
     {id:'wellbeing',mx:264,my:335},{id:'hobby',mx:36,my:335}
   ];
-  svg.innerHTML='<defs><filter id="hglow" x="-60%" y="-60%" width="220%" height="220%">'+
-    '<feGaussianBlur stdDeviation="3.5" result="blur"/>'+
-    '<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>'+
-    '</filter></defs>'+
+  svg.innerHTML='<defs>'+
+    '<filter id="hgl1" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="9"/></filter>'+
+    '<filter id="hgl2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>'+
+    '</defs>'+
     maxNodes.map(n=>{
       const t=Math.max(0.05,Math.sqrt(hValues[n.id]/10));
       const x=cx+(n.mx-cx)*t,y=cy+(n.my-cy)*t;
-      const c=H_COLORS[n.id];
-      return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="5" stroke-opacity="0.22" filter="url(#hglow)"/>` +
-             `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="1.5" stroke-opacity="0.88"/>`;
+      const c=H_COLORS[n.id];const xs=x.toFixed(1),ys=y.toFixed(1);
+      return `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="20" stroke-opacity="0.11" filter="url(#hgl1)"/>` +
+             `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="4.5" stroke-opacity="0.30" filter="url(#hgl2)"/>` +
+             `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="1.5" stroke-opacity="0.95"/>`;
     }).join('');
 }
 
