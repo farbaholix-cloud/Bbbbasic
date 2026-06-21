@@ -2301,12 +2301,19 @@ UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.p
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 
 
+def _gh_headers():
+    """Заголовки для GitHub API. Если GITHUB_TOKEN задан — аутентифицированные (5000 req/h)."""
+    h = {"Accept": "application/vnd.github.sha", "User-Agent": "friedman-bot"}
+    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if tok:
+        h["Authorization"] = f"Bearer {tok}"
+    return h
+
+
 def _remote_sha():
     """Текущий SHA ветки на GitHub. Лёгкий запрос — отдаёт только хеш."""
     import urllib.request
-    req = urllib.request.Request(
-        f"{REPO_API}/commits/{BRANCH}",
-        headers={"Accept": "application/vnd.github.sha", "User-Agent": "friedman-bot"})
+    req = urllib.request.Request(f"{REPO_API}/commits/{BRANCH}", headers=_gh_headers())
     with urllib.request.urlopen(req, timeout=20) as r:
         return r.read().decode().strip()
 
@@ -2316,8 +2323,11 @@ def _download_code(d, sha):
     import urllib.request
     downloaded = []
     for f in UPDATE_FILES:
-        req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}",
-                                     headers={"User-Agent": "friedman-bot"})
+        h = {"User-Agent": "friedman-bot"}
+        tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+        if tok:
+            h["Authorization"] = f"Bearer {tok}"
+        req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}", headers=h)
         with urllib.request.urlopen(req, timeout=40) as r:
             data = r.read()
         if len(data) < 100:
@@ -2833,7 +2843,7 @@ def main():
 
     jq = app.job_queue
     jq.run_repeating(check_reminders, interval=60, first=10)
-    jq.run_repeating(auto_update, interval=90, first=30)  # авто-деплой: ловим новые коммиты
+    jq.run_repeating(auto_update, interval=900, first=60)  # авто-деплой: раз в 15 мин (4 req/h)
     brief_t = time(7, 0, tzinfo=BERLIN) if BERLIN else time(7, 0)
     bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
     jq.run_daily(morning_focus, time=brief_t)
