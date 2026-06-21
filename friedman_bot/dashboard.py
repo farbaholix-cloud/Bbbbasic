@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 16:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 17:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -944,9 +944,9 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       <div class="hmap-wrap" id="hmap-wrap">
         <svg class="hmap-svg" id="hmap-lines" viewBox="0 0 300 360" preserveAspectRatio="none"></svg>
         <div class="hnode center" id="hn-center" style="left:50%;top:50%" onclick="editHappiness()">
-          <div class="hc" style="background:linear-gradient(145deg,rgb(255,198,87),rgba(255,112,182,.97));box-shadow:0 0 0 2px rgba(255,198,87,.4),0 0 55px rgba(255,198,87,.55),0 0 90px rgba(255,122,192,.28),0 16px 50px rgba(0,0,0,.65),inset 0 2px 0 rgba(255,255,255,.6)">🌟</div>
-          <div class="hl">СЧАСТЬЕ</div>
-          <div class="hv" id="hv-total">—</div>
+          <div class="hc" style="background:radial-gradient(circle at 38% 28%,rgba(72,72,90,1),rgba(6,6,14,1));box-shadow:0 0 0 1.5px rgba(255,255,255,.18),inset 0 1.5px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(0,0,0,.85),0 8px 40px rgba(0,0,0,.9),0 2px 8px rgba(0,0,0,.8)">
+            <div id="hv-total" style="font-size:30px;font-weight:900;color:#ffd07a;text-shadow:0 2px 14px rgba(255,208,122,.55)">—</div>
+          </div>
         </div>
         <div class="hnode" id="hn-work" onclick="editHNode('work')">
           <div class="hc" style="background:linear-gradient(145deg,rgba(91,157,255,.78),rgba(50,100,220,.52));box-shadow:0 0 0 1px rgba(91,157,255,.4),0 0 32px rgba(91,157,255,.62),0 12px 32px rgba(0,0,0,.55),inset 0 1.5px 0 rgba(255,255,255,.5)">💼</div>
@@ -978,8 +978,8 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       <div class="bh">
         <div class="t">📈 Динамика счастья</div>
         <div style="display:flex;gap:4px">
-          <button class="hper-btn on" data-p="14">14д</button>
-          <button class="hper-btn" data-p="7">7д</button>
+          <button class="hper-btn on" data-p="7">7д</button>
+          <button class="hper-btn" data-p="14">14д</button>
           <button class="hper-btn" data-p="month">мес</button>
           <button class="hper-btn" data-p="year">год</button>
         </div>
@@ -1011,6 +1011,7 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   const p=s.dataset.p;
   ['plan','fin','proj','hap'].forEach(n=>document.getElementById('page-'+n).classList.toggle('on',p===n));
   window.scrollTo(0,0);
+  if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
 });
 
 function quadClass(imp,urg){
@@ -1591,7 +1592,7 @@ const H_LABELS={work:'Работа',friendship:'Дружба',health:'Здоро
 const H_COLORS={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
 // H_NODES computed dynamically in updateHNodes() for equal pixel distances
 let hValues={work:3,friendship:3,health:3,wellbeing:3,hobby:3,love:3};
-let hPeriod='14';
+let hPeriod='7';
 let _hapHistory=[];
 
 function renderHappiness(d){
@@ -1679,24 +1680,40 @@ function drawHChart(history){
   if(!canvas)return;
   const leg=document.getElementById('hchart-legend');
   if(leg)leg.innerHTML=H_KEYS.map(k=>`<div class="hcl"><div class="hcld" style="background:${H_COLORS[k]}"></div>${H_LABELS[k]}</div>`).join('');
-  const filtered=filterHHistory(history,hPeriod);
-  canvas.width=canvas.offsetWidth*2||600;canvas.height=200;
+  // Use real offsetWidth; if hidden (0), defer until next frame
+  const realW=canvas.offsetWidth;
+  if(!realW){requestAnimationFrame(()=>drawHChart(history));return;}
+  canvas.width=realW*2;canvas.height=200;
   const ctx=canvas.getContext('2d');
   const w=canvas.width,h=canvas.height,pad=20;
   ctx.clearRect(0,0,w,h);
+  let filtered=filterHHistory(history,hPeriod);
+  let label=null;
+  if(!filtered.length&&history&&history.length){
+    // show all available data with a note
+    filtered=history.slice().slice(0,60);
+    label='все данные';
+  }
   if(!filtered.length){
-    ctx.fillStyle='rgba(235,240,250,.25)';
-    ctx.font='bold 24px -apple-system,sans-serif';
+    ctx.fillStyle='rgba(235,240,250,.22)';
+    ctx.font=`bold ${w/25}px -apple-system,sans-serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('нет данных за этот период',w/2,h/2);
+    ctx.fillText('нет данных — нажми ⭐ чтобы сохранить',w/2,h/2);
     return;
   }
   ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
   for(let i=1;i<=5;i++){const y=pad+(h-2*pad)*(1-i/5);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  // y-axis labels
+  ctx.fillStyle='rgba(235,240,250,.3)';ctx.font=`${w/35}px -apple-system,sans-serif`;ctx.textAlign='right';
+  for(let i=1;i<=5;i++){const y=pad+(h-2*pad)*(1-i/5);ctx.fillText(i,pad-4,y+4);}
+  if(label){
+    ctx.fillStyle='rgba(235,240,250,.25)';ctx.font=`bold ${w/28}px -apple-system,sans-serif`;
+    ctx.textAlign='center';ctx.fillText(label,w/2,pad/2+4);
+  }
   const n=filtered.length;
   const rev=filtered.slice().reverse();
   H_KEYS.forEach(k=>{
-    ctx.strokeStyle=H_COLORS[k];ctx.lineWidth=2.5;ctx.lineJoin='round';
+    ctx.strokeStyle=H_COLORS[k];ctx.lineWidth=3;ctx.lineJoin='round';ctx.lineCap='round';
     ctx.beginPath();
     rev.forEach((row,i)=>{
       const x=pad+(w-2*pad)*i/(n-1||1);
@@ -1704,11 +1721,11 @@ function drawHChart(history){
       i?ctx.lineTo(x,y):ctx.moveTo(x,y);
     });
     ctx.stroke();
-    if(n<=6){
+    if(n<=20){
       rev.forEach((row,i)=>{
         const x=pad+(w-2*pad)*i/(n-1||1);
         const y=pad+(h-2*pad)*(1-(row[k]||3)/5);
-        ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);
+        ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);
         ctx.fillStyle=H_COLORS[k];ctx.fill();
       });
     }
