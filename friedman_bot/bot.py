@@ -2299,12 +2299,26 @@ RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
 UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
+_TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
+
+
+def _load_gh_token():
+    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if tok:
+        return tok
+    if os.path.exists(_TOKEN_FILE):
+        try:
+            with open(_TOKEN_FILE) as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return None
 
 
 def _gh_headers():
-    """Заголовки для GitHub API. Если GITHUB_TOKEN задан — аутентифицированные (5000 req/h)."""
+    """Заголовки для GitHub API. Токен = 5000 req/h; без токена = 60 req/h."""
     h = {"Accept": "application/vnd.github.sha", "User-Agent": "friedman-bot"}
-    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    tok = _load_gh_token()
     if tok:
         h["Authorization"] = f"Bearer {tok}"
     return h
@@ -2485,6 +2499,31 @@ async def cmd_setupvoice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 _GEMINI_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gemini_key")
 _VOICE_URL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".voice_url")
 _CFD = os.path.expanduser("~/.local/bin/cloudflared")
+
+
+async def cmd_settoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Сохраняет GitHub Personal Access Token: /settoken ghp_..."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    args = ctx.args or []
+    tok = args[0].strip() if args else ""
+    if not tok or not tok.startswith("ghp_"):
+        await update.message.reply_text(
+            "Пришли токен так:\n/settoken ghp_xxxxxxxxxxxxxxxx\n\n"
+            "Где взять:\ngithub.com → аватар → Settings → Developer settings "
+            "→ Personal access tokens → Tokens (classic) → Generate new token (classic)\n"
+            "Права: поставь галку repo → Generate token → скопируй.")
+        return
+    with open(_TOKEN_FILE, "w") as f:
+        f.write(tok)
+    try:
+        await update.message.delete()  # убираем токен из чата
+    except Exception:
+        pass
+    await ctx.bot.send_message(
+        chat_id, "✅ GitHub токен сохранён — теперь /update не будет давать 403.")
 
 
 async def cmd_setkey(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -2827,6 +2866,7 @@ def main():
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("voice", cmd_voice))
     app.add_handler(CommandHandler("setupvoice", cmd_setupvoice))
+    app.add_handler(CommandHandler("settoken", cmd_settoken))
     app.add_handler(CommandHandler("setkey", cmd_setkey))
     app.add_handler(CommandHandler("setupvoicelive", cmd_setupvoicelive))
     app.add_handler(CommandHandler("voiceapp", cmd_voiceapp))
