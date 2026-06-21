@@ -2038,6 +2038,23 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
             _hap_days = (datetime.now() - datetime.fromisoformat((_hap_row["logged_at"] if _hap_row else "")[:19])).days if _hap_row else 999
         except Exception:
             _hap_days = 999
+        # Проекты с флагом «в утреннюю сводку»
+        try:
+            brief_projs = conn.execute(
+                "SELECT p.id, p.name, COUNT(s.id) as total, COALESCE(SUM(s.done),0) as done "
+                "FROM projects p LEFT JOIN steps s ON s.project_id=p.id "
+                "WHERE p.morning_brief=1 GROUP BY p.id ORDER BY p.created_at DESC LIMIT 5"
+            ).fetchall()
+        except Exception:
+            brief_projs = []
+        # События с флагом «в утреннюю сводку» начиная с сегодня
+        try:
+            brief_events = conn.execute(
+                "SELECT text, date, time FROM events WHERE morning_brief=1 AND date>=? ORDER BY date, time LIMIT 5",
+                (today,)
+            ).fetchall()
+        except Exception:
+            brief_events = []
 
     spend_today = planned_spend(today_d, today_d)
     spend_week = planned_spend(today_d, today_d + timedelta(days=6))
@@ -2064,7 +2081,7 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     else:
         wirt_line = f"🏛 *Франкфурт / Wirtschaftsdezernat:* _{w.get('status','нет данных')}_"
 
-    lines = [f"☀️ *Доброе утро, Слава!*\n", wirt_line, "", f"_{today_wisdom()}_\n"]
+    lines = [f"☀️ *Доброе утро, Слава!* Ж\n", wirt_line, "", f"_{today_wisdom()}_\n"]
 
     if high:
         lines.append("🔥 *Срочное на сегодня:*")
@@ -2081,6 +2098,19 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         lines.append("\n⏰ *Напоминания:*")
         for t in todays:
             lines.append(f"• {t['due_at'][11:16]} — {t['text']}")
+
+    if brief_projs:
+        lines.append("\n📁 *Проекты в фокусе:*")
+        for p in brief_projs:
+            pct = int(p["done"] / p["total"] * 100) if p["total"] else 0
+            lines.append(f"• {p['name']} — {pct}% ({p['done']}/{p['total']})")
+
+    if brief_events:
+        lines.append("\n📌 *Задачи на сводку:*")
+        for e in brief_events:
+            d_fmt = f"{e['date'][8:10]}.{e['date'][5:7]}"
+            t_fmt = f" {e['time']}" if e["time"] else ""
+            lines.append(f"• {d_fmt}{t_fmt} — {e['text']}")
 
     lines.append(f"\n💸 *Расходы сегодня — {sum_today:.0f}€:*")
     if spend_today:
@@ -2119,13 +2149,16 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         "balance": balance, "cash": cash, "card": card,
         "holiday": culture.get("holiday", ""),
         "hiphop": culture.get("hiphop", ""),
+        "brief_projs": [(p["name"], int(p["done"]/p["total"]*100) if p["total"] else 0)
+                        for p in brief_projs],
+        "brief_events": [(e["text"], e["date"], e["time"] or "") for e in brief_events],
     }
     img_path = os.path.join(os.path.dirname(__file__), "brief_today.jpg")
     try:
         from brief_render import render_brief_jpeg
         await asyncio.to_thread(render_brief_jpeg, brief_data, img_path)
         with open(img_path, "rb") as f:
-            await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
+            await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня · Ж")
         if hap_reminder:
             await ctx.bot.send_message(chat_id, hap_reminder, parse_mode="Markdown")
         return
@@ -2641,7 +2674,6 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     owner = get_chat_id()
     if owner and chat_id != owner:
         return  # обновлять может только владелец
-    import sys
     d = os.path.dirname(os.path.abspath(__file__))
     await ctx.bot.send_message(chat_id, "🔄 Качаю свежий код с GitHub…")
     try:
@@ -2669,13 +2701,12 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await ctx.bot.send_message(chat_id, "🚀 Готово! Поднимаюсь на новой версии. "
                                         "Через пару секунд напиши /brief для проверки.")
     _self_restart(d)
-    sys.exit(0)
+    os._exit(0)
 
 
 async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
     """Раз в ~90 сек проверяет GitHub: появился новый коммит — тянет и перезапускается.
     Так изменения долетают сами, без ручного /update."""
-    import sys
     d = os.path.dirname(os.path.abspath(__file__))
     try:
         sha = _remote_sha()
@@ -2719,7 +2750,7 @@ async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
     _self_restart(d)
-    sys.exit(0)
+    os._exit(0)
 
 
 async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):

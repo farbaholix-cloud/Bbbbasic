@@ -62,6 +62,7 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
   background:linear-gradient(135deg,rgba(255,198,87,.16),rgba(255,107,125,.11));border:1px solid rgba(255,198,87,.32)}
 .hiphop .t{font-weight:800;color:#ffd07a}
 .foot{margin-top:auto;text-align:center;font-size:10.5px;color:rgba(235,240,250,.34);font-weight:600;letter-spacing:.4px}
+.zh{color:#ffd07a;font-weight:900;font-style:normal}
 """
 
 
@@ -75,7 +76,7 @@ def build_html(d):
     spend_today = d.get("spend_today") or []
     parts = []
     parts.append('<div class="head"><div class="anchor">⚓</div><div>'
-                 f'<div class="greet">☀️ Доброе утро, Слава!</div>'
+                 f'<div class="greet">☀️ Доброе утро, Слава! <span class="zh">Ж</span></div>'
                  f'<div class="date">{_esc(d.get("date_str"))}</div></div></div>')
 
     # Блок Wirtschaftsdezernent — всегда первым

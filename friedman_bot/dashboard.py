@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "16.06 · 14:55"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 12:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -151,6 +151,21 @@ def ensure_schema(conn):
       hobby INTEGER DEFAULT 5, love INTEGER DEFAULT 5,
       note TEXT, logged_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
+    # events: project link + morning brief flag
+    ev_cols = [r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()]
+    if ev_cols:
+        if "project_id" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN project_id INTEGER")
+        if "morning_brief" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN morning_brief INTEGER DEFAULT 0")
+    # chaos: project link
+    ch_cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
+    if ch_cols and "project_id" not in ch_cols:
+        conn.execute("ALTER TABLE chaos ADD COLUMN project_id INTEGER")
+    # projects: morning brief flag
+    pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
+    if pr_cols and "morning_brief" not in pr_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN morning_brief INTEGER DEFAULT 0")
     if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
         conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
             ("Идеи","#5b9dff",0),("В работе","#ff9aa6",1),
@@ -241,8 +256,12 @@ def get_data():
         projects = list(_projs.values())
         cards = []
         for r in conn.execute("SELECT * FROM events").fetchall():
-            cards.append({"kind": "event", "id": r["id"], "date": r["date"],
-                          "time": r["time"] or "", "text": r["text"], "chaos_id": r["chaos_id"]})
+            d = dict(r)
+            cards.append({"kind": "event", "id": d["id"], "date": d["date"],
+                          "time": d.get("time") or "", "text": d["text"],
+                          "chaos_id": d.get("chaos_id"),
+                          "project_id": d.get("project_id"),
+                          "morning_brief": d.get("morning_brief", 0) or 0})
         try:
             for r in conn.execute("SELECT * FROM reminders WHERE sent=0").fetchall():
                 cards.append({"kind": "reminder", "id": r["id"], "date": r["due_at"][:10],
@@ -310,6 +329,7 @@ def api_unplan(payload):
             conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (payload["id"],))
         elif payload["kind"] == "chaos":
             conn.execute("DELETE FROM events WHERE chaos_id=?", (payload["id"],))
+            conn.execute("DELETE FROM kanban_cards WHERE chaos_id=?", (payload["id"],))
             conn.execute("DELETE FROM chaos WHERE id=?", (payload["id"],))
     return {"ok": True}
 
@@ -480,6 +500,31 @@ def api_chaos_rename(payload):
     return {"ok": True}
 
 
+def api_event_update(payload):
+    with db() as conn:
+        if "morning_brief" in payload:
+            conn.execute("UPDATE events SET morning_brief=? WHERE id=?",
+                         (1 if payload["morning_brief"] else 0, payload["id"]))
+        if "project_id" in payload:
+            conn.execute("UPDATE events SET project_id=? WHERE id=?",
+                         (payload["project_id"] or None, payload["id"]))
+    return {"ok": True}
+
+
+def api_chaos_set_project(payload):
+    with db() as conn:
+        conn.execute("UPDATE chaos SET project_id=? WHERE id=?",
+                     (payload.get("project_id") or None, payload["id"]))
+    return {"ok": True}
+
+
+def api_proj_set_morning(payload):
+    with db() as conn:
+        conn.execute("UPDATE projects SET morning_brief=? WHERE id=?",
+                     (1 if payload.get("on") else 0, payload["id"]))
+    return {"ok": True}
+
+
 def api_happiness_save(payload):
     with db() as conn:
         conn.execute("""INSERT INTO happiness_log(work,friendship,health,wellbeing,hobby,love,note)
@@ -610,6 +655,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gstep{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:10px;background:var(--glass2);border:1px solid var(--rim);color:var(--muted);cursor:pointer}
 .gstep.done{color:#9ff0bd;border-color:rgba(82,224,138,.4);background:rgba(82,224,138,.14)}
 .gstep.done::before{content:'✓ ';font-weight:900}
+.gstep.idea{color:#ffd07a;border-color:rgba(255,208,122,.35);background:rgba(255,208,122,.1)}
+.sh-proj-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--rim);margin-top:6px}
 .gact{display:flex;gap:7px;margin-top:10px}
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
 .gact button.danger{color:#ff9aa6}
@@ -994,17 +1041,27 @@ function render(){
   document.getElementById('projects').innerHTML=d.projects.length?d.projects.map(p=>{
     const done=p.steps.filter(s=>s.done).length,total=p.steps.length;
     const pct=total?Math.round(done/total*100):0;const opened=openProjects.has(p.id);
-    let h='<div class="goal glass-sm"><div class="gh" onclick="toggleProj('+p.id+')">'+
+    const mbOn=p.morning_brief?true:false;
+    const linkedIdeas=(d.chaos||[]).filter(c=>!c.done&&c.project_id===p.id);
+    let h='<div class="goal glass-sm">'+
+      '<div style="display:flex;align-items:center;gap:6px">'+
+      '<div class="gh" onclick="toggleProj('+p.id+')" style="flex:1">'+
       '<span class="em">'+(AREAS[p.area]||'⚡')+'</span><span class="gn">'+(opened?'▾ ':'▸ ')+esc(p.name)+'</span>'+
       '<span class="gp"><b>'+pct+'%</b> · '+done+'/'+total+'</span></div>'+
+      '<button onclick="projSetMorning('+p.id+','+(mbOn?0:1)+')" title="Включить в утреннюю сводку" style="flex-shrink:0;padding:5px 9px;border-radius:10px;border:1px solid '+(mbOn?'rgba(255,198,87,.5)':'var(--rim)')+';background:'+(mbOn?'rgba(255,198,87,.15)':'transparent')+';color:'+(mbOn?'#ffd07a':'rgba(235,240,250,.35)')+';font-size:13px;cursor:pointer">🌅</button>'+
+      '</div>'+
       '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div>';
     if(opened){
-      h+='<div class="gsteps">'+p.steps.map(s=>'<span class="gstep '+(s.done?'done':'')+'" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>').join('')+'</div>'+
+      const stepsHtml=p.steps.map(s=>'<span class="gstep '+(s.done?'done':'')+'" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>').join('');
+      const ideasHtml=linkedIdeas.map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
+      h+='<div class="gsteps">'+stepsHtml+ideasHtml+'</div>'+
         '<div class="gact"><button onclick="stepAdd('+p.id+')">+ шаг</button>'+
         '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">✏️ имя</button>'+
         '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑</button></div>';
-    } else if(total){
-      h+='<div class="gsteps">'+p.steps.slice(0,4).map(s=>'<span class="gstep '+(s.done?'done':'')+'">'+esc(s.text)+'</span>').join('')+'</div>';
+    } else if(total||linkedIdeas.length){
+      const stepsPreview=p.steps.slice(0,4).map(s=>'<span class="gstep '+(s.done?'done':'')+'">'+esc(s.text)+'</span>').join('');
+      const ideasPreview=linkedIdeas.slice(0,2).map(c=>'<span class="gstep idea">💡 '+esc(c.text)+'</span>').join('');
+      h+='<div class="gsteps">'+stepsPreview+ideasPreview+'</div>';
     }
     h+='</div>';return h;
   }).join(''):'<div class="empty">целей нет — скажи боту «добавь цель ...»</div>';
@@ -1055,8 +1112,13 @@ function renderCal(){
     const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(inWeek?'':' '+MONTHS[dd.getMonth()])+(past?' ⚠️':'')+(today?' · сегодня':'');
     html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past?'past':'')+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
-      evs.map(e=>'<div class="ev '+(e.kind==='reminder'?'rem':'')+'" onclick=\'openTask('+JSON.stringify({kind:e.kind,id:e.id,text:e.text})+')\'>'+
-        (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+'</div>').join('')+'</div>';
+      evs.map(e=>{
+        const tdata={kind:e.kind,id:e.id,text:e.text};
+        if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;}
+        const mbDot=e.morning_brief?'<span style="font-size:9px;opacity:.7;margin-left:4px">🌅</span>':'';
+        return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'" onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
+          (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+mbDot+'</div>';
+      }).join('')+'</div>';
   }
   document.getElementById('cal').innerHTML=html||'<div class="empty">на этой неделе пусто</div>';
 }
@@ -1120,6 +1182,7 @@ async function stepToggle(id){await api('/api/step_toggle',{id});load();}
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){await api('/api/step_add',{project_id:pid,text:t.trim()});load();}}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){await api('/api/proj_rename',{id,name:t.trim()});load();}}
 async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){await api('/api/proj_delete',{id});load();}}
+async function projSetMorning(id,on){await api('/api/proj_set_morning',{id,on});load();}
 
 // ─── finance actions ───
 async function finAdd(sign){
@@ -1241,10 +1304,23 @@ function openTask(t){
       '<div class="sh-actions"><button class="sh-btn prime" id="rate-save">💾 Сохранить оценку</button></div>'+
       '<div class="sh-divider"></div>';
   }
+  // Project selector block (for both chaos and event)
+  const projs=DATA.projects||[];
+  const curProjId=t.proj||t.project_id||null;
+  const projOpts='<option value="">— без проекта —</option>'+projs.map(p=>'<option value="'+p.id+'" '+(curProjId==p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('');
+  const projBlock='<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700">📁 Проект:</span>'+
+    '<select id="sh-proj" style="flex:1;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:10px;color:#fff;font-size:13px;padding:6px 10px">'+projOpts+'</select></div>';
+  // Morning brief toggle (events only)
+  const mbOn=t.mb||0;
+  const mbBlock=(t.kind==='event')?
+    '<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700">🌅 Утренняя сводка:</span>'+
+    '<div class="tog '+(mbOn?'on':'')+'" id="sh-mb" style="flex-shrink:0"><div class="tog-k"></div></div></div>':'';
   sheet.innerHTML='<div class="grab"></div><div class="stitle">'+esc(t.text||'')+'</div>'+
     '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'перенести / закрыть')+'</div>'+
     (t.kind==='chaos'?'<div style="text-align:center;margin:-2px 0 10px"><button id="sh-ren" style="display:inline-flex;align-items:center;gap:6px;padding:7px 18px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:rgba(235,240,250,.7);font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:.2px">✏️ переименовать</button></div>':'')+
     rateBlock+
+    projBlock+mbBlock+
+    '<div class="sh-divider"></div>'+
     '<div class="sh-days">'+dayBtns+'</div>'+
     '<div class="sh-picker"><select id="sh-month">'+MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===now.getMonth()?'selected':'')+'>'+m+'</option>').join('')+'</select>'+
     '<select id="sh-day">'+Array.from({length:31},(_,i)=>'<option value="'+(i+1)+'" '+(i+1===now.getDate()?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select>'+
@@ -1289,6 +1365,30 @@ function openTask(t){
     await api('/api/chaos_rename',{id:t.id,text:nv.trim()});
     closeSheet();load();
   };
+  // Project selector — save on change
+  const shProj=sheet.querySelector('#sh-proj');
+  if(shProj){
+    shProj.onchange=async()=>{
+      const pid=shProj.value?parseInt(shProj.value):null;
+      if(t.kind==='event'){
+        await api('/api/event_update',{id:t.id,project_id:pid});
+      } else if(t.kind==='chaos'){
+        await api('/api/chaos_set_project',{id:t.id,project_id:pid});
+      }
+      load();
+    };
+  }
+  // Morning brief toggle (events)
+  const shMb=sheet.querySelector('#sh-mb');
+  if(shMb&&t.kind==='event'){
+    let mbState=mbOn?1:0;
+    shMb.onclick=async()=>{
+      mbState=mbState?0:1;
+      shMb.classList.toggle('on',!!mbState);
+      await api('/api/event_update',{id:t.id,morning_brief:mbState});
+      load();
+    };
+  }
 }
 
 // ─── KANBAN ───
@@ -1488,10 +1588,10 @@ function renderHappiness(d){
 }
 
 function updateHNodes(){
-  let total=0;
+  let minVal=10;
   H_KEYS.forEach(k=>{
     const el=document.getElementById('hv-'+k);
-    if(el){el.textContent=hValues[k];el.style.color=H_COLORS[k];total+=hValues[k];}
+    if(el){el.textContent=hValues[k];el.style.color=H_COLORS[k];if(hValues[k]<minVal)minVal=hValues[k];}
     const n=H_NODES[k];
     if(n){
       const t=Math.max(0.05,Math.sqrt(hValues[k]/10));
@@ -1500,7 +1600,7 @@ function updateHNodes(){
     }
   });
   const tc=document.getElementById('hv-total');
-  if(tc){tc.textContent=(total/6).toFixed(1);tc.style.color='#ffd07a';}
+  if(tc){tc.textContent=minVal.toFixed(1);tc.style.color='#ffd07a';}
 }
 
 function drawHLines(){
@@ -1619,7 +1719,8 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 // Потяни вниз для обновления (pull-to-refresh) — работает и в standalone-режиме
 (function(){
   const ptr=document.getElementById('ptr'),ind=ptr.querySelector('.i');
-  const TH=68;let startY=0,pulling=false,dist=0,busy=false;
+  const TH=50;let startY=0,pulling=false,dist=0,busy=false;
+  function resetPtr(){pulling=false;dist=0;ptr.style.transition='transform .25s,opacity .25s';ptr.style.transform='translate(-50%,-60px)';ptr.style.opacity=0;}
   window.addEventListener('touchstart',e=>{
     if(busy||document.getElementById('sheet'))return;
     if(window.scrollY<=0){startY=e.touches[0].clientY;pulling=true;dist=0;}
@@ -1627,22 +1728,25 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
   window.addEventListener('touchmove',e=>{
     if(!pulling)return;
     dist=e.touches[0].clientY-startY;
-    if(dist<=0){pulling=false;ptr.style.opacity=0;ptr.style.transform='translate(-50%,-60px)';return;}
-    const d=Math.min(dist,130);
+    if(dist<=0){resetPtr();return;}
+    const d=Math.min(dist,120);
     ptr.style.transition='none';
     ptr.style.opacity=Math.min(d/TH,1);
-    ptr.style.transform='translate(-50%,'+(d*0.6-46)+'px)';
+    ptr.style.transform='translate(-50%,'+(d*0.55-46)+'px)';
     ind.style.transform='rotate('+(d/TH*270)+'deg)';
   },{passive:true});
+  window.addEventListener('touchcancel',resetPtr,{passive:true});
   window.addEventListener('touchend',async()=>{
-    if(!pulling)return;pulling=false;
+    if(!pulling)return;
+    const triggered=dist>=TH;
+    pulling=false;
     ptr.style.transition='transform .3s cubic-bezier(.2,.8,.2,1),opacity .3s';
-    if(dist>=TH){
+    if(triggered){
       busy=true;
       ptr.style.transform='translate(-50%,14px)';ptr.style.opacity=1;
       ind.style.transform='';ptr.classList.add('spin');
       try{await load();}catch(_){}
-      await new Promise(r=>setTimeout(r,420));
+      await new Promise(r=>setTimeout(r,380));
       ptr.classList.remove('spin');busy=false;
     }
     ptr.style.transform='translate(-50%,-60px)';ptr.style.opacity=0;
@@ -1919,6 +2023,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
             "/api/kcol_rename": api_kcol_rename, "/api/happiness_save": api_happiness_save,
             "/api/chaos_rename": api_chaos_rename,
+            "/api/event_update": api_event_update,
+            "/api/chaos_set_project": api_chaos_set_project,
+            "/api/proj_set_morning": api_proj_set_morning,
         }
         if self.path in routes:
             result = routes[self.path](payload)
