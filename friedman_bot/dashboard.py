@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 20:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 21:30"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1009,6 +1009,36 @@ function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()
 async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
 async function load(){if(window.__INIT__){DATA=window.__INIT__;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}const r=await fetch('/api/data');if(r.status===401||r.status===403){location.reload();return;}DATA=await r.json();if(!document.getElementById('sheet'))render();}
 
+// ─── optimistic mutation engine (Trello-style: instant UI, background sync) ───
+let _pending=0;            // in-flight background syncs
+function _reconcile(){
+  // Pull server truth once all optimistic mutations have settled.
+  if(_pending>0)return;
+  fetch('/api/data').then(r=>{
+    if(r.status===401||r.status===403){location.reload();return null;}
+    return r.json();
+  }).then(j=>{
+    // If a new mutation started while we were fetching, don't clobber its
+    // optimistic state — its own reconcile will run when _pending hits 0 again.
+    if(j&&_pending===0){DATA=j;if(!document.getElementById('sheet'))render();}
+  }).catch(()=>{});
+}
+// Apply a local change to DATA, repaint instantly, then sync to server in background.
+function mutate(localFn,path,body,paint){
+  try{if(localFn)localFn();}catch(_){}
+  (paint||render)();
+  _pending++;
+  Promise.resolve(api(path,body)).catch(()=>{}).finally(()=>{_pending--;_reconcile();});
+}
+const _byId=(arr,id)=>(arr||[]).find(x=>x.id===id);
+function _chaos(id){return _byId(DATA.chaos,id);}
+function _card(id){return _byId(DATA.cards,id);}
+function _proj(id){return _byId(DATA.projects,id);}
+function _kcard(id){return _byId(DATA.kanban_cards,id);}
+function _kcol(id){return _byId(DATA.kanban_cols,id);}
+function _step(id){for(const p of (DATA.projects||[])){const s=_byId(p.steps,id);if(s)return s;}return null;}
+function _tmpId(){return -(Date.now()*1000+Math.floor(Math.random()*1000));}
+
 // segmented control
 document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   document.querySelectorAll('#seg .s').forEach(x=>x.classList.remove('on'));
@@ -1201,51 +1231,68 @@ function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');return d.getDat
 
 // ─── project actions ───
 function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
-async function stepToggle(id){await api('/api/step_toggle',{id});load();}
-async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){await api('/api/step_add',{project_id:pid,text:t.trim()});load();}}
-async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){await api('/api/proj_rename',{id,name:t.trim()});load();}}
-async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){await api('/api/proj_delete',{id});load();}}
-async function projSetMorning(id,on){await api('/api/proj_set_morning',{id,on});load();}
+function stepToggle(id){const s=_step(id);mutate(()=>{if(s)s.done=s.done?0:1;},'/api/step_toggle',{id});}
+async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
+async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
+async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){mutate(()=>{DATA.projects=(DATA.projects||[]).filter(p=>p.id!==id);},'/api/proj_delete',{id});}}
+function projSetMorning(id,on){const p=_proj(id);mutate(()=>{if(p)p.morning_brief=on?1:0;},'/api/proj_set_morning',{id,on});}
 
 // ─── finance actions ───
-async function finAdd(sign){
+function finAdd(sign){
   const amt=parseFloat(document.getElementById('fin-amt').value);
   if(!amt||isNaN(amt)){document.getElementById('fin-amt').focus();return;}
-  await api('/api/finance_add',{amount:Math.abs(amt)*sign,account:document.getElementById('fin-acc').value,comment:document.getElementById('fin-cm').value});
-  document.getElementById('fin-amt').value='';document.getElementById('fin-cm').value='';load();
+  const account=document.getElementById('fin-acc').value;
+  const comment=document.getElementById('fin-cm').value;
+  const signed=Math.abs(amt)*sign;
+  document.getElementById('fin-amt').value='';document.getElementById('fin-cm').value='';
+  mutate(()=>{
+    if(!DATA.fin_log)DATA.fin_log=[];
+    DATA.fin_log.unshift({id:_tmpId(),amount:signed,account,comment:comment||'коррекция',created_at:new Date().toISOString()});
+    if(account==='cash')DATA.cash=(DATA.cash||0)+signed; else DATA.card=(DATA.card||0)+signed;
+    DATA.balance=(DATA.balance||0)+signed;
+  },'/api/finance_add',{amount:signed,account,comment});
 }
-async function finDel(id){if(await uiConfirm('Удалить операцию?',{danger:true,ok:'Удалить'})){await api('/api/finance_delete',{id});load();}}
+async function finDel(id){
+  if(!(await uiConfirm('Удалить операцию?',{danger:true,ok:'Удалить'})))return;
+  const op=_byId(DATA.fin_log,id);
+  mutate(()=>{
+    if(op){const a=op.amount||0;if(op.account==='cash')DATA.cash=(DATA.cash||0)-a;else DATA.card=(DATA.card||0)-a;DATA.balance=(DATA.balance||0)-a;}
+    DATA.fin_log=(DATA.fin_log||[]).filter(r=>r.id!==id);
+  },'/api/finance_delete',{id});
+}
 async function addDebt(kind){
   const name=await uiPrompt(kind==='long'?'Долгосрочный долг — название:':'Задолженность — название:','',{placeholder:'название'});
   if(!name||!name.trim())return;
   const total=parseFloat(await uiNum('Сумма €:',''))||0;
+  let body;
   if(kind==='long'){
     const paid=parseFloat(await uiNum('Уже выплачено €:','0'))||0;
     const monthly=parseFloat(await uiNum('Платёж в месяц € (можно пусто):','0'))||0;
-    await api('/api/debt_add',{name:name.trim(),kind:'long',total,paid,monthly,icon:'🏦'});
+    body={name:name.trim(),kind:'long',total,paid,monthly,icon:'🏦'};
   } else {
     const due=await uiPrompt('Срок оплаты (можно пусто):','',{placeholder:'ГГГГ-ММ-ДД'});
-    await api('/api/debt_add',{name:name.trim(),kind:'current',total,due_date:due&&due.trim()?due.trim():null,icon:'🔴'});
+    body={name:name.trim(),kind:'current',total,due_date:due&&due.trim()?due.trim():null,icon:'🔴'};
   }
-  load();
+  mutate(()=>{if(!DATA.debts)DATA.debts=[];DATA.debts.push({id:_tmpId(),paid:0,monthly:0,due_date:null,...body});},'/api/debt_add',body);
 }
-async function delDebt(id){if(await uiConfirm('Удалить долг?',{danger:true,ok:'Удалить'})){await api('/api/debt_delete',{id});load();}}
+async function delDebt(id){if(await uiConfirm('Удалить долг?',{danger:true,ok:'Удалить'})){mutate(()=>{DATA.debts=(DATA.debts||[]).filter(x=>x.id!==id);},'/api/debt_delete',{id});}}
 async function addPayment(){
   const title=await uiPrompt('Платёж — название:','',{placeholder:'за что'});
   if(!title||!title.trim())return;
   const amount=parseFloat(await uiNum('Сумма €:',''))||0;
   const isRec=await uiConfirm('Какой это платёж?',{ok:'🔁 Регулярный',cancel:'1️⃣ Разовый'});
   const icon=(await uiPrompt('Иконка (эмодзи):','💸'))||'💸';
+  let body;
   if(isRec){
     const day=parseInt(await uiNum('Какого числа каждый месяц? (1-31):','1'))||1;
-    await api('/api/payment_add',{title:title.trim(),amount,kind:'recurring',recur:'monthly',day,icon});
+    body={title:title.trim(),amount,kind:'recurring',recur:'monthly',day,icon};
   } else {
     const date=await uiPrompt('Дата платежа:','',{placeholder:'ГГГГ-ММ-ДД'});
-    await api('/api/payment_add',{title:title.trim(),amount,kind:'planned',date:date&&date.trim()?date.trim():null,icon});
+    body={title:title.trim(),amount,kind:'planned',date:date&&date.trim()?date.trim():null,icon};
   }
-  load();
+  mutate(()=>{if(!DATA.payments)DATA.payments=[];DATA.payments.push({id:_tmpId(),day:1,date:null,recur:'monthly',...body});},'/api/payment_add',body);
 }
-async function delPayment(id){if(await uiConfirm('Удалить платёж?',{danger:true,ok:'Удалить'})){await api('/api/payment_delete',{id});load();}}
+async function delPayment(id){if(await uiConfirm('Удалить платёж?',{danger:true,ok:'Удалить'})){mutate(()=>{DATA.payments=(DATA.payments||[]).filter(p=>p.id!==id);},'/api/payment_delete',{id});}}
 
 // ─── bottom sheet (rate / move) ───
 function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();const b=document.getElementById('sheet-bg');if(b)b.remove();}
@@ -1384,50 +1431,83 @@ function openTask(t){
       quad.textContent=q[0];quad.style.background=q[1];quad.style.borderColor=q[2];quad.style.color=q[3];
     }
     impEl.oninput=upd;urgEl.oninput=upd;upd();
-    sheet.querySelector('#rate-save').onclick=async()=>{await api('/api/rate',{id:t.id,importance:+impEl.value,urgency:+urgEl.value});closeSheet();load();};
+    sheet.querySelector('#rate-save').onclick=()=>{
+      const imp=+impEl.value,urg=+urgEl.value;
+      closeSheet();
+      mutate(()=>{const c=_chaos(t.id);if(c){c.importance=imp;c.urgency=urg;}},'/api/rate',{id:t.id,importance:imp,urgency:urg});
+    };
   }
-  sheet.querySelectorAll('.sh-day').forEach(b=>b.onclick=async()=>{await api('/api/move',{kind:t.kind,id:t.id,date:b.dataset.date});closeSheet();load();});
-  sheet.querySelector('#sh-go').onclick=async()=>{
+  // move to a date — mirrors api_move: chaos creates a calendar event, event/reminder reschedules
+  function doMove(date){
+    closeSheet();
+    mutate(()=>{
+      if(t.kind==='chaos'){
+        const c=_chaos(t.id);
+        if(!DATA.cards)DATA.cards=[];
+        DATA.cards.push({kind:'event',id:_tmpId(),date,time:'',text:(c?c.text:t.text),chaos_id:t.id,project_id:(c?c.project_id:null)||null,morning_brief:0});
+      } else {
+        const card=_card(t.id);if(card)card.date=date;
+      }
+    },'/api/move',{kind:t.kind,id:t.id,date});
+  }
+  sheet.querySelectorAll('.sh-day').forEach(b=>b.onclick=()=>doMove(b.dataset.date));
+  sheet.querySelector('#sh-go').onclick=()=>{
     const m=+sheet.querySelector('#sh-month').value;let day=+sheet.querySelector('#sh-day').value;
     let y=now.getFullYear();const last=new Date(y,m+1,0).getDate();if(day>last)day=last;
     let target=new Date(y,m,day);const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     if(target<todayMid)target=new Date(y+1,m,day);
-    await api('/api/move',{kind:t.kind,id:t.id,date:localISO(target)});closeSheet();load();
+    doMove(localISO(target));
   };
-  sheet.querySelector('#sh-done').onclick=async()=>{await api('/api/complete',{kind:t.kind,id:t.id});closeSheet();load();};
+  sheet.querySelector('#sh-done').onclick=()=>{
+    closeSheet();
+    mutate(()=>{
+      if(t.kind==='chaos'){const c=_chaos(t.id);if(c)c.done=1;}
+      else{
+        if(t.kind==='event'){const card=_card(t.id);if(card&&card.chaos_id){const c=_chaos(card.chaos_id);if(c)c.done=1;}}
+        DATA.cards=(DATA.cards||[]).filter(x=>x.id!==t.id);
+      }
+    },'/api/complete',{kind:t.kind,id:t.id});
+  };
   sheet.querySelector('#sh-del').onclick=async()=>{
     if(t.kind==='chaos'&&!(await uiConfirm('Удалить задачу навсегда?',{danger:true,ok:'Удалить'})))return;
-    await api('/api/unplan',{kind:t.kind,id:t.id});closeSheet();load();
+    closeSheet();
+    mutate(()=>{
+      if(t.kind==='chaos'){
+        DATA.cards=(DATA.cards||[]).filter(x=>x.chaos_id!==t.id);
+        DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.chaos_id!==t.id);
+        DATA.chaos=(DATA.chaos||[]).filter(x=>x.id!==t.id);
+      } else {
+        DATA.cards=(DATA.cards||[]).filter(x=>x.id!==t.id);
+      }
+    },'/api/unplan',{kind:t.kind,id:t.id});
   };
   const shRen=sheet.querySelector('#sh-ren');
   if(shRen)shRen.onclick=async()=>{
     const nv=await uiPrompt('Переименовать задачу:',t.text);
     if(!nv||!nv.trim())return;
-    await api('/api/chaos_rename',{id:t.id,text:nv.trim()});
-    closeSheet();load();
+    closeSheet();
+    mutate(()=>{const c=_chaos(t.id);if(c)c.text=nv.trim();},'/api/chaos_rename',{id:t.id,text:nv.trim()});
   };
-  // Project selector — save on change
+  // Project selector — save on change (sheet stays open; page repaints behind it)
   const shProj=sheet.querySelector('#sh-proj');
   if(shProj){
-    shProj.onchange=async()=>{
+    shProj.onchange=()=>{
       const pid=shProj.value?parseInt(shProj.value):null;
       if(t.kind==='event'){
-        await api('/api/event_update',{id:t.id,project_id:pid});
+        mutate(()=>{const card=_card(t.id);if(card)card.project_id=pid;},'/api/event_update',{id:t.id,project_id:pid});
       } else if(t.kind==='chaos'){
-        await api('/api/chaos_set_project',{id:t.id,project_id:pid});
+        mutate(()=>{const c=_chaos(t.id);if(c)c.project_id=pid;},'/api/chaos_set_project',{id:t.id,project_id:pid});
       }
-      load();
     };
   }
   // Morning brief toggle (events)
   const shMb=sheet.querySelector('#sh-mb');
   if(shMb&&t.kind==='event'){
     let mbState=mbOn?1:0;
-    shMb.onclick=async()=>{
+    shMb.onclick=()=>{
       mbState=mbState?0:1;
       shMb.classList.toggle('on',!!mbState);
-      await api('/api/event_update',{id:t.id,morning_brief:mbState});
-      load();
+      mutate(()=>{const card=_card(t.id);if(card)card.morning_brief=mbState;},'/api/event_update',{id:t.id,morning_brief:mbState});
     };
   }
 }
@@ -1531,18 +1611,17 @@ function kcolMenu(e,colId){
   );
   // toggle logic
   const tog=sheet.querySelector('#kcol-tog');
-  tog.onclick=async()=>{
+  tog.onclick=()=>{
     const nowCurrent=!tog.classList.contains('on');
     tog.classList.toggle('on');
     sheet.querySelector('.ptlabel:first-of-type').classList.toggle('on',!tog.classList.contains('on'));
     sheet.querySelector('.ptlabel:last-of-type').classList.toggle('on',tog.classList.contains('on'));
     const newStatus=nowCurrent?'current':'prospective';
-    await api('/api/kcol_setstatus',{id:colId,status:newStatus});
     if(newStatus==='current'){
       const rect=tog.getBoundingClientRect();
       spawnConfetti(rect.left+rect.width/2,rect.top+rect.height/2);
     }
-    load();
+    mutate(()=>{const c=_kcol(colId);if(c)c.status=newStatus;},'/api/kcol_setstatus',{id:colId,status:newStatus},()=>renderKanban(DATA));
   };
   // deadline
   const dlInput=sheet.querySelector('#kcol-dl');
@@ -1558,35 +1637,33 @@ function kcolMenu(e,colId){
           dlLabel.style.color='#ffd07a';dlLabel.style.borderColor='rgba(255,208,122,.4)';
         }else{dlLabel.textContent='не задан';dlLabel.style.color='var(--muted)';dlLabel.style.borderColor='var(--rim)';}
       }
-      await api('/api/kcol_setdeadline',{id:colId,deadline:val||null});
-      load();
+      mutate(()=>{const c=_kcol(colId);if(c)c.deadline=val||null;},'/api/kcol_setdeadline',{id:colId,deadline:val||null},()=>renderKanban(DATA));
     };
   }
   const dlClear=sheet.querySelector('#dl-clear');
-  if(dlClear)dlClear.onclick=async()=>{
+  if(dlClear)dlClear.onclick=()=>{
     if(dlInput)dlInput.value='';
     if(dlLabel){dlLabel.textContent='не задан';dlLabel.style.color='var(--muted)';dlLabel.style.borderColor='var(--rim)';}
-    await api('/api/kcol_setdeadline',{id:colId,deadline:null});
-    dlClear.remove();load();
+    dlClear.remove();
+    mutate(()=>{const c=_kcol(colId);if(c)c.deadline=null;},'/api/kcol_setdeadline',{id:colId,deadline:null},()=>renderKanban(DATA));
   };
   // rename
   sheet.querySelector('#kcol-ren-btn').onclick=async()=>{
     const nv=await uiPrompt('Название списка:',col.name);
     if(!nv||!nv.trim())return;
-    await api('/api/kcol_rename',{id:colId,name:nv.trim()});
-    closeSheet();load();
+    closeSheet();
+    mutate(()=>{const c=_kcol(colId);if(c)c.name=nv.trim();},'/api/kcol_rename',{id:colId,name:nv.trim()},()=>renderKanban(DATA));
   };
 }
 
-async function kcheck(e,id,val){e.stopPropagation();await api('/api/kcard_check',{id,checked:val});load();}
-async function karchive(e,id){e.stopPropagation();if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;await api('/api/kcard_archive',{id});load();}
+function kcheck(e,id,val){e.stopPropagation();mutate(()=>{const c=_kcard(id);if(c)c.checked=val;},'/api/kcard_check',{id,checked:val},()=>renderKanban(DATA));}
+async function karchive(e,id){e.stopPropagation();if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;mutate(()=>{DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);},'/api/kcard_archive',{id},()=>renderKanban(DATA));}
 async function krename(e,id,btn){
   e.stopPropagation();
   const title=btn.closest('.kcard').querySelector('.kt').textContent;
   const nv=await uiPrompt('Новое название:',title);
   if(!nv||!nv.trim())return;
-  await api('/api/kcard_rename',{id,title:nv.trim()});
-  load();
+  mutate(()=>{const c=_kcard(id);if(c)c.title=nv.trim();},'/api/kcard_rename',{id,title:nv.trim()},()=>renderKanban(DATA));
 }
 function kcardClick(e,id,colId,el){
   if(e.target.closest('.kchk,.kren,.kol-head'))return;
@@ -1600,44 +1677,37 @@ function kcardClick(e,id,colId,el){
   sheet.querySelector('#kren-btn').onclick=async()=>{
     const nv=await uiPrompt('Новое название:',title);
     if(!nv||!nv.trim())return;
-    await api('/api/kcard_rename',{id,title:nv.trim()});
-    closeSheet();load();
+    closeSheet();
+    mutate(()=>{const c=_kcard(id);if(c)c.title=nv.trim();},'/api/kcard_rename',{id,title:nv.trim()},()=>renderKanban(DATA));
   };
   sheet.querySelector('#karch-btn').onclick=async()=>{
     if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;
-    await api('/api/kcard_archive',{id});closeSheet();load();
+    closeSheet();
+    mutate(()=>{DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);},'/api/kcard_archive',{id},()=>renderKanban(DATA));
   };
   sheet.querySelector('#kdel-btn').onclick=async()=>{
     if(!(await uiConfirm('Удалить карточку навсегда?',{danger:true,ok:'Удалить'})))return;
-    await api('/api/kcard_delete',{id});closeSheet();load();
+    closeSheet();
+    mutate(()=>{DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);},'/api/kcard_delete',{id},()=>renderKanban(DATA));
   };
 }
 
-let _kSaving=false;
 async function kaddCard(colId,colName){
   const t=await uiPrompt(`Новая карточка в «${colName}»:`,'',{placeholder:'заголовок'});
   if(!t||!t.trim())return;
   const desc=(await uiPrompt('Описание (необязательно):',''))||'';
-  // Мгновенно добавляем в локальный DATA и рендерим — без ожидания сервера
-  if(!DATA.kanban_cards)DATA.kanban_cards=[];
-  const tmp={id:-(Date.now()),column_id:colId,title:t.trim(),
-    description:desc.trim(),checked:0,archived:0,position:9999};
-  DATA.kanban_cards.push(tmp);
-  renderKanban(DATA);
-  // Блокируем интервальный load() чтобы он не затёр оптимистичную карточку
-  _kSaving=true;
-  api('/api/kcard_add',{col:colId,title:t.trim(),desc:desc.trim()})
-    .then(()=>{_kSaving=false;load();})
-    .catch(()=>{
-      _kSaving=false;
-      DATA.kanban_cards=DATA.kanban_cards.filter(c=>c.id!==tmp.id);
-      renderKanban(DATA);
-    });
+  mutate(()=>{
+    if(!DATA.kanban_cards)DATA.kanban_cards=[];
+    DATA.kanban_cards.push({id:_tmpId(),column_id:colId,title:t.trim(),description:desc.trim(),checked:0,archived:0,position:9999});
+  },'/api/kcard_add',{col:colId,title:t.trim(),desc:desc.trim()},()=>renderKanban(DATA));
 }
 async function addKCol(){
   const n=await uiPrompt('Название новой колонки:','',{placeholder:'например: Готово'});
   if(!n||!n.trim())return;
-  await api('/api/kcol_add',{name:n.trim()});load();
+  mutate(()=>{
+    if(!DATA.kanban_cols)DATA.kanban_cols=[];
+    DATA.kanban_cols.push({id:_tmpId(),name:n.trim(),color:'#5b9dff',status:'prospective',position:9999,deadline:null});
+  },'/api/kcol_add',{name:n.trim()},()=>renderKanban(DATA));
 }
 
 // ─── HAPPINESS ───
@@ -1898,7 +1968,8 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();
 
 load();
-setInterval(()=>{if(!_kSaving)load();},8000);
+// Periodic background refresh — never while a mutation is syncing or a sheet is open.
+setInterval(()=>{if(_pending===0&&!document.getElementById('sheet'))load();},8000);
 </script></body></html>"""
 
 
