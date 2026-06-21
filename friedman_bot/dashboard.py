@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 15:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 16:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1589,7 +1589,7 @@ async function addKCol(){
 const H_KEYS=['work','friendship','health','wellbeing','hobby','love'];
 const H_LABELS={work:'Работа',friendship:'Дружба',health:'Здоровье',wellbeing:'Благополучие',hobby:'Хобби',love:'Любовь'};
 const H_COLORS={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
-const H_NODES={work:{maxL:88,maxT:7},friendship:{maxL:12,maxT:7},health:{maxL:93,maxT:50},love:{maxL:7,maxT:50},wellbeing:{maxL:88,maxT:93},hobby:{maxL:12,maxT:93}};
+// H_NODES computed dynamically in updateHNodes() for equal pixel distances
 let hValues={work:3,friendship:3,health:3,wellbeing:3,hobby:3,love:3};
 let hPeriod='14';
 let _hapHistory=[];
@@ -1606,10 +1606,25 @@ function renderHappiness(d){
 
 function updateHNodes(){
   let minVal=5;
+  // Pixel-equidistant positions: all nodes at same px distance from center.
+  // Reference = health/love: 43% of container width horizontally.
+  const wrap=document.getElementById('hmap-wrap');
+  const W=wrap?wrap.offsetWidth:390,HP=wrap?wrap.offsetHeight:420;
+  const Rpx=0.43*W;                      // target pixel radius
+  const dxp=Rpx/W/Math.SQRT2*100;        // % of width  for 45° corners
+  const dyp=Rpx/HP/Math.SQRT2*100;       // % of height for 45° corners
+  const POS={
+    work:       {maxL:50+dxp, maxT:50-dyp},
+    friendship: {maxL:50-dxp, maxT:50-dyp},
+    health:     {maxL:93,     maxT:50},
+    love:       {maxL:7,      maxT:50},
+    wellbeing:  {maxL:50+dxp, maxT:50+dyp},
+    hobby:      {maxL:50-dxp, maxT:50+dyp}
+  };
   H_KEYS.forEach(k=>{
     const el=document.getElementById('hv-'+k);
     if(el){el.textContent=hValues[k];el.style.color=H_COLORS[k];if(hValues[k]<minVal)minVal=hValues[k];}
-    const n=H_NODES[k];
+    const n=POS[k];
     if(n){
       const t=Math.max(0.05,Math.sqrt(hValues[k]/5));
       const node=document.getElementById('hn-'+k);
