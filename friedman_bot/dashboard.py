@@ -1450,7 +1450,7 @@ async function addKCol(){
 const H_KEYS=['work','friendship','health','wellbeing','hobby','love'];
 const H_LABELS={work:'Работа',friendship:'Дружба',health:'Здоровье',wellbeing:'Благополучие',hobby:'Хобби',love:'Любовь'};
 const H_COLORS={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
-const H_NODES={work:{maxL:72,maxT:20},friendship:{maxL:28,maxT:20},health:{maxL:82,maxT:50},love:{maxL:18,maxT:50},wellbeing:{maxL:72,maxT:80},hobby:{maxL:28,maxT:80}};
+const H_NODES={work:{maxL:83,maxT:6},friendship:{maxL:17,maxT:6},health:{maxL:90,maxT:50},love:{maxL:10,maxT:50},wellbeing:{maxL:83,maxT:94},hobby:{maxL:17,maxT:94}};
 let hValues={work:5,friendship:5,health:5,wellbeing:5,hobby:5,love:5};
 let hPeriod='14';
 let _hapHistory=[];
@@ -1486,9 +1486,9 @@ function drawHLines(){
   if(!svg)return;
   const cx=150,cy=180;
   const maxNodes=[
-    {id:'work',mx:216,my:72},{id:'friendship',mx:84,my:72},
-    {id:'health',mx:246,my:180},{id:'love',mx:54,my:180},
-    {id:'wellbeing',mx:216,my:288},{id:'hobby',mx:84,my:288}
+    {id:'work',mx:249,my:22},{id:'friendship',mx:51,my:22},
+    {id:'health',mx:270,my:180},{id:'love',mx:30,my:180},
+    {id:'wellbeing',mx:249,my:338},{id:'hobby',mx:51,my:338}
   ];
   svg.innerHTML=maxNodes.map(n=>{
     const t=Math.max(0.1,hValues[n.id]/10);
