@@ -1428,8 +1428,17 @@ async function kaddCard(colId,colName){
   const t=await uiPrompt(`Новая карточка в «${colName}»:`,'',{placeholder:'заголовок'});
   if(!t||!t.trim())return;
   const desc=(await uiPrompt('Описание (необязательно):',''))||'';
-  await api('/api/kcard_add',{col:colId,title:t.trim(),desc:desc.trim()});
-  load();
+  // Optimistic: показываем карточку немедленно
+  if(!DATA.kanban_cards)DATA.kanban_cards=[];
+  DATA.kanban_cards.push({id:-(Date.now()),column_id:colId,title:t.trim(),
+    description:desc.trim(),checked:0,archived:0,position:9999});
+  renderKanban(DATA);
+  // Сохраняем с keepalive — запрос доживёт даже если закрыть приложение сразу
+  fetch('/api/kcard_add',{method:'POST',keepalive:true,
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({col:colId,title:t.trim(),desc:desc.trim()})
+  }).then(r=>{if(r.status===401||r.status===403)location.reload();else load();})
+    .catch(()=>load());
 }
 async function addKCol(){
   const n=await uiPrompt('Название новой колонки:','',{placeholder:'например: Готово'});
