@@ -688,7 +688,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kchk{width:20px;height:20px;border-radius:6px;border:2px solid rgba(255,255,255,.3);flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s}
 .kchk.done{background:#52e08a;border-color:#52e08a}
-.karch{margin-left:auto;font-size:10px;color:rgba(235,240,250,.35);background:none;border:none;cursor:pointer;font-weight:700;padding:2px 6px}
+.karch{font-size:10px;color:rgba(235,240,250,.35);background:none;border:none;cursor:pointer;font-weight:700;padding:2px 6px}
+.kren{margin-left:auto;width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;transition:background .18s,transform .12s;flex-shrink:0}
+.kren:active{background:rgba(255,255,255,.2);transform:scale(.92)}
 .kadd{width:100%;padding:11px;border-radius:14px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);
   color:rgba(235,240,250,.5);font-weight:700;font-size:12px;cursor:pointer;margin-top:2px;text-align:center}
 .kadd:active{background:rgba(255,255,255,.1)}
@@ -1251,6 +1254,7 @@ function renderKanban(d){
         <div class="krow">
           <div class="kchk ${done}" onclick="kcheck(event,${c.id},${c.checked?0:1})">${done?'✓':''}</div>
           <button class="karch" onclick="karchive(event,${c.id})">архив</button>
+          <button class="kren" onclick="krename(event,${c.id},this)" title="Переименовать">✏️</button>
         </div>
       </div>`;
     }).join('');
@@ -1265,8 +1269,16 @@ function renderKanban(d){
 
 async function kcheck(e,id,val){e.stopPropagation();await api('/api/kcard_check',{id,checked:val});load();}
 async function karchive(e,id){e.stopPropagation();if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;await api('/api/kcard_archive',{id});load();}
+async function krename(e,id,btn){
+  e.stopPropagation();
+  const title=btn.closest('.kcard').querySelector('.kt').textContent;
+  const nv=await uiPrompt('Новое название:',title);
+  if(!nv||!nv.trim())return;
+  await api('/api/kcard_rename',{id,title:nv.trim()});
+  load();
+}
 function kcardClick(e,id,colId,el){
-  if(e.target.closest('.kchk,.karch'))return;
+  if(e.target.closest('.kchk,.karch,.kren'))return;
   e.stopPropagation();
   const title=el.querySelector('.kt').textContent;
   const {sheet}=_openSheet(`<div class="grab"></div><div class="stitle">${esc(title)}</div>`+
