@@ -786,7 +786,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="s on" data-p="plan"><span class="e">🧭</span>Мостик</div>
     <div class="s" data-p="fin"><span class="e">💰</span>Финансы</div>
     <div class="s" data-p="proj"><span class="e">📁</span>Проекты</div>
-    <div class="s" data-p="hap"><span class="e">🌸</span>Счастье</div>
+    <div class="s" data-p="hap"><span class="e">🤗</span>Счастье</div>
   </div>
 
   <div class="page on" id="page-plan">
