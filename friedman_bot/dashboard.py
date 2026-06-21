@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 17:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 19:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -455,6 +455,11 @@ def api_kcard_check(payload):
 def api_kcard_archive(payload):
     with db() as conn:
         conn.execute("UPDATE kanban_cards SET archived=1, archived_at=datetime('now') WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+def api_kcard_delete(payload):
+    with db() as conn:
+        conn.execute("DELETE FROM kanban_cards WHERE id=?", (payload["id"],))
     return {"ok": True}
 
 def api_kcard_move(payload):
@@ -1252,6 +1257,24 @@ function _openSheet(html){
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
   sheet.innerHTML=html;document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  // Close on backdrop tap
+  bg.onclick=closeSheet;
+  // Swipe-down to dismiss
+  let sy=0,dragging=false;
+  const grab=sheet.querySelector('.grab');
+  if(grab){
+    grab.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;dragging=true;},{passive:true});
+    grab.addEventListener('touchmove',e=>{
+      if(!dragging)return;
+      const dy=e.touches[0].clientY-sy;
+      if(dy>0)sheet.style.transform='translateY('+dy+'px)';
+    },{passive:true});
+    grab.addEventListener('touchend',e=>{
+      if(!dragging)return;dragging=false;
+      const dy=e.changedTouches[0].clientY-sy;
+      if(dy>80){closeSheet();}else{sheet.style.transform='translateY(0)';}
+    },{passive:true});
+  }
   return {bg,sheet};
 }
 function uiPrompt(title,value='',opts={}){
@@ -1453,7 +1476,6 @@ function renderKanban(d){
         ${c.description?`<div class="kdesc">${esc(c.description)}</div>`:''}
         <div class="krow">
           <div class="kchk ${done}" onclick="kcheck(event,${c.id},${c.checked?0:1})">${done?'✓':''}</div>
-          <button class="karch" onclick="karchive(event,${c.id})">архив</button>
           <button class="kren" onclick="krename(event,${c.id},this)" title="Переименовать">✏️</button>
         </div>
       </div>`;
@@ -1489,13 +1511,20 @@ function kcolMenu(e,colId){
        <span class="ptlabel${isCurrent?' on':''}">Текущий</span>
      </div>`+
     // deadline
-    `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,255,255,.06);border-radius:16px">
-       <span style="font-size:18px">📅</span>
-       <div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Дедлайн проекта</div>
-       <input id="kcol-dl" type="date" value="${col.deadline||''}"
-         style="background:rgba(255,255,255,.1);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px 12px;font-size:13px;width:100%;font-family:inherit">
+    (()=>{
+      const dv=col.deadline||'';
+      const dlabel=dv?(()=>{const d=new Date(dv+'T00:00');return d.getDate()+' '+['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'][d.getMonth()]+' '+d.getFullYear();})():'не задан';
+      return `<div style="padding:12px 16px;background:rgba(255,255,255,.06);border-radius:16px">
+       <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.5px;margin-bottom:10px">📅 ДЕДЛАЙН ПРОЕКТА</div>
+       <div style="display:flex;gap:8px;align-items:center">
+         <div style="position:relative;flex:1">
+           <div id="dl-label" style="padding:10px 14px;background:rgba(255,255,255,.08);border:1px solid ${dv?'rgba(255,208,122,.4)':'var(--rim)'};border-radius:12px;font-size:14px;font-weight:700;color:${dv?'#ffd07a':'var(--muted)'};pointer-events:none">${dlabel}</div>
+           <input id="kcol-dl" type="date" value="${dv}" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer">
+         </div>
+         ${dv?`<button id="dl-clear" style="padding:10px 12px;background:rgba(255,107,125,.12);border:1px solid rgba(255,107,125,.3);border-radius:12px;color:#ff9aa6;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✕ сброс</button>`:''}
        </div>
-     </div>`+
+     </div>`;
+    })()+
     // rename
     `<button class="sh-act" id="kcol-ren-btn">✏️ Переименовать список</button>`+
     `</div>`
@@ -1516,9 +1545,29 @@ function kcolMenu(e,colId){
     load();
   };
   // deadline
-  sheet.querySelector('#kcol-dl').onchange=async(ev)=>{
-    await api('/api/kcol_setdeadline',{id:colId,deadline:ev.target.value||null});
-    load();
+  const dlInput=sheet.querySelector('#kcol-dl');
+  const dlLabel=sheet.querySelector('#dl-label');
+  if(dlInput){
+    dlInput.onchange=async(ev)=>{
+      const val=ev.target.value;
+      if(dlLabel){
+        if(val){
+          const d=new Date(val+'T00:00');
+          const months=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+          dlLabel.textContent=d.getDate()+' '+months[d.getMonth()]+' '+d.getFullYear();
+          dlLabel.style.color='#ffd07a';dlLabel.style.borderColor='rgba(255,208,122,.4)';
+        }else{dlLabel.textContent='не задан';dlLabel.style.color='var(--muted)';dlLabel.style.borderColor='var(--rim)';}
+      }
+      await api('/api/kcol_setdeadline',{id:colId,deadline:val||null});
+      load();
+    };
+  }
+  const dlClear=sheet.querySelector('#dl-clear');
+  if(dlClear)dlClear.onclick=async()=>{
+    if(dlInput)dlInput.value='';
+    if(dlLabel){dlLabel.textContent='не задан';dlLabel.style.color='var(--muted)';dlLabel.style.borderColor='var(--rim)';}
+    await api('/api/kcol_setdeadline',{id:colId,deadline:null});
+    dlClear.remove();load();
   };
   // rename
   sheet.querySelector('#kcol-ren-btn').onclick=async()=>{
@@ -1540,13 +1589,14 @@ async function krename(e,id,btn){
   load();
 }
 function kcardClick(e,id,colId,el){
-  if(e.target.closest('.kchk,.karch,.kren,.kol-head'))return;
+  if(e.target.closest('.kchk,.kren,.kol-head'))return;
   e.stopPropagation();
   const title=el.querySelector('.kt').textContent;
   const {sheet}=_openSheet(`<div class="grab"></div><div class="stitle">${esc(title)}</div>`+
     `<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">`+
     `<button class="sh-act" id="kren-btn">✏️ Переименовать</button>`+
-    `<button class="sh-act sh-del" id="karch-btn">📦 В архив</button></div>`);
+    `<button class="sh-act" id="karch-btn">📦 В архив</button>`+
+    `<button class="sh-act sh-del" id="kdel-btn">🗑 Удалить навсегда</button></div>`);
   sheet.querySelector('#kren-btn').onclick=async()=>{
     const nv=await uiPrompt('Новое название:',title);
     if(!nv||!nv.trim())return;
@@ -1556,6 +1606,10 @@ function kcardClick(e,id,colId,el){
   sheet.querySelector('#karch-btn').onclick=async()=>{
     if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;
     await api('/api/kcard_archive',{id});closeSheet();load();
+  };
+  sheet.querySelector('#kdel-btn').onclick=async()=>{
+    if(!(await uiConfirm('Удалить карточку навсегда?',{danger:true,ok:'Удалить'})))return;
+    await api('/api/kcard_delete',{id});closeSheet();load();
   };
 }
 
@@ -2107,7 +2161,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,
             "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
             "/api/kcard_add": api_kcard_add, "/api/kcard_check": api_kcard_check,
-            "/api/kcard_archive": api_kcard_archive, "/api/kcard_move": api_kcard_move,
+            "/api/kcard_archive": api_kcard_archive, "/api/kcard_delete": api_kcard_delete,
+            "/api/kcard_move": api_kcard_move,
             "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add,
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
             "/api/kcol_rename": api_kcol_rename, "/api/happiness_save": api_happiness_save,
