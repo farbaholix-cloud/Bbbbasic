@@ -1904,11 +1904,13 @@ function showDrumPicker(label,color,current,cb){
 }
 
 function editHNode(key){
-  showDrumPicker(H_LABELS[key],H_COLORS[key],hValues[key],async val=>{
+  showDrumPicker(H_LABELS[key],H_COLORS[key],hValues[key],val=>{
     hValues[key]=val;
+    if(!DATA.happiness)DATA.happiness={};
+    DATA.happiness[key]=val;
     updateHNodes();
     requestAnimationFrame(drawHLines);
-    await api('/api/happiness_save',{...hValues,note:''});
+    mutate(null,'/api/happiness_save',{...hValues,note:''},()=>{updateHNodes();requestAnimationFrame(drawHLines);});
   });
 }
 
