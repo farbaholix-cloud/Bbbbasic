@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 12:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 14:30"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -814,7 +814,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
   font-size:26px;margin:0 auto 5px;
   backdrop-filter:blur(24px) saturate(200%);-webkit-backdrop-filter:blur(24px) saturate(200%);
   border:1.5px solid rgba(255,255,255,.22)}
-.hnode.center .hc{width:86px;height:86px;font-size:36px;border-width:2px;border-color:rgba(255,255,255,.3)}
+.hnode.center .hc{width:86px;height:86px;font-size:36px;border-width:2px;border-color:rgba(255,255,255,.3);backdrop-filter:none;-webkit-backdrop-filter:none}
 .hnode .hl{font-size:9px;font-weight:900;color:rgba(255,255,255,.55);letter-spacing:.6px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
 .hnode .hv{font-size:22px;font-weight:900;line-height:1.15;text-shadow:0 2px 10px rgba(0,0,0,.5)}
 .hdyn{margin-top:6px}
@@ -828,6 +828,23 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 .hchart-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;justify-content:center}
 .hcl{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);font-weight:600}
 .hcl .hcld{width:18px;height:3px;border-radius:2px}
+/* drum picker */
+.drum-sheet{position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.drum-inner{width:100%;background:#16172a;border-radius:28px 28px 0 0;overflow:hidden;padding-bottom:env(safe-area-inset-bottom,16px)}
+.drum-hdr{padding:16px 20px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.09)}
+.drum-hdr .dm-cancel{font-size:15px;font-weight:700;color:rgba(235,240,250,.4);cursor:pointer}
+.drum-hdr .dm-title{font-size:14px;font-weight:900;letter-spacing:.4px}
+.drum-hdr .dm-ok{font-size:16px;font-weight:900;color:#5b9dff;cursor:pointer}
+.drum-body{position:relative;height:165px;overflow:hidden}
+.drum-sel{position:absolute;top:55px;left:16px;right:16px;height:55px;border-radius:13px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);z-index:1;pointer-events:none}
+.drum-body::before,.drum-body::after{content:'';position:absolute;left:0;right:0;height:60px;z-index:2;pointer-events:none}
+.drum-body::before{top:0;background:linear-gradient(to bottom,#16172a,transparent)}
+.drum-body::after{bottom:0;background:linear-gradient(to top,#16172a,transparent)}
+.drum-scroll{height:165px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain}
+.drum-scroll::-webkit-scrollbar{display:none}
+.drum-pad{height:55px}
+.drum-item{height:55px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:rgba(235,240,250,.25);transition:font-size .12s,color .12s,font-weight .12s;user-select:none}
+.drum-item.sel{font-size:32px;font-weight:900;color:#f4f6fb}
 </style></head>
 <body>
 <div class="bgmesh"></div>
@@ -927,7 +944,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       <div class="hmap-wrap" id="hmap-wrap">
         <svg class="hmap-svg" id="hmap-lines" viewBox="0 0 300 360" preserveAspectRatio="none"></svg>
         <div class="hnode center" id="hn-center" style="left:50%;top:50%" onclick="editHappiness()">
-          <div class="hc" style="background:linear-gradient(145deg,rgba(255,198,87,.72),rgba(255,122,192,.6));box-shadow:0 0 0 2px rgba(255,198,87,.3),0 0 55px rgba(255,198,87,.55),0 0 90px rgba(255,122,192,.28),0 16px 50px rgba(0,0,0,.65),inset 0 2px 0 rgba(255,255,255,.55)">🌟</div>
+          <div class="hc" style="background:linear-gradient(145deg,rgb(255,198,87),rgba(255,112,182,.97));box-shadow:0 0 0 2px rgba(255,198,87,.4),0 0 55px rgba(255,198,87,.55),0 0 90px rgba(255,122,192,.28),0 16px 50px rgba(0,0,0,.65),inset 0 2px 0 rgba(255,255,255,.6)">🌟</div>
           <div class="hl">СЧАСТЬЕ</div>
           <div class="hv" id="hv-total">—</div>
         </div>
@@ -1583,7 +1600,7 @@ function renderHappiness(d){
     wellbeing:h.wellbeing||5,hobby:h.hobby||5,love:h.love||5};
   _hapHistory=d.happiness_history||[];
   updateHNodes();
-  drawHLines();
+  requestAnimationFrame(drawHLines);
   drawHChart(_hapHistory);
 }
 
@@ -1606,23 +1623,29 @@ function updateHNodes(){
 function drawHLines(){
   const svg=document.getElementById('hmap-lines');
   if(!svg)return;
-  const cx=150,cy=180;
-  const maxNodes=[
-    {id:'work',mx:264,my:25},{id:'friendship',mx:36,my:25},
-    {id:'health',mx:279,my:180},{id:'love',mx:21,my:180},
-    {id:'wellbeing',mx:264,my:335},{id:'hobby',mx:36,my:335}
-  ];
+  const wrap=document.getElementById('hmap-wrap');
+  const wRect=wrap.getBoundingClientRect();
+  if(!wRect.width||!wRect.height)return;
+  const scX=300/wRect.width,scY=360/wRect.height;
+  function svgPt(id){
+    const hc=document.querySelector('#hn-'+id+' .hc');
+    if(!hc)return null;
+    const r=hc.getBoundingClientRect();
+    return{x:((r.left-wRect.left)+r.width/2)*scX,y:((r.top-wRect.top)+r.height/2)*scY};
+  }
+  const center=svgPt('center');
+  if(!center)return;
+  const cx=center.x.toFixed(1),cy=center.y.toFixed(1);
   svg.innerHTML='<defs>'+
     '<filter id="hgl1" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="9"/></filter>'+
     '<filter id="hgl2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>'+
     '</defs>'+
-    maxNodes.map(n=>{
-      const t=Math.max(0.05,Math.sqrt(hValues[n.id]/10));
-      const x=cx+(n.mx-cx)*t,y=cy+(n.my-cy)*t;
-      const c=H_COLORS[n.id];const xs=x.toFixed(1),ys=y.toFixed(1);
-      return `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="20" stroke-opacity="0.11" filter="url(#hgl1)"/>` +
-             `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="4.5" stroke-opacity="0.30" filter="url(#hgl2)"/>` +
-             `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="1.5" stroke-opacity="0.95"/>`;
+    H_KEYS.map(k=>{
+      const p=svgPt(k);if(!p)return'';
+      const c=H_COLORS[k];const xs=p.x.toFixed(1),ys=p.y.toFixed(1);
+      return`<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="20" stroke-opacity="0.11" filter="url(#hgl1)"/>`+
+            `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="4.5" stroke-opacity="0.30" filter="url(#hgl2)"/>`+
+            `<line x1="${cx}" y1="${cy}" x2="${xs}" y2="${ys}" stroke="${c}" stroke-width="1.5" stroke-opacity="0.95"/>`;
     }).join('');
 }
 
@@ -1686,16 +1709,50 @@ document.addEventListener('click',e=>{
   drawHChart(_hapHistory);
 });
 
-async function editHNode(key){
-  const label=H_LABELS[key];
-  const cur=hValues[key];
-  const val=await uiNum(`${label} — оценка (1-10):`,String(cur),{sub:`сейчас: ${cur}`});
-  if(val==null||val==='')return;
-  const n=Math.max(1,Math.min(10,parseInt(val)));
-  if(isNaN(n))return;
-  hValues[key]=n;
-  updateHNodes();
-  drawHLines();
+function showDrumPicker(label,color,current,cb){
+  const ex=document.getElementById('drum-sheet');if(ex)ex.remove();
+  const sheet=document.createElement('div');
+  sheet.id='drum-sheet';sheet.className='drum-sheet';
+  const nums=Array.from({length:10},(_,i)=>i+1);
+  sheet.innerHTML=
+    '<div class="drum-inner">'+
+    '<div class="drum-hdr">'+
+    '<span class="dm-cancel">Отмена</span>'+
+    '<span class="dm-title" style="color:'+color+'">'+label+'</span>'+
+    '<span class="dm-ok">Готово</span>'+
+    '</div>'+
+    '<div class="drum-body">'+
+    '<div class="drum-sel"></div>'+
+    '<div class="drum-scroll" id="drum-scroll">'+
+    '<div class="drum-pad"></div>'+
+    nums.map(v=>'<div class="drum-item">'+v+'</div>').join('')+
+    '<div class="drum-pad"></div>'+
+    '</div></div></div>';
+  document.body.appendChild(sheet);
+  const scroll=sheet.querySelector('#drum-scroll');
+  function highlight(){
+    const idx=Math.round(scroll.scrollTop/55);
+    scroll.querySelectorAll('.drum-item').forEach((el,i)=>{
+      if(i===idx){el.classList.add('sel');el.style.color=color;}
+      else{el.classList.remove('sel');el.style.color='';}
+    });
+  }
+  requestAnimationFrame(()=>{scroll.scrollTop=(current-1)*55;highlight();});
+  scroll.addEventListener('scroll',highlight,{passive:true});
+  sheet.querySelector('.dm-ok').onclick=()=>{
+    const val=Math.max(1,Math.min(10,Math.round(scroll.scrollTop/55)+1));
+    sheet.remove();cb(val);
+  };
+  sheet.querySelector('.dm-cancel').onclick=()=>sheet.remove();
+  sheet.addEventListener('click',e=>{if(e.target===sheet)sheet.remove();});
+}
+
+function editHNode(key){
+  showDrumPicker(H_LABELS[key],H_COLORS[key],hValues[key],val=>{
+    hValues[key]=val;
+    updateHNodes();
+    requestAnimationFrame(drawHLines);
+  });
 }
 
 async function editHappiness(){
