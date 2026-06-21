@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 19:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 20:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1834,10 +1834,11 @@ function showDrumPicker(label,color,current,cb){
 }
 
 function editHNode(key){
-  showDrumPicker(H_LABELS[key],H_COLORS[key],hValues[key],val=>{
+  showDrumPicker(H_LABELS[key],H_COLORS[key],hValues[key],async val=>{
     hValues[key]=val;
     updateHNodes();
     requestAnimationFrame(drawHLines);
+    await api('/api/happiness_save',{...hValues,note:''});
   });
 }
 
