@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 14:30"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 15:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -1590,14 +1590,14 @@ const H_KEYS=['work','friendship','health','wellbeing','hobby','love'];
 const H_LABELS={work:'Работа',friendship:'Дружба',health:'Здоровье',wellbeing:'Благополучие',hobby:'Хобби',love:'Любовь'};
 const H_COLORS={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
 const H_NODES={work:{maxL:88,maxT:7},friendship:{maxL:12,maxT:7},health:{maxL:93,maxT:50},love:{maxL:7,maxT:50},wellbeing:{maxL:88,maxT:93},hobby:{maxL:12,maxT:93}};
-let hValues={work:5,friendship:5,health:5,wellbeing:5,hobby:5,love:5};
+let hValues={work:3,friendship:3,health:3,wellbeing:3,hobby:3,love:3};
 let hPeriod='14';
 let _hapHistory=[];
 
 function renderHappiness(d){
   const h=d.happiness||{};
-  hValues={work:h.work||5,friendship:h.friendship||5,health:h.health||5,
-    wellbeing:h.wellbeing||5,hobby:h.hobby||5,love:h.love||5};
+  hValues={work:h.work||3,friendship:h.friendship||3,health:h.health||3,
+    wellbeing:h.wellbeing||3,hobby:h.hobby||3,love:h.love||3};
   _hapHistory=d.happiness_history||[];
   updateHNodes();
   requestAnimationFrame(drawHLines);
@@ -1605,13 +1605,13 @@ function renderHappiness(d){
 }
 
 function updateHNodes(){
-  let minVal=10;
+  let minVal=5;
   H_KEYS.forEach(k=>{
     const el=document.getElementById('hv-'+k);
     if(el){el.textContent=hValues[k];el.style.color=H_COLORS[k];if(hValues[k]<minVal)minVal=hValues[k];}
     const n=H_NODES[k];
     if(n){
-      const t=Math.max(0.05,Math.sqrt(hValues[k]/10));
+      const t=Math.max(0.05,Math.sqrt(hValues[k]/5));
       const node=document.getElementById('hn-'+k);
       if(node){node.style.left=(50+(n.maxL-50)*t)+'%';node.style.top=(50+(n.maxT-50)*t)+'%';}
     }
@@ -1677,7 +1677,7 @@ function drawHChart(history){
     return;
   }
   ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
-  for(let i=1;i<=10;i++){const y=pad+(h-2*pad)*(1-i/10);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  for(let i=1;i<=5;i++){const y=pad+(h-2*pad)*(1-i/5);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
   const n=filtered.length;
   const rev=filtered.slice().reverse();
   H_KEYS.forEach(k=>{
@@ -1685,14 +1685,14 @@ function drawHChart(history){
     ctx.beginPath();
     rev.forEach((row,i)=>{
       const x=pad+(w-2*pad)*i/(n-1||1);
-      const y=pad+(h-2*pad)*(1-(row[k]||5)/10);
+      const y=pad+(h-2*pad)*(1-(row[k]||3)/5);
       i?ctx.lineTo(x,y):ctx.moveTo(x,y);
     });
     ctx.stroke();
     if(n<=6){
       rev.forEach((row,i)=>{
         const x=pad+(w-2*pad)*i/(n-1||1);
-        const y=pad+(h-2*pad)*(1-(row[k]||5)/10);
+        const y=pad+(h-2*pad)*(1-(row[k]||3)/5);
         ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);
         ctx.fillStyle=H_COLORS[k];ctx.fill();
       });
@@ -1713,7 +1713,7 @@ function showDrumPicker(label,color,current,cb){
   const ex=document.getElementById('drum-sheet');if(ex)ex.remove();
   const sheet=document.createElement('div');
   sheet.id='drum-sheet';sheet.className='drum-sheet';
-  const nums=Array.from({length:10},(_,i)=>i+1);
+  const nums=Array.from({length:5},(_,i)=>i+1);
   sheet.innerHTML=
     '<div class="drum-inner">'+
     '<div class="drum-hdr">'+
@@ -1740,7 +1740,7 @@ function showDrumPicker(label,color,current,cb){
   requestAnimationFrame(()=>{scroll.scrollTop=(current-1)*55;highlight();});
   scroll.addEventListener('scroll',highlight,{passive:true});
   sheet.querySelector('.dm-ok').onclick=()=>{
-    const val=Math.max(1,Math.min(10,Math.round(scroll.scrollTop/55)+1));
+    const val=Math.max(1,Math.min(5,Math.round(scroll.scrollTop/55)+1));
     sheet.remove();cb(val);
   };
   sheet.querySelector('.dm-cancel').onclick=()=>sheet.remove();
