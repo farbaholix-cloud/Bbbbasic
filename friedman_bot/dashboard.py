@@ -1455,7 +1455,7 @@ async function addKCol(){
 const H_KEYS=['work','friendship','health','wellbeing','hobby','love'];
 const H_LABELS={work:'Работа',friendship:'Дружба',health:'Здоровье',wellbeing:'Благополучие',hobby:'Хобби',love:'Любовь'};
 const H_COLORS={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
-const H_NODES={work:{maxL:83,maxT:6},friendship:{maxL:17,maxT:6},health:{maxL:90,maxT:50},love:{maxL:10,maxT:50},wellbeing:{maxL:83,maxT:94},hobby:{maxL:17,maxT:94}};
+const H_NODES={work:{maxL:88,maxT:7},friendship:{maxL:12,maxT:7},health:{maxL:93,maxT:50},love:{maxL:7,maxT:50},wellbeing:{maxL:88,maxT:93},hobby:{maxL:12,maxT:93}};
 let hValues={work:5,friendship:5,health:5,wellbeing:5,hobby:5,love:5};
 let hPeriod='14';
 let _hapHistory=[];
@@ -1477,7 +1477,7 @@ function updateHNodes(){
     if(el){el.textContent=hValues[k];total+=hValues[k];}
     const n=H_NODES[k];
     if(n){
-      const t=Math.max(0.1,hValues[k]/10);
+      const t=Math.max(0.05,Math.sqrt(hValues[k]/10));
       const node=document.getElementById('hn-'+k);
       if(node){node.style.left=(50+(n.maxL-50)*t)+'%';node.style.top=(50+(n.maxT-50)*t)+'%';}
     }
@@ -1491,15 +1491,21 @@ function drawHLines(){
   if(!svg)return;
   const cx=150,cy=180;
   const maxNodes=[
-    {id:'work',mx:249,my:22},{id:'friendship',mx:51,my:22},
-    {id:'health',mx:270,my:180},{id:'love',mx:30,my:180},
-    {id:'wellbeing',mx:249,my:338},{id:'hobby',mx:51,my:338}
+    {id:'work',mx:264,my:25},{id:'friendship',mx:36,my:25},
+    {id:'health',mx:279,my:180},{id:'love',mx:21,my:180},
+    {id:'wellbeing',mx:264,my:335},{id:'hobby',mx:36,my:335}
   ];
-  svg.innerHTML=maxNodes.map(n=>{
-    const t=Math.max(0.1,hValues[n.id]/10);
-    const x=cx+(n.mx-cx)*t,y=cy+(n.my-cy)*t;
-    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${H_COLORS[n.id]}" stroke-width="2.5" stroke-opacity="0.5" stroke-dasharray="5,4"/>`;
-  }).join('');
+  svg.innerHTML='<defs><filter id="hglow" x="-60%" y="-60%" width="220%" height="220%">'+
+    '<feGaussianBlur stdDeviation="3.5" result="blur"/>'+
+    '<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>'+
+    '</filter></defs>'+
+    maxNodes.map(n=>{
+      const t=Math.max(0.05,Math.sqrt(hValues[n.id]/10));
+      const x=cx+(n.mx-cx)*t,y=cy+(n.my-cy)*t;
+      const c=H_COLORS[n.id];
+      return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="5" stroke-opacity="0.22" filter="url(#hglow)"/>` +
+             `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="1.5" stroke-opacity="0.88"/>`;
+    }).join('');
 }
 
 function filterHHistory(history,period){

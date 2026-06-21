@@ -2033,6 +2033,11 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         cash = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
         card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
         balance = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
+        _hap_row = conn.execute("SELECT logged_at FROM happiness_log ORDER BY logged_at DESC LIMIT 1").fetchone()
+        try:
+            _hap_days = (datetime.now() - datetime.fromisoformat((_hap_row["logged_at"] if _hap_row else "")[:19])).days if _hap_row else 999
+        except Exception:
+            _hap_days = 999
 
     spend_today = planned_spend(today_d, today_d)
     spend_week = planned_spend(today_d, today_d + timedelta(days=6))
@@ -2094,6 +2099,11 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     if culture.get("hiphop"):
         lines.append(f"🎤 *Хип-хоп календарь:* {culture['hiphop']}")
 
+    hap_reminder = ""
+    if _hap_days >= 3:
+        hap_reminder = f"🤗 *Переосознай счастье* — последняя оценка {_hap_days} дн. назад. Открой дашборд → вкладка Счастье."
+        lines.append(f"\n{hap_reminder}")
+
     # Сначала пробуем красивую JPEG-сводку (постер под iPhone), иначе — текст
     urgent = [h["text"] for h in high] if high else ([m["text"] for m in mid] if mid else [])
     brief_data = {
@@ -2116,6 +2126,8 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         await asyncio.to_thread(render_brief_jpeg, brief_data, img_path)
         with open(img_path, "rb") as f:
             await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
+        if hap_reminder:
+            await ctx.bot.send_message(chat_id, hap_reminder, parse_mode="Markdown")
         return
     except Exception as e:
         log.error(f"morning image failed, fallback to text: {e}")
