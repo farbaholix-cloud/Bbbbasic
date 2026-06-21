@@ -1424,21 +1424,26 @@ function kcardClick(e,id,colId,el){
   };
 }
 
+let _kSaving=false;
 async function kaddCard(colId,colName){
   const t=await uiPrompt(`Новая карточка в «${colName}»:`,'',{placeholder:'заголовок'});
   if(!t||!t.trim())return;
   const desc=(await uiPrompt('Описание (необязательно):',''))||'';
-  // Optimistic: показываем карточку немедленно
+  // Мгновенно добавляем в локальный DATA и рендерим — без ожидания сервера
   if(!DATA.kanban_cards)DATA.kanban_cards=[];
-  DATA.kanban_cards.push({id:-(Date.now()),column_id:colId,title:t.trim(),
-    description:desc.trim(),checked:0,archived:0,position:9999});
+  const tmp={id:-(Date.now()),column_id:colId,title:t.trim(),
+    description:desc.trim(),checked:0,archived:0,position:9999};
+  DATA.kanban_cards.push(tmp);
   renderKanban(DATA);
-  // Сохраняем с keepalive — запрос доживёт даже если закрыть приложение сразу
-  fetch('/api/kcard_add',{method:'POST',keepalive:true,
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({col:colId,title:t.trim(),desc:desc.trim()})
-  }).then(r=>{if(r.status===401||r.status===403)location.reload();else load();})
-    .catch(()=>load());
+  // Блокируем интервальный load() чтобы он не затёр оптимистичную карточку
+  _kSaving=true;
+  api('/api/kcard_add',{col:colId,title:t.trim(),desc:desc.trim()})
+    .then(()=>{_kSaving=false;load();})
+    .catch(()=>{
+      _kSaving=false;
+      DATA.kanban_cards=DATA.kanban_cards.filter(c=>c.id!==tmp.id);
+      renderKanban(DATA);
+    });
 }
 async function addKCol(){
   const n=await uiPrompt('Название новой колонки:','',{placeholder:'например: Готово'});
@@ -1621,7 +1626,7 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();
 
 load();
-setInterval(load,8000);
+setInterval(()=>{if(!_kSaving)load();},8000);
 </script></body></html>"""
 
 
