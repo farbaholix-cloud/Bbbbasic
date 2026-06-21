@@ -122,8 +122,14 @@ def ensure_schema(conn):
     conn.execute("""CREATE TABLE IF NOT EXISTS kanban_columns (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL, color TEXT DEFAULT '#5b9dff',
-      position INTEGER DEFAULT 0, archived INTEGER DEFAULT 0
+      position INTEGER DEFAULT 0, archived INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'prospective', deadline TEXT
     )""")
+    kcols = [r[1] for r in conn.execute("PRAGMA table_info(kanban_columns)").fetchall()]
+    if 'status' not in kcols:
+        conn.execute("ALTER TABLE kanban_columns ADD COLUMN status TEXT DEFAULT 'prospective'")
+    if 'deadline' not in kcols:
+        conn.execute("ALTER TABLE kanban_columns ADD COLUMN deadline TEXT")
     conn.execute("""CREATE TABLE IF NOT EXISTS kanban_cards (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       column_id INTEGER, project_id INTEGER, chaos_id INTEGER,
@@ -450,6 +456,24 @@ def api_kcol_add(payload):
             (payload["name"], color, pos))
     return {"ok": True}
 
+def api_kcol_setstatus(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_columns SET status=? WHERE id=?",
+            (payload["status"], payload["id"]))
+    return {"ok": True}
+
+def api_kcol_setdeadline(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_columns SET deadline=? WHERE id=?",
+            (payload.get("deadline") or None, payload["id"]))
+    return {"ok": True}
+
+def api_kcol_rename(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_columns SET name=? WHERE id=?",
+            (payload["name"], payload["id"]))
+    return {"ok": True}
+
 def api_happiness_save(payload):
     with db() as conn:
         conn.execute("""INSERT INTO happiness_log(work,friendship,health,wellbeing,hobby,love,note)
@@ -695,17 +719,37 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kadd{width:100%;padding:11px;border-radius:14px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);
   color:rgba(235,240,250,.5);font-weight:700;font-size:12px;cursor:pointer;margin-top:2px;text-align:center}
 .kadd:active{background:rgba(255,255,255,.1)}
-.proj-toggle-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;margin-bottom:14px;position:relative;overflow:visible}
-.ptlabel{font-weight:800;font-size:13px;color:var(--muted)}
-.ptlabel.on{color:var(--txt)}
+/* kanban full-width Trello layout */
+.kanban-wrap{margin:0 -14px;position:relative}
+.kanban-toolbar{display:flex;align-items:center;justify-content:flex-end;padding:0 14px 10px;gap:8px}
+.kanban{display:flex;gap:12px;overflow-x:auto;padding:4px 14px 16px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.kanban::-webkit-scrollbar{display:none}
+.kol{min-width:252px;max-width:252px;flex-shrink:0;display:flex;flex-direction:column;gap:9px;
+  scroll-snap-align:start;border-radius:18px;padding:12px;
+  background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.10);transition:border-color .35s,box-shadow .35s}
+.kol.current{border-color:#52e08a;box-shadow:0 0 0 1px rgba(82,224,138,.25),0 0 20px rgba(82,224,138,.12)}
+.kol-head{padding:7px 4px 9px;border-radius:12px;font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+.kol-head:active{opacity:.75}
+.kol-head .kh-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.kol-head .kh-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kol-head .kh-cnt{opacity:.45;font-weight:600;font-size:11px;flex-shrink:0}
+.kol-head .kh-more{opacity:.35;font-size:15px;flex-shrink:0;line-height:1}
+.kdl{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;
+  padding:3px 8px;border-radius:20px;margin-top:0;margin-bottom:2px;cursor:pointer}
+.kdl.ok{background:rgba(91,157,255,.18);color:#5b9dff}
+.kdl.soon{background:rgba(255,198,87,.2);color:#ffc657}
+.kdl.overdue{background:rgba(255,107,125,.2);color:#ff6b7d}
+/* toggle — reused in sheet */
 .tog{width:52px;height:28px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid var(--rim);
   cursor:pointer;position:relative;transition:background .3s;flex-shrink:0}
 .tog.on{background:linear-gradient(135deg,#52e08a,#5b9dff)}
 .tog-k{width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;
   transition:left .3s;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .tog.on .tog-k{left:26px}
-.confetti-particle{position:absolute;pointer-events:none;border-radius:50%;animation:confetti-fly .9s ease-out forwards}
-@keyframes confetti-fly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+.ptlabel{font-weight:800;font-size:13px;color:var(--muted)}
+.ptlabel.on{color:var(--txt)}
+.confetti-particle{position:fixed;pointer-events:none;border-radius:3px;animation:confetti-fly 1.1s ease-out forwards;z-index:9999}
+@keyframes confetti-fly{0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--dr)) scale(0);opacity:0}}
 
 /* happiness */
 .hmap-wrap{position:relative;width:100%;height:400px;margin-bottom:14px}
@@ -803,13 +847,10 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     </div>
   </div>
   <div class="page" id="page-proj">
-    <div class="glass proj-toggle-row" id="proj-toggle-row">
-      <div class="ptlabel on" id="ptlabel-curr">Текущие</div>
-      <div class="tog" id="proj-tog" onclick="toggleProjStatus()"><div class="tog-k"></div></div>
-      <div class="ptlabel" id="ptlabel-pros">Перспективные</div>
-    </div>
-    <div class="block glass" style="padding:14px">
-      <div class="bh"><div class="t">📁 Канбан-доска</div><div class="btn-sm glass-sm" onclick="addKCol()" style="padding:6px 12px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ колонка</div></div>
+    <div class="kanban-wrap">
+      <div class="kanban-toolbar">
+        <div class="btn-sm glass-sm" onclick="addKCol()" style="padding:6px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ колонка</div>
+      </div>
       <div class="kanban" id="kanban"></div>
     </div>
     <div class="block glass" id="arch-block" style="display:none">
@@ -1220,24 +1261,31 @@ function openTask(t){
 }
 
 // ─── KANBAN ───
-let projStatus='current';
-function toggleProjStatus(){
-  const tog=document.getElementById('proj-tog');
-  tog.classList.toggle('on');
-  projStatus=tog.classList.contains('on')?'prospective':'current';
-  document.getElementById('ptlabel-curr').classList.toggle('on',!tog.classList.contains('on'));
-  document.getElementById('ptlabel-pros').classList.toggle('on',tog.classList.contains('on'));
-  if(tog.classList.contains('on')) spawnConfetti(tog);
-}
-function spawnConfetti(el){
-  const colors=['#5b9dff','#52e08a','#ffd07a','#ff9aa6','#b18bff','#41e3d4'];
-  const row=document.getElementById('proj-toggle-row');
-  for(let i=0;i<22;i++){
+function spawnConfetti(x,y){
+  const colors=['#5b9dff','#52e08a','#ffd07a','#ff9aa6','#b18bff','#41e3d4','#ff7ac0','#fff'];
+  const shapes=[4,5,6,7,8];
+  for(let i=0;i<38;i++){
     const p=document.createElement('div');p.className='confetti-particle';
-    const angle=Math.random()*Math.PI*2,dist=40+Math.random()*60;
-    p.style.cssText=`width:7px;height:7px;background:${colors[i%colors.length]};left:${el.offsetLeft+26}px;top:${el.offsetTop+14}px;--dx:${Math.cos(angle)*dist}px;--dy:${Math.sin(angle)*dist}px;animation-delay:${i*30}ms`;
-    row.appendChild(p);setTimeout(()=>p.remove(),1200);
+    const angle=Math.random()*Math.PI*2,dist=60+Math.random()*120;
+    const w=5+Math.random()*6,h=w*(Math.random()<.5?.4:1);
+    const rot=(Math.random()-0.5)*720;
+    p.style.cssText=`width:${w}px;height:${h}px;background:${colors[i%colors.length]};`+
+      `border-radius:${Math.random()<.5?'50%':'2px'};left:${x}px;top:${y}px;`+
+      `--dx:${Math.cos(angle)*dist}px;--dy:${Math.sin(angle)*dist-40}px;--dr:${rot}deg;`+
+      `animation-delay:${i*22}ms;animation-duration:${0.9+Math.random()*.5}s`;
+    document.body.appendChild(p);setTimeout(()=>p.remove(),1600);
   }
+}
+
+const MONTHS_SHORT=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+function fmtDeadline(dl){
+  if(!dl)return null;
+  const d=new Date(dl+'T00:00'),now=new Date();
+  const days=Math.ceil((d-now)/864e5);
+  const label=d.getDate()+' '+MONTHS_SHORT[d.getMonth()];
+  if(days<0)return {cls:'overdue',text:'⚠️ просрочен · '+label};
+  if(days<=5)return {cls:'soon',text:'⏳ '+label+' · '+days+'д'};
+  return {cls:'ok',text:'📅 '+label};
 }
 
 function renderKanban(d){
@@ -1246,6 +1294,9 @@ function renderKanban(d){
   const kb=document.getElementById('kanban');
   kb.innerHTML=cols.map(col=>{
     const cc=cards.filter(c=>c.column_id===col.id);
+    const isCurrent=col.status==='current';
+    const dl=fmtDeadline(col.deadline);
+    const dlHtml=dl?`<div class="kdl ${dl.cls}" onclick="kcolMenu(event,${col.id})">${dl.text}</div>`:'';
     const cardsHtml=cc.map(c=>{
       const done=c.checked?'done':'';
       return `<div class="kcard ${done}" onclick="kcardClick(event,${c.id},${col.id},this)">
@@ -1258,13 +1309,75 @@ function renderKanban(d){
         </div>
       </div>`;
     }).join('');
-    const colStyle=`background:${col.color}33;border-color:${col.color}66`;
-    return `<div class="kol">
-      <div class="kol-head" style="${colStyle}">${esc(col.name)} <span style="opacity:.5;font-weight:600">${cc.length}</span></div>
+    return `<div class="kol${isCurrent?' current':''}" data-col-id="${col.id}">
+      <div class="kol-head" onclick="kcolMenu(event,${col.id})">
+        <div class="kh-dot" style="background:${col.color}"></div>
+        <div class="kh-name">${esc(col.name)}</div>
+        <div class="kh-cnt">${cc.length}</div>
+        <div class="kh-more">···</div>
+      </div>
+      ${dlHtml}
       ${cardsHtml}
-      <button class="kadd" onclick="kaddCard(${col.id},'${esc(col.name)}')">＋ добавить карточку</button>
+      <button class="kadd" onclick="kaddCard(${col.id},'${esc(col.name)}')">＋ карточка</button>
     </div>`;
   }).join('');
+}
+
+function kcolMenu(e,colId){
+  e.stopPropagation();
+  const col=(DATA.kanban_cols||[]).find(c=>c.id===colId);
+  if(!col)return;
+  const isCurrent=col.status==='current';
+  const togOn=isCurrent?'on':'';
+  const {sheet}=_openSheet(
+    `<div class="grab"></div>`+
+    `<div class="stitle" style="margin-bottom:4px">${esc(col.name)}</div>`+
+    `<div style="display:flex;flex-direction:column;gap:14px;margin-top:16px">`+
+    // status toggle
+    `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(255,255,255,.06);border-radius:16px">
+       <span class="ptlabel${!isCurrent?' on':''}">Перспективный</span>
+       <div class="tog ${togOn}" id="kcol-tog" style="flex-shrink:0"><div class="tog-k"></div></div>
+       <span class="ptlabel${isCurrent?' on':''}">Текущий</span>
+     </div>`+
+    // deadline
+    `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,255,255,.06);border-radius:16px">
+       <span style="font-size:18px">📅</span>
+       <div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Дедлайн проекта</div>
+       <input id="kcol-dl" type="date" value="${col.deadline||''}"
+         style="background:rgba(255,255,255,.1);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px 12px;font-size:13px;width:100%;font-family:inherit">
+       </div>
+     </div>`+
+    // rename
+    `<button class="sh-act" id="kcol-ren-btn">✏️ Переименовать список</button>`+
+    `</div>`
+  );
+  // toggle logic
+  const tog=sheet.querySelector('#kcol-tog');
+  tog.onclick=async()=>{
+    const nowCurrent=!tog.classList.contains('on');
+    tog.classList.toggle('on');
+    sheet.querySelector('.ptlabel:first-of-type').classList.toggle('on',!tog.classList.contains('on'));
+    sheet.querySelector('.ptlabel:last-of-type').classList.toggle('on',tog.classList.contains('on'));
+    const newStatus=nowCurrent?'current':'prospective';
+    await api('/api/kcol_setstatus',{id:colId,status:newStatus});
+    if(newStatus==='current'){
+      const rect=tog.getBoundingClientRect();
+      spawnConfetti(rect.left+rect.width/2,rect.top+rect.height/2);
+    }
+    load();
+  };
+  // deadline
+  sheet.querySelector('#kcol-dl').onchange=async(ev)=>{
+    await api('/api/kcol_setdeadline',{id:colId,deadline:ev.target.value||null});
+    load();
+  };
+  // rename
+  sheet.querySelector('#kcol-ren-btn').onclick=async()=>{
+    const nv=await uiPrompt('Название списка:',col.name);
+    if(!nv||!nv.trim())return;
+    await api('/api/kcol_rename',{id:colId,name:nv.trim()});
+    closeSheet();load();
+  };
 }
 
 async function kcheck(e,id,val){e.stopPropagation();await api('/api/kcard_check',{id,checked:val});load();}
@@ -1278,7 +1391,7 @@ async function krename(e,id,btn){
   load();
 }
 function kcardClick(e,id,colId,el){
-  if(e.target.closest('.kchk,.karch,.kren'))return;
+  if(e.target.closest('.kchk,.karch,.kren,.kol-head'))return;
   e.stopPropagation();
   const title=el.querySelector('.kt').textContent;
   const {sheet}=_openSheet(`<div class="grab"></div><div class="stitle">${esc(title)}</div>`+
@@ -1699,7 +1812,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
             "/api/kcard_add": api_kcard_add, "/api/kcard_check": api_kcard_check,
             "/api/kcard_archive": api_kcard_archive, "/api/kcard_move": api_kcard_move,
-            "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add, "/api/happiness_save": api_happiness_save,
+            "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add,
+            "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
+            "/api/kcol_rename": api_kcol_rename, "/api/happiness_save": api_happiness_save,
         }
         if self.path in routes:
             result = routes[self.path](payload)
