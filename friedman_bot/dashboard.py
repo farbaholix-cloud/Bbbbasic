@@ -271,7 +271,7 @@ def get_data():
             "SELECT * FROM happiness_log ORDER BY logged_at DESC LIMIT 1").fetchone()
         happiness = dict(hap_row) if hap_row else {"work":5,"friendship":5,"health":5,"wellbeing":5,"hobby":5,"love":5}
         happiness_history = [dict(r) for r in conn.execute(
-            "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY logged_at DESC LIMIT 14").fetchall()]
+            "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY logged_at DESC LIMIT 365").fetchall()]
     return {"chaos": chaos, "projects": projects, "cards": cards,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
@@ -767,6 +767,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .hslider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;font-weight:800}
 .hslider-label span{font-size:20px;font-weight:900;color:var(--blue)}
 input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
+.hper-btn{padding:4px 9px;border-radius:9px;font-size:11px;font-weight:700;border:1px solid var(--rim);background:var(--glass2);color:var(--muted);cursor:pointer;-webkit-appearance:none}
+.hper-btn.on{background:rgba(91,157,255,.22);border-color:rgba(91,157,255,.45);color:#86b8ff}
+.hchart-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;justify-content:center}
+.hcl{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);font-weight:600}
+.hcl .hcld{width:18px;height:3px;border-radius:2px}
 </style></head>
 <body>
 <div class="bgmesh"></div>
@@ -862,7 +867,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 
   <div class="page" id="page-hap">
     <div class="block glass" style="padding:16px">
-      <div class="bh"><div class="t">🌸 Карта счастья</div><div class="cnt">Гандапас</div></div>
+      <div class="bh"><div class="t">Ты счастлив?</div></div>
       <div class="hmap-wrap" id="hmap-wrap">
         <svg class="hmap-svg" id="hmap-lines" viewBox="0 0 300 360" preserveAspectRatio="xMidYMid meet"></svg>
         <div class="hnode center" id="hn-center" style="left:50%;top:50%" onclick="editHappiness()">
@@ -870,35 +875,44 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
           <div class="hl">СЧАСТЬЕ</div>
           <div class="hv" id="hv-total">—</div>
         </div>
-        <div class="hnode" id="hn-work" style="left:72%;top:20%" onclick="editHNode('work')">
+        <div class="hnode" id="hn-work" onclick="editHNode('work')">
           <div class="hc" style="background:linear-gradient(135deg,rgba(91,157,255,.35),rgba(91,157,255,.15))">💼</div>
           <div class="hl">РАБОТА</div><div class="hv" id="hv-work">5</div>
         </div>
-        <div class="hnode" id="hn-friendship" style="left:28%;top:20%" onclick="editHNode('friendship')">
+        <div class="hnode" id="hn-friendship" onclick="editHNode('friendship')">
           <div class="hc" style="background:linear-gradient(135deg,rgba(255,122,192,.35),rgba(177,139,255,.2))">🤝</div>
           <div class="hl">ДРУЖБА</div><div class="hv" id="hv-friendship">5</div>
         </div>
-        <div class="hnode" id="hn-health" style="left:82%;top:50%" onclick="editHNode('health')">
+        <div class="hnode" id="hn-health" onclick="editHNode('health')">
           <div class="hc" style="background:linear-gradient(135deg,rgba(82,224,138,.35),rgba(65,227,212,.2))">🌿</div>
           <div class="hl">ЗДОРОВЬЕ</div><div class="hv" id="hv-health">5</div>
         </div>
-        <div class="hnode" id="hn-love" style="left:18%;top:50%" onclick="editHNode('love')">
+        <div class="hnode" id="hn-love" onclick="editHNode('love')">
           <div class="hc" style="background:linear-gradient(135deg,rgba(255,107,125,.35),rgba(255,122,192,.2))">❤️</div>
           <div class="hl">ЛЮБОВЬ</div><div class="hv" id="hv-love">5</div>
         </div>
-        <div class="hnode" id="hn-wellbeing" style="left:72%;top:80%" onclick="editHNode('wellbeing')">
+        <div class="hnode" id="hn-wellbeing" onclick="editHNode('wellbeing')">
           <div class="hc" style="background:linear-gradient(135deg,rgba(255,198,87,.35),rgba(255,107,125,.2))">💰</div>
           <div class="hl">БЛАГОПОЛУЧИЕ</div><div class="hv" id="hv-wellbeing">5</div>
         </div>
-        <div class="hnode" id="hn-hobby" style="left:28%;top:80%" onclick="editHNode('hobby')">
+        <div class="hnode" id="hn-hobby" onclick="editHNode('hobby')">
           <div class="hc" style="background:linear-gradient(135deg,rgba(177,139,255,.35),rgba(91,157,255,.2))">🎨</div>
           <div class="hl">ХОББИ</div><div class="hv" id="hv-hobby">5</div>
         </div>
       </div>
     </div>
     <div class="block glass hdyn">
-      <div class="bh"><div class="t">📈 Динамика счастья</div><div class="cnt">последние 14 дней</div></div>
+      <div class="bh">
+        <div class="t">📈 Динамика счастья</div>
+        <div style="display:flex;gap:4px">
+          <button class="hper-btn on" data-p="14">14д</button>
+          <button class="hper-btn" data-p="7">7д</button>
+          <button class="hper-btn" data-p="month">мес</button>
+          <button class="hper-btn" data-p="year">год</button>
+        </div>
+      </div>
       <canvas id="hchart" height="100"></canvas>
+      <div class="hchart-legend" id="hchart-legend"></div>
     </div>
   </div>
   <div class="home-ind"></div>
@@ -1426,15 +1440,20 @@ async function addKCol(){
 // ─── HAPPINESS ───
 const H_KEYS=['work','friendship','health','wellbeing','hobby','love'];
 const H_LABELS={work:'Работа',friendship:'Дружба',health:'Здоровье',wellbeing:'Благополучие',hobby:'Хобби',love:'Любовь'};
+const H_COLORS={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
+const H_NODES={work:{maxL:72,maxT:20},friendship:{maxL:28,maxT:20},health:{maxL:82,maxT:50},love:{maxL:18,maxT:50},wellbeing:{maxL:72,maxT:80},hobby:{maxL:28,maxT:80}};
 let hValues={work:5,friendship:5,health:5,wellbeing:5,hobby:5,love:5};
+let hPeriod='14';
+let _hapHistory=[];
 
 function renderHappiness(d){
   const h=d.happiness||{};
   hValues={work:h.work||5,friendship:h.friendship||5,health:h.health||5,
     wellbeing:h.wellbeing||5,hobby:h.hobby||5,love:h.love||5};
+  _hapHistory=d.happiness_history||[];
   updateHNodes();
   drawHLines();
-  drawHChart(d.happiness_history||[]);
+  drawHChart(_hapHistory);
 }
 
 function updateHNodes(){
@@ -1442,6 +1461,12 @@ function updateHNodes(){
   H_KEYS.forEach(k=>{
     const el=document.getElementById('hv-'+k);
     if(el){el.textContent=hValues[k];total+=hValues[k];}
+    const n=H_NODES[k];
+    if(n){
+      const t=Math.max(0.1,hValues[k]/10);
+      const node=document.getElementById('hn-'+k);
+      if(node){node.style.left=(50+(n.maxL-50)*t)+'%';node.style.top=(50+(n.maxT-50)*t)+'%';}
+    }
   });
   const tc=document.getElementById('hv-total');
   if(tc)tc.textContent=(total/6).toFixed(1);
@@ -1451,37 +1476,77 @@ function drawHLines(){
   const svg=document.getElementById('hmap-lines');
   if(!svg)return;
   const cx=150,cy=180;
-  const nodes=[
-    {id:'work',x:216,y:72},{id:'friendship',x:84,y:72},
-    {id:'health',x:246,y:180},{id:'love',x:54,y:180},
-    {id:'wellbeing',x:216,y:288},{id:'hobby',x:84,y:288}
+  const maxNodes=[
+    {id:'work',mx:216,my:72},{id:'friendship',mx:84,my:72},
+    {id:'health',mx:246,my:180},{id:'love',mx:54,my:180},
+    {id:'wellbeing',mx:216,my:288},{id:'hobby',mx:84,my:288}
   ];
-  const colors={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
-  svg.innerHTML=nodes.map(n=>`<line x1="${cx}" y1="${cy}" x2="${n.x}" y2="${n.y}" stroke="${colors[n.id]}" stroke-width="2.5" stroke-opacity="0.5" stroke-dasharray="5,4"/>`).join('');
+  svg.innerHTML=maxNodes.map(n=>{
+    const t=Math.max(0.1,hValues[n.id]/10);
+    const x=cx+(n.mx-cx)*t,y=cy+(n.my-cy)*t;
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${H_COLORS[n.id]}" stroke-width="2.5" stroke-opacity="0.5" stroke-dasharray="5,4"/>`;
+  }).join('');
+}
+
+function filterHHistory(history,period){
+  if(!history||!history.length)return[];
+  const now=new Date(),cut=new Date(now);
+  if(period==='7')cut.setDate(now.getDate()-7);
+  else if(period==='14')cut.setDate(now.getDate()-14);
+  else if(period==='month')cut.setMonth(now.getMonth()-1);
+  else if(period==='year')cut.setFullYear(now.getFullYear()-1);
+  return history.filter(r=>r.logged_at&&new Date(r.logged_at)>=cut);
 }
 
 function drawHChart(history){
   const canvas=document.getElementById('hchart');
-  if(!canvas||!history.length)return;
-  canvas.width=canvas.offsetWidth*2;canvas.height=200;
+  if(!canvas)return;
+  const leg=document.getElementById('hchart-legend');
+  if(leg)leg.innerHTML=H_KEYS.map(k=>`<div class="hcl"><div class="hcld" style="background:${H_COLORS[k]}"></div>${H_LABELS[k]}</div>`).join('');
+  const filtered=filterHHistory(history,hPeriod);
+  canvas.width=canvas.offsetWidth*2||600;canvas.height=200;
   const ctx=canvas.getContext('2d');
-  const colors={work:'#5b9dff',friendship:'#ff7ac0',health:'#52e08a',love:'#ff6b7d',wellbeing:'#ffd07a',hobby:'#b18bff'};
   const w=canvas.width,h=canvas.height,pad=20;
   ctx.clearRect(0,0,w,h);
-  ctx.strokeStyle='rgba(255,255,255,.05)';
+  if(!filtered.length){
+    ctx.fillStyle='rgba(235,240,250,.25)';
+    ctx.font='bold 24px -apple-system,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('нет данных за этот период',w/2,h/2);
+    return;
+  }
+  ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
   for(let i=1;i<=10;i++){const y=pad+(h-2*pad)*(1-i/10);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-  const n=history.length;
+  const n=filtered.length;
+  const rev=filtered.slice().reverse();
   H_KEYS.forEach(k=>{
-    ctx.strokeStyle=colors[k];ctx.lineWidth=2.5;ctx.lineJoin='round';
+    ctx.strokeStyle=H_COLORS[k];ctx.lineWidth=2.5;ctx.lineJoin='round';
     ctx.beginPath();
-    history.slice().reverse().forEach((row,i)=>{
+    rev.forEach((row,i)=>{
       const x=pad+(w-2*pad)*i/(n-1||1);
       const y=pad+(h-2*pad)*(1-(row[k]||5)/10);
       i?ctx.lineTo(x,y):ctx.moveTo(x,y);
     });
     ctx.stroke();
+    if(n<=6){
+      rev.forEach((row,i)=>{
+        const x=pad+(w-2*pad)*i/(n-1||1);
+        const y=pad+(h-2*pad)*(1-(row[k]||5)/10);
+        ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);
+        ctx.fillStyle=H_COLORS[k];ctx.fill();
+      });
+    }
   });
 }
+
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('.hper-btn');
+  if(!btn)return;
+  document.querySelectorAll('.hper-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  hPeriod=btn.dataset.p;
+  drawHChart(_hapHistory);
+});
 
 async function editHNode(key){
   const label=H_LABELS[key];
