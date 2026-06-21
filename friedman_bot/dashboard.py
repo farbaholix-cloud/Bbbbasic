@@ -11,7 +11,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 21:30"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "21.06 · 23:15"  # видимая метка сборки — меняется с каждым деплоем
 
 
 def db():
@@ -41,9 +41,11 @@ try:
 except Exception:
     pass
 
-# Авто-блокировка по бездействию: пока дашборд открыт, он каждые 8 с пингует сервер.
-# Свернул/закрыл приложение → пинги прекращаются → через IDLE_TIMEOUT сек снова нужен круг.
-IDLE_TIMEOUT = 45
+# Авто-блокировка по бездействию: пока дашборд открыт, он пингует сервер (polling +
+# keepalive). Свернул/закрыл приложение → visibilitychange шлёт /api/lock и гасит сессию
+# сразу. IDLE_TIMEOUT — это лишь страховка: держим его щедрым, чтобы длинные диалоги
+# (ввод карточки, крутилки) не роняли сессию посреди действия.
+IDLE_TIMEOUT = 900
 _last_seen = 0.0
 
 
@@ -1972,6 +1974,9 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 load();
 // Periodic background refresh — never while a mutation is syncing or a sheet is open.
 setInterval(()=>{if(_pending===0&&!document.getElementById('sheet'))load();},8000);
+// Keepalive: пингуем сервер даже при открытом диалоге/крутилке, чтобы сессия не
+// протухла посреди длинного ввода (иначе фоновое сохранение ловит 403 и карточка пропадает).
+setInterval(()=>{if(!document.hidden)fetch('/api/data',{cache:'no-store'}).catch(()=>{});},20000);
 </script></body></html>"""
 
 
