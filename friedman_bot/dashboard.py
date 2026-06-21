@@ -474,6 +474,12 @@ def api_kcol_rename(payload):
             (payload["name"], payload["id"]))
     return {"ok": True}
 
+def api_chaos_rename(payload):
+    with db() as conn:
+        conn.execute("UPDATE chaos SET text=? WHERE id=?", (payload["text"], payload["id"]))
+    return {"ok": True}
+
+
 def api_happiness_save(payload):
     with db() as conn:
         conn.execute("""INSERT INTO happiness_log(work,friendship,health,wellbeing,hobby,love,note)
@@ -793,12 +799,12 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="balstrip glass-sm" id="balstrip"></div>
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
-      <div class="bh"><div class="t">📋 Материализация хаоса <span class="sm">парковка</span></div><div class="cnt" id="chaos-cnt"></div></div>
+      <div class="bh"><div class="t">📋 Парковка для идей</div><div class="cnt" id="chaos-cnt"></div></div>
       <div id="chaos"></div>
       <div class="addr" onclick="uiAlert('Добавляй задачи через бота в Telegram — он спросит важность и срочность ⭐','Новая задача')"><span class="p">+</span> Новая задача<span class="badge">⭐ бот спросит<br>важность/срочность</span></div>
     </div>
     <div class="block glass">
-      <div class="bh"><div class="t">🏔 Цели <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
+      <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
       <div id="projects"></div>
     </div>
     <div class="block glass">
@@ -1234,6 +1240,7 @@ function openTask(t){
   }
   sheet.innerHTML='<div class="grab"></div><div class="stitle">'+esc(t.text||'')+'</div>'+
     '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'перенести / закрыть')+'</div>'+
+    (t.kind==='chaos'?'<div style="text-align:center;margin:-2px 0 10px"><button id="sh-ren" style="display:inline-flex;align-items:center;gap:6px;padding:7px 18px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:rgba(235,240,250,.7);font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:.2px">✏️ переименовать</button></div>':'')+
     rateBlock+
     '<div class="sh-days">'+dayBtns+'</div>'+
     '<div class="sh-picker"><select id="sh-month">'+MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===now.getMonth()?'selected':'')+'>'+m+'</option>').join('')+'</select>'+
@@ -1271,6 +1278,13 @@ function openTask(t){
   sheet.querySelector('#sh-del').onclick=async()=>{
     if(t.kind==='chaos'&&!(await uiConfirm('Удалить задачу навсегда?',{danger:true,ok:'Удалить'})))return;
     await api('/api/unplan',{kind:t.kind,id:t.id});closeSheet();load();
+  };
+  const shRen=sheet.querySelector('#sh-ren');
+  if(shRen)shRen.onclick=async()=>{
+    const nv=await uiPrompt('Переименовать задачу:',t.text);
+    if(!nv||!nv.trim())return;
+    await api('/api/chaos_rename',{id:t.id,text:nv.trim()});
+    closeSheet();load();
   };
 }
 
@@ -1900,6 +1914,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add,
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
             "/api/kcol_rename": api_kcol_rename, "/api/happiness_save": api_happiness_save,
+            "/api/chaos_rename": api_chaos_rename,
         }
         if self.path in routes:
             result = routes[self.path](payload)
