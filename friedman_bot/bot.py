@@ -323,9 +323,12 @@ def list_filter_kbd() -> InlineKeyboardMarkup:
 
 def save_item(text: str, area: str, priority: str, importance: int = 0, urgency: int = 0) -> int:
     with db() as conn:
+        min_pos = conn.execute(
+            "SELECT COALESCE(MIN(position), 1) FROM chaos WHERE done=0"
+        ).fetchone()[0]
         cur = conn.execute(
-            "INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
-            (text, area, priority, importance, urgency)
+            "INSERT INTO chaos (text, area, priority, importance, urgency, position) VALUES (?,?,?,?,?,?)",
+            (text, area, priority, importance, urgency, min_pos - 1)
         )
         return cur.lastrowid
 
@@ -829,9 +832,12 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if chaos_match:
         task = chaos_match.group(1).strip()
         with db() as conn:
+            min_pos = conn.execute(
+                "SELECT COALESCE(MIN(position), 1) FROM chaos WHERE done=0"
+            ).fetchone()[0]
             conn.execute(
-                "INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
-                (task, "other", "mid", 0, 0)
+                "INSERT INTO chaos (text, area, priority, importance, urgency, position) VALUES (?,?,?,?,?,?)",
+                (task, "other", "mid", 0, 0, min_pos - 1)
             )
         await update.message.reply_text(f"📌 Припарковано: _{task}_", parse_mode="Markdown")
         return
@@ -1014,8 +1020,11 @@ async def handle_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if chaos_m:
         task = chaos_m.group(1).strip()
         with db() as conn:
-            conn.execute("INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
-                         (task, "other", "mid", 0, 0))
+            min_pos = conn.execute(
+                "SELECT COALESCE(MIN(position), 1) FROM chaos WHERE done=0"
+            ).fetchone()[0]
+            conn.execute("INSERT INTO chaos (text, area, priority, importance, urgency, position) VALUES (?,?,?,?,?,?)",
+                         (task, "other", "mid", 0, 0, min_pos - 1))
         await update.message.reply_text(f"🎤 _{text}_\n\n📌 Припарковано: _{task}_", parse_mode="Markdown")
         return
 

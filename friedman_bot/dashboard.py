@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "22.06 · 03:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "22.06 · 10:30"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -172,10 +172,13 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE events ADD COLUMN project_id INTEGER")
         if "morning_brief" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN morning_brief INTEGER DEFAULT 0")
-    # chaos: project link
+    # chaos: project link + drag position
     ch_cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
-    if ch_cols and "project_id" not in ch_cols:
-        conn.execute("ALTER TABLE chaos ADD COLUMN project_id INTEGER")
+    if ch_cols:
+        if "project_id" not in ch_cols:
+            conn.execute("ALTER TABLE chaos ADD COLUMN project_id INTEGER")
+        if "position" not in ch_cols:
+            conn.execute("ALTER TABLE chaos ADD COLUMN position INTEGER DEFAULT 0")
     # projects: morning brief flag
     pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if pr_cols and "morning_brief" not in pr_cols:
@@ -261,7 +264,7 @@ def planned_spend(conn, d0, d1):
 def get_data():
     with db() as conn:
         chaos = [dict(r) for r in conn.execute(
-            "SELECT * FROM chaos ORDER BY done, importance DESC, urgency DESC, created_at DESC").fetchall()]
+            "SELECT * FROM chaos ORDER BY done, position ASC, created_at DESC").fetchall()]
         _projs = {dict(p)["id"]: {**dict(p), "steps": []}
                   for p in conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()}
         for s in conn.execute("SELECT * FROM steps ORDER BY project_id, id").fetchall():
@@ -518,10 +521,21 @@ def api_chaos_add(payload):
     if not text:
         return {"ok": False}
     with db() as conn:
+        min_pos = conn.execute(
+            "SELECT COALESCE(MIN(position), 1) FROM chaos WHERE done=0"
+        ).fetchone()[0]
         conn.execute(
-            "INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
-            (text, "other", "mid", 0, 0)
+            "INSERT INTO chaos (text, area, priority, importance, urgency, position) VALUES (?,?,?,?,?,?)",
+            (text, "other", "mid", 0, 0, min_pos - 1)
         )
+    return {"ok": True}
+
+
+def api_chaos_reorder(payload):
+    ids = payload.get("ids") or []
+    with db() as conn:
+        for i, cid in enumerate(ids):
+            conn.execute("UPDATE chaos SET position=? WHERE id=?", (i, cid))
     return {"ok": True}
 
 
@@ -652,13 +666,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .lg{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--muted);font-weight:600}
 .lg .d{width:10px;height:10px;border-radius:50%;box-shadow:inset 0 1px 1px rgba(255,255,255,.5)}
 .mhint{text-align:center;font-size:10.5px;color:var(--faint);font-weight:600;margin-top:9px}
-.task{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:15px;margin-bottom:9px;cursor:pointer}
+.task{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:15px;margin-bottom:9px}
 .task .pdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 1px 1px rgba(255,255,255,.5)}
 .task .area{font-size:17px}
-.task .tx{font-size:14px;font-weight:600;flex:1;line-height:1.3}
-.task .pr{font-size:8.5px;font-weight:900;padding:3px 7px;border-radius:8px;letter-spacing:.4px}
-.task .chev{color:var(--faint);font-size:15px;font-weight:700}
-.pr.hi{background:rgba(255,107,125,.2);color:#ff9aa6} .pr.mi{background:rgba(255,198,87,.2);color:#ffd07a} .pr.lo{background:rgba(82,224,138,.18);color:#9ff0bd} .pr.none{background:var(--glass2);color:var(--faint)}
+.task .tx{font-size:14px;font-weight:600;flex:1;line-height:1.3;cursor:pointer}
+.task .chev{color:var(--faint);font-size:15px;font-weight:700;cursor:pointer}
+.task.dragging{opacity:.35}
+.drag-h{flex-shrink:0;padding:4px 8px 4px 0;cursor:grab;touch-action:none;display:flex;flex-direction:column;gap:3.5px;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none}
+.drag-h i{display:block;width:14px;height:2px;background:rgba(235,240,250,.3);border-radius:2px;pointer-events:none}
+.dot-menu{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:480px;width:100%;background:rgba(18,20,36,.96);border-top:1px solid rgba(255,255,255,.12);border-radius:22px 22px 0 0;padding:20px 18px 36px;z-index:500;backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px)}
+.dot-menu .dm-t{font-size:14px;font-weight:700;color:var(--txt);margin-bottom:14px;line-height:1.35;padding-bottom:12px;border-bottom:1px solid var(--rim)}
+.dot-menu .dm-btn{display:block;width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--rim);background:rgba(255,255,255,.06);color:var(--txt);font-size:14px;font-weight:700;text-align:left;margin-bottom:8px;cursor:pointer}
+.dot-menu .dm-btn.danger{color:#ff8b98;background:rgba(255,107,125,.1);border-color:rgba(255,107,125,.25)}
+.dot-menu .dm-close{color:var(--faint);font-size:13px;font-weight:600;text-align:center;padding:6px 0;cursor:pointer}
 .pdot.hi{background:var(--red)} .pdot.mi{background:var(--amber)} .pdot.lo{background:var(--green)} .pdot.none{background:var(--faint)}
 .addr{display:flex;align-items:center;gap:9px;padding:13px 14px;border:1.5px dashed var(--rim);border-radius:15px;color:var(--muted);font-size:12.5px;font-weight:700;margin-top:3px;cursor:pointer}
 .addr .p{width:22px;height:22px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
@@ -1129,10 +1149,12 @@ function render(){
   // chaos parking
   document.getElementById('chaos-cnt').textContent=parking.length?parking.length+' задач':'пусто';
   document.getElementById('chaos').innerHTML=parking.length?parking.map(c=>{
-    const[cls,lbl]=priLabel(c);
-    return '<div class="task glass-sm" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency})+')\'>'+
+    const td=JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
+    return '<div class="task glass-sm" data-cid="'+c.id+'">'+
+      '<span class="drag-h" ontouchstart="_startDrag(event,'+c.id+')" onmousedown="_startDrag(event,'+c.id+')"><i></i><i></i><i></i></span>'+
       '<span class="pdot '+priClass(c)+'"></span><span class="area">'+(AREAS[c.area]||'⚡')+'</span>'+
-      '<span class="tx">'+esc(c.text)+'</span><span class="pr '+cls+'">'+lbl+'</span><span class="chev">›</span></div>';
+      '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+'</span>'+
+      '<span class="chev" onclick=\'openTask('+td+')\'>›</span></div>';
   }).join(''):'<div class="empty">парковка пуста — всё запланировано 🎉</div>';
   // calendar
   renderCal();
@@ -1187,7 +1209,7 @@ function renderMatrix(open){
     const y=H-PAD-(c.importance/10)*(H-2*PAD);
     const sz=13+Math.round((Math.max(c.importance,c.urgency)/10)*11);
     html+='<div class="dot '+quadClass(c.importance,c.urgency)+'" style="left:'+x+'px;top:'+y+'px;width:'+sz+'px;height:'+sz+'px" '+
-      'onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency})+')\'></div>';
+      'onclick=\'openDotMenu(event,'+c.id+')\'></div>';
   });
   if(!rated.length){
     html+='<div class="axl" style="left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;letter-spacing:0;color:var(--faint)">оцени задачи — точки появятся здесь</div>';
@@ -1281,9 +1303,100 @@ function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProject
 async function addChaos(){
   const t=await uiPrompt('Новая задача / идея:','',{placeholder:'что добавить в парковку'});
   if(!t||!t.trim())return;
-  mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:t.trim(),area:'other',priority:'mid',importance:0,urgency:0,done:0,project_id:null});},
+  mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:t.trim(),area:'other',priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});},
     '/api/chaos_add',{text:t.trim()});
 }
+
+// ─── parking lot drag-to-reorder ───
+let _dg=null;
+function _startDrag(e,cid){
+  e.preventDefault();e.stopPropagation();
+  const row=e.currentTarget.closest('[data-cid]');
+  if(!row)return;
+  const container=document.getElementById('chaos');
+  const rect=row.getBoundingClientRect();
+  const startY=(e.touches?e.touches[0]:e).clientY;
+  const clone=row.cloneNode(true);
+  clone.style.cssText='position:fixed;left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;z-index:999;pointer-events:none;opacity:.92;box-shadow:0 8px 32px rgba(0,0,0,.65);border-radius:15px;transition:none';
+  document.body.appendChild(clone);
+  row.classList.add('dragging');
+  _dg={cid,row,container,clone,startY,rowTop:rect.top};
+  document.addEventListener('touchmove',_moveDrag,{passive:false});
+  document.addEventListener('touchend',_endDrag,{once:true});
+  document.addEventListener('mousemove',_moveDrag);
+  document.addEventListener('mouseup',_endDrag,{once:true});
+}
+function _moveDrag(e){
+  if(!_dg)return;
+  e.preventDefault();
+  const y=(e.touches?e.touches[0]:e).clientY;
+  const dy=y-_dg.startY;
+  _dg.clone.style.top=(_dg.rowTop+dy)+'px';
+  const myMid=_dg.rowTop+dy+_dg.clone.offsetHeight/2;
+  const rows=[..._dg.container.querySelectorAll('[data-cid]')];
+  let before=null;
+  for(const r of rows){
+    if(r===_dg.row)continue;
+    const rr=r.getBoundingClientRect();
+    if(myMid<rr.top+rr.height/2){before=r;break;}
+  }
+  if(before){_dg.container.insertBefore(_dg.row,before);}
+  else if(_dg.row!==_dg.container.lastElementChild){_dg.container.appendChild(_dg.row);}
+}
+function _endDrag(){
+  if(!_dg)return;
+  document.removeEventListener('touchmove',_moveDrag);
+  document.removeEventListener('mousemove',_moveDrag);
+  _dg.clone.remove();
+  _dg.row.classList.remove('dragging');
+  const ids=[..._dg.container.querySelectorAll('[data-cid]')].map(r=>parseInt(r.dataset.cid));
+  const mp={};(DATA.chaos||[]).forEach(c=>mp[c.id]=c);
+  const sorted=ids.map(id=>mp[id]).filter(Boolean);
+  const rest=(DATA.chaos||[]).filter(c=>!ids.includes(c.id));
+  DATA.chaos=[...sorted,...rest];
+  mutate(null,'/api/chaos_reorder',{ids});
+  _dg=null;
+}
+
+// ─── prioritization matrix dot menu ───
+function openDotMenu(e,cid){
+  e.stopPropagation();
+  document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
+  const c=_chaos(cid);if(!c)return;
+  const d=document.createElement('div');
+  d.className='dot-menu';
+  d.innerHTML='<div class="dm-t">'+esc(c.text)+'</div>'+
+    '<button class="dm-btn" onclick="dotDone('+cid+')">✅ выполнено</button>'+
+    '<button class="dm-btn danger" onclick="dotArchive('+cid+')">🗑 архивировать</button>'+
+    '<button class="dm-btn" onclick="dotDetail('+cid+')">ℹ️ подробнее</button>'+
+    '<div class="dm-close" onclick="this.closest(\'.dot-menu\').remove()">✕ закрыть</div>';
+  document.body.appendChild(d);
+  setTimeout(()=>{
+    function h(ev){if(!d.contains(ev.target)){d.remove();document.removeEventListener('click',h);}}
+    document.addEventListener('click',h);
+  },80);
+}
+function dotDone(cid){
+  document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
+  mutate(()=>{
+    const c=_chaos(cid);if(c)c.done=1;
+    DATA.cards=(DATA.cards||[]).filter(x=>x.chaos_id!==cid);
+  },'/api/complete',{kind:'chaos',id:cid});
+}
+function dotArchive(cid){
+  document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
+  mutate(()=>{
+    DATA.chaos=(DATA.chaos||[]).filter(x=>x.id!==cid);
+    DATA.cards=(DATA.cards||[]).filter(x=>x.chaos_id!==cid);
+    DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.chaos_id!==cid);
+  },'/api/delete',{kind:'chaos',id:cid});
+}
+function dotDetail(cid){
+  document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
+  const c=_chaos(cid);
+  if(c)openTask({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0});
+}
+
 function stepToggle(id){const s=_step(id);mutate(()=>{if(s)s.done=s.done?0:1;},'/api/step_toggle',{id});}
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
@@ -2304,6 +2417,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
             "/api/kcol_rename": api_kcol_rename, "/api/happiness_save": api_happiness_save,
             "/api/chaos_add": api_chaos_add, "/api/chaos_rename": api_chaos_rename,
+            "/api/chaos_reorder": api_chaos_reorder,
             "/api/event_update": api_event_update,
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
