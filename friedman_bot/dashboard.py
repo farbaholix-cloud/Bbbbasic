@@ -5,19 +5,31 @@ import math
 import time
 import secrets
 import calendar
+from contextlib import contextmanager
 from datetime import datetime, date, timedelta
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "21.06 · 23:15"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "22.06 · 00:10"  # видимая метка сборки — меняется с каждым деплоем
 
 
+@contextmanager
 def db():
-    conn = sqlite3.connect(DB)
+    # Контекст-менеджер: коммитит при успехе, откатывает при ошибке и ВСЕГДА закрывает
+    # соединение. Раньше соединения не закрывались — на каждый HTTP-запрос утекал
+    # дескриптор, сервер постепенно тормозил (это и спровоцировало гонку с оптимизмом).
+    conn = sqlite3.connect(DB, timeout=10)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def get_session_token():
@@ -1009,25 +1021,39 @@ function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
-async function load(){if(window.__INIT__){DATA=window.__INIT__;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}const r=await fetch('/api/data');if(r.status===401||r.status===403){location.reload();return;}DATA=await r.json();if(!document.getElementById('sheet'))render();}
 
 // ─── optimistic mutation engine (Trello-style: instant UI, background sync) ───
 let _pending=0;            // in-flight background syncs
+let _mutSeq=0;             // bumps on every optimistic mutation — guards stale fetches
+// A server snapshot may only overwrite DATA if (a) nothing is pending AND (b) no
+// mutation happened since this fetch started. Без этого медленный фоновый GET,
+// стартовавший до добавления карточки, дорисовывается и стирает оптимистичную карточку.
+function _applyServer(j,seqAtStart){
+  if(j&&_pending===0&&_mutSeq===seqAtStart){DATA=j;if(!document.getElementById('sheet'))render();}
+}
+function _fetchData(seqAtStart){
+  fetch('/api/data',{cache:'no-store'}).then(r=>{
+    if(r.status===401||r.status===403){location.reload();return null;}
+    return r.json();
+  }).then(j=>_applyServer(j,seqAtStart)).catch(()=>{});
+}
+async function load(){
+  if(window.__INIT__){DATA=window.__INIT__;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}
+  const seq=_mutSeq;
+  const r=await fetch('/api/data',{cache:'no-store'});
+  if(r.status===401||r.status===403){location.reload();return;}
+  const j=await r.json();
+  _applyServer(j,seq);
+}
 function _reconcile(){
   // Pull server truth once all optimistic mutations have settled.
   if(_pending>0)return;
-  fetch('/api/data').then(r=>{
-    if(r.status===401||r.status===403){location.reload();return null;}
-    return r.json();
-  }).then(j=>{
-    // If a new mutation started while we were fetching, don't clobber its
-    // optimistic state — its own reconcile will run when _pending hits 0 again.
-    if(j&&_pending===0){DATA=j;if(!document.getElementById('sheet'))render();}
-  }).catch(()=>{});
+  _fetchData(_mutSeq);
 }
 // Apply a local change to DATA, repaint instantly, then sync to server in background.
 function mutate(localFn,path,body,paint){
   try{if(localFn)localFn();}catch(_){}
+  _mutSeq++;
   (paint||render)();
   _pending++;
   Promise.resolve(api(path,body)).catch(()=>{}).finally(()=>{_pending--;_reconcile();});
