@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "22.06 · 02:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "22.06 · 03:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1032,43 +1032,50 @@ const openProjects=new Set();
 function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
-async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
+async function api(path,body){const r=await fetch(path,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
 
-// ─── optimistic mutation engine (Trello-style: instant UI, background sync) ───
+// ─── optimistic mutation engine (Trello-style: instant UI, authoritative sync) ───
+// КОРЕНЬ ПРОБЛЕМЫ исчезновения изменений: iOS Safari в режиме PWA кэширует ответы
+// GET /api/data даже при no-store и подсовывает старый снимок — он затирал свежие
+// правки. Решение: данные тянем ТОЛЬКО через POST (ответы на POST Safari не кэширует
+// никогда), а каждая мутация возвращает свежий снимок прямо в ответе — изменение
+// подтверждается самой записью и физически не может «исчезнуть».
 let _pending=0;            // in-flight background syncs
-let _mutSeq=0;             // bumps on every optimistic mutation — guards stale fetches
-// A server snapshot may only overwrite DATA if (a) nothing is pending AND (b) no
-// mutation happened since this fetch started. Без этого медленный фоновый GET,
-// стартовавший до добавления карточки, дорисовывается и стирает оптимистичную карточку.
+let _mutSeq=0;             // bumps on every mutation — guards against stale snapshots
 function _applyServer(j,seqAtStart){
   if(j&&_pending===0&&_mutSeq===seqAtStart){DATA=j;if(!document.getElementById('sheet'))render();}
 }
-function _fetchData(seqAtStart){
-  fetch('/api/data',{cache:'no-store'}).then(r=>{
-    if(r.status===401||r.status===403){location.reload();return null;}
-    return r.json();
-  }).then(j=>_applyServer(j,seqAtStart)).catch(()=>{});
+// Свежий снимок через POST — гарантированно мимо кэша Safari.
+async function fetchData(){
+  const r=await fetch('/api/data',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(r.status===401||r.status===403){location.reload();return null;}
+  return r.json();
 }
 async function load(){
   if(window.__INIT__){DATA=window.__INIT__;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}
   const seq=_mutSeq;
-  const r=await fetch('/api/data',{cache:'no-store'});
-  if(r.status===401||r.status===403){location.reload();return;}
-  const j=await r.json();
+  const j=await fetchData();
   _applyServer(j,seq);
 }
 function _reconcile(){
-  // Pull server truth once all optimistic mutations have settled.
+  // Periodic pull (picks up changes made from the bot). Never clobbers a pending edit.
   if(_pending>0)return;
-  _fetchData(_mutSeq);
+  const seq=_mutSeq;
+  fetchData().then(j=>_applyServer(j,seq)).catch(()=>{});
 }
-// Apply a local change to DATA, repaint instantly, then sync to server in background.
+// Apply locally, repaint instantly, sync to server; then adopt the authoritative
+// snapshot the write returns (unless a newer mutation has already superseded it).
 function mutate(localFn,path,body,paint){
   try{if(localFn)localFn();}catch(_){}
-  _mutSeq++;
+  _mutSeq++; const mySeq=_mutSeq;
   (paint||render)();
   _pending++;
-  Promise.resolve(api(path,body)).catch(()=>{}).finally(()=>{_pending--;_reconcile();});
+  Promise.resolve(api(path,body))
+    .then(r=>r?r.json():null).catch(()=>null)
+    .then(j=>{
+      if(j&&j.data&&_mutSeq===mySeq){DATA=j.data;if(!document.getElementById('sheet'))(paint||render)();}
+    })
+    .finally(()=>{_pending--;});
 }
 const _byId=(arr,id)=>(arr||[]).find(x=>x.id===id);
 function _chaos(id){return _byId(DATA.chaos,id);}
@@ -2016,11 +2023,11 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();
 
 load();
-// Periodic background refresh — never while a mutation is syncing or a sheet is open.
+// Periodic background refresh (picks up bot-side changes) — never while a mutation is
+// syncing or a sheet is open. Uses POST under the hood, so Safari can't serve a stale snapshot.
 setInterval(()=>{if(_pending===0&&!document.getElementById('sheet'))load();},8000);
-// Keepalive: пингуем сервер даже при открытом диалоге/крутилке, чтобы сессия не
-// протухла посреди длинного ввода (иначе фоновое сохранение ловит 403 и карточка пропадает).
-setInterval(()=>{if(!document.hidden)fetch('/api/data',{cache:'no-store'}).catch(()=>{});},20000);
+// Keepalive: держим сессию живой даже при открытом диалоге/крутилке. POST, не кэшируется.
+setInterval(()=>{if(!document.hidden)fetch('/api/data',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});},20000);
 </script></body></html>"""
 
 
@@ -2277,6 +2284,13 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        # Данные отдаём и по POST — ответы на POST Safari/iOS НИКОГДА не кэширует,
+        # поэтому фоновый опрос и pull-to-refresh всегда получают свежий снимок.
+        if self.path == "/api/data":
+            self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+            return
+
         routes = {
             "/api/move": api_move, "/api/unplan": api_unplan, "/api/complete": api_complete,
             "/api/rate": api_rate,
@@ -2301,7 +2315,16 @@ class Handler(BaseHTTPRequestHandler):
             result = api_steps(self.path, payload)
         else:
             result = {"ok": False}
-        self._send(json.dumps(result).encode(), "application/json; charset=utf-8")
+        if not isinstance(result, dict):
+            result = {"ok": True}
+        # Каждая мутация возвращает свежий авторитетный снимок. Клиент применяет его
+        # сразу — изменение подтверждается самой записью и больше не может «исчезнуть».
+        try:
+            result["data"] = get_data()
+        except Exception:
+            pass
+        self._send(json.dumps(result, ensure_ascii=False).encode(),
+                   "application/json; charset=utf-8")
 
 
 if __name__ == "__main__":
