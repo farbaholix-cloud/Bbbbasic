@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "22.06 · 01:30"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "22.06 · 02:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1141,7 +1141,7 @@ function render(){
       '<div class="gh" onclick="toggleProj('+p.id+')" style="flex:1">'+
       '<span class="em">'+(AREAS[p.area]||'⚡')+'</span><span class="gn">'+(opened?'▾ ':'▸ ')+esc(p.name)+'</span>'+
       '<span class="gp"><b>'+pct+'%</b> · '+done+'/'+total+'</span></div>'+
-      '<button onclick="projSetMorning('+p.id+','+(mbOn?0:1)+')" title="Включить в утреннюю сводку" style="flex-shrink:0;padding:5px 9px;border-radius:10px;border:1px solid '+(mbOn?'rgba(255,198,87,.5)':'var(--rim)')+';background:'+(mbOn?'rgba(255,198,87,.15)':'transparent')+';color:'+(mbOn?'#ffd07a':'rgba(235,240,250,.35)')+';font-size:13px;cursor:pointer">🌅</button>'+
+      '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')" title="Переименовать цель" style="flex-shrink:0;padding:5px 9px;border-radius:10px;border:1px solid var(--rim);background:transparent;color:rgba(235,240,250,.55);font-size:13px;cursor:pointer">✏️</button>'+
       '</div>'+
       '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div>';
     if(opened){
