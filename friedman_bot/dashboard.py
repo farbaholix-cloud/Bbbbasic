@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "22.06 · 10:30"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "22.06 · 12:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -45,13 +45,6 @@ def get_session_token():
 
 
 SESSION_TOKEN = get_session_token()
-
-# schema migrations once at startup
-try:
-    with db() as _conn:
-        ensure_schema(_conn)
-except Exception:
-    pass
 
 # Авто-блокировка по бездействию: пока дашборд открыт, он пингует сервер (polling +
 # keepalive). Свернул/закрыл приложение → visibilitychange шлёт /api/lock и гасит сессию
@@ -181,12 +174,27 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE chaos ADD COLUMN position INTEGER DEFAULT 0")
     # projects: morning brief flag
     pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
-    if pr_cols and "morning_brief" not in pr_cols:
-        conn.execute("ALTER TABLE projects ADD COLUMN morning_brief INTEGER DEFAULT 0")
+    if pr_cols:
+        if "morning_brief" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN morning_brief INTEGER DEFAULT 0")
+        if "archived" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0")
+        if "archived_at" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN archived_at TEXT")
     if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
         conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
             ("Идеи","#5b9dff",0),("В работе","#ff9aa6",1),
             ("На паузе","#ffd07a",2),("Готово","#52e08a",3)])
+
+
+# Миграции один раз при старте (ensure_schema идемпотентна). Раньше этот вызов стоял
+# ВЫШЕ определения функции и тихо падал с NameError — из-за чего новые колонки (position,
+# archived) появлялись только после первой операции с долгами. Теперь — гарантированно.
+try:
+    with db() as _conn:
+        ensure_schema(_conn)
+except Exception:
+    pass
 
 
 # ─── planned spend from recurring + planned payments + current debts ──────────
@@ -266,7 +274,8 @@ def get_data():
         chaos = [dict(r) for r in conn.execute(
             "SELECT * FROM chaos ORDER BY done, position ASC, created_at DESC").fetchall()]
         _projs = {dict(p)["id"]: {**dict(p), "steps": []}
-                  for p in conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()}
+                  for p in conn.execute(
+                      "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY created_at DESC").fetchall()}
         for s in conn.execute("SELECT * FROM steps ORDER BY project_id, id").fetchall():
             if s["project_id"] in _projs:
                 _projs[s["project_id"]]["steps"].append(dict(s))
@@ -389,6 +398,10 @@ def api_steps(path, payload):
         elif path == "/api/proj_delete":
             conn.execute("DELETE FROM steps WHERE project_id=?", (payload["id"],))
             conn.execute("DELETE FROM projects WHERE id=?", (payload["id"],))
+        elif path == "/api/proj_archive":
+            # Достигнутая цель уходит в общий архив (данные сохраняются, из активных пропадает)
+            conn.execute("UPDATE projects SET archived=1, archived_at=datetime('now') WHERE id=?",
+                         (payload["id"],))
     return {"ok": True}
 
 
@@ -520,13 +533,15 @@ def api_chaos_add(payload):
     text = (payload.get("text") or "").strip()
     if not text:
         return {"ok": False}
+    area = payload.get("area") if payload.get("area") in (
+        "work", "health", "money", "people", "home", "self", "other") else "other"
     with db() as conn:
         min_pos = conn.execute(
             "SELECT COALESCE(MIN(position), 1) FROM chaos WHERE done=0"
         ).fetchone()[0]
         conn.execute(
             "INSERT INTO chaos (text, area, priority, importance, urgency, position) VALUES (?,?,?,?,?,?)",
-            (text, "other", "mid", 0, 0, min_pos - 1)
+            (text, area, "mid", 0, 0, min_pos - 1)
         )
     return {"ok": True}
 
@@ -679,6 +694,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .dot-menu .dm-btn{display:block;width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--rim);background:rgba(255,255,255,.06);color:var(--txt);font-size:14px;font-weight:700;text-align:left;margin-bottom:8px;cursor:pointer}
 .dot-menu .dm-btn.danger{color:#ff8b98;background:rgba(255,107,125,.1);border-color:rgba(255,107,125,.25)}
 .dot-menu .dm-close{color:var(--faint);font-size:13px;font-weight:600;text-align:center;padding:6px 0;cursor:pointer}
+.dot-menu .grab{margin-bottom:14px}
+.big-add{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:11px;padding:16px;border:none;border-radius:18px;
+  background:linear-gradient(135deg,#5b9dff,#b18bff);color:#fff;font-size:15px;font-weight:800;letter-spacing:.3px;cursor:pointer;
+  box-shadow:0 8px 24px rgba(91,157,255,.34),inset 0 1px 0 rgba(255,255,255,.45);transition:transform .12s}
+.big-add .ic{font-size:18px}
+.big-add:active{transform:scale(.975)}
+.idea-h{display:flex;align-items:center;gap:13px;margin-bottom:15px}
+.idea-spark{font-size:30px;filter:drop-shadow(0 4px 12px rgba(255,208,122,.55))}
+.idea-txt{width:100%;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:16px;color:var(--txt);font-size:16px;
+  padding:14px;resize:none;font-family:inherit;line-height:1.45;outline:none}
+.idea-txt:focus{border-color:rgba(91,157,255,.5)}
+.idea-lbl{font-size:11px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.6px;margin:14px 2px 8px}
+.idea-chips{display:flex;flex-wrap:wrap;gap:7px}
+.idea-chip{font-size:12px;font-weight:700;padding:8px 13px;border-radius:13px;background:var(--glass2);border:1px solid var(--rim);color:var(--muted);cursor:pointer;transition:transform .12s}
+.idea-chip:active{transform:scale(.94)}
+.idea-chip.on{color:#fff;background:linear-gradient(135deg,rgba(91,157,255,.55),rgba(177,139,255,.55));border-color:rgba(255,255,255,.32)}
 .pdot.hi{background:var(--red)} .pdot.mi{background:var(--amber)} .pdot.lo{background:var(--green)} .pdot.none{background:var(--faint)}
 .addr{display:flex;align-items:center;gap:9px;padding:13px 14px;border:1.5px dashed var(--rim);border-radius:15px;color:var(--muted);font-size:12.5px;font-weight:700;margin-top:3px;cursor:pointer}
 .addr .p{width:22px;height:22px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
@@ -703,7 +734,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gbar{height:8px;border-radius:6px;background:rgba(0,0,0,.28);overflow:hidden;margin-top:9px;border:1px solid rgba(255,255,255,.08)}
 .gfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--green),var(--cyan));box-shadow:0 0 12px rgba(82,224,138,.5)}
 .gsteps{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-.gstep{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:10px;background:var(--glass2);border:1px solid var(--rim);color:var(--muted);cursor:pointer}
+.gstep{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:10px;background:var(--glass2);border:1px solid var(--rim);color:var(--muted);cursor:pointer;transition:transform .1s,background .15s,color .15s,border-color .15s;-webkit-tap-highlight-color:transparent}
+.gstep:active{transform:scale(.92);background:rgba(82,224,138,.22);color:#9ff0bd;border-color:rgba(82,224,138,.5)}
 .gstep.done{color:#9ff0bd;border-color:rgba(82,224,138,.4);background:rgba(82,224,138,.14)}
 .gstep.done::before{content:'✓ ';font-weight:900}
 .gstep.idea{color:#ffd07a;border-color:rgba(255,208,122,.35);background:rgba(255,208,122,.1)}
@@ -917,9 +949,9 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="balstrip glass-sm" id="balstrip"></div>
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
-      <div class="bh"><div class="t">📋 Парковка для идей</div><div class="cnt" id="chaos-cnt"></div></div>
+      <div class="bh"><div class="t">📋 Парковка для идей</div></div>
       <div id="chaos"></div>
-      <div class="addr" onclick="addChaos()"><span class="p">+</span> Новая задача / идея</div>
+      <button class="big-add" onclick="openIdeaSheet()"><span class="ic">✨</span>Новая идея</button>
     </div>
     <div class="block glass">
       <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
@@ -1147,7 +1179,6 @@ function render(){
   const parking=open.filter(c=>!planned.has(c.id));
   renderMatrix(open);
   // chaos parking
-  document.getElementById('chaos-cnt').textContent=parking.length?parking.length+' задач':'пусто';
   document.getElementById('chaos').innerHTML=parking.length?parking.map(c=>{
     const td=JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
     return '<div class="task glass-sm" data-cid="'+c.id+'">'+
@@ -1365,12 +1396,14 @@ function openDotMenu(e,cid){
   const c=_chaos(cid);if(!c)return;
   const d=document.createElement('div');
   d.className='dot-menu';
-  d.innerHTML='<div class="dm-t">'+esc(c.text)+'</div>'+
+  d.innerHTML='<div class="grab"></div><div class="dm-t">'+esc(c.text)+'</div>'+
     '<button class="dm-btn" onclick="dotDone('+cid+')">✅ выполнено</button>'+
     '<button class="dm-btn danger" onclick="dotArchive('+cid+')">🗑 архивировать</button>'+
     '<button class="dm-btn" onclick="dotDetail('+cid+')">ℹ️ подробнее</button>'+
     '<div class="dm-close" onclick="this.closest(\'.dot-menu\').remove()">✕ закрыть</div>';
   document.body.appendChild(d);
+  // Смахивание вниз закрывает меню — как нативная шторка
+  _swipeDismiss(d,()=>d.remove());
   setTimeout(()=>{
     function h(ev){if(!d.contains(ev.target)){d.remove();document.removeEventListener('click',h);}}
     document.addEventListener('click',h);
@@ -1397,7 +1430,21 @@ function dotDetail(cid){
   if(c)openTask({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0});
 }
 
-function stepToggle(id){const s=_step(id);mutate(()=>{if(s)s.done=s.done?0:1;},'/api/step_toggle',{id});}
+function stepToggle(id){
+  const s=_step(id);if(!s)return;
+  const pid=s.project_id;
+  mutate(()=>{s.done=s.done?0:1;},'/api/step_toggle',{id});
+  // Все пункты цели стали зелёными → спрашиваем, достигнута ли цель
+  const p=_proj(pid);
+  if(p&&p.steps.length&&p.steps.every(x=>x.done))_askGoalDone(pid);
+}
+async function _askGoalDone(pid){
+  const p=_proj(pid);
+  if(!p||!p.steps.length||!p.steps.every(x=>x.done))return;
+  if(await uiConfirm('🎉 Цель достигнута?',{sub:p.name,ok:'🗄 В архив'})){
+    mutate(()=>{DATA.projects=(DATA.projects||[]).filter(x=>x.id!==pid);},'/api/proj_archive',{id:pid});
+  }
+}
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
 async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){mutate(()=>{DATA.projects=(DATA.projects||[]).filter(p=>p.id!==id);},'/api/proj_delete',{id});}}
@@ -1463,6 +1510,31 @@ async function delPayment(id){if(await uiConfirm('Удалить платёж?',
 // ─── bottom sheet (rate / move) ───
 function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();const b=document.getElementById('sheet-bg');if(b)b.remove();}
 
+// Универсальное «смахивание вниз» для любой нижней панели. Вешается на «ручку» (.grab),
+// заголовок и саму панель (но не на интерактив — input/range/textarea/button/select),
+// чтобы жест работал везде, где есть ползунок-полоска, как в нативных iOS-шторках.
+function _swipeDismiss(sheet,closeFn){
+  let sy=0,dragging=false;
+  const onStart=e=>{
+    const tg=e.target;
+    if(tg.closest('input,textarea,select,button,.idea-chip,.sh-day,.tog'))return;
+    sy=e.touches[0].clientY;dragging=true;sheet.style.transition='none';
+  };
+  const onMove=e=>{
+    if(!dragging)return;
+    const dy=e.touches[0].clientY-sy;
+    if(dy>0)sheet.style.transform='translateY('+dy+'px)';
+  };
+  const onEnd=e=>{
+    if(!dragging)return;dragging=false;sheet.style.transition='';
+    const dy=e.changedTouches[0].clientY-sy;
+    if(dy>80){closeFn();}else{sheet.style.transform='translateY(0)';}
+  };
+  sheet.addEventListener('touchstart',onStart,{passive:true});
+  sheet.addEventListener('touchmove',onMove,{passive:true});
+  sheet.addEventListener('touchend',onEnd,{passive:true});
+}
+
 // Свои диалоги вместо prompt/confirm/alert — нативные отключены в standalone-PWA на iOS
 function _openSheet(html){
   closeSheet();
@@ -1470,25 +1542,42 @@ function _openSheet(html){
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
   sheet.innerHTML=html;document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
-  // Close on backdrop tap
   bg.onclick=closeSheet;
-  // Swipe-down to dismiss
-  let sy=0,dragging=false;
-  const grab=sheet.querySelector('.grab');
-  if(grab){
-    grab.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;dragging=true;},{passive:true});
-    grab.addEventListener('touchmove',e=>{
-      if(!dragging)return;
-      const dy=e.touches[0].clientY-sy;
-      if(dy>0)sheet.style.transform='translateY('+dy+'px)';
-    },{passive:true});
-    grab.addEventListener('touchend',e=>{
-      if(!dragging)return;dragging=false;
-      const dy=e.changedTouches[0].clientY-sy;
-      if(dy>80){closeSheet();}else{sheet.style.transform='translateY(0)';}
-    },{passive:true});
-  }
+  _swipeDismiss(sheet,closeSheet);
   return {bg,sheet};
+}
+
+// ─── красивый «захват идеи»: вместо одной строки prompt — полноценная шторка ───
+function openIdeaSheet(){
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const areas=[['work','💼','Дело'],['money','💰','Деньги'],['health','🌿','Тело'],['people','👥','Люди'],['home','🏠','Дом'],['self','📚','Я'],['other','⚡','Прочее']];
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="idea-h"><span class="idea-spark">💡</span><div>'+
+      '<div class="stitle" style="text-align:left;margin:0">Новая идея</div>'+
+      '<div class="ssub" style="text-align:left">лови мысль — разложим её позже</div></div></div>'+
+    '<textarea id="idea-txt" class="idea-txt" placeholder="Что пришло в голову?" rows="3"></textarea>'+
+    '<div class="idea-lbl">Сфера жизни</div>'+
+    '<div class="idea-chips" id="idea-chips">'+areas.map(a=>'<button class="idea-chip'+(a[0]==='other'?' on':'')+'" data-area="'+a[0]+'">'+a[1]+' '+a[2]+'</button>').join('')+'</div>'+
+    '<button class="big-add" id="idea-save" style="margin-top:18px"><span class="ic">📌</span>Припарковать</button>';
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
+  let area='other';
+  const chips=sheet.querySelectorAll('.idea-chip');
+  chips.forEach(c=>c.onclick=()=>{chips.forEach(x=>x.classList.remove('on'));c.classList.add('on');area=c.dataset.area;});
+  const txt=sheet.querySelector('#idea-txt');
+  setTimeout(()=>{try{txt.focus();}catch(_){}},160);
+  const save=()=>{
+    const v=(txt.value||'').trim();
+    if(!v){txt.focus();return;}
+    closeSheet();
+    mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:v,area,priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});},
+      '/api/chaos_add',{text:v,area});
+  };
+  sheet.querySelector('#idea-save').onclick=save;
+  txt.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter')save();});
 }
 function uiPrompt(title,value='',opts={}){
   return new Promise(resolve=>{
@@ -1583,6 +1672,7 @@ function openTask(t){
     '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>';
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
 
   if(t.kind==='chaos'){
     const impEl=sheet.querySelector('#imp'),urgEl=sheet.querySelector('#urg'),quad=sheet.querySelector('#quad');
@@ -2425,7 +2515,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in routes:
             result = routes[self.path](payload)
         elif self.path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
-                           "/api/proj_rename", "/api/proj_delete"):
+                           "/api/proj_rename", "/api/proj_delete", "/api/proj_archive"):
             result = api_steps(self.path, payload)
         else:
             result = {"ok": False}
