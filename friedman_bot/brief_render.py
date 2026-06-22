@@ -7,7 +7,64 @@
 """
 
 import os
+import math
 import html as _html
+
+# Шесть осей «звезды счастья» — те же ключи/цвета/эмодзи, что и во вкладке Счастье
+# дашборда. Геометрия (ex,ey) в процентах смещения от центра карты повторяет раскладку
+# мостика: 2 горизонтали + 4 диагонали → силуэт буквы «Ж».
+H_BRIEF = [
+    ("work",       "💼", "#5b9dff", (30, -30)),
+    ("friendship", "🤝", "#ff7ac0", (-30, -30)),
+    ("health",     "🌿", "#52e08a", (42, 0)),
+    ("love",       "❤️", "#ff6b7d", (-42, 0)),
+    ("wellbeing",  "💰", "#ffd07a", (30, 30)),
+    ("hobby",      "🎨", "#b18bff", (-30, 30)),
+]
+_HVB_W, _HVB_H = 300.0, 190.0  # система координат SVG-линий
+
+
+def _happiness_block(hap):
+    """HTML «звезды счастья»: длина каждого луча ∝ √(оценка/5), как в дашборде."""
+    hap = hap or {}
+    vals = {}
+    for key, _emoji, _color, _geo in H_BRIEF:
+        try:
+            v = int(round(float(hap.get(key) or 3)))
+        except (TypeError, ValueError):
+            v = 3
+        vals[key] = max(1, min(5, v))
+    minval = min(vals.values())
+    cx, cy = _HVB_W / 2, _HVB_H / 2
+    lines, nodes = [], []
+    for key, emoji, color, (ex, ey) in H_BRIEF:
+        t = math.sqrt(vals[key] / 5.0)
+        left = 50 + ex * t
+        top = 50 + ey * t
+        x = left / 100 * _HVB_W
+        y = top / 100 * _HVB_H
+        lines.append(
+            f'<line x1="{cx:.1f}" y1="{cy:.1f}" x2="{x:.1f}" y2="{y:.1f}" '
+            f'stroke="{color}" stroke-width="14" stroke-opacity="0.12"/>'
+            f'<line x1="{cx:.1f}" y1="{cy:.1f}" x2="{x:.1f}" y2="{y:.1f}" '
+            f'stroke="{color}" stroke-width="2" stroke-opacity="0.92"/>'
+        )
+        nodes.append(
+            f'<div class="hn" style="left:{left:.1f}%;top:{top:.1f}%">'
+            f'<div class="hdot" style="background:linear-gradient(145deg,{color},{color}99);'
+            f'box-shadow:0 0 0 1px {color}66,0 0 16px {color}aa,0 6px 16px rgba(0,0,0,.5)">{emoji}</div>'
+            f'<div class="hnv" style="color:{color}">{vals[key]}</div></div>'
+        )
+    svg = (f'<svg class="hlines" viewBox="0 0 {_HVB_W:.0f} {_HVB_H:.0f}" '
+           f'preserveAspectRatio="none">{"".join(lines)}</svg>')
+    return (
+        '<div class="card glass hap">'
+        '<div class="h">🤗 Баланс счастья</div>'
+        f'<div class="sub">слабее всего сейчас — {minval}/5 · нажми, переосознай в дашборде</div>'
+        f'<div class="hmap">{svg}<div class="hcenter">{minval}</div>{"".join(nodes)}</div>'
+        '<div class="hfoot">⚓ Капитанский мостик · система Фридмана</div>'
+        '</div>'
+    )
 
 # Размер ровно под iPhone 14 (390x844 pt @3x = 1170x2532 px). Меняется при другой модели.
 IPHONE_W = 390
@@ -27,7 +84,7 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
    radial-gradient(56% 34% at 6% 88%, rgba(255,122,192,.42), transparent 60%),
    radial-gradient(50% 28% at 50% 44%, rgba(255,198,87,.16), transparent 60%),
    linear-gradient(165deg,#0e1126,#0a0b14 65%)}
-.wrap{position:absolute;inset:0;z-index:1;padding:46px 18px 22px;display:flex;flex-direction:column;gap:11px}
+.wrap{position:absolute;inset:0;z-index:1;padding:44px 18px 20px;display:flex;flex-direction:column;gap:9px}
 .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(26px) saturate(180%);
   border:1px solid rgba(255,255,255,.2);border-radius:22px;box-shadow:0 8px 26px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.32)}
 .head{display:flex;align-items:center;gap:12px}
@@ -61,8 +118,21 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
 .hiphop{padding:12px 15px;border-radius:18px;font-size:13px;font-weight:600;line-height:1.42;
   background:linear-gradient(135deg,rgba(255,198,87,.16),rgba(255,107,125,.11));border:1px solid rgba(255,198,87,.32)}
 .hiphop .t{font-weight:800;color:#ffd07a}
-.foot{margin-top:auto;text-align:center;font-size:10.5px;color:rgba(235,240,250,.34);font-weight:600;letter-spacing:.4px}
-.zh{color:#ffd07a;font-weight:900;font-style:normal}
+/* Баланс счастья — «звезда Ж» из вкладки Счастье, внизу сводки */
+.hap{margin-top:auto;padding:12px 15px 13px}
+.hap .h{margin-bottom:2px}
+.hap .sub{font-size:11px;font-weight:700;color:rgba(235,240,250,.5);margin-bottom:2px}
+.hmap{position:relative;width:100%;height:138px}
+.hlines{position:absolute;inset:0;width:100%;height:100%}
+.hcenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;
+  background:radial-gradient(circle at 38% 28%,#48485a,#06060e);display:flex;align-items:center;justify-content:center;
+  font-size:21px;font-weight:900;color:#ffd07a;z-index:3;text-shadow:0 2px 10px rgba(255,208,122,.5);
+  box-shadow:0 0 0 1.5px rgba(255,255,255,.18),inset 0 1.5px 0 rgba(255,255,255,.3),0 6px 22px rgba(0,0,0,.85)}
+.hn{position:absolute;transform:translate(-50%,-50%);text-align:center;z-index:2}
+.hdot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;margin:0 auto;
+  border:1px solid rgba(255,255,255,.45)}
+.hnv{font-size:13px;font-weight:900;margin-top:2px;text-shadow:0 1px 5px rgba(0,0,0,.65)}
+.hfoot{text-align:center;font-size:10px;color:rgba(235,240,250,.34);font-weight:600;letter-spacing:.4px;margin-top:8px}
 """
 
 
@@ -76,7 +146,7 @@ def build_html(d):
     spend_today = d.get("spend_today") or []
     parts = []
     parts.append('<div class="head"><div class="anchor">⚓</div><div>'
-                 f'<div class="greet">☀️ Доброе утро, Слава! <span class="zh">Ж</span></div>'
+                 f'<div class="greet">☀️ Доброе утро, Слава!</div>'
                  f'<div class="date">{_esc(d.get("date_str"))}</div></div></div>')
 
     # Блок Wirtschaftsdezernent — всегда первым
@@ -138,7 +208,8 @@ def build_html(d):
     if d.get("hiphop"):
         parts.append(f'<div class="hiphop"><span class="t">🎤 Хип-хоп календарь:</span> {_esc(d["hiphop"])}</div>')
 
-    parts.append('<div class="foot">⚓ Капитанский мостик · система Фридмана</div>')
+    # Внизу — «звезда счастья» (бывшая заглушка «Ж»), красиво вписанная в дизайн
+    parts.append(_happiness_block(d.get("happiness")))
 
     body = "\n".join(parts)
     return ("<!DOCTYPE html><html lang=ru><head><meta charset=utf-8>"
@@ -175,6 +246,7 @@ if __name__ == "__main__":
         "balance": 220, "cash": 340, "card": -120,
         "holiday": "Международный день уличного искусства — твой день, FARBAHOLIX 🎨",
         "hiphop": "Сегодня ДР у MF DOOM 🕊 — легенда андеграунда, мастер метафор.",
+        "happiness": {"work": 4, "friendship": 3, "health": 5, "wellbeing": 2, "hobby": 4, "love": 3},
     }
     out = os.path.join(os.path.dirname(__file__), "brief_sample.jpg")
     print(render_brief_jpeg(sample, out))

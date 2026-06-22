@@ -2084,6 +2084,12 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
             _hap_days = (datetime.now() - datetime.fromisoformat((_hap_row["logged_at"] if _hap_row else "")[:19])).days if _hap_row else 999
         except Exception:
             _hap_days = 999
+        # Последний срез счастья — для «звезды Ж» внизу постера-сводки
+        _hap_full = conn.execute(
+            "SELECT work,friendship,health,wellbeing,hobby,love FROM happiness_log ORDER BY logged_at DESC LIMIT 1"
+        ).fetchone()
+        happiness = dict(_hap_full) if _hap_full else {
+            "work": 3, "friendship": 3, "health": 3, "wellbeing": 3, "hobby": 3, "love": 3}
         # Проекты с флагом «в утреннюю сводку»
         try:
             brief_projs = conn.execute(
@@ -2127,7 +2133,7 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     else:
         wirt_line = f"🏛 *Франкфурт / Wirtschaftsdezernat:* _{w.get('status','нет данных')}_"
 
-    lines = [f"☀️ *Доброе утро, Слава!* Ж\n", wirt_line, "", f"_{today_wisdom()}_\n"]
+    lines = [f"☀️ *Доброе утро, Слава!*\n", wirt_line, "", f"_{today_wisdom()}_\n"]
 
     if high:
         lines.append("🔥 *Срочное на сегодня:*")
@@ -2198,13 +2204,14 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         "brief_projs": [(p["name"], int(p["done"]/p["total"]*100) if p["total"] else 0)
                         for p in brief_projs],
         "brief_events": [(e["text"], e["date"], e["time"] or "") for e in brief_events],
+        "happiness": happiness,
     }
     img_path = os.path.join(os.path.dirname(__file__), "brief_today.jpg")
     try:
         from brief_render import render_brief_jpeg
         await asyncio.to_thread(render_brief_jpeg, brief_data, img_path)
         with open(img_path, "rb") as f:
-            await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня · Ж")
+            await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
         if hap_reminder:
             await ctx.bot.send_message(chat_id, hap_reminder, parse_mode="Markdown")
         return
