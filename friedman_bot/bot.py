@@ -823,8 +823,28 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-    # Явное добавление цели: «добавь цель ...» / «цель: ...» / «новая цель ...»
-    goal_match = re.match(r'^(?:добавь\s+|новая\s+)?цель[:\s—-]+(.+)$', text, re.IGNORECASE | re.DOTALL)
+    # «в хаос [текст]» или «[текст] в хаос» — мгновенно в Парковку без вопросов
+    chaos_match = re.match(r'^в\s+хаос[:\s]+(.+)$', text, re.IGNORECASE | re.DOTALL) \
+               or re.match(r'^(.+?)\s+в\s+хаос$', text, re.IGNORECASE | re.DOTALL)
+    if chaos_match:
+        task = chaos_match.group(1).strip()
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
+                (task, "other", "mid", 0, 0)
+            )
+        await update.message.reply_text(f"📌 Припарковано: _{task}_", parse_mode="Markdown")
+        return
+
+    # «новая цель [текст]» — мгновенно создаёт проект с декомпозицией без лишних вопросов
+    new_goal_match = re.match(r'^новая\s+цель[:\s—-]+(.+)$', text, re.IGNORECASE | re.DOTALL) \
+                  or re.match(r'^новая\s+цель\s+(.+)$', text, re.IGNORECASE | re.DOTALL)
+    if new_goal_match:
+        await create_goal_project(update, new_goal_match.group(1).strip())
+        return
+
+    # Явное добавление цели: «добавь цель ...» / «цель: ...»
+    goal_match = re.match(r'^(?:добавь\s+)?цель[:\s—-]+(.+)$', text, re.IGNORECASE | re.DOTALL)
     if goal_match:
         await create_goal_project(update, goal_match.group(1).strip())
         return
@@ -986,6 +1006,23 @@ async def handle_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if not text:
         await update.message.reply_text("Не смогла разобрать голос 😔 Попробуй написать текстом.")
+        return
+
+    # Те же быстрые шорткаты, что и в текстовом handle_text
+    chaos_m = re.match(r'^в\s+хаос[:\s]+(.+)$', text, re.IGNORECASE | re.DOTALL) \
+           or re.match(r'^(.+?)\s+в\s+хаос$', text, re.IGNORECASE | re.DOTALL)
+    if chaos_m:
+        task = chaos_m.group(1).strip()
+        with db() as conn:
+            conn.execute("INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
+                         (task, "other", "mid", 0, 0))
+        await update.message.reply_text(f"🎤 _{text}_\n\n📌 Припарковано: _{task}_", parse_mode="Markdown")
+        return
+
+    goal_m = re.match(r'^новая\s+цель[:\s—-]+(.+)$', text, re.IGNORECASE | re.DOTALL) \
+          or re.match(r'^новая\s+цель\s+(.+)$', text, re.IGNORECASE | re.DOTALL)
+    if goal_m:
+        await create_goal_project(update, goal_m.group(1).strip())
         return
 
     await ai_converse(update, text, source="voice")

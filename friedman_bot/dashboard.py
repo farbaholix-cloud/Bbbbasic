@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "22.06 · 00:10"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "22.06 · 01:30"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -513,6 +513,18 @@ def api_kcol_rename(payload):
             (payload["name"], payload["id"]))
     return {"ok": True}
 
+def api_chaos_add(payload):
+    text = (payload.get("text") or "").strip()
+    if not text:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO chaos (text, area, priority, importance, urgency) VALUES (?,?,?,?,?)",
+            (text, "other", "mid", 0, 0)
+        )
+    return {"ok": True}
+
+
 def api_chaos_rename(payload):
     with db() as conn:
         conn.execute("UPDATE chaos SET text=? WHERE id=?", (payload["text"], payload["id"]))
@@ -887,7 +899,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="block glass">
       <div class="bh"><div class="t">📋 Парковка для идей</div><div class="cnt" id="chaos-cnt"></div></div>
       <div id="chaos"></div>
-      <div class="addr" onclick="uiAlert('Добавляй задачи через бота в Telegram — он спросит важность и срочность ⭐','Новая задача')"><span class="p">+</span> Новая задача<span class="badge">⭐ бот спросит<br>важность/срочность</span></div>
+      <div class="addr" onclick="addChaos()"><span class="p">+</span> Новая задача / идея</div>
     </div>
     <div class="block glass">
       <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
@@ -1259,6 +1271,12 @@ function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');return d.getDat
 
 // ─── project actions ───
 function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
+async function addChaos(){
+  const t=await uiPrompt('Новая задача / идея:','',{placeholder:'что добавить в парковку'});
+  if(!t||!t.trim())return;
+  mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:t.trim(),area:'other',priority:'mid',importance:0,urgency:0,done:0,project_id:null});},
+    '/api/chaos_add',{text:t.trim()});
+}
 function stepToggle(id){const s=_step(id);mutate(()=>{if(s)s.done=s.done?0:1;},'/api/step_toggle',{id});}
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
@@ -2271,7 +2289,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add,
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
             "/api/kcol_rename": api_kcol_rename, "/api/happiness_save": api_happiness_save,
-            "/api/chaos_rename": api_chaos_rename,
+            "/api/chaos_add": api_chaos_add, "/api/chaos_rename": api_chaos_rename,
             "/api/event_update": api_event_update,
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
