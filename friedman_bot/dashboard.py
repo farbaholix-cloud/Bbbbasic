@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "23.06 · 14:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "23.06 · 21:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1092,7 +1092,7 @@ const openProjects=new Set();
 function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
-async function api(path,body){const r=await fetch(path,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
+async function api(path,body){const r=await fetch(path+'?_t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
 
 // ─── optimistic mutation engine (Trello-style: instant UI, authoritative sync) ───
 // КОРЕНЬ ПРОБЛЕМЫ исчезновения изменений: iOS Safari в режиме PWA кэширует ответы
@@ -1107,7 +1107,7 @@ function _applyServer(j,seqAtStart){
 }
 // Свежий снимок через POST — гарантированно мимо кэша Safari.
 async function fetchData(){
-  const r=await fetch('/api/data',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'});
+  const r=await fetch('/api/data?_t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'});
   if(r.status===401||r.status===403){location.reload();return null;}
   return r.json();
 }
@@ -2241,7 +2241,7 @@ load();
 // syncing or a sheet is open. Uses POST under the hood, so Safari can't serve a stale snapshot.
 setInterval(()=>{if(_pending===0&&!document.getElementById('sheet'))load();},8000);
 // Keepalive: держим сессию живой даже при открытом диалоге/крутилке. POST, не кэшируется.
-setInterval(()=>{if(!document.hidden)fetch('/api/data',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});},20000);
+setInterval(()=>{if(!document.hidden)fetch('/api/data?_t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});},20000);
 </script></body></html>"""
 
 
@@ -2444,9 +2444,10 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        path = self.path.split('?', 1)[0]
         if not self._authed():
             # для API отвечаем 401, чтобы клиент перезагрузился на экран-замок
-            if self.path.startswith("/api/"):
+            if path.startswith("/api/"):
                 self.send_response(401)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
@@ -2454,7 +2455,7 @@ class Handler(BaseHTTPRequestHandler):
             # любой обычный путь без сессии → экран-замок (рисуй круг)
             self._send(LOCK_PAGE.encode(), "text/html; charset=utf-8")
             return
-        if self.path == "/api/data":
+        if path == "/api/data":
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
         else:
@@ -2469,11 +2470,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send(page.encode(), "text/html; charset=utf-8")
 
     def do_POST(self):
+        path = self.path.split('?', 1)[0]
         length = int(self.headers.get("Content-Length", 0))
         payload = json.loads(self.rfile.read(length)) if length else {}
 
         # разблокировка кругом — единственный POST без сессии
-        if self.path == "/api/unlock":
+        if path == "/api/unlock":
             global _last_seen
             result = _set_session(payload)
             extra = None
@@ -2486,7 +2488,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         # блокировка при сворачивании окна — гасим cookie и сбрасываем активность
-        if self.path == "/api/lock":
+        if path == "/api/lock":
             _last_seen = 0.0
             extra = [("Set-Cookie", "dash=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly")]
             self._send(b'{"ok":true}', "application/json; charset=utf-8", extra)
@@ -2500,7 +2502,7 @@ class Handler(BaseHTTPRequestHandler):
 
         # Данные отдаём и по POST — ответы на POST Safari/iOS НИКОГДА не кэширует,
         # поэтому фоновый опрос и pull-to-refresh всегда получают свежий снимок.
-        if self.path == "/api/data":
+        if path == "/api/data":
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
             return
@@ -2523,11 +2525,11 @@ class Handler(BaseHTTPRequestHandler):
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
         }
-        if self.path in routes:
-            result = routes[self.path](payload)
-        elif self.path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
-                           "/api/proj_rename", "/api/proj_delete", "/api/proj_archive"):
-            result = api_steps(self.path, payload)
+        if path in routes:
+            result = routes[path](payload)
+        elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
+                      "/api/proj_rename", "/api/proj_delete", "/api/proj_archive"):
+            result = api_steps(path, payload)
         else:
             result = {"ok": False}
         if not isinstance(result, dict):
