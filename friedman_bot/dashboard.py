@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "22.06 · 12:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "23.06 · 12:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1178,15 +1178,17 @@ function render(){
   const open=d.chaos.filter(c=>!c.done);
   const parking=open.filter(c=>!planned.has(c.id));
   renderMatrix(open);
-  // chaos parking
-  document.getElementById('chaos').innerHTML=parking.length?parking.map(c=>{
-    const td=JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
-    return '<div class="task glass-sm" data-cid="'+c.id+'">'+
-      '<span class="drag-h" ontouchstart="_startDrag(event,'+c.id+')" onmousedown="_startDrag(event,'+c.id+')"><i></i><i></i><i></i></span>'+
-      '<span class="pdot '+priClass(c)+'"></span><span class="area">'+(AREAS[c.area]||'⚡')+'</span>'+
-      '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+'</span>'+
-      '<span class="chev" onclick=\'openTask('+td+')\'>›</span></div>';
-  }).join(''):'<div class="empty">парковка пуста — всё запланировано 🎉</div>';
+  // chaos parking — skip DOM rebuild while drag is in progress to preserve drag state
+  if(!_dg){
+    document.getElementById('chaos').innerHTML=parking.length?parking.map(c=>{
+      const td=JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
+      return '<div class="task glass-sm" data-cid="'+c.id+'">'+
+        '<span class="drag-h" ontouchstart="_startDrag(event,'+c.id+')" onmousedown="_startDrag(event,'+c.id+')"><i></i><i></i><i></i></span>'+
+        '<span class="pdot '+priClass(c)+'"></span><span class="area">'+(AREAS[c.area]||'⚡')+'</span>'+
+        '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+'</span>'+
+        '<span class="chev" onclick=\'openTask('+td+')\'>›</span></div>';
+    }).join(''):'<div class="empty">парковка пуста — всё запланировано 🎉</div>';
+  }
   // calendar
   renderCal();
   // goals
@@ -1380,12 +1382,14 @@ function _endDrag(){
   document.removeEventListener('mousemove',_moveDrag);
   _dg.clone.remove();
   _dg.row.classList.remove('dragging');
-  const ids=[..._dg.container.querySelectorAll('[data-cid]')].map(r=>parseInt(r.dataset.cid));
+  const parkingIds=[..._dg.container.querySelectorAll('[data-cid]')].map(r=>parseInt(r.dataset.cid));
   const mp={};(DATA.chaos||[]).forEach(c=>mp[c.id]=c);
-  const sorted=ids.map(id=>mp[id]).filter(Boolean);
-  const rest=(DATA.chaos||[]).filter(c=>!ids.includes(c.id));
+  const sorted=parkingIds.map(id=>mp[id]).filter(Boolean);
+  const rest=(DATA.chaos||[]).filter(c=>!parkingIds.includes(c.id));
   DATA.chaos=[...sorted,...rest];
-  mutate(null,'/api/chaos_reorder',{ids});
+  // Send ALL non-done IDs so server positions stay consistent with client order
+  const allIds=(DATA.chaos||[]).filter(c=>!c.done).map(c=>c.id);
+  mutate(null,'/api/chaos_reorder',{ids:allIds});
   _dg=null;
 }
 
@@ -1990,7 +1994,7 @@ function updateHNodes(){
   // Pixel-equidistant positions: all nodes at same px distance from center.
   // Reference = health/love: 43% of container width horizontally.
   const wrap=document.getElementById('hmap-wrap');
-  const W=wrap?wrap.offsetWidth:390,HP=wrap?wrap.offsetHeight:420;
+  const W=(wrap&&wrap.offsetWidth)||390,HP=(wrap&&wrap.offsetHeight)||420;
   const Rpx=0.43*W;                      // target pixel radius
   const dxp=Rpx/W/Math.SQRT2*100;        // % of width  for 45° corners
   const dyp=Rpx/HP/Math.SQRT2*100;       // % of height for 45° corners
@@ -2172,8 +2176,7 @@ function editHNode(key){
 
 async function editHappiness(){
   const note=(await uiPrompt('Заметка о настроении (необязательно):','',{placeholder:'как ты сейчас'}))||'';
-  await api('/api/happiness_save',{...hValues,note});
-  load();
+  mutate(null,'/api/happiness_save',{...hValues,note},()=>{updateHNodes();requestAnimationFrame(drawHLines);});
 }
 
 // Блокировка при каждом сворачивании окна — при возврате снова рисуем круг
