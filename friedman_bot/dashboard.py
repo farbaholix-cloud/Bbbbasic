@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "23.06 · 12:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "23.06 · 14:00"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -271,11 +271,14 @@ def planned_spend(conn, d0, d1):
 
 def get_data():
     with db() as conn:
+        # id DESC как финальный тай-брейк: created_at имеет посекундную точность, и
+        # две карточки, созданные в одну секунду, иначе встают в произвольном порядке —
+        # из-за этого свежедобавленная карточка «прыгала»/исчезала после синхронизации.
         chaos = [dict(r) for r in conn.execute(
-            "SELECT * FROM chaos ORDER BY done, position ASC, created_at DESC").fetchall()]
+            "SELECT * FROM chaos ORDER BY done, position ASC, created_at DESC, id DESC").fetchall()]
         _projs = {dict(p)["id"]: {**dict(p), "steps": []}
                   for p in conn.execute(
-                      "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY created_at DESC").fetchall()}
+                      "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY created_at DESC, id DESC").fetchall()}
         for s in conn.execute("SELECT * FROM steps ORDER BY project_id, id").fetchall():
             if s["project_id"] in _projs:
                 _projs[s["project_id"]]["steps"].append(dict(s))
@@ -312,11 +315,16 @@ def get_data():
             "SELECT * FROM kanban_columns WHERE archived=0 ORDER BY position").fetchall()]
         kanban_cards = [dict(r) for r in conn.execute(
             "SELECT * FROM kanban_cards WHERE archived=0 ORDER BY column_id,position").fetchall()]
+        # КОРЕНЬ СНЕП-БЭКА ползунков счастья: logged_at = CURRENT_TIMESTAMP имеет точность
+        # до секунды. При быстром изменении нескольких узлов (несколько INSERT в одну
+        # секунду) «ORDER BY logged_at DESC LIMIT 1» возвращал ПРОИЗВОЛЬНУЮ строку из этой
+        # секунды — нередко более старую, и значение откатывалось. id (AUTOINCREMENT)
+        # монотонен и однозначно указывает на последнюю запись, поэтому сортируем по нему.
         hap_row = conn.execute(
-            "SELECT * FROM happiness_log ORDER BY logged_at DESC LIMIT 1").fetchone()
+            "SELECT * FROM happiness_log ORDER BY id DESC LIMIT 1").fetchone()
         happiness = dict(hap_row) if hap_row else {"work":5,"friendship":5,"health":5,"wellbeing":5,"hobby":5,"love":5}
         happiness_history = [dict(r) for r in conn.execute(
-            "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY logged_at DESC LIMIT 365").fetchall()]
+            "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY id DESC LIMIT 365").fetchall()]
     return {"chaos": chaos, "projects": projects, "cards": cards,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
