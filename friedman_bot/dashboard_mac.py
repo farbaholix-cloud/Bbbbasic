@@ -1587,6 +1587,8 @@ function renderMatrix(open){
 function renderCal(){
   const now=new Date();
   const todayISO=localISO(now);
+  const wday=(now.getDay()+6)%7;
+  const mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-wday);
   const dates=new Set();
   // only days with scheduled events, from today onwards
   (DATA.cards||[]).filter(c=>c.date&&c.date>=todayISO).forEach(c=>dates.add(c.date));
