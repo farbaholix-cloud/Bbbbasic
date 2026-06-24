@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · hap-sync"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · drum-fix"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2240,7 +2240,11 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
   const TH=50;let startY=0,pulling=false,dist=0,busy=false;
   function resetPtr(){pulling=false;dist=0;ptr.style.transition='transform .25s,opacity .25s';ptr.style.transform='translate(-50%,-60px)';ptr.style.opacity=0;}
   window.addEventListener('touchstart',e=>{
-    if(busy||document.getElementById('sheet'))return;
+    // КОРЕНЬ ОТКАТА ОЦЕНОК СЧАСТЬЯ: барабан-пикер имеет id 'drum-sheet', а проверялся
+    // только 'sheet'. Поэтому прокрутка барабана перехватывалась pull-to-refresh, и на
+    // отпускании срабатывал load()+render()+renderHappiness — он сбрасывал узлы свежим
+    // снимком прямо посреди правки, и предыдущая оценка «возвращалась на место».
+    if(busy||document.getElementById('sheet')||document.getElementById('drum-sheet'))return;
     if(window.scrollY<=0){startY=e.touches[0].clientY;pulling=true;dist=0;}
   },{passive:true});
   window.addEventListener('touchmove',e=>{
