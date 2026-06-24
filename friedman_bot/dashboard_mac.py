@@ -201,6 +201,26 @@ except Exception:
     pass
 
 
+def _reset_happiness_once():
+    """One-time migration: clear test data, seed all dimensions at 4."""
+    try:
+        with db() as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+            row = conn.execute("SELECT value FROM settings WHERE key='hap_reset_v1'").fetchone()
+            if row:
+                return
+            conn.execute("DELETE FROM happiness_log")
+            conn.execute(
+                "INSERT INTO happiness_log(work,friendship,health,wellbeing,hobby,love,note) "
+                "VALUES(4,4,4,4,4,4,'start')")
+            conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('hap_reset_v1','done')")
+    except Exception:
+        pass
+
+
+_reset_happiness_once()
+
+
 # ─── planned spend from recurring + planned payments + current debts ──────────
 
 def _month_iter(d0, d1):
@@ -1073,9 +1093,9 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
 #page-fin.on>.block:nth-of-type(3){grid-column:2}
 #page-fin.on>.fin-add,#page-fin.on>.fin-log{grid-column:1;grid-row:span 1}
 
-/* ─── Счастье: 2 колонки ─── */
-#page-hap.on{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:start}
-.hdyn{grid-column:2}
+/* ─── Счастье: одна колонка ─── */
+#page-hap.on{display:block}
+.hdyn{margin-top:18px}
 .block{padding:20px;margin-bottom:0;border-radius:20px}
 .wisdom{margin-bottom:0;font-size:14px}
 .balstrip{margin-bottom:0}
@@ -1106,6 +1126,8 @@ select,textarea,.idea-txt{font-size:14px}
 .kol{border-radius:18px;padding:14px}
 #sheet{left:50%;transform:translateX(-50%) translateY(60px);right:auto;width:500px;max-width:calc(100vw - 40px);border-radius:24px}
 #sheet[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
+#sheet.mac-top{bottom:auto;top:80px;transform:translateX(-50%) translateY(-60px)}
+#sheet.mac-top[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
 .matrix{height:320px}
 .hmap-wrap{height:380px}
 
@@ -1852,10 +1874,11 @@ function _swipeDismiss(sheet,closeFn){
 }
 
 // Свои диалоги вместо prompt/confirm/alert — нативные отключены в standalone-PWA на iOS
-function _openSheet(html){
+function _openSheet(html,atTop){
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  if(atTop)sheet.classList.add('mac-top');
   sheet.innerHTML=html;document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   bg.onclick=closeSheet;
@@ -2202,9 +2225,11 @@ function kcolMenu(e,colId){
   const isCurrent=col.status==='current';
   const togOn=isCurrent?'on':'';
   const {sheet}=_openSheet(
-    `<div class="grab"></div>`+
-    `<div class="stitle" style="margin-bottom:4px">${esc(col.name)}</div>`+
-    `<div style="display:flex;flex-direction:column;gap:14px;margin-top:16px">`+
+    `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">`+
+    `<div class="stitle" style="margin:0">${esc(col.name)}</div>`+
+    `<button id="kmc-close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1">✕</button>`+
+    `</div>`+
+    `<div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">`+
     // status toggle
     `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(255,255,255,.06);border-radius:16px">
        <span class="ptlabel${!isCurrent?' on':''}">Перспективный</span>
@@ -2229,8 +2254,9 @@ function kcolMenu(e,colId){
     })()+
     // rename
     `<button class="sh-act" id="kcol-ren-btn">✏️ Переименовать список</button>`+
-    `</div>`
-  );
+    `</div>`,
+    true);
+  sheet.querySelector('#kmc-close').onclick=closeSheet;
   // toggle logic
   const tog=sheet.querySelector('#kcol-tog');
   tog.onclick=()=>{
@@ -2395,18 +2421,19 @@ function renderHappiness(d){
 
 function updateHNodes(){
   let minVal=5;
-  // Pixel-equidistant positions: all nodes at same px distance from center.
-  // Reference = health/love: 43% of container width horizontally.
   const wrap=document.getElementById('hmap-wrap');
   const W=(wrap&&wrap.offsetWidth)||390,HP=(wrap&&wrap.offsetHeight)||420;
-  const Rpx=0.43*W;                      // target pixel radius
-  const dxp=Rpx/W/Math.SQRT2*100;        // % of width  for 45° corners
-  const dyp=Rpx/HP/Math.SQRT2*100;       // % of height for 45° corners
+  // 0.38 keeps nodes 6% from edges even at score=5; prevents overflow
+  const Rpx=0.38*W;
+  const dxp=Rpx/W/Math.SQRT2*100;
+  const dyp=Rpx/HP/Math.SQRT2*100;
+  // node circle is ~31px radius; in % that's ~hcPct% of container
+  const hcPctX=32/W*100, hcPctY=32/HP*100;
   const POS={
     work:       {maxL:50+dxp, maxT:50-dyp},
     friendship: {maxL:50-dxp, maxT:50-dyp},
-    health:     {maxL:93,     maxT:50},
-    love:       {maxL:7,      maxT:50},
+    health:     {maxL:88,     maxT:50},
+    love:       {maxL:12,     maxT:50},
     wellbeing:  {maxL:50+dxp, maxT:50+dyp},
     hobby:      {maxL:50-dxp, maxT:50+dyp}
   };
@@ -2416,8 +2443,13 @@ function updateHNodes(){
     const n=POS[k];
     if(n){
       const t=Math.max(0.05,Math.sqrt(hValues[k]/5));
+      const rawL=50+(n.maxL-50)*t;
+      const rawT=50+(n.maxT-50)*t;
       const node=document.getElementById('hn-'+k);
-      if(node){node.style.left=(50+(n.maxL-50)*t)+'%';node.style.top=(50+(n.maxT-50)*t)+'%';}
+      if(node){
+        node.style.left=Math.max(hcPctX,Math.min(100-hcPctX,rawL))+'%';
+        node.style.top=Math.max(hcPctY,Math.min(100-hcPctY,rawT))+'%';
+      }
     }
   });
   const tc=document.getElementById('hv-total');
@@ -2575,13 +2607,33 @@ function _hapSync(){const h=(DATA&&DATA.happiness)||{};H_KEYS.forEach(k=>{if(h[k
 function _hapBody(extra){const h=(DATA&&DATA.happiness)||{};const b=Object.assign({note:''},extra||{});H_KEYS.forEach(k=>b[k]=(h[k]!=null?Number(h[k]):hValues[k]));return b;}
 
 function editHNode(key){
-  showDrumPicker(H_LABELS[key],H_COLORS[key],hValues[key],val=>{
-    hValues[key]=val;
-    if(!DATA.happiness)DATA.happiness={};
-    DATA.happiness[key]=val;
-    updateHNodes();
-    requestAnimationFrame(drawHLines);
-    mutate(null,'/api/happiness_save',_hapBody(),()=>{_hapSync();updateHNodes();requestAnimationFrame(drawHLines);});
+  const color=H_COLORS[key];
+  const label=H_LABELS[key];
+  const cur=hValues[key]||3;
+  const btns=[1,2,3,4,5].map(v=>{
+    const active=v===cur?`background:${color};color:#fff;box-shadow:0 0 0 2px ${color},0 4px 14px ${color}55`:'background:rgba(255,255,255,.07);color:var(--txt)';
+    return `<button class="hrate-btn" data-v="${v}" style="${active};border:1.5px solid ${v===cur?color:'rgba(255,255,255,.15)'};border-radius:14px;font-size:22px;font-weight:900;padding:14px 0;flex:1;cursor:pointer;transition:all .15s">${v}</button>`;
+  }).join('');
+  const {sheet}=_openSheet(
+    `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">`+
+    `<div style="font-size:16px;font-weight:800;color:${color}">${label}</div>`+
+    `<button id="hrate-close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1">✕</button>`+
+    `</div>`+
+    `<div style="display:flex;gap:10px;margin-bottom:6px">${btns}</div>`+
+    `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">нажми на оценку</div>`
+  );
+  sheet.querySelector('#hrate-close').onclick=closeSheet;
+  sheet.querySelectorAll('.hrate-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const val=Number(btn.dataset.v);
+      closeSheet();
+      hValues[key]=val;
+      if(!DATA.happiness)DATA.happiness={};
+      DATA.happiness[key]=val;
+      updateHNodes();
+      requestAnimationFrame(drawHLines);
+      mutate(null,'/api/happiness_save',_hapBody(),()=>{_hapSync();updateHNodes();requestAnimationFrame(drawHLines);});
+    };
   });
 }
 
