@@ -1077,21 +1077,20 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* ─── Мостик: 3 колонки ─── */
+/* balstrip=child1, wisdom=child2, Идеи=child3, Визуал=child4, Приоритеты=child5, мини-кал=child6 */
 #page-plan.on{display:grid;grid-template-columns:1fr 1.2fr 1.1fr;gap:18px;align-items:start}
 #page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
-/* Идеи(1) col1 | Визуализация(2) col2 span 2 rows | Приоритеты(3) col3 top | Мини-кал(4) col3 bottom */
-#page-plan.on>.block:nth-of-type(1){grid-column:1;grid-row:3}
-#page-plan.on>.block:nth-of-type(2){grid-column:2;grid-row:3/5}
-#page-plan.on>.block:nth-of-type(3){grid-column:3;grid-row:3}
-#page-plan.on>.block:nth-of-type(4){grid-column:3;grid-row:4}
+#page-plan.on>.block:nth-child(3){grid-column:1;grid-row:3}
+#page-plan.on>.block:nth-child(4){grid-column:2;grid-row:3/5}
+#page-plan.on>.block:nth-child(5){grid-column:3;grid-row:3}
+#page-plan.on>.block:nth-child(6){grid-column:3;grid-row:4}
 
 /* ─── Финансы: 2 колонки ─── */
+/* fin-cards=child1 daysum=child2 fin-add=child3 block1=child4 fin-log=child5 block2=child6 block3=child7 */
 #page-fin.on{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
 #page-fin.on>.fin-cards,#page-fin.on>.daysum{grid-column:1/-1}
-#page-fin.on>.block:nth-of-type(1),
-#page-fin.on>.block:nth-of-type(2),
-#page-fin.on>.block:nth-of-type(3){grid-column:2}
-#page-fin.on>.fin-add,#page-fin.on>.fin-log{grid-column:1;grid-row:span 1}
+#page-fin.on>.block{grid-column:2}
+#page-fin.on>.fin-add,#page-fin.on>.fin-log{grid-column:1}
 
 /* ─── Счастье: одна колонка ─── */
 #page-hap.on{display:block}
@@ -1233,21 +1232,6 @@ select,textarea,.idea-txt{font-size:14px}
   <div class="page" id="page-fin">
     <div class="fin-cards" id="fin-cards"></div>
     <div class="daysum" id="daysum"></div>
-    <div class="block glass">
-      <div class="bh"><div class="t">🔴 Текущие задолженности</div><div class="cnt" id="cur-cnt"></div></div>
-      <div id="cur-debts"></div>
-      <div class="addr" onclick="addDebt('current')"><span class="p">+</span> Добавить задолженность</div>
-    </div>
-    <div class="block glass">
-      <div class="bh"><div class="t">🏦 Долгосрочные долги</div><div class="cnt" id="long-cnt"></div></div>
-      <div id="long-debts"></div>
-      <div class="addr" onclick="addDebt('long')"><span class="p">+</span> Добавить долгосрочный долг</div>
-    </div>
-    <div class="block glass">
-      <div class="bh"><div class="t">📆 Регулярные платежи</div><div class="cnt" id="pay-cnt"></div></div>
-      <div id="payments"></div>
-      <div class="addr" onclick="addPayment()"><span class="p">+</span> Добавить регулярный / разовый платёж</div>
-    </div>
     <div class="fin-add glass">
       <div class="ft">＋ операция</div>
       <div class="fin-row">
@@ -1257,9 +1241,24 @@ select,textarea,.idea-txt{font-size:14px}
       <div class="fin-row"><input class="fin-inp" id="fin-cm" type="text" placeholder="Комментарий"/></div>
       <div class="fin-btns"><div class="fbtn in" onclick="finAdd(1)">+ приход</div><div class="fbtn out" onclick="finAdd(-1)">− расход</div></div>
     </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🏦 Долгосрочные долги</div><div class="cnt" id="long-cnt"></div></div>
+      <div id="long-debts"></div>
+      <div class="addr" onclick="addDebt('long')"><span class="p">+</span> Добавить долгосрочный долг</div>
+    </div>
     <div class="fin-log glass">
       <div class="ft">последние операции</div>
       <div id="fin-log"></div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">🔴 Текущие задолженности</div><div class="cnt" id="cur-cnt"></div></div>
+      <div id="cur-debts"></div>
+      <div class="addr" onclick="addDebt('current')"><span class="p">+</span> Добавить задолженность</div>
+    </div>
+    <div class="block glass">
+      <div class="bh"><div class="t">📆 Регулярные платежи</div><div class="cnt" id="pay-cnt"></div></div>
+      <div id="payments"></div>
+      <div class="addr" onclick="addPayment()"><span class="p">+</span> Добавить регулярный / разовый платёж</div>
     </div>
   </div>
   <div class="page" id="page-proj">
@@ -1332,8 +1331,8 @@ select,textarea,.idea-txt{font-size:14px}
       <span id="cal-period-label"></span>
       <button class="cal-arr" id="cal-next">›</button>
       <div class="cal-view-btns">
-        <button class="cvt on" data-v="week">неделя</button>
         <button class="cvt" data-v="day">день</button>
+        <button class="cvt on" data-v="week">неделя</button>
         <button class="cvt" data-v="month">месяц</button>
         <button class="cvt" data-v="year">год</button>
       </div>
