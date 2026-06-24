@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · rev-guard"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · steps-tap"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1248,8 +1248,10 @@ function render(){
         '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">✏️ имя</button>'+
         '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑</button></div>';
     } else if(total||linkedIdeas.length){
-      const stepsPreview=p.steps.slice(0,4).map(s=>'<span class="gstep '+(s.done?'done':'')+'">'+esc(s.text)+'</span>').join('');
-      const ideasPreview=linkedIdeas.slice(0,2).map(c=>'<span class="gstep idea">💡 '+esc(c.text)+'</span>').join('');
+      // Превью у свёрнутой цели тоже интерактивно: иначе нажатие на шаг лишь подсвечивало
+      // его (CSS :active), но ничего не фиксировало — «загорается зелёным, отпускаю → серый».
+      const stepsPreview=p.steps.slice(0,4).map(s=>'<span class="gstep '+(s.done?'done':'')+'" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>').join('');
+      const ideasPreview=linkedIdeas.slice(0,2).map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
       h+='<div class="gsteps">'+stepsPreview+ideasPreview+'</div>';
     }
     h+='</div>';return h;
