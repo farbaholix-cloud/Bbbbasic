@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "23.06 · 21:00"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · rev-guard"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -269,6 +269,26 @@ def planned_spend(conn, d0, d1):
     return items
 
 
+def bump_rev():
+    """Монотонный счётчик ревизий данных. Растёт на КАЖДУЮ мутацию (в своей транзакции,
+    после коммита самой записи). Каждый снимок get_data() несёт текущий rev. Клиент
+    применяет снимок ТОЛЬКО если его rev не меньше уже применённого — поэтому
+    устаревший ответ (кэш iOS, опоздавший запрос, гонка) физически не может откатить UI."""
+    with db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+        conn.execute(
+            "INSERT INTO settings(key,value) VALUES('data_rev','1') "
+            "ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1")
+
+
+def _read_rev(conn):
+    try:
+        row = conn.execute("SELECT value FROM settings WHERE key='data_rev'").fetchone()
+        return int(row["value"]) if row and row["value"] else 0
+    except Exception:
+        return 0
+
+
 def get_data():
     with db() as conn:
         # id DESC как финальный тай-брейк: created_at имеет посекундную точность, и
@@ -325,13 +345,14 @@ def get_data():
         happiness = dict(hap_row) if hap_row else {"work":5,"friendship":5,"health":5,"wellbeing":5,"hobby":5,"love":5}
         happiness_history = [dict(r) for r in conn.execute(
             "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY id DESC LIMIT 365").fetchall()]
+        rev = _read_rev(conn)
     return {"chaos": chaos, "projects": projects, "cards": cards,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
             "kanban_cols": kanban_cols, "kanban_cards": kanban_cards,
             "happiness": happiness, "happiness_history": happiness_history,
-            "wisdom": today_wisdom()}
+            "wisdom": today_wisdom(), "rev": rev}
 
 
 # ─── planning APIs (kept compatible with the bot) ─────────────────────────────
@@ -1102,8 +1123,13 @@ async function api(path,body){const r=await fetch(path+'?_t='+Date.now(),{method
 // подтверждается самой записью и физически не может «исчезнуть».
 let _pending=0;            // in-flight background syncs
 let _mutSeq=0;             // bumps on every mutation — guards against stale snapshots
+let _rev=0;                // highest server revision applied — see bump_rev() on the server
+// Снимок принимается, только если его ревизия НЕ СТАРШЕ уже применённой. Устаревший
+// ответ (кэш iOS, опоздавший/гоночный запрос) несёт меньший rev и молча отбрасывается —
+// откатить свежую правку он физически не может.
+function _revOK(j){return !j||j.rev===undefined||j.rev>=_rev;}
 function _applyServer(j,seqAtStart){
-  if(j&&_pending===0&&_mutSeq===seqAtStart){DATA=j;if(!document.getElementById('sheet'))render();}
+  if(j&&_pending===0&&_mutSeq===seqAtStart&&_revOK(j)){DATA=j;if(j.rev!==undefined)_rev=j.rev;if(!document.getElementById('sheet'))render();}
 }
 // Свежий снимок через POST — гарантированно мимо кэша Safari.
 async function fetchData(){
@@ -1112,7 +1138,7 @@ async function fetchData(){
   return r.json();
 }
 async function load(){
-  if(window.__INIT__){DATA=window.__INIT__;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}
+  if(window.__INIT__){DATA=window.__INIT__;if(DATA.rev!==undefined)_rev=DATA.rev;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}
   const seq=_mutSeq;
   const j=await fetchData();
   _applyServer(j,seq);
@@ -1133,7 +1159,7 @@ function mutate(localFn,path,body,paint){
   Promise.resolve(api(path,body))
     .then(r=>r?r.json():null).catch(()=>null)
     .then(j=>{
-      if(j&&j.data&&_mutSeq===mySeq){DATA=j.data;if(!document.getElementById('sheet'))(paint||render)();}
+      if(j&&j.data&&_mutSeq===mySeq&&_revOK(j.data)){DATA=j.data;if(j.data.rev!==undefined)_rev=j.data.rev;if(!document.getElementById('sheet'))(paint||render)();}
     })
     .finally(()=>{_pending--;});
 }
@@ -2237,10 +2263,13 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 })();
 
 load();
-// Periodic background refresh (picks up bot-side changes) — never while a mutation is
-// syncing or a sheet is open. Uses POST under the hood, so Safari can't serve a stale snapshot.
-setInterval(()=>{if(_pending===0&&!document.getElementById('sheet'))load();},8000);
-// Keepalive: держим сессию живой даже при открытом диалоге/крутилке. POST, не кэшируется.
+// НЕТ фонового авто-опроса, который перерисовывал бы весь экран. Раньше именно он через
+// несколько секунд подменял свежую правку устаревшим снимком («появилось → исчезло»).
+// Данные обновляются только при старте, pull-to-refresh и в ответе самой мутации —
+// и каждый такой снимок защищён ревизией (_revOK). Изменения с бота подхватятся при
+// pull-to-refresh или возврате на вкладку (reload).
+// Keepalive: держим сессию живой даже при открытом диалоге/крутилке. Только пингует
+// сервер (обновляет _last_seen), НЕ применяет данные к экрану — откатить ничего не может.
 setInterval(()=>{if(!document.hidden)fetch('/api/data?_t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});},20000);
 </script></body></html>"""
 
@@ -2534,9 +2563,11 @@ class Handler(BaseHTTPRequestHandler):
             result = {"ok": False}
         if not isinstance(result, dict):
             result = {"ok": True}
-        # Каждая мутация возвращает свежий авторитетный снимок. Клиент применяет его
-        # сразу — изменение подтверждается самой записью и больше не может «исчезнуть».
+        # Каждая мутация двигает ревизию вперёд и возвращает свежий авторитетный снимок
+        # с новым rev. Клиент применит его, а любой устаревший снимок с меньшим rev
+        # отбросит — изменение подтверждается самой записью и не может «исчезнуть».
         try:
+            bump_rev()
             result["data"] = get_data()
         except Exception:
             pass
