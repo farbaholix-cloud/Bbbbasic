@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · kanban-move"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · kanban-trello"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1962,26 +1962,14 @@ function kcardClick(e,id,colId,el){
   if(e.target.closest('.kren,.kol-head'))return;
   e.stopPropagation();
   const title=el.querySelector('.kt').textContent;
-  // Доски для перемещения — все колонки, кроме текущей
-  const moveCols=(DATA.kanban_cols||[]).filter(x=>x.id!==colId);
-  const moveHtml=moveCols.length?(
-    `<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.5px;margin:8px 2px 0">→ ПЕРЕМЕСТИТЬ НА ДОСКУ:</div>`+
-    moveCols.map(x=>`<button class="sh-act kmove-btn" data-col="${x.id}" style="display:flex;align-items:center;gap:10px;justify-content:flex-start">`+
-      `<span style="width:11px;height:11px;border-radius:50%;background:${x.color};flex-shrink:0"></span>${esc(x.name)}</button>`).join('')
-  ):'';
+  const hasCols=(DATA.kanban_cols||[]).length>1;
   const {sheet}=_openSheet(`<div class="grab"></div><div class="stitle">${esc(title)}</div>`+
     `<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">`+
     `<button class="sh-act" id="kren-btn">✏️ Переименовать</button>`+
-    moveHtml+
+    (hasCols?`<button class="sh-act" id="kmove-open-btn">↗ Переместить на доску</button>`:'')+
     `<button class="sh-act" id="karch-btn">📦 В архив</button>`+
     `<button class="sh-act sh-del" id="kdel-btn">🗑 Удалить навсегда</button></div>`);
-  sheet.querySelectorAll('.kmove-btn').forEach(btn=>{
-    btn.onclick=()=>{
-      const target=parseInt(btn.dataset.col,10);
-      closeSheet();
-      mutate(()=>{const c=_kcard(id);if(c)c.column_id=target;},'/api/kcard_move',{id,col:target},()=>renderKanban(DATA));
-    };
-  });
+  if(hasCols) sheet.querySelector('#kmove-open-btn').onclick=()=>{closeSheet();_openKMoveSheet(id,colId,title);};
   sheet.querySelector('#kren-btn').onclick=async()=>{
     const nv=await uiPrompt('Новое название:',title);
     if(!nv||!nv.trim())return;
@@ -1998,6 +1986,33 @@ function kcardClick(e,id,colId,el){
     closeSheet();
     mutate(()=>{DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);},'/api/kcard_delete',{id},()=>renderKanban(DATA));
   };
+}
+function _openKMoveSheet(cardId,currentColId,cardTitle){
+  const cols=DATA.kanban_cols||[];
+  const cards=DATA.kanban_cards||[];
+  const rows=cols.map(col=>{
+    const cnt=cards.filter(c=>c.column_id===col.id&&!c.archived).length;
+    const cur=col.id===currentColId;
+    return `<button class="sh-act kmove-col" data-col="${col.id}" `+
+      `style="display:flex;align-items:center;gap:12px;justify-content:flex-start;${cur?'opacity:.4;pointer-events:none':''}">`+
+      `<span style="width:12px;height:12px;border-radius:50%;background:${col.color};flex-shrink:0"></span>`+
+      `<span style="flex:1;text-align:left">${esc(col.name)}</span>`+
+      `<span style="font-size:12px;color:var(--muted);min-width:18px;text-align:right">${cnt}</span>`+
+      `${cur?'<span style="font-size:15px;margin-left:4px">✓</span>':''}</button>`;
+  }).join('');
+  const {sheet}=_openSheet(
+    `<div class="grab"></div>`+
+    `<div style="font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--muted);margin:0 2px 10px">ПЕРЕМЕСТИТЬ КАРТОЧКУ</div>`+
+    `<div class="stitle" style="font-size:15px;margin-bottom:16px;text-align:left">${esc(cardTitle)}</div>`+
+    `<div style="display:flex;flex-direction:column;gap:8px">${rows}</div>`
+  );
+  sheet.querySelectorAll('.kmove-col').forEach(btn=>{
+    btn.onclick=()=>{
+      const target=parseInt(btn.dataset.col,10);
+      closeSheet();
+      mutate(()=>{const c=_kcard(cardId);if(c)c.column_id=target;},'/api/kcard_move',{id:cardId,col:target},()=>renderKanban(DATA));
+    };
+  });
 }
 
 async function kaddCard(colId,colName){
