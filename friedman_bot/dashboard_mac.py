@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.4 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.5 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -158,13 +158,17 @@ def ensure_schema(conn):
       hobby INTEGER DEFAULT 5, love INTEGER DEFAULT 5,
       note TEXT, logged_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
-    # events: project link + morning brief flag
+    # events: project link + morning brief flag + priority dimensions
     ev_cols = [r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()]
     if ev_cols:
         if "project_id" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN project_id INTEGER")
         if "morning_brief" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN morning_brief INTEGER DEFAULT 0")
+        if "importance" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN importance INTEGER DEFAULT 0")
+        if "urgency" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN urgency INTEGER DEFAULT 0")
     # chaos: project link + drag position
     ch_cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
     if ch_cols:
@@ -310,6 +314,8 @@ def get_data():
                           "time": d.get("time") or "", "text": d["text"],
                           "chaos_id": d.get("chaos_id"),
                           "project_id": d.get("project_id"),
+                          "importance": d.get("importance", 0) or 0,
+                          "urgency": d.get("urgency", 0) or 0,
                           "morning_brief": d.get("morning_brief", 0) or 0})
         try:
             for r in conn.execute("SELECT * FROM reminders WHERE sent=0").fetchall():
@@ -633,6 +639,35 @@ def api_event_update(payload):
         if "project_id" in payload:
             conn.execute("UPDATE events SET project_id=? WHERE id=?",
                          (payload["project_id"] or None, payload["id"]))
+        if "text" in payload:
+            conn.execute("UPDATE events SET text=? WHERE id=?", (payload["text"], payload["id"]))
+        if "date" in payload:
+            conn.execute("UPDATE events SET date=? WHERE id=?", (payload["date"], payload["id"]))
+        if "time" in payload:
+            conn.execute("UPDATE events SET time=? WHERE id=?", (payload["time"] or "", payload["id"]))
+        if "importance" in payload:
+            conn.execute("UPDATE events SET importance=? WHERE id=?",
+                         (int(payload["importance"] or 0), payload["id"]))
+        if "urgency" in payload:
+            conn.execute("UPDATE events SET urgency=? WHERE id=?",
+                         (int(payload["urgency"] or 0), payload["id"]))
+    return {"ok": True}
+
+
+def api_event_add(payload):
+    text = (payload.get("text") or "").strip()
+    if not text:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute("""INSERT INTO events (text, date, time, importance, urgency, project_id)
+            VALUES (?, ?, ?, ?, ?, ?)""", (
+            text,
+            payload.get("date") or "",
+            payload.get("time") or "",
+            int(payload.get("importance") or 0),
+            int(payload.get("urgency") or 0),
+            payload.get("project_id") or None
+        ))
     return {"ok": True}
 
 
@@ -1022,13 +1057,13 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* ─── Мостик: 3 колонки ─── */
-#page-plan.on{display:grid;grid-template-columns:1fr 1.15fr 1.15fr;gap:18px;align-items:start}
+#page-plan.on{display:grid;grid-template-columns:1fr 1.2fr 1.1fr;gap:18px;align-items:start}
 #page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
-/* порядок блоков: Парковка(3) | Визуализация(4) + Матрица(5) col2 | Прошивка(6) col3 */
+/* Идеи(1) col1 | Визуализация(2) col2 span 2 rows | Приоритеты(3) col3 top | Мини-кал(4) col3 bottom */
 #page-plan.on>.block:nth-of-type(1){grid-column:1;grid-row:3}
-#page-plan.on>.block:nth-of-type(2){grid-column:2;grid-row:3}
-#page-plan.on>.block:nth-of-type(3){grid-column:2;grid-row:4}
-#page-plan.on>.block:nth-of-type(4){grid-column:3;grid-row:3/5}
+#page-plan.on>.block:nth-of-type(2){grid-column:2;grid-row:3/5}
+#page-plan.on>.block:nth-of-type(3){grid-column:3;grid-row:3}
+#page-plan.on>.block:nth-of-type(4){grid-column:3;grid-row:4}
 
 /* ─── Финансы: 2 колонки ─── */
 #page-fin.on{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
@@ -1073,6 +1108,59 @@ select,textarea,.idea-txt{font-size:14px}
 #sheet[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
 .matrix{height:320px}
 .hmap-wrap{height:380px}
+
+/* ─── Calendar page ─── */
+#page-cal.on{display:grid;grid-template-columns:1fr 270px;gap:18px;align-items:start}
+.cal-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:16px;grid-column:1/-1;position:sticky;top:0;z-index:10;background:rgba(7,8,17,.96)}
+.cal-arr{background:rgba(255,255,255,.08);border:1px solid var(--rim);border-radius:10px;color:var(--txt);font-size:20px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.cal-arr:hover{background:rgba(255,255,255,.14)}
+#cal-period-label{flex:1;text-align:center;font-size:16px;font-weight:800}
+.cal-view-btns{display:flex;gap:3px;background:rgba(255,255,255,.06);border-radius:12px;padding:4px}
+.cvt{padding:6px 11px;border-radius:9px;font-size:11.5px;font-weight:700;border:none;color:var(--muted);background:transparent;cursor:pointer;transition:all .15s}
+.cvt.on{background:linear-gradient(135deg,rgba(91,157,255,.28),rgba(177,139,255,.18));color:#fff}
+.cal-content{grid-column:1;overflow-x:hidden}
+.cal-pri-panel{padding:18px;position:sticky;top:72px;grid-column:2}
+/* time grid */
+.tgrid{position:relative;width:100%;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid var(--rim)}
+.tgrid-cols{display:flex}
+.tgrid-ruler{width:48px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.07)}
+.tgrid-col-wrap{flex:1;display:flex;overflow:hidden}
+.tgrid-col-hdr{display:flex}
+.tgrid-ruler-hdr{width:48px;flex-shrink:0}
+.tgrid-col-hdr-cell{flex:1;text-align:center;font-size:11px;font-weight:800;padding:9px 4px;border-left:1px solid rgba(255,255,255,.06);transition:background .15s}
+.tgrid-col-hdr-cell.today{background:rgba(91,157,255,.14);color:#86b8ff}
+.tgrid-col-hdr-cell.has-ev{color:#ffc657}
+.tgrid-inner{position:relative;display:flex}
+.tgrid-slot-col{position:relative}
+.tslot{height:52px;border-bottom:1px solid rgba(255,255,255,.05);position:relative}
+.tslot-lbl{width:48px;height:52px;display:flex;align-items:flex-start;justify-content:flex-end;padding:0 8px;font-size:10px;color:rgba(235,240,250,.28);font-weight:700;flex-shrink:0;margin-top:-7px}
+.tcol{flex:1;position:relative;border-left:1px solid rgba(255,255,255,.06);cursor:pointer}
+.tcol:hover{background:rgba(91,157,255,.04)}
+.t-event{position:absolute;left:3px;right:3px;min-height:24px;border-radius:7px;padding:3px 7px;font-size:11px;font-weight:700;overflow:hidden;cursor:pointer;line-height:1.3;z-index:2;
+  background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(91,157,255,.55));border:1px solid rgba(255,255,255,.2);color:#fff}
+.t-event:hover{opacity:.85}
+.t-cursor{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:10;pointer-events:none;box-shadow:0 0 6px rgba(255,59,91,.5)}
+.t-cursor::before{content:'';position:absolute;left:-2px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--red)}
+/* month grid */
+.mgrid-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.mgrid-hdr span{text-align:center;font-size:10px;font-weight:800;color:var(--faint);padding:7px 0}
+.mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.mday{min-height:80px;padding:7px;border-radius:10px;cursor:pointer;transition:background .12s;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+.mday:hover{background:rgba(255,255,255,.09)}
+.mday.other-month{opacity:.3}
+.mday.today{border-color:rgba(91,157,255,.55);box-shadow:0 0 12px rgba(91,157,255,.18)}
+.mday .dn{font-size:12px;font-weight:800;margin-bottom:4px;color:var(--muted)}
+.mday.today .dn{color:#86b8ff}
+.mev{font-size:9px;font-weight:700;padding:2px 5px;border-radius:5px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:rgba(91,157,255,.4);cursor:pointer;color:#fff}
+/* year grid */
+.ygrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.ymth{padding:12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--rim);cursor:pointer}
+.ymth:hover{background:rgba(255,255,255,.09)}
+.ymth .ymth-name{font-size:11.5px;font-weight:800;margin-bottom:7px;color:var(--muted)}
+.ymth .ymth-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.ymd{text-align:center;font-size:8px;font-weight:600;padding:2px 1px;border-radius:3px;color:rgba(235,240,250,.3)}
+.ymd.has-ev{background:rgba(91,157,255,.35);color:#fff}
+.ymd.today-y{background:rgba(91,157,255,.75);color:#fff;font-weight:900}
 </style></head>
 <body>
 <div class="bgmesh"></div>
@@ -1094,7 +1182,7 @@ select,textarea,.idea-txt{font-size:14px}
     <div class="balstrip glass-sm" id="balstrip"></div>
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
-      <div class="bh"><div class="t">📋 Парковка для идей</div></div>
+      <div class="bh"><div class="t">💡 Идеи</div></div>
       <button class="big-add" onclick="openIdeaSheet()"><span class="ic">✨</span>Новая идея</button>
       <div id="chaos"></div>
     </div>
@@ -1216,6 +1304,31 @@ select,textarea,.idea-txt{font-size:14px}
       <div class="hchart-legend" id="hchart-legend"></div>
     </div>
   </div>
+  <div class="page" id="page-cal">
+    <div class="cal-header glass-sm" id="cal-header">
+      <button class="cal-arr" id="cal-prev">‹</button>
+      <span id="cal-period-label"></span>
+      <button class="cal-arr" id="cal-next">›</button>
+      <div class="cal-view-btns">
+        <button class="cvt on" data-v="week">неделя</button>
+        <button class="cvt" data-v="day">день</button>
+        <button class="cvt" data-v="month">месяц</button>
+        <button class="cvt" data-v="year">год</button>
+      </div>
+    </div>
+    <div class="cal-content" id="cal-content"></div>
+    <div class="cal-pri-panel glass" id="cal-pri-panel">
+      <div class="bh"><div class="t">🎯 Приоритеты <span class="sm">важно · срочно</span></div></div>
+      <div class="matrix" id="cal-matrix" style="height:200px"></div>
+      <div class="legend" style="margin-top:8px">
+        <div class="lg"><span class="d" style="background:var(--red)"></span>сейчас</div>
+        <div class="lg"><span class="d" style="background:var(--amber)"></span>план</div>
+        <div class="lg"><span class="d" style="background:var(--blue)"></span>делег</div>
+        <div class="lg"><span class="d" style="background:var(--faint)"></span>потом</div>
+      </div>
+    </div>
+  </div>
+
   <div class="home-ind"></div>
 </div>
 
@@ -1313,13 +1426,13 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   const wrap=document.querySelector('.wrap');
   if(wrap)wrap.style.display='none'; // убираем из flex-потока — иначе создаёт пустую пропасть
   // move pages into main
-  ['plan','fin','proj','hap'].forEach(id=>{
+  ['plan','fin','proj','hap','cal'].forEach(id=>{
     const pg=document.getElementById('page-'+id);
     if(pg)main.appendChild(pg);
   });
   document.body.appendChild(main);
   // nav items
-  const NAV=[['plan','🧭','Мостик'],['fin','💰','Финансы'],['proj','📁','Проекты'],['hap','🤗','Счастье']];
+  const NAV=[['plan','🧭','Мостик'],['fin','💰','Финансы'],['proj','📁','Проекты'],['hap','🤗','Счастье'],['cal','🗓','Календарь']];
   const navEl=sidebar.querySelector('#mac-nav');
   NAV.forEach(([p,e,label])=>{
     const it=document.createElement('div');
@@ -1331,6 +1444,7 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
       NAV.forEach(([n])=>document.getElementById('page-'+n).classList.toggle('on',n===p));
       main.scrollTo(0,0);
       if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
+      if(p==='cal')requestAnimationFrame(()=>renderCalPage());
     };
     navEl.appendChild(it);
   });
@@ -1422,6 +1536,7 @@ function render(){
   renderFinance();
   renderKanban(d);
   renderHappiness(d);
+  renderCalPage();
 }
 
 function renderMatrix(open){
@@ -1449,12 +1564,11 @@ function renderMatrix(open){
 }
 
 function renderCal(){
-  const now=new Date();const dow=(now.getDay()+6)%7;
-  const mon=new Date(now);mon.setDate(now.getDate()-dow);
+  const now=new Date();
   const todayISO=localISO(now);
   const dates=new Set();
-  for(let i=0;i<7;i++){const dd=new Date(mon);dd.setDate(mon.getDate()+i);const ds=localISO(dd);if(ds>=todayISO)dates.add(ds);}
-  DATA.cards.forEach(c=>{if(c.date)dates.add(c.date);});
+  // only days with scheduled events, from today onwards
+  (DATA.cards||[]).filter(c=>c.date&&c.date>=todayISO).forEach(c=>dates.add(c.date));
   const sorted=[...dates].sort();
   let html='';
   for(const ds of sorted){
@@ -1473,7 +1587,7 @@ function renderCal(){
           (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+mbDot+'</div>';
       }).join('')+'</div>';
   }
-  document.getElementById('cal').innerHTML=html||'<div class="empty">на этой неделе пусто</div>';
+  document.getElementById('cal').innerHTML=html||'<div class="empty">нет запланированных событий</div>';
 }
 
 function renderFinance(){
@@ -2529,6 +2643,310 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
   },{passive:true});
 })();
 
+// ─── CALENDAR PAGE ───
+let _calView='week',_calOffset=0,_calCursorTimer=null;
+const SLOT_H=52,HOUR_START=7,HOUR_END=23;
+const MONTHS_FULL=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_SHORT3=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const DOW_LONG=['вс','пн','вт','ср','чт','пт','сб'];
+const DOW_WEEK=['пн','вт','ср','чт','пт','сб','вс'];
+
+function _calAnchor(){
+  const now=new Date();now.setHours(0,0,0,0);
+  if(_calView==='day'){const d=new Date(now);d.setDate(now.getDate()+_calOffset);return d;}
+  if(_calView==='week'){const dow=(now.getDay()+6)%7;const m=new Date(now);m.setDate(now.getDate()-dow+_calOffset*7);return m;}
+  if(_calView==='month'){return new Date(now.getFullYear(),now.getMonth()+_calOffset,1);}
+  return new Date(now.getFullYear()+_calOffset,0,1);
+}
+
+function renderCalPage(){
+  if(!DATA)return;
+  const pg=document.getElementById('page-cal');if(!pg||!pg.classList.contains('on'))return;
+  _calUpdateHeader();
+  _calUpdateMatrix();
+  if(_calView==='day')_calRenderDay();
+  else if(_calView==='week')_calRenderWeek();
+  else if(_calView==='month')_calRenderMonth();
+  else _calRenderYear();
+  _calScheduleCursor();
+}
+
+function _calUpdateHeader(){
+  const a=_calAnchor(),el=document.getElementById('cal-period-label');if(!el)return;
+  if(_calView==='day'){el.textContent=DOW_LONG[a.getDay()]+' '+a.getDate()+' '+MONTHS_FULL[a.getMonth()]+' '+a.getFullYear();}
+  else if(_calView==='week'){const e=new Date(a);e.setDate(a.getDate()+6);el.textContent=a.getDate()+' '+MONTHS_SHORT3[a.getMonth()]+' – '+e.getDate()+' '+MONTHS_SHORT3[e.getMonth()]+' '+e.getFullYear();}
+  else if(_calView==='month'){el.textContent=MONTHS_FULL[a.getMonth()]+' '+a.getFullYear();}
+  else el.textContent=a.getFullYear();
+}
+
+function _calUpdateMatrix(){
+  const m=document.getElementById('cal-matrix');if(!m)return;
+  const W=m.clientWidth||250,H=200,PAD=22;
+  const open=(DATA.chaos||[]).filter(c=>!c.done);
+  let html='<div class="axis-v"></div><div class="axis-h"></div>'+
+    '<div class="qc q1" style="font-size:8px"><span class="em" style="font-size:10px">🔴</span>сейчас</div>'+
+    '<div class="qc q2" style="font-size:8px"><span class="em" style="font-size:10px">🟡</span>план</div>'+
+    '<div class="qc q3" style="font-size:8px"><span class="em" style="font-size:10px">🔵</span>делег</div>'+
+    '<div class="qc q4" style="font-size:8px"><span class="em" style="font-size:10px">⚪</span>потом</div>';
+  const rated=open.filter(c=>c.importance||c.urgency);
+  rated.forEach(c=>{
+    const x=PAD+(c.urgency/10)*(W-2*PAD);const y=H-PAD-(c.importance/10)*(H-2*PAD);
+    const sz=9+Math.round((Math.max(c.importance,c.urgency)/10)*7);
+    html+='<div class="dot '+quadClass(c.importance,c.urgency)+'" style="left:'+x+'px;top:'+y+'px;width:'+sz+'px;height:'+sz+'px" title="'+esc(c.text)+'" onclick=\'openDotMenu(event,'+c.id+')\' ></div>';
+  });
+  if(!rated.length)html+='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--faint)">оцени задачи на Мостике</div>';
+  m.style.height=H+'px';m.innerHTML=html;
+}
+
+function _evForDate(ds){return (DATA.cards||[]).filter(e=>e.date===ds);}
+
+function _calTGrid(cols){
+  const now=new Date();const todayISO=localISO(now);
+  const curH=now.getHours(),curM=now.getMinutes();
+  const totalH=(HOUR_END-HOUR_START)*SLOT_H;
+  const cursTop=(curH-HOUR_START)*SLOT_H+curM/60*SLOT_H;
+  // header row
+  let html='<div class="tgrid"><div class="tgrid-col-hdr"><div class="tgrid-ruler-hdr"></div>';
+  cols.forEach(col=>{
+    const evs=_evForDate(col.ds);
+    html+='<div class="tgrid-col-hdr-cell'+(col.ds===todayISO?' today':'')+(evs.length&&col.ds!==todayISO?' has-ev':'')+'">'+
+      col.label+'</div>';
+  });
+  html+='</div>';
+  // body
+  html+='<div class="tgrid-cols"><div class="tgrid-ruler">';
+  for(let h=HOUR_START;h<HOUR_END;h++){
+    html+='<div class="tslot-lbl">'+String(h).padStart(2,'0')+'</div>';
+  }
+  html+='</div><div class="tgrid-col-wrap">';
+  cols.forEach(col=>{
+    const evs=_evForDate(col.ds);
+    const isToday=col.ds===todayISO;
+    html+='<div class="tcol" onclick="calAddEvent(event,\''+col.ds+'\')" data-ds="'+col.ds+'">';
+    for(let h=HOUR_START;h<HOUR_END;h++){html+='<div class="tslot"></div>';}
+    // timed events
+    evs.forEach(ev=>{
+      if(!ev.time)return;
+      const [eh,em]=(ev.time||'00:00').split(':').map(Number);
+      if(isNaN(eh))return;
+      const top=(eh-HOUR_START)*SLOT_H+(em||0)/60*SLOT_H;
+      if(top<0||top>totalH)return;
+      const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
+      html+='<div class="t-event" style="top:'+top+'px" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
+        +'<span style="font-size:9px;opacity:.7">'+ev.time+'</span> '+esc(ev.text)+'</div>';
+    });
+    // all-day events (no time)
+    const allDay=evs.filter(e=>!e.time);
+    let adTop=0;
+    allDay.forEach(ev=>{
+      const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
+      html+='<div class="t-event" style="top:'+adTop+'px;position:absolute;left:3px;right:3px;min-height:22px;border-radius:6px" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
+        +esc(ev.text)+'</div>';
+      adTop+=26;
+    });
+    // time cursor
+    if(isToday&&cursTop>=0&&cursTop<totalH){
+      html+='<div class="t-cursor" style="top:'+cursTop+'px"></div>';
+    }
+    html+='</div>';
+  });
+  html+='</div></div></div>';
+  return html;
+}
+
+function _calRenderDay(){
+  const a=_calAnchor();const ds=localISO(a);
+  const todayISO=localISO(new Date());
+  document.getElementById('cal-content').innerHTML=
+    _calTGrid([{ds,label:DOW_LONG[a.getDay()]+' '+a.getDate()}])+
+    '<button class="big-add" style="margin-top:10px" onclick="calAddEvent(null,\''+ds+'\')">'
+    +'<span class="ic">＋</span>Добавить событие</button>';
+}
+
+function _calRenderWeek(){
+  const a=_calAnchor();const todayISO=localISO(new Date());
+  const cols=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(a);d.setDate(a.getDate()+i);
+    const ds=localISO(d);
+    cols.push({ds,label:DOW_WEEK[(d.getDay()+6)%7]+' '+d.getDate(),isToday:ds===todayISO});
+  }
+  document.getElementById('cal-content').innerHTML=_calTGrid(cols);
+}
+
+function _calRenderMonth(){
+  const a=_calAnchor();const todayISO=localISO(new Date());
+  const year=a.getFullYear(),month=a.getMonth();
+  const firstDay=new Date(year,month,1);
+  const lastDay=new Date(year,month+1,0);
+  const startDow=(firstDay.getDay()+6)%7;
+  let html='<div class="mgrid-hdr">'+DOW_WEEK.map(d=>'<span>'+d+'</span>').join('')+'</div>';
+  html+='<div class="mgrid">';
+  for(let i=0;i<startDow;i++){
+    const d=new Date(year,month,1-startDow+i);const ds=localISO(d);
+    const evs=_evForDate(ds);
+    html+='<div class="mday other-month" onclick="calAddEvent(null,\''+ds+'\')">'
+      +'<div class="dn">'+d.getDate()+'</div>'
+      +evs.slice(0,2).map(e=>'<div class="mev">'+esc(e.text)+'</div>').join('')+'</div>';
+  }
+  for(let d=1;d<=lastDay.getDate();d++){
+    const dt=new Date(year,month,d);const ds=localISO(dt);
+    const isToday=ds===todayISO;const evs=_evForDate(ds);
+    html+='<div class="mday'+(isToday?' today':'')+'" onclick="calAddEvent(null,\''+ds+'\')">';
+    html+='<div class="dn">'+d+'</div>';
+    evs.slice(0,3).forEach(ev=>{
+      const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
+      html+='<div class="mev" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'+esc(ev.text)+'</div>';
+    });
+    if(evs.length>3)html+='<div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:1px">+'+( evs.length-3)+'</div>';
+    html+='</div>';
+  }
+  const endDow=(lastDay.getDay()+6)%7;
+  for(let i=1;endDow<6&&i<=(6-endDow);i++){
+    const dt=new Date(year,month+1,i);const ds=localISO(dt);
+    const evs=_evForDate(ds);
+    html+='<div class="mday other-month" onclick="calAddEvent(null,\''+ds+'\')">'
+      +'<div class="dn">'+dt.getDate()+'</div>'
+      +evs.slice(0,2).map(e=>'<div class="mev">'+esc(e.text)+'</div>').join('')+'</div>';
+  }
+  html+='</div>';
+  document.getElementById('cal-content').innerHTML=html;
+}
+
+function _calRenderYear(){
+  const a=_calAnchor();const year=a.getFullYear();const todayISO=localISO(new Date());
+  let html='<div class="ygrid">';
+  for(let m=0;m<12;m++){
+    const firstDay=new Date(year,m,1);const lastDay=new Date(year,m+1,0);
+    const startDow=(firstDay.getDay()+6)%7;
+    html+='<div class="ymth" onclick="_calGoMonth('+year+','+m+')">';
+    html+='<div class="ymth-name">'+MONTHS_FULL[m]+'</div><div class="ymth-grid">';
+    DOW_WEEK.forEach(d=>html+='<div style="text-align:center;font-size:7px;color:var(--faint);padding:1px">'+d[0]+'</div>');
+    for(let i=0;i<startDow;i++)html+='<div class="ymd"></div>';
+    for(let d=1;d<=lastDay.getDate();d++){
+      const ds=localISO(new Date(year,m,d));
+      const isToday=ds===todayISO;const evs=_evForDate(ds);
+      html+='<div class="ymd'+(isToday?' today-y':evs.length?' has-ev':'')+'" onclick="event.stopPropagation();_calGoDay('+year+','+m+','+d+')">'+d+'</div>';
+    }
+    html+='</div></div>';
+  }
+  html+='</div>';
+  document.getElementById('cal-content').innerHTML=html;
+}
+
+function _calGoMonth(year,month){
+  const now=new Date();_calView='month';
+  _calOffset=(year-now.getFullYear())*12+(month-now.getMonth());
+  document.querySelectorAll('.cvt').forEach(b=>b.classList.toggle('on',b.dataset.v==='month'));
+  renderCalPage();
+}
+function _calGoDay(year,month,day){
+  const now=new Date();now.setHours(0,0,0,0);_calView='day';
+  const target=new Date(year,month,day);
+  _calOffset=Math.round((target-now)/86400000);
+  document.querySelectorAll('.cvt').forEach(b=>b.classList.toggle('on',b.dataset.v==='day'));
+  renderCalPage();
+}
+
+function _calScheduleCursor(){
+  if(_calCursorTimer)clearTimeout(_calCursorTimer);
+  if(_calView==='day'||_calView==='week'){
+    const now=new Date();const ms=60000-now.getSeconds()*1000-now.getMilliseconds();
+    _calCursorTimer=setTimeout(()=>renderCalPage(),ms);
+  }
+}
+
+// wire up prev/next and view toggle
+function _calWireControls(){
+  const prev=document.getElementById('cal-prev');
+  const next=document.getElementById('cal-next');
+  if(prev)prev.onclick=()=>{_calOffset--;renderCalPage();};
+  if(next)next.onclick=()=>{_calOffset++;renderCalPage();};
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest('.cvt');
+    if(!btn)return;
+    if(!btn.closest('.cal-view-btns'))return;
+    document.querySelectorAll('.cvt').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    _calView=btn.dataset.v;_calOffset=0;
+    renderCalPage();
+  });
+}
+_calWireControls();
+
+function calAddEvent(e,ds){
+  if(e){e.stopPropagation();}
+  const now=new Date();
+  let inferredTime='';
+  if(e&&(_calView==='day'||_calView==='week')){
+    const col=e.target.closest('.tcol');
+    if(col){
+      const rect=col.getBoundingClientRect();
+      const y=e.clientY-rect.top;
+      const h=Math.floor(y/SLOT_H)+HOUR_START;
+      const mRaw=Math.round(((y%SLOT_H)/SLOT_H)*2)*30;
+      const m=mRaw>=60?0:mRaw;const hFinal=mRaw>=60?Math.min(h+1,HOUR_END-1):h;
+      if(hFinal>=HOUR_START&&hFinal<HOUR_END)inferredTime=String(hFinal).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    }
+  }
+  _openCalEventSheet(ds||localISO(now),inferredTime,null);
+}
+
+function _openCalEventSheet(ds,defTime,existing){
+  const projs=DATA.projects||[];
+  const projOpts='<option value="">— без проекта —</option>'
+    +projs.map(p=>'<option value="'+p.id+'"'+(existing&&existing.project_id==p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+  const imp=existing?existing.importance||0:0;
+  const urg=existing?existing.urgency||0:0;
+  const {sheet}=_openSheet(
+    '<div class="grab"></div>'+
+    '<div class="stitle">'+(existing?'Редактировать событие':'Новое событие')+'</div>'+
+    '<input id="ce-text" class="ui-input" placeholder="Название события" value="'+(existing?esc(existing.text):'')+'">'+
+    '<div style="display:flex;gap:8px;margin-top:10px">'+
+      '<input id="ce-date" class="ui-input" type="date" value="'+ds+'" style="flex:1;margin:0">'+
+      '<input id="ce-time" class="ui-input" type="time" value="'+(existing&&existing.time?existing.time:(defTime||''))+'" style="flex:1;margin:0">'+
+    '</div>'+
+    '<div class="sh-proj-row" style="margin-top:10px"><span style="font-size:12px;color:var(--muted);font-weight:700;flex-shrink:0">📁 Проект:</span>'+
+      '<select id="ce-proj" style="flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:10px;color:#fff;font-size:13px;padding:6px 10px">'+projOpts+'</select></div>'+
+    '<div class="slider-row" style="margin-top:14px"><div class="sl-top"><span>🔴 Важность</span><span class="val" id="ce-imp-val">'+imp+' / 10</span></div>'+
+      '<input type="range" class="imp" id="ce-imp" min="0" max="10" value="'+imp+'"></div>'+
+    '<div class="slider-row"><div class="sl-top"><span>⚡ Срочность</span><span class="val" id="ce-urg-val">'+urg+' / 10</span></div>'+
+      '<input type="range" class="urg" id="ce-urg" min="0" max="10" value="'+urg+'"></div>'+
+    '<div class="sh-actions" style="margin-top:10px">'+
+      (existing?'<button class="sh-btn danger" id="ce-del">🗑 Удалить</button>':'')+
+      '<button class="sh-btn prime" id="ce-save">💾 Сохранить</button>'+
+    '</div>'
+  );
+  const impEl=sheet.querySelector('#ce-imp'),urgEl=sheet.querySelector('#ce-urg');
+  if(impEl)impEl.oninput=()=>sheet.querySelector('#ce-imp-val').textContent=impEl.value+' / 10';
+  if(urgEl)urgEl.oninput=()=>sheet.querySelector('#ce-urg-val').textContent=urgEl.value+' / 10';
+  setTimeout(()=>{try{sheet.querySelector('#ce-text').focus();}catch(_){}},140);
+  sheet.querySelector('#ce-save').onclick=()=>{
+    const text=(sheet.querySelector('#ce-text').value||'').trim();
+    if(!text){sheet.querySelector('#ce-text').focus();return;}
+    const date=sheet.querySelector('#ce-date').value;
+    const time=sheet.querySelector('#ce-time').value;
+    const projVal=sheet.querySelector('#ce-proj').value;
+    const importance=+sheet.querySelector('#ce-imp').value;
+    const urgency=+sheet.querySelector('#ce-urg').value;
+    const projId=projVal?parseInt(projVal):null;
+    closeSheet();
+    if(existing){
+      mutate(()=>{const c=_card(existing.id);if(c){c.text=text;c.date=date;c.time=time;c.importance=importance;c.urgency=urgency;c.project_id=projId;}},
+        '/api/event_update',{id:existing.id,text,date,time,importance,urgency,project_id:projId},()=>renderCalPage());
+    } else {
+      mutate(()=>{(DATA.cards=DATA.cards||[]).push({id:_tmpId(),kind:'event',text,date,time,importance,urgency,project_id:projId,chaos_id:null,morning_brief:0});},
+        '/api/event_add',{text,date,time,importance,urgency,project_id:projId},()=>renderCalPage());
+    }
+  };
+  const delBtn=sheet.querySelector('#ce-del');
+  if(delBtn)delBtn.onclick=async()=>{
+    if(!(await uiConfirm('Удалить событие?',{danger:true,ok:'Удалить'})))return;
+    closeSheet();
+    mutate(()=>{DATA.cards=(DATA.cards||[]).filter(x=>x.id!==existing.id);},'/api/event_delete',{id:existing.id},()=>renderCalPage());
+  };
+}
+
 load();
 // НЕТ фонового авто-опроса, который перерисовывал бы весь экран. Раньше именно он через
 // несколько секунд подменял свежую правку устаревшим снимком («появилось → исчезло»).
@@ -2710,6 +3128,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/chaos_add": api_chaos_add, "/api/chaos_rename": api_chaos_rename,
             "/api/chaos_reorder": api_chaos_reorder,
             "/api/event_delete": api_event_delete, "/api/event_update": api_event_update,
+            "/api/event_add": api_event_add,
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
         }
