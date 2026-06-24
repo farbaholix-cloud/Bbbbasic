@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.3 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.4 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1311,6 +1311,7 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   // build main wrapper
   const main=document.createElement('div');main.id='mac-main';
   const wrap=document.querySelector('.wrap');
+  if(wrap)wrap.style.display='none'; // убираем из flex-потока — иначе создаёт пустую пропасть
   // move pages into main
   ['plan','fin','proj','hap'].forEach(id=>{
     const pg=document.getElementById('page-'+id);
