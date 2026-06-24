@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.6 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.7 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1081,7 +1081,7 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
   color:#fff;border-color:rgba(91,157,255,.22);box-shadow:0 2px 8px rgba(91,157,255,.12)}
 .mac-nav-item .e{font-size:17px;line-height:1}
 #mac-sidebar .sb-ver-bottom{margin-top:auto;padding-top:16px;font-size:10px;color:var(--faint);font-weight:600;text-align:center;padding:16px 8px 0}
-#mac-main{margin-left:210px;padding:28px 36px;min-height:100vh;flex:1;overflow-y:auto}
+#mac-main{margin-left:210px;padding:28px 36px;min-height:100vh;flex:1;overflow-y:auto;overflow-x:hidden}
 .page{display:none;animation:fadeIn .2s ease}
 .page.on{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -1128,11 +1128,12 @@ select,textarea,.idea-txt{font-size:14px}
 .kren:hover{background:rgba(255,255,255,.18);transform:scale(1.06);transition:all .12s}
 .kadd:hover{background:rgba(255,255,255,.09);transition:background .12s}
 /* Mac kanban: Trello-style fixed columns + horizontal scroll */
-.kanban-wrap{overflow-x:auto;padding-bottom:24px;-webkit-overflow-scrolling:touch}
-.kanban{display:flex!important;gap:14px!important;grid-template-columns:unset!important;
-  overflow-x:visible!important;width:max-content!important;min-width:100%;
-  flex-wrap:nowrap!important;align-items:start;padding:4px 0 8px!important}
-.kol{min-width:272px!important;max-width:272px!important;flex-shrink:0!important;border-radius:18px;padding:14px}
+#page-proj{overflow-x:hidden}
+#page-proj .kanban-wrap{overflow-x:auto;overflow-y:visible;padding-bottom:24px;
+  -webkit-overflow-scrolling:touch;margin:0 -36px;padding-left:36px;padding-right:36px}
+#kanban{display:flex;flex-direction:row;flex-wrap:nowrap;gap:14px;align-items:start;
+  padding:4px 0 8px;width:max-content;min-width:calc(100% - 72px)}
+.kol{min-width:272px;max-width:272px;flex-shrink:0;border-radius:18px;padding:14px}
 .kol.drag-over{box-shadow:0 0 0 2px #5b9dff,0 0 20px rgba(91,157,255,.25)!important;border-color:#5b9dff!important;transition:none!important}
 .kcard{padding:13px 46px 13px 14px;border-radius:14px;cursor:grab;transition:transform .12s,box-shadow .12s}
 .kcard:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.35)}
