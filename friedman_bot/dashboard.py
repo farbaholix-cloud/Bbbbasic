@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · kcard-archive"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.0"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
