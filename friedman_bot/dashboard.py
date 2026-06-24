@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · kcol-delete"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · kcard-archive"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -335,6 +335,8 @@ def get_data():
             "SELECT * FROM kanban_columns WHERE archived=0 ORDER BY position").fetchall()]
         kanban_cards = [dict(r) for r in conn.execute(
             "SELECT * FROM kanban_cards WHERE archived=0 ORDER BY column_id,position").fetchall()]
+        kanban_archived = [dict(r) for r in conn.execute(
+            "SELECT * FROM kanban_cards WHERE archived=1 ORDER BY archived_at DESC, id DESC").fetchall()]
         # КОРЕНЬ СНЕП-БЭКА ползунков счастья: logged_at = CURRENT_TIMESTAMP имеет точность
         # до секунды. При быстром изменении нескольких узлов (несколько INSERT в одну
         # секунду) «ORDER BY logged_at DESC LIMIT 1» возвращал ПРОИЗВОЛЬНУЮ строку из этой
@@ -351,6 +353,7 @@ def get_data():
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
             "kanban_cols": kanban_cols, "kanban_cards": kanban_cards,
+            "kanban_archived": kanban_archived,
             "happiness": happiness, "happiness_history": happiness_history,
             "wisdom": today_wisdom(), "rev": rev}
 
@@ -514,6 +517,21 @@ def api_kcard_check(payload):
 def api_kcard_archive(payload):
     with db() as conn:
         conn.execute("UPDATE kanban_cards SET archived=1, archived_at=datetime('now') WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+def api_kcard_unarchive(payload):
+    with db() as conn:
+        # если колонка карточки была удалена — вернём в первую доступную
+        row = conn.execute("SELECT column_id FROM kanban_cards WHERE id=?", (payload["id"],)).fetchone()
+        col_id = row["column_id"] if row else None
+        exists = col_id is not None and conn.execute(
+            "SELECT 1 FROM kanban_columns WHERE id=? AND archived=0", (col_id,)).fetchone()
+        if not exists:
+            first = conn.execute(
+                "SELECT id FROM kanban_columns WHERE archived=0 ORDER BY position LIMIT 1").fetchone()
+            if first:
+                conn.execute("UPDATE kanban_cards SET column_id=? WHERE id=?", (first["id"], payload["id"]))
+        conn.execute("UPDATE kanban_cards SET archived=0, archived_at=NULL WHERE id=?", (payload["id"],))
     return {"ok": True}
 
 def api_kcard_delete(payload):
@@ -1871,6 +1889,43 @@ function renderKanban(d){
       <button class="kadd" onclick="kaddCard(${col.id},'${esc(col.name)}')">＋ карточка</button>
     </div>`;
   }).join('');
+  renderKArchive(d);
+}
+
+function renderKArchive(d){
+  const arch=d.kanban_archived||[];
+  const cnt=document.getElementById('arch-cnt');
+  const box=document.getElementById('arch-cards');
+  if(!box)return;
+  if(cnt)cnt.textContent=arch.length;
+  if(!arch.length){box.innerHTML='<div style="opacity:.4;font-size:13px;padding:10px 2px">архив пуст</div>';return;}
+  const colName=id=>{const c=(d.kanban_cols||[]).find(x=>x.id===id);return c?c.name:'';};
+  box.innerHTML=arch.map(c=>`<div class="karch-row" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:rgba(255,255,255,.05);border:1px solid var(--rim);border-radius:14px;margin-bottom:8px">
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.title)}</div>
+      ${colName(c.column_id)?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(colName(c.column_id))}</div>`:''}
+    </div>
+    <button class="kren" style="position:static;flex-shrink:0" title="Вернуть из архива" onclick="kunarchive(${c.id})">↩️</button>
+    <button class="kren" style="position:static;flex-shrink:0" title="Удалить навсегда" onclick="kdelArch(${c.id})">🗑</button>
+  </div>`).join('');
+}
+
+function kunarchive(id){
+  mutate(()=>{
+    const c=(DATA.kanban_archived||[]).find(x=>x.id===id);
+    if(c){
+      DATA.kanban_archived=DATA.kanban_archived.filter(x=>x.id!==id);
+      const cols=DATA.kanban_cols||[];
+      const exists=cols.some(x=>x.id===c.column_id);
+      if(!exists&&cols.length)c.column_id=cols[0].id;
+      c.archived=0;
+      (DATA.kanban_cards=DATA.kanban_cards||[]).push(c);
+    }
+  },'/api/kcard_unarchive',{id},()=>renderKanban(DATA));
+}
+async function kdelArch(id){
+  if(!(await uiConfirm('Удалить карточку навсегда?',{danger:true,ok:'Удалить'})))return;
+  mutate(()=>{DATA.kanban_archived=(DATA.kanban_archived||[]).filter(x=>x.id!==id);},'/api/kcard_delete',{id},()=>renderKanban(DATA));
 }
 
 function kcolMenu(e,colId){
@@ -1968,7 +2023,8 @@ function kcolMenu(e,colId){
 }
 
 function kcheck(e,id,val){e.stopPropagation();mutate(()=>{const c=_kcard(id);if(c)c.checked=val;},'/api/kcard_check',{id,checked:val},()=>renderKanban(DATA));}
-async function karchive(e,id){e.stopPropagation();if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;mutate(()=>{DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);},'/api/kcard_archive',{id},()=>renderKanban(DATA));}
+function _karchLocal(id){const c=_kcard(id);DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);if(c){c.archived=1;(DATA.kanban_archived=DATA.kanban_archived||[]).unshift(c);}}
+async function karchive(e,id){e.stopPropagation();if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;mutate(()=>_karchLocal(id),'/api/kcard_archive',{id},()=>renderKanban(DATA));}
 async function krename(e,id,btn){
   e.stopPropagation();
   const title=btn.closest('.kcard').querySelector('.kt').textContent;
@@ -1997,7 +2053,7 @@ function kcardClick(e,id,colId,el){
   sheet.querySelector('#karch-btn').onclick=async()=>{
     if(!(await uiConfirm('Отправить в архив?',{ok:'В архив'})))return;
     closeSheet();
-    mutate(()=>{DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);},'/api/kcard_archive',{id},()=>renderKanban(DATA));
+    mutate(()=>_karchLocal(id),'/api/kcard_archive',{id},()=>renderKanban(DATA));
   };
   sheet.querySelector('#kdel-btn').onclick=async()=>{
     if(!(await uiConfirm('Удалить карточку навсегда?',{danger:true,ok:'Удалить'})))return;
@@ -2601,7 +2657,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,
             "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
             "/api/kcard_add": api_kcard_add, "/api/kcard_check": api_kcard_check,
-            "/api/kcard_archive": api_kcard_archive, "/api/kcard_delete": api_kcard_delete,
+            "/api/kcard_archive": api_kcard_archive, "/api/kcard_unarchive": api_kcard_unarchive,
+            "/api/kcard_delete": api_kcard_delete,
             "/api/kcard_move": api_kcard_move,
             "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add,
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
