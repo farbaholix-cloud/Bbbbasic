@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · drum-fix"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · idea-top"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -724,7 +724,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .dot-menu .dm-btn.danger{color:#ff8b98;background:rgba(255,107,125,.1);border-color:rgba(255,107,125,.25)}
 .dot-menu .dm-close{color:var(--faint);font-size:13px;font-weight:600;text-align:center;padding:6px 0;cursor:pointer}
 .dot-menu .grab{margin-bottom:14px}
-.big-add{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:11px;padding:16px;border:none;border-radius:18px;
+.big-add{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin:2px 0 12px;padding:20px 16px;border:none;border-radius:18px;
   background:linear-gradient(135deg,#5b9dff,#b18bff);color:#fff;font-size:15px;font-weight:800;letter-spacing:.3px;cursor:pointer;
   box-shadow:0 8px 24px rgba(91,157,255,.34),inset 0 1px 0 rgba(255,255,255,.45);transition:transform .12s}
 .big-add .ic{font-size:18px}
@@ -979,8 +979,8 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
       <div class="bh"><div class="t">📋 Парковка для идей</div></div>
-      <div id="chaos"></div>
       <button class="big-add" onclick="openIdeaSheet()"><span class="ic">✨</span>Новая идея</button>
+      <div id="chaos"></div>
     </div>
     <div class="block glass">
       <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
