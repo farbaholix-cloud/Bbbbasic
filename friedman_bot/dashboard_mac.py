@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.5 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.6 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
