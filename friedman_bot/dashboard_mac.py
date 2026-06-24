@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.2 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.3 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1020,8 +1020,27 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
 .page{display:none;animation:fadeIn .2s ease}
 .page.on{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-#page-plan.on{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+
+/* ─── Мостик: 3 колонки ─── */
+#page-plan.on{display:grid;grid-template-columns:1fr 1.15fr 1.15fr;gap:18px;align-items:start}
 #page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
+/* порядок блоков: Парковка(3) | Визуализация(4) + Матрица(5) col2 | Прошивка(6) col3 */
+#page-plan.on>.block:nth-of-type(1){grid-column:1;grid-row:3}
+#page-plan.on>.block:nth-of-type(2){grid-column:2;grid-row:3}
+#page-plan.on>.block:nth-of-type(3){grid-column:2;grid-row:4}
+#page-plan.on>.block:nth-of-type(4){grid-column:3;grid-row:3/5}
+
+/* ─── Финансы: 2 колонки ─── */
+#page-fin.on{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+#page-fin.on>.fin-cards,#page-fin.on>.daysum{grid-column:1/-1}
+#page-fin.on>.block:nth-of-type(1),
+#page-fin.on>.block:nth-of-type(2),
+#page-fin.on>.block:nth-of-type(3){grid-column:2}
+#page-fin.on>.fin-add,#page-fin.on>.fin-log{grid-column:1;grid-row:span 1}
+
+/* ─── Счастье: 2 колонки ─── */
+#page-hap.on{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:start}
+.hdyn{grid-column:2}
 .block{padding:20px;margin-bottom:0;border-radius:20px}
 .wisdom{margin-bottom:0;font-size:14px}
 .balstrip{margin-bottom:0}
@@ -2523,165 +2542,55 @@ setInterval(()=>{if(!document.hidden)fetch('/api/data?_t='+Date.now(),{method:'P
 
 LOCK_PAGE = r"""<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>•</title>
 <style>
-html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
-#dot{position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;
-  box-shadow:0 0 22px 6px rgba(255,255,255,.45);animation:pulse 2.6s ease-in-out infinite;z-index:1}
-@keyframes pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.5);opacity:1}}
-#ink{position:fixed;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;transition:opacity .6s}
-#hint{position:fixed;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom));text-align:center;
-  color:rgba(255,255,255,.18);font-family:-apple-system,sans-serif;font-size:13px;font-weight:500;
-  letter-spacing:.5px;z-index:1;transition:opacity 1s;pointer-events:none}
-#surface{position:fixed;inset:0;z-index:4;touch-action:none;background:transparent}
-#flash{position:fixed;inset:0;background:#fff;opacity:0;z-index:5;pointer-events:none;transition:opacity .45s}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#050610;display:flex;align-items:center;justify-content:center;
+  font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;overflow:hidden}
+.bg{position:fixed;inset:-20%;z-index:0;
+  background:radial-gradient(46% 32% at 16% 6%,rgba(91,157,255,.35),transparent 60%),
+             radial-gradient(44% 30% at 88% 4%,rgba(177,139,255,.3),transparent 60%),
+             linear-gradient(165deg,#0e1126,#050610 65%)}
+#wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:24px}
+#logo{width:60px;height:60px;border-radius:18px;
+  background:linear-gradient(135deg,rgba(91,157,255,.9),rgba(177,139,255,.9));
+  display:flex;align-items:center;justify-content:center;font-size:28px;
+  box-shadow:0 12px 32px rgba(91,157,255,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+#inp{width:220px;padding:15px 20px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:16px;
+  color:#fff;font-size:28px;text-align:center;letter-spacing:10px;
+  outline:none;caret-color:transparent;transition:border-color .2s,box-shadow .2s}
+#inp:focus{border-color:rgba(91,157,255,.55);box-shadow:0 0 0 3px rgba(91,157,255,.16)}
+#err{height:18px;color:rgba(255,107,125,.85);font-size:13px;font-weight:600;text-align:center}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;z-index:9;pointer-events:none;transition:opacity .3s}
 </style></head>
 <body>
-<div id="dot"></div>
-<svg id="ink" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <!-- мягкое облако распыла (overspray) -->
-    <filter id="mist" x="-130%" y="-130%" width="360%" height="360%"><feGaussianBlur stdDeviation="6.5"/></filter>
-    <!-- лёгкое тело струи -->
-    <filter id="body" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="3"/></filter>
-    <!-- плотные края — почти резкие -->
-    <filter id="edge" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1"/></filter>
-  </defs>
-  <g id="mistL"></g>
-  <g id="bodyL"></g>
-  <g id="edgeL"></g>
-  <g id="dripL"></g>
-</svg>
-<div id="hint">обведи точку</div>
-<div id="surface"></div>
+<div class="bg"></div>
+<div id="wrap">
+  <div id="logo">⚓</div>
+  <input type="password" id="inp" autocomplete="off" autofocus maxlength="20">
+  <div id="err"></div>
+</div>
 <div id="flash"></div>
 <script>
-const NS='http://www.w3.org/2000/svg';
-const hint=document.getElementById('hint'),ink=document.getElementById('ink'),
-      mistL=document.getElementById('mistL'),bodyL=document.getElementById('bodyL'),
-      edgeL=document.getElementById('edgeL'),dripL=document.getElementById('dripL'),
-      surface=document.getElementById('surface');
-// матовый красный баллон — без неона
-const R='208,22,16', RD='150,10,8', RH='234,52,38';
-const rgba=(rgb,a)=>`rgba(${rgb},${a})`;
-let drawing=false,pts=[],busy=false,lastXY=null,lastT=0,drips=[],raf=0;
-
-function pt(e){const t=(e.touches&&e.touches[0])?e.touches[0]:e;return[t.clientX,t.clientY];}
-function circ(layer,x,y,r,fill,filter){
-  const c=document.createElementNS(NS,'circle');
-  c.setAttribute('cx',x.toFixed(1));c.setAttribute('cy',y.toFixed(1));
-  c.setAttribute('r',r.toFixed(1));c.setAttribute('fill',fill);
-  if(filter)c.setAttribute('filter',filter);
-  layer.appendChild(c);return c;
-}
-
-// ── подтёки: капля сползает вниз с ускорением, оставляя тонкий след ──
-function spawnDrip(x,y,w){
-  if(drips.filter(d=>!d.done).length>16)return;
-  const ln=document.createElementNS(NS,'line');
-  ln.setAttribute('x1',x.toFixed(1));ln.setAttribute('y1',y.toFixed(1));
-  ln.setAttribute('x2',x.toFixed(1));ln.setAttribute('y2',y.toFixed(1));
-  ln.setAttribute('stroke',rgba(R,0.8));ln.setAttribute('stroke-width',Math.max(1.6,w*0.42).toFixed(1));
-  ln.setAttribute('stroke-linecap','round');
-  dripL.appendChild(ln);
-  const hd=circ(dripL,x,y,Math.max(1.8,w*0.55),rgba(R,0.9),'url(#edge)');
-  drips.push({x,y0:y,y,vy:0.2+Math.random()*0.3,
-              maxLen:18+Math.random()*150,ln,hd,done:false});
-  if(!raf)raf=requestAnimationFrame(tick);
-}
-function tick(){
-  let alive=false;
-  for(const d of drips){
-    if(d.done)continue;
-    d.vy=Math.min(d.vy+0.05,2.6);d.y+=d.vy;
-    if(d.y-d.y0>=d.maxLen){d.y=d.y0+d.maxLen;d.done=true;}else alive=true;
-    d.ln.setAttribute('y2',d.y.toFixed(1));d.hd.setAttribute('cy',d.y.toFixed(1));
-  }
-  raf=alive?requestAnimationFrame(tick):0;
-}
-
-// ── один «пшик» фэткэпа вдоль струи ──
-function spray(x,y){
-  const now=performance.now();
-  let hw=12,speed=0,nx=0,ny=1;
-  if(lastXY){
-    const dx=x-lastXY[0],dy=y-lastXY[1],dist=Math.hypot(dx,dy)||1;
-    speed=dist/Math.max(6,now-lastT);                 // px/ms
-    nx=-dy/dist;ny=dx/dist;                            // нормаль к движению
-  }
-  hw=Math.max(4,Math.min(15,14-speed*1.7));            // медленно→широко, быстро→узко
-  // 1) overspray-туман вокруг струи (редко, чтоб не зашумлять)
-  if(Math.random()<0.55)
-    circ(mistL,x,y,hw*2.4,rgba(RD,(0.05+Math.random()*0.05).toFixed(3)),'url(#mist)');
-  // 2) пустоватое тело по центру — еле заметное
-  circ(bodyL,x,y,hw*0.9,rgba(R,(0.07+Math.random()*0.05).toFixed(3)),'url(#body)');
-  // 3) ПЛОТНЫЕ КРАЯ струи — две «рельсы» по нормали
-  for(const s of [hw,-hw]){
-    circ(edgeL,x+nx*s,y+ny*s,2.4+Math.random()*1.3,
-         rgba(Math.random()<0.3?RH:R,(0.72+Math.random()*0.2).toFixed(2)),'url(#edge)');
-  }
-  // 4) зернистость распыла в центре — редкие сухие точки
-  const grains=1+(Math.random()*2|0);
-  for(let i=0;i<grains;i++){
-    const t=(Math.random()*2-1)*hw*0.75, a=(Math.random()*2-1)*hw*0.4;
-    circ(edgeL,x+nx*t-ny*a*0,y+ny*t+nx*a,0.4+Math.random()*1.2,
-         rgba(R,(0.15+Math.random()*0.25).toFixed(2)),null);
-  }
-  // 5) подтёк — где ведёшь медленно и широко, краска копится и течёт
-  if(speed<0.45 && Math.random()<0.08*(hw/15))
-    spawnDrip(x+(Math.random()*2-1)*hw*0.4, y+hw*0.6, hw);
-  lastXY=[x,y];lastT=now;
-}
-
-function splat(x,y){           // первичный «плевок» при нажатии клапана
-  for(let i=0;i<9;i++){
-    const ang=Math.random()*Math.PI*2,d=2+Math.random()*16,sr=0.5+Math.random()*2.6;
-    circ(edgeL,x+Math.cos(ang)*d,y+Math.sin(ang)*d,sr,
-         rgba(R,(0.2+Math.random()*0.35).toFixed(2)),null);
-  }
-}
-function clearAll(){mistL.innerHTML='';bodyL.innerHTML='';edgeL.innerHTML='';dripL.innerHTML='';
-  drips=[];if(raf){cancelAnimationFrame(raf);raf=0;}}
-
-function start(e){if(busy)return;e.preventDefault();
-  drawing=true;ink.style.opacity=1;clearAll();pts=[];lastXY=null;lastT=performance.now();
-  const p=pt(e);pts.push(p);splat(p[0],p[1]);spray(p[0],p[1]);hint.style.opacity=0;}
-function move(e){if(!drawing||busy)return;e.preventDefault();
-  const p=pt(e),lp=pts[pts.length-1];
-  if(lp&&Math.hypot(p[0]-lp[0],p[1]-lp[1])<2.5)return;
-  pts.push(p);spray(p[0],p[1]);}
-async function end(e){if(!drawing||busy)return;e.preventDefault();drawing=false;
-  if(pts.length<10){fade();return;}
-  busy=true;
-  try{
-    const r=await fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({points:pts})});
-    const j=await r.json();
-    if(j.ok){success();return;}
-  }catch(_){}
-  busy=false;fade();}
-
-function fade(){ink.style.opacity=0;
-  setTimeout(()=>{clearAll();pts=[];lastXY=null;ink.style.opacity=1;hint.style.opacity='';},640);}
-function success(){const f=document.getElementById('flash'),d=document.getElementById('dot');
-  d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
-  f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
-surface.addEventListener('touchstart',start,{passive:false});
-surface.addEventListener('touchmove',move,{passive:false});
-surface.addEventListener('touchend',end,{passive:false});
-surface.addEventListener('touchcancel',end,{passive:false});
-surface.addEventListener('mousedown',start);
-surface.addEventListener('mousemove',move);
-surface.addEventListener('mouseup',end);
-document.addEventListener('contextmenu',e=>e.preventDefault());
+const inp=document.getElementById('inp'),err=document.getElementById('err');
+inp.focus();
+inp.addEventListener('keydown',async e=>{
+  if(e.key!=='Enter')return;
+  const r=await fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({password:inp.value})}).catch(()=>null);
+  const j=r?await r.json().catch(()=>({})):{};
+  if(j.ok){document.getElementById('flash').style.opacity=1;setTimeout(()=>location.replace('/'),300);}
+  else{err.textContent='✕';inp.value='';inp.focus();setTimeout(()=>err.textContent='',900);}
+});
+inp.addEventListener('input',()=>err.textContent='');
 </script></body></html>"""
 
 
 def _set_session(payload):
-    if is_circle((payload or {}).get("points") or []):
+    # Mac: password auth instead of circle gesture
+    if (payload or {}).get("password") == "123123":
         return {"ok": True}
     return {"ok": False}
 
