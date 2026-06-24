@@ -1118,11 +1118,16 @@ select,textarea,.idea-txt{font-size:14px}
 .tog-k{width:23px;height:23px}
 .kren:hover{background:rgba(255,255,255,.18);transform:scale(1.06);transition:all .12s}
 .kadd:hover{background:rgba(255,255,255,.09);transition:background .12s}
-.kanban{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))!important;
-  gap:16px!important;overflow-x:unset!important;scrollbar-width:auto!important;padding-bottom:0!important}
-.kcard{padding:14px 46px 14px 15px;border-radius:14px;cursor:pointer;transition:transform .12s,box-shadow .12s}
+/* Mac kanban: Trello-style fixed columns + horizontal scroll */
+.kanban-wrap{overflow-x:auto;padding-bottom:24px;-webkit-overflow-scrolling:touch}
+.kanban{display:flex!important;gap:14px!important;grid-template-columns:unset!important;
+  overflow-x:visible!important;width:max-content!important;min-width:100%;
+  flex-wrap:nowrap!important;align-items:start;padding:4px 0 8px!important}
+.kol{min-width:272px!important;max-width:272px!important;flex-shrink:0!important;border-radius:18px;padding:14px}
+.kol.drag-over{box-shadow:0 0 0 2px #5b9dff,0 0 20px rgba(91,157,255,.25)!important;border-color:#5b9dff!important;transition:none!important}
+.kcard{padding:13px 46px 13px 14px;border-radius:14px;cursor:grab;transition:transform .12s,box-shadow .12s}
 .kcard:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.35)}
-.kol{border-radius:18px;padding:14px}
+.kcard.dragging{opacity:.3;cursor:grabbing;transform:none!important;box-shadow:none!important}
 #sheet{left:50%;transform:translateX(-50%) translateY(60px);right:auto;width:500px;max-width:calc(100vw - 40px);border-radius:24px}
 #sheet[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
 #sheet.mac-top{bottom:auto;top:80px;transform:translateX(-50%) translateY(-60px)}
@@ -2162,7 +2167,7 @@ function renderKanban(d){
     const dlHtml=dl?`<div class="kdl ${dl.cls}" onclick="kcolMenu(event,${col.id})">${dl.text}</div>`:'';
     const cardsHtml=cc.map(c=>{
       const done=c.checked?'done':'';
-      return `<div class="kcard ${done}" onclick="kcardClick(event,${c.id},${col.id},this)">
+      return `<div class="kcard ${done}" draggable="true" data-card-id="${c.id}" onclick="kcardClick(event,${c.id},${col.id},this)">
         <button class="kren" onclick="krename(event,${c.id},this)" title="Переименовать">✏️</button>
         <div class="kt">${esc(c.title)}</div>
         ${c.description?`<div class="kdesc">${esc(c.description)}</div>`:''}
@@ -2180,7 +2185,48 @@ function renderKanban(d){
       <button class="kadd" onclick="kaddCard(${col.id},'${esc(col.name)}')">＋ карточка</button>
     </div>`;
   }).join('');
+  _wireKanbanDrag(kb);
   renderKArchive(d);
+}
+
+function _wireKanbanDrag(kb){
+  if(kb._dragWired)return;
+  kb._dragWired=true;
+  let _dragId=null;
+  kb.addEventListener('dragstart',e=>{
+    const card=e.target.closest('.kcard');
+    if(!card){e.preventDefault();return;}
+    _dragId=parseInt(card.dataset.cardId,10);
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',_dragId);
+  });
+  kb.addEventListener('dragend',e=>{
+    const card=e.target.closest('.kcard');
+    if(card)card.classList.remove('dragging');
+    kb.querySelectorAll('.kol.drag-over').forEach(c=>c.classList.remove('drag-over'));
+    _dragId=null;
+  });
+  kb.addEventListener('dragover',e=>{
+    e.preventDefault();
+    e.dataTransfer.dropEffect='move';
+    const col=e.target.closest('.kol');
+    if(col){kb.querySelectorAll('.kol.drag-over').forEach(c=>c.classList.remove('drag-over'));col.classList.add('drag-over');}
+  });
+  kb.addEventListener('dragleave',e=>{
+    const col=e.target.closest('.kol');
+    if(col&&!col.contains(e.relatedTarget))col.classList.remove('drag-over');
+  });
+  kb.addEventListener('drop',e=>{
+    e.preventDefault();
+    const col=e.target.closest('.kol');
+    if(!col||_dragId===null)return;
+    const targetColId=parseInt(col.dataset.colId,10);
+    col.classList.remove('drag-over');
+    const card=_kcard(_dragId);
+    if(!card||card.column_id===targetColId)return;
+    mutate(()=>{const c=_kcard(_dragId);if(c)c.column_id=targetColId;},'/api/kcard_move',{id:_dragId,col:targetColId},()=>renderKanban(DATA));
+  });
 }
 
 function renderKArchive(d){
