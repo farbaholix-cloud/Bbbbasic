@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · kanban-trello"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · kcol-delete"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -556,6 +556,12 @@ def api_kcol_rename(payload):
     with db() as conn:
         conn.execute("UPDATE kanban_columns SET name=? WHERE id=?",
             (payload["name"], payload["id"]))
+    return {"ok": True}
+
+def api_kcol_delete(payload):
+    with db() as conn:
+        conn.execute("DELETE FROM kanban_cards WHERE column_id=?", (payload["id"],))
+        conn.execute("DELETE FROM kanban_columns WHERE id=?", (payload["id"],))
     return {"ok": True}
 
 def api_chaos_add(payload):
@@ -1882,6 +1888,7 @@ function kcolMenu(e,colId){
        <span class="ptlabel${!isCurrent?' on':''}">Перспективный</span>
        <div class="tog ${togOn}" id="kcol-tog" style="flex-shrink:0"><div class="tog-k"></div></div>
        <span class="ptlabel${isCurrent?' on':''}">Текущий</span>
+       <button class="kren" id="kcol-del-btn" title="Удалить проект" style="position:static;margin-left:auto;flex-shrink:0">🗑</button>
      </div>`+
     // deadline
     (()=>{
@@ -1946,6 +1953,17 @@ function kcolMenu(e,colId){
     if(!nv||!nv.trim())return;
     closeSheet();
     mutate(()=>{const c=_kcol(colId);if(c)c.name=nv.trim();},'/api/kcol_rename',{id:colId,name:nv.trim()},()=>renderKanban(DATA));
+  };
+  // delete project (list)
+  sheet.querySelector('#kcol-del-btn').onclick=async()=>{
+    const cnt=(DATA.kanban_cards||[]).filter(c=>c.column_id===colId&&!c.archived).length;
+    const msg=cnt?`Удалить проект «${col.name}» и его карточек: ${cnt}?`:`Удалить проект «${col.name}»?`;
+    if(!(await uiConfirm(msg,{danger:true,ok:'Удалить'})))return;
+    closeSheet();
+    mutate(()=>{
+      DATA.kanban_cols=(DATA.kanban_cols||[]).filter(x=>x.id!==colId);
+      DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.column_id!==colId);
+    },'/api/kcol_delete',{id:colId},()=>renderKanban(DATA));
   };
 }
 
@@ -2587,7 +2605,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/kcard_move": api_kcard_move,
             "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add,
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
-            "/api/kcol_rename": api_kcol_rename, "/api/happiness_save": api_happiness_save,
+            "/api/kcol_rename": api_kcol_rename, "/api/kcol_delete": api_kcol_delete,
+            "/api/happiness_save": api_happiness_save,
             "/api/chaos_add": api_chaos_add, "/api/chaos_rename": api_chaos_rename,
             "/api/chaos_reorder": api_chaos_reorder,
             "/api/event_update": api_event_update,
