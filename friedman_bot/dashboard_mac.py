@@ -137,6 +137,8 @@ def ensure_schema(conn):
         conn.execute("ALTER TABLE kanban_columns ADD COLUMN status TEXT DEFAULT 'prospective'")
     if 'deadline' not in kcols:
         conn.execute("ALTER TABLE kanban_columns ADD COLUMN deadline TEXT")
+    if 'goal' not in kcols:
+        conn.execute("ALTER TABLE kanban_columns ADD COLUMN goal TEXT")
     conn.execute("""CREATE TABLE IF NOT EXISTS kanban_cards (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       column_id INTEGER, project_id INTEGER, chaos_id INTEGER,
@@ -608,6 +610,13 @@ def api_kcol_setdeadline(payload):
             (payload.get("deadline") or None, payload["id"]))
     return {"ok": True}
 
+def api_kcol_setgoal(payload):
+    with db() as conn:
+        conn.execute("UPDATE kanban_columns SET goal=? WHERE id=?",
+            (payload.get("goal") or None, payload["id"]))
+    return {"ok": True}
+
+
 def api_kcol_rename(payload):
     with db() as conn:
         conn.execute("UPDATE kanban_columns SET name=? WHERE id=?",
@@ -990,6 +999,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kol-head .kh-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kol-head .kh-cnt{opacity:.45;font-weight:600;font-size:11px;flex-shrink:0}
 .kol-head .kh-more{opacity:.35;font-size:15px;flex-shrink:0;line-height:1}
+.kol-goal{font-size:11px;color:rgba(235,240,250,.5);font-weight:500;padding:0 4px 6px;line-height:1.4;font-style:italic}
 .kdl{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;
   padding:3px 8px;border-radius:20px;margin-top:0;margin-bottom:2px;cursor:pointer}
 .kdl.ok{background:rgba(91,157,255,.18);color:#5b9dff}
@@ -1077,13 +1087,12 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* ─── Мостик: 3 колонки ─── */
-/* balstrip=child1, wisdom=child2, Идеи=child3, Визуал=child4, Приоритеты=child5, мини-кал=child6 */
+/* balstrip=child1, wisdom=child2, Идеи=child3, Визуал=child4, plan-rcol=child5 */
 #page-plan.on{display:grid;grid-template-columns:1fr 1.2fr 1.1fr;gap:18px;align-items:start}
 #page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
 #page-plan.on>.block:nth-child(3){grid-column:1;grid-row:3}
-#page-plan.on>.block:nth-child(4){grid-column:2;grid-row:3/5}
-#page-plan.on>.block:nth-child(5){grid-column:3;grid-row:3}
-#page-plan.on>.block:nth-child(6){grid-column:3;grid-row:4}
+#page-plan.on>.block:nth-child(4){grid-column:2;grid-row:3}
+#page-plan.on>.plan-rcol{grid-column:3;grid-row:3;display:flex;flex-direction:column;gap:18px}
 
 /* ─── Финансы: 2 колонки ─── */
 /* fin-cards=child1 daysum=child2 fin-add=child3 block1=child4 fin-log=child5 block2=child6 block3=child7 */
@@ -1216,6 +1225,7 @@ select,textarea,.idea-txt{font-size:14px}
       <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
       <div id="projects"></div>
     </div>
+    <div class="plan-rcol">
     <div class="block glass">
       <div class="bh"><div class="t">🎯 Расстановка приоритетов <span class="sm">важно · срочно</span></div><div class="cnt">приоритеты</div></div>
       <div class="matrix" id="matrix"></div>
@@ -1231,6 +1241,7 @@ select,textarea,.idea-txt{font-size:14px}
       <div class="bh"><div class="t">📅 Прошивка календаря <span class="sm">эта неделя</span></div><div class="cnt">эта неделя</div></div>
       <div id="cal"></div>
       <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
+    </div>
     </div>
   </div>
 
@@ -2173,6 +2184,7 @@ function renderKanban(d){
         ${c.description?`<div class="kdesc">${esc(c.description)}</div>`:''}
       </div>`;
     }).join('');
+    const goalHtml=col.goal?`<div class="kol-goal">🎯 ${esc(col.goal)}</div>`:'';
     return `<div class="kol${isCurrent?' current':''}" data-col-id="${col.id}">
       <div class="kol-head" onclick="kcolMenu(event,${col.id})">
         <div class="kh-dot" style="background:${col.color}"></div>
@@ -2180,7 +2192,7 @@ function renderKanban(d){
         <div class="kh-cnt">${cc.length}</div>
         <div class="kh-more">···</div>
       </div>
-      ${dlHtml}
+      ${goalHtml}${dlHtml}
       ${cardsHtml}
       <button class="kadd" onclick="kaddCard(${col.id},'${esc(col.name)}')">＋ карточка</button>
     </div>`;
@@ -2299,11 +2311,26 @@ function kcolMenu(e,colId){
        </div>
      </div>`;
     })()+
+    // goal
+    `<div style="padding:12px 16px;background:rgba(255,255,255,.06);border-radius:16px">
+       <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.5px;margin-bottom:10px">🎯 ЦЕЛЬ ПРОЕКТА</div>
+       <textarea id="kcol-goal" rows="2" placeholder="В чём цель?" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.08);border:1px solid var(--rim);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--txt);resize:none;font-family:inherit">${esc(col.goal||'')}</textarea>
+     </div>`+
     // rename
     `<button class="sh-act" id="kcol-ren-btn">✏️ Переименовать список</button>`+
     `</div>`,
     true);
   sheet.querySelector('#kmc-close').onclick=closeSheet;
+  // goal
+  const goalInput=sheet.querySelector('#kcol-goal');
+  let _goalTimer=null;
+  goalInput.addEventListener('input',()=>{
+    clearTimeout(_goalTimer);
+    _goalTimer=setTimeout(()=>{
+      const v=goalInput.value.trim()||null;
+      mutate(()=>{const c=_kcol(colId);if(c)c.goal=v;},'/api/kcol_setgoal',{id:colId,goal:v},()=>renderKanban(DATA));
+    },600);
+  });
   // toggle logic
   const tog=sheet.querySelector('#kcol-tog');
   tog.onclick=()=>{
@@ -2443,7 +2470,7 @@ async function addKCol(){
   if(!n||!n.trim())return;
   mutate(()=>{
     if(!DATA.kanban_cols)DATA.kanban_cols=[];
-    DATA.kanban_cols.push({id:_tmpId(),name:n.trim(),color:'#5b9dff',status:'prospective',position:9999,deadline:null});
+    DATA.kanban_cols.push({id:_tmpId(),name:n.trim(),color:'#5b9dff',status:'prospective',position:9999,deadline:null,goal:null});
   },'/api/kcol_add',{name:n.trim()},()=>renderKanban(DATA));
 }
 
@@ -3222,6 +3249,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/kcard_move": api_kcard_move,
             "/api/kcard_rename": api_kcard_rename, "/api/kcol_add": api_kcol_add,
             "/api/kcol_setstatus": api_kcol_setstatus, "/api/kcol_setdeadline": api_kcol_setdeadline,
+            "/api/kcol_setgoal": api_kcol_setgoal,
             "/api/kcol_rename": api_kcol_rename, "/api/kcol_delete": api_kcol_delete,
             "/api/happiness_save": api_happiness_save,
             "/api/chaos_add": api_chaos_add, "/api/chaos_rename": api_chaos_rename,
