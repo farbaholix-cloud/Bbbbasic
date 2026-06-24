@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · steps-tap"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · hap-sync"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2199,6 +2199,13 @@ function showDrumPicker(label,color,current,cb){
   sheet.addEventListener('click',e=>{if(e.target===sheet)sheet.remove();});
 }
 
+// hValues — локальный аккумулятор оценок. Чтобы новая оценка НИКОГДА не перезаписывала
+// остальные узлы устаревшими значениями («каждое следующее изменение откатывало
+// предыдущее»), после каждого сохранения пересинхронизируем hValues с авторитетным
+// снимком сервера, а payload собираем явно из всех шести ключей.
+function _hapSync(){const h=(DATA&&DATA.happiness)||{};H_KEYS.forEach(k=>{if(h[k]!=null)hValues[k]=Number(h[k]);});}
+function _hapBody(extra){const h=(DATA&&DATA.happiness)||{};const b=Object.assign({note:''},extra||{});H_KEYS.forEach(k=>b[k]=(h[k]!=null?Number(h[k]):hValues[k]));return b;}
+
 function editHNode(key){
   showDrumPicker(H_LABELS[key],H_COLORS[key],hValues[key],val=>{
     hValues[key]=val;
@@ -2206,13 +2213,13 @@ function editHNode(key){
     DATA.happiness[key]=val;
     updateHNodes();
     requestAnimationFrame(drawHLines);
-    mutate(null,'/api/happiness_save',{...hValues,note:''},()=>{updateHNodes();requestAnimationFrame(drawHLines);});
+    mutate(null,'/api/happiness_save',_hapBody(),()=>{_hapSync();updateHNodes();requestAnimationFrame(drawHLines);});
   });
 }
 
 async function editHappiness(){
   const note=(await uiPrompt('Заметка о настроении (необязательно):','',{placeholder:'как ты сейчас'}))||'';
-  mutate(null,'/api/happiness_save',{...hValues,note},()=>{updateHNodes();requestAnimationFrame(drawHLines);});
+  mutate(null,'/api/happiness_save',_hapBody({note}),()=>{_hapSync();updateHNodes();requestAnimationFrame(drawHLines);});
 }
 
 // Блокировка при каждом сворачивании окна — при возврате снова рисуем круг
