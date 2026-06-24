@@ -84,7 +84,7 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
    radial-gradient(56% 34% at 6% 88%, rgba(255,122,192,.42), transparent 60%),
    radial-gradient(50% 28% at 50% 44%, rgba(255,198,87,.16), transparent 60%),
    linear-gradient(165deg,#0e1126,#0a0b14 65%)}
-.wrap{position:absolute;inset:0;z-index:1;padding:44px 18px 20px;display:flex;flex-direction:column;gap:9px}
+.wrap{position:absolute;inset:0;z-index:1;padding:40px 18px 14px;display:flex;flex-direction:column;gap:8px}
 .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(26px) saturate(180%);
   border:1px solid rgba(255,255,255,.2);border-radius:22px;box-shadow:0 8px 26px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.32)}
 .head{display:flex;align-items:center;gap:12px}
@@ -148,28 +148,6 @@ def build_html(d):
     parts.append('<div class="head"><div class="anchor">⚓</div><div>'
                  f'<div class="greet">☀️ Доброе утро, Слава!</div>'
                  f'<div class="date">{_esc(d.get("date_str"))}</div></div></div>')
-
-    # Блок Wirtschaftsdezernent — всегда первым
-    w = d.get("wirtschaft") or {}
-    appointed = w.get("appointed")
-    w_status = _esc(w.get("status") or "")
-    if appointed is True:
-        w_icon, w_title, w_color = "✅", "Wirtschaftsdezernent назначен!", "#52e08a"
-        name_str = _esc(w.get("name") or "")
-        party_str = _esc(w.get("party") or "")
-        date_str = _esc(w.get("date") or "")
-        w_body = f'<b>{name_str}</b> ({party_str})' + (f'<br>Вступает: {date_str}' if date_str else "")
-    elif appointed is False:
-        w_icon, w_title, w_color = "⏳", "Wirtschaftsdezernent не назначен", "#ffd07a"
-        w_body = w_status
-    else:
-        w_icon, w_title, w_color = "🏛", "Франкфурт / Wirtschaftsdezernat", "rgba(235,240,250,.6)"
-        w_body = w_status or "нет данных"
-    parts.append(
-        f'<div class="card glass" style="border-left:3px solid {w_color}">'
-        f'<div class="h">{w_icon} {w_title}</div>'
-        f'<div class="li" style="color:{w_color}">{w_body}</div></div>'
-    )
 
     if d.get("wisdom"):
         parts.append(f'<div class="wisdom glass"><span class="q">"</span><span>{_esc(d["wisdom"])}</span></div>')

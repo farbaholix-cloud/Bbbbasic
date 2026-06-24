@@ -1994,44 +1994,6 @@ def planned_spend(d0, d1):
     return items
 
 
-def frankfurt_wirtschaft_sync() -> dict:
-    """Мониторинг назначения Wirtschaftsdezernent Франкфурта. Проверяет PARLIS, FAZ, frankfurt.de."""
-    today = datetime.now().strftime("%d.%m.%Y")
-    prompt = (
-        f"Сегодня {today}. Твоя задача — проверить статус назначения нового Wirtschaftsdezernent "
-        f"(главы департамента экономики) города Франкфурта-на-Майне. "
-        f"Коалиция CDU+Зелёные+SPD+Volt была сформирована 11 июня 2026 года. "
-        f"Проверь последовательно три источника:\n"
-        f"1. WebFetch https://www.frankfurt.de/sixcms/list.php?page=pp_suche&searchmode=1&Suchfeld=Wirtschaftsdezernent — "
-        f"ищи пресс-релизы о назначениях.\n"
-        f"2. WebSearch по запросу: Frankfurt Wirtschaftsdezernent 2026 Magistrat Wahl ernannt\n"
-        f"3. WebFetch https://www.faz.net/suche/?searchterm=Frankfurt+Wirtschaftsdezernent — "
-        f"ищи статьи FAZ о назначении.\n"
-        f"4. Дополнительно WebSearch: Frankfurt Wirtschaftsdezernat CDU SPD Grüne Dezernent Name\n"
-        f"Определи: назначен ли уже Wirtschaftsdezernent официально? "
-        f"Если да — верни имя, партию, дату вступления в должность. "
-        f"Если нет — верни текущий статус переговоров о назначении. "
-        f"Верни СТРОГО JSON без пояснений: "
-        '{"appointed":true/false/null,"name":"имя и фамилия или null","party":"партия или null",'
-        '"date":"дата вступления в должность или null","status":"1-2 предложения по-русски","source":"источник"}'
-    )
-    try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--model", "haiku",
-             "--allowedTools", "WebSearch,WebFetch", "--max-turns", "6"],
-            capture_output=True, text=True, timeout=120,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
-        raw = result.stdout.strip()
-        s, e = raw.find("{"), raw.rfind("}")
-        if s >= 0 and e > s:
-            return jsonlib.loads(raw[s:e + 1])
-    except Exception as ex:
-        log.error(f"frankfurt_wirtschaft: {ex}")
-    return {"appointed": None, "name": None, "party": None, "date": None,
-            "status": "Нет данных о назначении", "source": ""}
-
-
 def culture_for_today_sync() -> dict:
     """Праздник дня + день рождения легенды хип-хопа через Claude CLI. Тихо падает в {}."""
     today = datetime.now().strftime("%d %B")
@@ -2114,26 +2076,10 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     sum_week = sum(x["amount"] for x in spend_week)
 
     from wisdom import today_wisdom
-    # Запускаем параллельно: мониторинг Wirtschaftsdezernent + культурная справка
-    wirtschaft, culture = await asyncio.gather(
-        asyncio.to_thread(frankfurt_wirtschaft_sync),
-        asyncio.to_thread(culture_for_today_sync),
-    )
+    # Культурная справка (праздник дня + хип-хоп календарь)
+    culture = await asyncio.to_thread(culture_for_today_sync)
 
-    # ── Wirtschaftsdezernent — первый блок сводки ──
-    w = wirtschaft
-    if w.get("appointed") is True:
-        wirt_line = (
-            f"🏛 *Wirtschaftsdezernent назначен!*\n"
-            f"👤 {w.get('name','')} ({w.get('party','')})"
-            + (f" — вступает {w['date']}" if w.get("date") else "")
-        )
-    elif w.get("appointed") is False:
-        wirt_line = f"🏛 *Wirtschaftsdezernent ещё не назначен*\n_{w.get('status','Переговоры продолжаются.')}_"
-    else:
-        wirt_line = f"🏛 *Франкфурт / Wirtschaftsdezernat:* _{w.get('status','нет данных')}_"
-
-    lines = [f"☀️ *Доброе утро, Слава!*\n", wirt_line, "", f"_{today_wisdom()}_\n"]
+    lines = [f"☀️ *Доброе утро, Слава!*\n", f"_{today_wisdom()}_\n"]
 
     if high:
         lines.append("🔥 *Срочное на сегодня:*")
@@ -2191,7 +2137,6 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     brief_data = {
         "date_str": datetime.now().strftime("%A, %d.%m · %H:%M"),
         "wisdom": today_wisdom(),
-        "wirtschaft": wirtschaft,
         "urgent": urgent,
         "reminders": [(t["due_at"][11:16], t["text"]) for t in todays],
         "spend_today": [(s["title"], s["amount"]) for s in spend_today],
