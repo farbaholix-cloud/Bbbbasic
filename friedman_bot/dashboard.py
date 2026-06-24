@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.0"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.1"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -376,6 +376,18 @@ def api_move(payload):
             if row:
                 conn.execute("INSERT INTO events (text, date, time, chaos_id) VALUES (?,?,?,?)",
                              (row["text"], new_date, payload.get("time", ""), payload["id"]))
+    return {"ok": True}
+
+
+def api_event_delete(payload):
+    with db() as conn:
+        row = conn.execute("SELECT chaos_id FROM events WHERE id=?", (payload["id"],)).fetchone()
+        if row and row["chaos_id"]:
+            conn.execute("DELETE FROM events WHERE chaos_id=?", (row["chaos_id"],))
+            conn.execute("DELETE FROM kanban_cards WHERE chaos_id=?", (row["chaos_id"],))
+            conn.execute("DELETE FROM chaos WHERE id=?", (row["chaos_id"],))
+        else:
+            conn.execute("DELETE FROM events WHERE id=?", (payload["id"],))
     return {"ok": True}
 
 
@@ -792,7 +804,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gstep.done{color:#9ff0bd;border-color:rgba(82,224,138,.4);background:rgba(82,224,138,.14)}
 .gstep.done::before{content:'✓ ';font-weight:900}
 .gstep.idea{color:#ffd07a;border-color:rgba(255,208,122,.35);background:rgba(255,208,122,.1)}
-.sh-proj-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--rim);margin-top:6px}
+.sh-proj-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--rim);margin-top:6px;overflow:hidden}
 .gact{display:flex;gap:7px;margin-top:10px}
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
 .gact button.danger{color:#ff9aa6}
@@ -1715,8 +1727,8 @@ function openTask(t){
   const projs=DATA.projects||[];
   const curProjId=t.proj||t.project_id||null;
   const projOpts='<option value="">— без проекта —</option>'+projs.map(p=>'<option value="'+p.id+'" '+(curProjId==p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('');
-  const projBlock='<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700">📁 Проект:</span>'+
-    '<select id="sh-proj" style="flex:1;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:10px;color:#fff;font-size:13px;padding:6px 10px">'+projOpts+'</select></div>';
+  const projBlock='<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700;flex-shrink:0">📁 Проект:</span>'+
+    '<select id="sh-proj" style="flex:1;min-width:0;max-width:100%;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:10px;color:#fff;font-size:13px;padding:6px 10px">'+projOpts+'</select></div>';
   // Morning brief toggle (events only)
   const mbOn=t.mb||0;
   const mbBlock=(t.kind==='event')?
@@ -1733,7 +1745,8 @@ function openTask(t){
     '<select id="sh-day">'+Array.from({length:31},(_,i)=>'<option value="'+(i+1)+'" '+(i+1===now.getDate()?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select>'+
     '<button id="sh-go">📅 в день</button></div>'+
     '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
-    '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>';
+    '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>'+
+    (t.kind==='event'?'<button class="sh-act sh-del" id="sh-evdel" style="margin-top:10px;width:100%">🗑 Удалить навсегда</button>':'');
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
@@ -1800,6 +1813,20 @@ function openTask(t){
         DATA.cards=(DATA.cards||[]).filter(x=>x.id!==t.id);
       }
     },'/api/unplan',{kind:t.kind,id:t.id});
+  };
+  // Delete event permanently (with linked chaos task)
+  const shEvDel=sheet.querySelector('#sh-evdel');
+  if(shEvDel)shEvDel.onclick=async()=>{
+    if(!(await uiConfirm('Удалить событие навсегда?',{danger:true,ok:'Удалить'})))return;
+    closeSheet();
+    mutate(()=>{
+      const chaosId=(_card(t.id)||{}).chaos_id||null;
+      DATA.cards=(DATA.cards||[]).filter(x=>x.id!==t.id);
+      if(chaosId){
+        DATA.chaos=(DATA.chaos||[]).filter(x=>x.id!==chaosId);
+        DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.chaos_id!==chaosId);
+      }
+    },'/api/event_delete',{id:t.id});
   };
   const shRen=sheet.querySelector('#sh-ren');
   if(shRen)shRen.onclick=async()=>{
@@ -2666,7 +2693,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/happiness_save": api_happiness_save,
             "/api/chaos_add": api_chaos_add, "/api/chaos_rename": api_chaos_rename,
             "/api/chaos_reorder": api_chaos_reorder,
-            "/api/event_update": api_event_update,
+            "/api/event_delete": api_event_delete, "/api/event_update": api_event_update,
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
         }
