@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "24.06 · idea-top"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "24.06 · kanban-move"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -868,7 +868,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kanban::-webkit-scrollbar{display:none}
 .kol{min-width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:9px}
 .kol-head{padding:11px 13px;border-radius:16px;font-weight:800;font-size:13px;margin-bottom:2px;border:1px solid rgba(255,255,255,.18)}
-.kcard{padding:12px 13px;border-radius:15px;cursor:pointer;transition:background .2s,opacity .25s;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.1)}
+.kcard{position:relative;padding:12px 44px 12px 13px;border-radius:15px;cursor:pointer;transition:background .2s,opacity .25s;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.1)}
 .kcard.done{background:rgba(10,12,22,.62);opacity:.6}
 .kcard .kt{font-size:13px;font-weight:700;line-height:1.42}
 .kcard.done .kt{text-decoration:line-through;color:rgba(235,240,250,.4)}
@@ -878,8 +878,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
   display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s}
 .kchk.done{background:#52e08a;border-color:#52e08a}
 .karch{font-size:10px;color:rgba(235,240,250,.35);background:none;border:none;cursor:pointer;font-weight:700;padding:2px 6px}
-.kren{margin-left:auto;width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);
-  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;transition:background .18s,transform .12s;flex-shrink:0}
+.kren{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;transition:background .18s,transform .12s;flex-shrink:0;z-index:2}
 .kren:active{background:rgba(255,255,255,.2);transform:scale(.92)}
 .kadd{width:100%;padding:11px;border-radius:14px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);
   color:rgba(235,240,250,.5);font-weight:700;font-size:12px;cursor:pointer;margin-top:2px;text-align:center}
@@ -1848,12 +1848,9 @@ function renderKanban(d){
     const cardsHtml=cc.map(c=>{
       const done=c.checked?'done':'';
       return `<div class="kcard ${done}" onclick="kcardClick(event,${c.id},${col.id},this)">
+        <button class="kren" onclick="krename(event,${c.id},this)" title="Переименовать">✏️</button>
         <div class="kt">${esc(c.title)}</div>
         ${c.description?`<div class="kdesc">${esc(c.description)}</div>`:''}
-        <div class="krow">
-          <div class="kchk ${done}" onclick="kcheck(event,${c.id},${c.checked?0:1})">${done?'✓':''}</div>
-          <button class="kren" onclick="krename(event,${c.id},this)" title="Переименовать">✏️</button>
-        </div>
       </div>`;
     }).join('');
     return `<div class="kol${isCurrent?' current':''}" data-col-id="${col.id}">
@@ -1962,14 +1959,29 @@ async function krename(e,id,btn){
   mutate(()=>{const c=_kcard(id);if(c)c.title=nv.trim();},'/api/kcard_rename',{id,title:nv.trim()},()=>renderKanban(DATA));
 }
 function kcardClick(e,id,colId,el){
-  if(e.target.closest('.kchk,.kren,.kol-head'))return;
+  if(e.target.closest('.kren,.kol-head'))return;
   e.stopPropagation();
   const title=el.querySelector('.kt').textContent;
+  // Доски для перемещения — все колонки, кроме текущей
+  const moveCols=(DATA.kanban_cols||[]).filter(x=>x.id!==colId);
+  const moveHtml=moveCols.length?(
+    `<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.5px;margin:8px 2px 0">→ ПЕРЕМЕСТИТЬ НА ДОСКУ:</div>`+
+    moveCols.map(x=>`<button class="sh-act kmove-btn" data-col="${x.id}" style="display:flex;align-items:center;gap:10px;justify-content:flex-start">`+
+      `<span style="width:11px;height:11px;border-radius:50%;background:${x.color};flex-shrink:0"></span>${esc(x.name)}</button>`).join('')
+  ):'';
   const {sheet}=_openSheet(`<div class="grab"></div><div class="stitle">${esc(title)}</div>`+
     `<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">`+
     `<button class="sh-act" id="kren-btn">✏️ Переименовать</button>`+
+    moveHtml+
     `<button class="sh-act" id="karch-btn">📦 В архив</button>`+
     `<button class="sh-act sh-del" id="kdel-btn">🗑 Удалить навсегда</button></div>`);
+  sheet.querySelectorAll('.kmove-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const target=parseInt(btn.dataset.col,10);
+      closeSheet();
+      mutate(()=>{const c=_kcard(id);if(c)c.column_id=target;},'/api/kcard_move',{id,col:target},()=>renderKanban(DATA));
+    };
+  });
   sheet.querySelector('#kren-btn').onclick=async()=>{
     const nv=await uiPrompt('Новое название:',title);
     if(!nv||!nv.trim())return;
