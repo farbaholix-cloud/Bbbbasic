@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.1 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.2 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -994,37 +994,66 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 .drum-item{height:55px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:rgba(235,240,250,.25);transition:font-size .12s,color .12s,font-weight .12s;user-select:none}
 .drum-item.sel{font-size:32px;font-weight:900;color:#f4f6fb}
 
-/* ─── Mac Desktop Adaptations ─── */
-@media (min-width:1000px){
-  body{font-size:15px}
-  .page{max-width:1200px;margin:0 auto;padding:24px}
-  .block{padding:20px;margin-bottom:16px;border-radius:20px}
-  .task,.cell,.goal,.debt,.addr,.ev{padding:14px 18px}
-  .big-add{padding:22px 20px;font-size:16px;margin:4px 0 16px}
-  .idea-chip,.gstep{padding:10px 16px;font-size:13px}
-  .sh-btn{padding:16px;font-size:14px;border-radius:16px}
-  .kanban{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-  .kol{border-radius:18px;padding:14px}
-  .kcard{padding:14px 48px 14px 16px;border-radius:14px}
-  .kren{width:32px;height:32px;border-radius:10px;top:10px;right:10px;font-size:16px}
-  .kren:hover{background:rgba(255,255,255,.15);transform:scale(1.05)}
-  .sheet{bottom:20px;left:20px;right:20px;border-radius:20px;padding:24px}
-  .sh-proj-row,.gact,.sh-actions{gap:12px}
-  select,textarea,.idea-txt{font-size:14px;padding:10px 14px}
-  .task,.ev,.cell,.goal{cursor:pointer;transition:transform .15s,box-shadow .15s}
-  .task:hover,.ev:hover,.cell:hover,.goal:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
-  .sh-act,.sh-btn:not(.sh-del){transition:all .15s}
-  .sh-act:hover,.sh-btn:not(.sh-del):hover{background:rgba(255,255,255,.12);transform:translateY(-1px)}
-  .big-add:hover{transform:scale(1.02)}
-  .idea-chip:hover,.gstep:hover{background:rgba(91,157,255,.15);transform:translateY(-2px)}
-  .ptlabel{font-size:14px}
-  .tog{width:50px;height:28px}
-  .tog-k{width:24px;height:24px}
-}
-@media (min-width:1400px){
-  .page{max-width:1400px;padding:32px}
-  .kanban{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
-}
+/* ─── Mac Desktop Layout ─── */
+#ptr{display:none!important}
+body{max-width:none!important;padding:0!important;margin:0!important;display:flex}
+.wrap{padding:0!important;margin:0!important;max-width:none!important;flex:1;display:flex;min-height:100vh}
+.hdr,.seg,.home-ind{display:none!important}
+#mac-sidebar{width:210px;min-width:210px;height:100vh;position:fixed;left:0;top:0;
+  background:rgba(7,8,17,.92);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
+  border-right:1px solid rgba(255,255,255,.10);padding:28px 14px 24px;
+  display:flex;flex-direction:column;gap:0;z-index:200;overflow-y:auto}
+#mac-sidebar .sb-logo{display:flex;align-items:center;gap:11px;padding:0 8px 24px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:16px}
+#mac-sidebar .sb-logo .anchor{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,rgba(91,157,255,.95),rgba(177,139,255,.95));
+  display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 6px 16px rgba(91,157,255,.4),inset 0 1px 0 rgba(255,255,255,.5);flex-shrink:0}
+#mac-sidebar .sb-logo .sb-title{font-size:13px;font-weight:800;line-height:1.3;color:var(--txt)}
+#mac-sidebar .sb-logo .sb-ver{font-size:10px;color:var(--faint);font-weight:600;margin-top:1px}
+#mac-sidebar .sb-date{font-size:11px;color:var(--muted);font-weight:600;padding:0 8px 16px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:12px}
+.mac-nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;
+  font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .15s;margin-bottom:3px;border:1px solid transparent}
+.mac-nav-item:hover{background:rgba(255,255,255,.07);color:var(--txt)}
+.mac-nav-item.on{background:linear-gradient(135deg,rgba(91,157,255,.16),rgba(177,139,255,.12));
+  color:#fff;border-color:rgba(91,157,255,.22);box-shadow:0 2px 8px rgba(91,157,255,.12)}
+.mac-nav-item .e{font-size:17px;line-height:1}
+#mac-sidebar .sb-ver-bottom{margin-top:auto;padding-top:16px;font-size:10px;color:var(--faint);font-weight:600;text-align:center;padding:16px 8px 0}
+#mac-main{margin-left:210px;padding:28px 36px;min-height:100vh;flex:1;overflow-y:auto}
+.page{display:none;animation:fadeIn .2s ease}
+.page.on{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+#page-plan.on{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+#page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
+.block{padding:20px;margin-bottom:0;border-radius:20px}
+.wisdom{margin-bottom:0;font-size:14px}
+.balstrip{margin-bottom:0}
+.bh .t{font-size:15px}
+.task{padding:13px 16px}
+.task:hover,.goal:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,0,0,.3);transition:all .15s}
+.ev:hover{opacity:.85;transition:opacity .15s;cursor:pointer}
+.cell{padding:13px 16px;margin-bottom:8px}
+.goal{padding:14px 16px;margin-bottom:10px}
+.big-add{padding:20px 18px;font-size:15px;margin:2px 0 14px;border-radius:16px}
+.big-add:hover{transform:scale(1.015);transition:transform .15s}
+.idea-chip{padding:9px 14px;font-size:13px}
+.idea-chip:hover{background:rgba(91,157,255,.18);transform:translateY(-1px);transition:all .15s}
+.gstep{padding:7px 12px;font-size:12px}
+.gstep:hover{background:rgba(91,157,255,.15);transform:translateY(-1px);transition:all .15s}
+.sh-btn{padding:15px;font-size:14px;border-radius:15px}
+.sh-act:hover{background:rgba(255,255,255,.12);transition:background .12s}
+select,textarea,.idea-txt{font-size:14px}
+.ptlabel{font-size:14px}
+.tog{width:48px;height:27px}
+.tog-k{width:23px;height:23px}
+.kren:hover{background:rgba(255,255,255,.18);transform:scale(1.06);transition:all .12s}
+.kadd:hover{background:rgba(255,255,255,.09);transition:background .12s}
+.kanban{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))!important;
+  gap:16px!important;overflow-x:unset!important;scrollbar-width:auto!important;padding-bottom:0!important}
+.kcard{padding:14px 46px 14px 15px;border-radius:14px;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.kcard:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.35)}
+.kol{border-radius:18px;padding:14px}
+#sheet{left:50%;transform:translateX(-50%) translateY(60px);right:auto;width:500px;max-width:calc(100vw - 40px);border-radius:24px}
+#sheet[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
+.matrix{height:320px}
+.hmap-wrap{height:380px}
 </style></head>
 <body>
 <div class="bgmesh"></div>
@@ -1249,6 +1278,51 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   window.scrollTo(0,0);
   if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
 });
+
+// ─── Mac sidebar init ───
+(function macInit(){
+  // build sidebar
+  const sidebar=document.createElement('div');sidebar.id='mac-sidebar';
+  sidebar.innerHTML=
+    '<div class="sb-logo"><div class="anchor">⚓</div><div><div class="sb-title">Капитанский мостик</div><div class="sb-ver">v__VERSION__</div></div></div>'+
+    '<div class="sb-date" id="sb-date"></div>'+
+    '<div id="mac-nav"></div>'+
+    '<div class="sb-ver-bottom" id="mac-updated"></div>';
+  document.body.appendChild(sidebar);
+  // build main wrapper
+  const main=document.createElement('div');main.id='mac-main';
+  const wrap=document.querySelector('.wrap');
+  // move pages into main
+  ['plan','fin','proj','hap'].forEach(id=>{
+    const pg=document.getElementById('page-'+id);
+    if(pg)main.appendChild(pg);
+  });
+  document.body.appendChild(main);
+  // nav items
+  const NAV=[['plan','🧭','Мостик'],['fin','💰','Финансы'],['proj','📁','Проекты'],['hap','🤗','Счастье']];
+  const navEl=sidebar.querySelector('#mac-nav');
+  NAV.forEach(([p,e,label])=>{
+    const it=document.createElement('div');
+    it.className='mac-nav-item'+(p==='plan'?' on':'');
+    it.innerHTML='<span class="e">'+e+'</span>'+label;
+    it.onclick=()=>{
+      navEl.querySelectorAll('.mac-nav-item').forEach(x=>x.classList.remove('on'));
+      it.classList.add('on');
+      NAV.forEach(([n])=>document.getElementById('page-'+n).classList.toggle('on',n===p));
+      main.scrollTo(0,0);
+      if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
+    };
+    navEl.appendChild(it);
+  });
+  // date in sidebar
+  (function updDate(){
+    const d=new Date();
+    const days=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+    const months=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    const el=sidebar.querySelector('#sb-date');
+    if(el)el.textContent=days[d.getDay()]+', '+d.getDate()+' '+months[d.getMonth()];
+  })();
+})();
 
 function quadClass(imp,urg){
   if(imp>=6&&urg>=6)return 'r';
