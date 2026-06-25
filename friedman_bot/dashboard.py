@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.2"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.3"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1021,8 +1021,8 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="balstrip glass-sm" id="balstrip"></div>
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
-      <div class="bh"><div class="t">📋 Парковка для идей</div></div>
-      <button class="big-add" onclick="openIdeaSheet()"><span class="ic">✨</span>Новая идея</button>
+      <div class="bh"><div class="t">💡 Вводные</div></div>
+      <button class="big-add" onclick="openIdeaSheet()"><span class="ic">✨</span>Новая вводная</button>
       <div id="chaos"></div>
     </div>
     <div class="block glass">
@@ -1413,7 +1413,7 @@ function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');return d.getDat
 // ─── project actions ───
 function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
 async function addChaos(){
-  const t=await uiPrompt('Новая задача / идея:','',{placeholder:'что добавить в парковку'});
+  const t=await uiPrompt('Новая задача / вводная:','',{placeholder:'что добавить в парковку'});
   if(!t||!t.trim())return;
   mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:t.trim(),area:'other',priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});},
     '/api/chaos_add',{text:t.trim()});
@@ -1630,7 +1630,7 @@ function _openSheet(html){
   return {bg,sheet};
 }
 
-// ─── красивый «захват идеи»: вместо одной строки prompt — полноценная шторка ───
+// ─── красивый «захват вводной»: вместо одной строки prompt — полноценная шторка ───
 function openIdeaSheet(){
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
@@ -1638,7 +1638,7 @@ function openIdeaSheet(){
   const areas=[['work','💼','Дело'],['money','💰','Деньги'],['health','🌿','Тело'],['people','👥','Люди'],['home','🏠','Дом'],['self','📚','Я'],['other','⚡','Прочее']];
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="idea-h"><span class="idea-spark">💡</span><div>'+
-      '<div class="stitle" style="text-align:left;margin:0">Новая идея</div>'+
+      '<div class="stitle" style="text-align:left;margin:0">Новая вводная</div>'+
       '<div class="ssub" style="text-align:left">лови мысль — разложим её позже</div></div></div>'+
     '<textarea id="idea-txt" class="idea-txt" placeholder="Что пришло в голову?" rows="3"></textarea>'+
     '<div class="idea-lbl">Сфера жизни</div>'+
