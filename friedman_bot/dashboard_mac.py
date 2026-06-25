@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.7 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.8 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1142,7 +1142,8 @@ select,textarea,.idea-txt{font-size:14px}
 #sheet[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
 #sheet.mac-top{bottom:auto;top:80px;transform:translateX(-50%) translateY(-60px)}
 #sheet.mac-top[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
-#sheet.mac-top-left{bottom:auto;top:80px;left:40px;transform:translateY(-60px);right:auto}
+#sheet.mac-top-left{bottom:auto;top:72px;left:246px;width:440px;max-height:calc(100vh - 110px);
+  overflow-y:auto;transform:translateY(-18px);right:auto;padding:22px 24px}
 #sheet.mac-top-left[style*="translateY(0)"]{transform:translateY(0)!important}
 .matrix{height:320px}
 .hmap-wrap{height:380px}
@@ -2413,7 +2414,7 @@ function kcardClick(e,id,colId,el){
     `<button class="sh-act" id="kren-btn">✏️ Переименовать</button>`+
     (hasCols?`<button class="sh-act" id="kmove-open-btn">↗ Переместить на доску</button>`:'')+
     `<button class="sh-act" id="karch-btn">📦 В архив</button>`+
-    `<button class="sh-act sh-del" id="kdel-btn">🗑 Удалить навсегда</button></div>`);
+    `<button class="sh-act sh-del" id="kdel-btn">🗑 Удалить навсегда</button></div>`,'top-left');
   if(hasCols) sheet.querySelector('#kmove-open-btn').onclick=()=>{closeSheet();_openKMoveSheet(id,colId,title);};
   sheet.querySelector('#kren-btn').onclick=async()=>{
     const nv=await uiPrompt('Новое название:',title);
@@ -2450,7 +2451,7 @@ function _openKMoveSheet(cardId,currentColId,cardTitle){
     `<div style="font-size:11px;font-weight:800;letter-spacing:.6px;color:var(--muted);margin:0 2px 10px">ПЕРЕМЕСТИТЬ КАРТОЧКУ</div>`+
     `<div class="stitle" style="font-size:15px;margin-bottom:16px;text-align:left">${esc(cardTitle)}</div>`+
     `<div style="display:flex;flex-direction:column;gap:8px">${rows}</div>`
-  );
+  ,'top-left');
   sheet.querySelectorAll('.kmove-col').forEach(btn=>{
     btn.onclick=()=>{
       const target=parseInt(btn.dataset.col,10);
