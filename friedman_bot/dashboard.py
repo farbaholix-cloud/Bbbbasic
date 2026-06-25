@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.5"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.6"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -169,6 +169,10 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE events ADD COLUMN importance INTEGER DEFAULT 0")
         if "urgency" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN urgency INTEGER DEFAULT 0")
+    # steps: drag position + project move
+    st_cols = [r[1] for r in conn.execute("PRAGMA table_info(steps)").fetchall()]
+    if st_cols and "position" not in st_cols:
+        conn.execute("ALTER TABLE steps ADD COLUMN position INTEGER DEFAULT 0")
     # chaos: project link + drag position
     ch_cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
     if ch_cols:
@@ -303,7 +307,7 @@ def get_data():
         _projs = {dict(p)["id"]: {**dict(p), "steps": []}
                   for p in conn.execute(
                       "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY created_at DESC, id DESC").fetchall()}
-        for s in conn.execute("SELECT * FROM steps ORDER BY project_id, id").fetchall():
+        for s in conn.execute("SELECT * FROM steps ORDER BY project_id, COALESCE(position,0) ASC, id ASC").fetchall():
             if s["project_id"] in _projs:
                 _projs[s["project_id"]]["steps"].append(dict(s))
         projects = list(_projs.values())
@@ -456,6 +460,17 @@ def api_steps(path, payload):
             # Достигнутая цель уходит в общий архив (данные сохраняются, из активных пропадает)
             conn.execute("UPDATE projects SET archived=1, archived_at=datetime('now') WHERE id=?",
                          (payload["id"],))
+        elif path == "/api/step_reorder":
+            ids = payload.get("ids") or []
+            for i, sid in enumerate(ids):
+                conn.execute("UPDATE steps SET position=? WHERE id=?", (i, sid))
+        elif path == "/api/step_move":
+            sid = payload["id"]
+            new_pid = payload["project_id"]
+            conn.execute("UPDATE steps SET project_id=? WHERE id=?", (new_pid, sid))
+            ids = payload.get("ids") or []
+            for i, step_id in enumerate(ids):
+                conn.execute("UPDATE steps SET position=? WHERE id=?", (i, step_id))
     return {"ok": True}
 
 
@@ -776,7 +791,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .task.dragging{opacity:.35}
 .drag-h{flex-shrink:0;padding:4px 8px 4px 0;cursor:grab;touch-action:none;display:flex;flex-direction:column;gap:3.5px;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none}
 .drag-h i{display:block;width:14px;height:2px;background:rgba(235,240,250,.3);border-radius:2px;pointer-events:none}
-.dot-menu{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:480px;width:100%;background:rgba(18,20,36,.96);border-top:1px solid rgba(255,255,255,.12);border-radius:22px 22px 0 0;padding:20px 18px 36px;z-index:500;backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px)}
+.dot-menu{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:480px;width:100%;background:rgba(18,20,36,.96);border-top:1px solid rgba(255,255,255,.12);border-radius:22px 22px 0 0;padding:20px 18px 36px;z-index:500;backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);max-height:90vh;overflow-y:auto}
 .dot-menu .dm-t{font-size:14px;font-weight:700;color:var(--txt);margin-bottom:14px;line-height:1.35;padding-bottom:12px;border-bottom:1px solid var(--rim)}
 .dot-menu .dm-btn{display:block;width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--rim);background:rgba(255,255,255,.06);color:var(--txt);font-size:14px;font-weight:700;text-align:left;margin-bottom:8px;cursor:pointer}
 .dot-menu .dm-btn.danger{color:#ff8b98;background:rgba(255,107,125,.1);border-color:rgba(255,107,125,.25)}
@@ -826,6 +841,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gstep.done{color:#9ff0bd;border-color:rgba(82,224,138,.4);background:rgba(82,224,138,.14)}
 .gstep.done::before{content:'✓ ';font-weight:900}
 .gstep.idea{color:#ffd07a;border-color:rgba(255,208,122,.35);background:rgba(255,208,122,.1)}
+.gsteps-rows{display:flex;flex-direction:column;gap:5px;margin-top:10px;min-height:8px;transition:background .15s,border-color .15s}
+.gsteps-rows.drag-over{background:rgba(91,157,255,.08);border-radius:10px;border:1px dashed rgba(91,157,255,.45);padding:4px}
+.gstep-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:11px;background:var(--glass2);border:1px solid var(--rim);cursor:default;transition:opacity .15s}
+.gstep-row.done .gst{color:#9ff0bd;text-decoration:line-through;opacity:.7}
+.gstep-row .gst{flex:1;font-size:11.5px;font-weight:700;color:var(--txt);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.gstep-row .drag-sh{display:flex;flex-direction:column;gap:2.5px;padding:3px 4px;opacity:.35;cursor:grab;touch-action:none;flex-shrink:0}
+.gstep-row .drag-sh i{display:block;width:13px;height:1.5px;background:var(--txt);border-radius:2px}
+.gstep-row.dragging{opacity:.25}
+.gstep-row .done-ck{font-size:13px;flex-shrink:0;cursor:pointer;padding:2px 3px;border-radius:6px;-webkit-tap-highlight-color:transparent}
+.gstep-row.done .done-ck{color:#9ff0bd}
 .sh-proj-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--rim);margin-top:6px;overflow:hidden}
 .gact{display:flex;gap:7px;margin-top:10px}
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
@@ -1286,7 +1311,7 @@ function render(){
       const td=JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
       return '<div class="task glass-sm" data-cid="'+c.id+'">'+
         '<span class="drag-h" ontouchstart="_startDrag(event,'+c.id+')" onmousedown="_startDrag(event,'+c.id+')"><i></i><i></i><i></i></span>'+
-        '<span class="pdot '+priClass(c)+'"></span><span class="area">'+(AREAS[c.area]||'⚡')+'</span>'+
+        '<span class="pdot '+priClass(c)+'"></span>'+
         '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+'</span>'+
         '<span class="chev" onclick=\'openTask('+td+')\'>›</span></div>';
     }).join(''):'<div class="empty">парковка пуста — всё запланировано 🎉</div>';
@@ -1309,9 +1334,13 @@ function render(){
       '</div>'+
       '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div>';
     if(opened){
-      const stepsHtml=p.steps.map(s=>'<span class="gstep '+(s.done?'done':'')+'" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>').join('');
+      const stepsHtml=p.steps.map(s=>'<div class="gstep-row '+(s.done?'done':'')+'" data-sid="'+s.id+'">'+
+        '<span class="drag-sh" ontouchstart="_startStepDrag(event,'+s.id+','+p.id+')" onmousedown="_startStepDrag(event,'+s.id+','+p.id+')"><i></i><i></i><i></i></span>'+
+        '<span class="done-ck" onclick="stepToggle('+s.id+')">'+(s.done?'✓':'○')+'</span>'+
+        '<span class="gst" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span></div>').join('');
       const ideasHtml=linkedIdeas.map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
-      h+='<div class="gsteps">'+stepsHtml+ideasHtml+'</div>'+
+      h+='<div class="gsteps-rows" data-proj="'+p.id+'">'+stepsHtml+'</div>'+
+        (ideasHtml?'<div class="gsteps" style="margin-top:6px">'+ideasHtml+'</div>':'')+
         '<div class="gact"><button onclick="stepAdd('+p.id+')">+ шаг</button>'+
         '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">✏️ имя</button>'+
         '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑</button></div>';
@@ -1504,45 +1533,145 @@ function _endDrag(){
   _dg=null;
 }
 
+// ─── project step drag-to-reorder / move between projects ───
+let _sd=null;
+function _startStepDrag(e,sid,pid){
+  e.preventDefault();e.stopPropagation();
+  const row=e.currentTarget.closest('[data-sid]');
+  if(!row)return;
+  const container=row.closest('.gsteps-rows');
+  if(!container)return;
+  const rect=row.getBoundingClientRect();
+  const startY=(e.touches?e.touches[0]:e).clientY;
+  const clone=row.cloneNode(true);
+  clone.style.cssText='position:fixed;left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;z-index:999;pointer-events:none;opacity:.9;box-shadow:0 8px 32px rgba(0,0,0,.65);border-radius:11px;transition:none';
+  document.body.appendChild(clone);
+  row.classList.add('dragging');
+  _sd={sid,pid,row,container,clone,startY,rowTop:rect.top,targetContainer:container};
+  document.addEventListener('touchmove',_moveStepDrag,{passive:false});
+  document.addEventListener('touchend',_endStepDrag,{once:true});
+  document.addEventListener('mousemove',_moveStepDrag);
+  document.addEventListener('mouseup',_endStepDrag,{once:true});
+}
+function _moveStepDrag(e){
+  if(!_sd)return;
+  e.preventDefault();
+  const y=(e.touches?e.touches[0]:e).clientY;
+  const dy=y-_sd.startY;
+  _sd.clone.style.top=(_sd.rowTop+dy)+'px';
+  const myMid=_sd.rowTop+dy+_sd.clone.offsetHeight/2;
+  const allContainers=[...document.querySelectorAll('.gsteps-rows[data-proj]')];
+  let target=_sd.container;
+  for(const c of allContainers){
+    const cr=c.getBoundingClientRect();
+    if(myMid>=cr.top-24&&myMid<=cr.bottom+24){target=c;break;}
+  }
+  allContainers.forEach(c=>c.classList.remove('drag-over'));
+  if(target!==_sd.container)target.classList.add('drag-over');
+  _sd.targetContainer=target;
+  const rows=[...target.querySelectorAll('[data-sid]')];
+  let before=null;
+  for(const r of rows){
+    if(r===_sd.row)continue;
+    const rr=r.getBoundingClientRect();
+    if(myMid<rr.top+rr.height/2){before=r;break;}
+  }
+  if(before)target.insertBefore(_sd.row,before);
+  else target.appendChild(_sd.row);
+}
+function _endStepDrag(){
+  if(!_sd)return;
+  document.removeEventListener('touchmove',_moveStepDrag);
+  document.removeEventListener('mousemove',_moveStepDrag);
+  document.querySelectorAll('.gsteps-rows').forEach(c=>c.classList.remove('drag-over'));
+  _sd.clone.remove();
+  _sd.row.classList.remove('dragging');
+  const tgt=_sd.targetContainer;
+  const newPid=tgt?parseInt(tgt.dataset.proj):_sd.pid;
+  const stepIds=[...tgt.querySelectorAll('[data-sid]')].map(r=>parseInt(r.dataset.sid));
+  if(newPid!==_sd.pid){
+    const op=_proj(_sd.pid);if(op)op.steps=op.steps.filter(s=>s.id!==_sd.sid);
+    const np=_proj(newPid);const s=_step(_sd.sid);
+    if(np&&s){s.project_id=newPid;np.steps.push(s);}
+    mutate(null,'/api/step_move',{id:_sd.sid,project_id:newPid,ids:stepIds});
+  } else {
+    const proj=_proj(_sd.pid);
+    if(proj){const mp={};proj.steps.forEach(s=>mp[s.id]=s);
+      proj.steps=stepIds.map(id=>mp[id]).filter(Boolean).concat(proj.steps.filter(s=>!stepIds.includes(s.id)));}
+    mutate(null,'/api/step_reorder',{project_id:_sd.pid,ids:stepIds});
+  }
+  _sd=null;
+}
+
 // ─── prioritization matrix dot menu ───
 function openDotMenu(e,cid){
   e.stopPropagation();
   document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
   const c=_chaos(cid);if(!c)return;
+  const imp=c.importance||0,urg=c.urgency||0;
+  const existingCard=(DATA.cards||[]).find(x=>x.chaos_id===cid&&x.kind==='event');
+  const curDate=existingCard?existingCard.date:localISO(new Date());
+  const curTime=existingCard?existingCard.time||'':'';
   const d=document.createElement('div');
   d.className='dot-menu';
-  d.innerHTML='<div class="grab"></div><div class="dm-t">'+esc(c.text)+'</div>'+
-    '<button class="dm-btn" onclick="dotDone('+cid+')">✅ выполнено</button>'+
-    '<button class="dm-btn danger" onclick="dotArchive('+cid+')">🗑 архивировать</button>'+
-    '<button class="dm-btn" onclick="dotDetail('+cid+')">ℹ️ подробнее</button>'+
-    '<div class="dm-close" onclick="this.closest(\'.dot-menu\').remove()">✕ закрыть</div>';
+  d.innerHTML='<div class="grab"></div>'+
+    '<div class="dm-t">'+esc(c.text)+'</div>'+
+    '<div class="slider-row"><div class="sl-top"><span>🔴 Важность</span><span class="val" id="dm-iv">'+imp+' / 10</span></div>'+
+      '<input type="range" id="dm-imp" min="0" max="10" value="'+imp+'"></div>'+
+    '<div class="slider-row"><div class="sl-top"><span>⚡ Срочность</span><span class="val" id="dm-uv">'+urg+' / 10</span></div>'+
+      '<input type="range" id="dm-urg" min="0" max="10" value="'+urg+'"></div>'+
+    '<div class="sh-quad" id="dm-quad"></div>'+
+    '<div class="sh-actions" style="margin-top:10px"><button class="sh-btn prime" id="dm-rate">💾 Сохранить оценку</button></div>'+
+    '<div class="sh-divider" style="margin:14px 0 10px"></div>'+
+    '<div class="sh-pick-lbl" style="margin-bottom:8px">📅 Запланировать</div>'+
+    '<div class="sh-picker">'+
+      '<input type="date" id="dm-date" value="'+curDate+'">'+
+      '<input type="time" id="dm-time" value="'+curTime+'">'+
+      '<button id="dm-go">запланировать</button></div>'+
+    '<div class="sh-actions" style="margin-top:14px">'+
+      '<button class="sh-btn" id="dm-done">✅ выполнено</button>'+
+      '<button class="sh-btn danger" id="dm-arch">🗑 архив</button></div>';
   document.body.appendChild(d);
-  // Смахивание вниз закрывает меню — как нативная шторка
   _swipeDismiss(d,()=>d.remove());
+  const impEl=d.querySelector('#dm-imp'),urgEl=d.querySelector('#dm-urg'),quad=d.querySelector('#dm-quad');
+  function updQuad(){
+    const i=+impEl.value,u=+urgEl.value;
+    d.querySelector('#dm-iv').textContent=i+' / 10';
+    d.querySelector('#dm-uv').textContent=u+' / 10';
+    const q=(i>=6&&u>=6)?['🔴 Делай сейчас','rgba(255,107,125,.16)','rgba(255,107,125,.4)','#ff9aa6']
+      :(i>=6&&u<6)?['🟡 Запланируй','rgba(255,198,87,.16)','rgba(255,198,87,.4)','#ffd07a']
+      :(i<6&&u>=6)?['🔵 Делегируй','rgba(91,157,255,.16)','rgba(91,157,255,.4)','#86b8ff']
+      :['⚪ Не оценено','rgba(235,240,250,.08)','var(--rim)','var(--muted)'];
+    quad.textContent=q[0];quad.style.background=q[1];quad.style.borderColor=q[2];quad.style.color=q[3];
+  }
+  impEl.oninput=updQuad;urgEl.oninput=updQuad;updQuad();
+  d.querySelector('#dm-rate').onclick=()=>{
+    const imp=+impEl.value,urg=+urgEl.value;
+    d.remove();
+    mutate(()=>{const x=_chaos(cid);if(x){x.importance=imp;x.urgency=urg;}},'/api/rate',{id:cid,importance:imp,urgency:urg});
+  };
+  d.querySelector('#dm-go').onclick=()=>{
+    const date=d.querySelector('#dm-date').value,time=d.querySelector('#dm-time').value||'';
+    if(!date)return;
+    d.remove();
+    mutate(()=>{
+      const x=_chaos(cid);if(!DATA.cards)DATA.cards=[];
+      DATA.cards=DATA.cards.filter(ev=>ev.chaos_id!==cid||ev.kind!=='event');
+      DATA.cards.push({kind:'event',id:_tmpId(),date,time,text:(x?x.text:c.text),chaos_id:cid,project_id:(x?x.project_id:null)||null,morning_brief:0,importance:0,urgency:0});
+    },'/api/move',{kind:'chaos',id:cid,date,time});
+  };
+  d.querySelector('#dm-done').onclick=()=>{
+    d.remove();
+    mutate(()=>{const x=_chaos(cid);if(x)x.done=1;DATA.cards=(DATA.cards||[]).filter(ev=>ev.chaos_id!==cid);},'/api/complete',{kind:'chaos',id:cid});
+  };
+  d.querySelector('#dm-arch').onclick=()=>{
+    d.remove();
+    mutate(()=>{DATA.chaos=(DATA.chaos||[]).filter(x=>x.id!==cid);DATA.cards=(DATA.cards||[]).filter(x=>x.chaos_id!==cid);DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.chaos_id!==cid);},'/api/delete',{kind:'chaos',id:cid});
+  };
   setTimeout(()=>{
     function h(ev){if(!d.contains(ev.target)){d.remove();document.removeEventListener('click',h);}}
     document.addEventListener('click',h);
   },80);
-}
-function dotDone(cid){
-  document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
-  mutate(()=>{
-    const c=_chaos(cid);if(c)c.done=1;
-    DATA.cards=(DATA.cards||[]).filter(x=>x.chaos_id!==cid);
-  },'/api/complete',{kind:'chaos',id:cid});
-}
-function dotArchive(cid){
-  document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
-  mutate(()=>{
-    DATA.chaos=(DATA.chaos||[]).filter(x=>x.id!==cid);
-    DATA.cards=(DATA.cards||[]).filter(x=>x.chaos_id!==cid);
-    DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.chaos_id!==cid);
-  },'/api/delete',{kind:'chaos',id:cid});
-}
-function dotDetail(cid){
-  document.querySelectorAll('.dot-menu').forEach(m=>m.remove());
-  const c=_chaos(cid);
-  if(c)openTask({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0});
 }
 
 function stepToggle(id){
@@ -1632,7 +1761,7 @@ function _swipeDismiss(sheet,closeFn){
   let sy=0,dragging=false;
   const onStart=e=>{
     const tg=e.target;
-    if(tg.closest('input,textarea,select,button,.idea-chip,.sh-day,.tog'))return;
+    if(tg.closest('input,textarea,select,button,.sh-day,.tog'))return;
     sy=e.touches[0].clientY;dragging=true;sheet.style.transition='none';
   };
   const onMove=e=>{
@@ -1667,29 +1796,23 @@ function openIdeaSheet(){
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
-  const areas=[['work','💼','Дело'],['money','💰','Деньги'],['health','🌿','Тело'],['people','👥','Люди'],['home','🏠','Дом'],['self','📚','Я'],['other','⚡','Прочее']];
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="idea-h"><span class="idea-spark">💡</span><div>'+
       '<div class="stitle" style="text-align:left;margin:0">Новая вводная</div>'+
       '<div class="ssub" style="text-align:left">лови мысль — разложим её позже</div></div></div>'+
-    '<textarea id="idea-txt" class="idea-txt" placeholder="Что пришло в голову?" rows="3"></textarea>'+
-    '<div class="idea-lbl">Сфера жизни</div>'+
-    '<div class="idea-chips" id="idea-chips">'+areas.map(a=>'<button class="idea-chip'+(a[0]==='other'?' on':'')+'" data-area="'+a[0]+'">'+a[1]+' '+a[2]+'</button>').join('')+'</div>'+
+    '<textarea id="idea-txt" class="idea-txt" placeholder="Что пришло в голову?" rows="4"></textarea>'+
     '<button class="big-add" id="idea-save" style="margin-top:18px"><span class="ic">📌</span>Припарковать</button>';
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
-  let area='other';
-  const chips=sheet.querySelectorAll('.idea-chip');
-  chips.forEach(c=>c.onclick=()=>{chips.forEach(x=>x.classList.remove('on'));c.classList.add('on');area=c.dataset.area;});
   const txt=sheet.querySelector('#idea-txt');
   setTimeout(()=>{try{txt.focus();}catch(_){}},160);
   const save=()=>{
     const v=(txt.value||'').trim();
     if(!v){txt.focus();return;}
     closeSheet();
-    mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:v,area,priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});},
-      '/api/chaos_add',{text:v,area});
+    mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:v,area:'other',priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});},
+      '/api/chaos_add',{text:v,area:'other'});
   };
   sheet.querySelector('#idea-save').onclick=save;
   txt.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter')save();});
@@ -2757,7 +2880,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in routes:
             result = routes[path](payload)
         elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
-                      "/api/proj_rename", "/api/proj_delete", "/api/proj_archive"):
+                      "/api/proj_rename", "/api/proj_delete", "/api/proj_archive",
+                      "/api/step_reorder", "/api/step_move"):
             result = api_steps(path, payload)
         else:
             result = {"ok": False}
