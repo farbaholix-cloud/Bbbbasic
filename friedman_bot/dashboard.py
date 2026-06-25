@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.8"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.9"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -460,6 +460,10 @@ def api_steps(path, payload):
         elif path == "/api/step_add":
             conn.execute("INSERT INTO steps (project_id, text) VALUES (?,?)",
                          (payload["project_id"], payload["text"]))
+        elif path == "/api/step_rename":
+            new_text = (payload.get("text") or "").strip()
+            if new_text:
+                conn.execute("UPDATE steps SET text=? WHERE id=?", (new_text, payload["id"]))
         elif path == "/api/proj_rename":
             conn.execute("UPDATE projects SET name=? WHERE id=?", (payload["name"], payload["id"]))
         elif path == "/api/proj_delete":
@@ -866,6 +870,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gstep-row.dragging{opacity:.25}
 .gstep-row .done-ck{font-size:13px;flex-shrink:0;cursor:pointer;padding:2px 3px;border-radius:6px;-webkit-tap-highlight-color:transparent}
 .gstep-row.done .done-ck{color:#9ff0bd}
+.gstep-row .gst-act{flex-shrink:0;font-size:12px;line-height:1;padding:5px 6px;border-radius:8px;opacity:.45;cursor:pointer;transition:opacity .12s,background .12s,transform .1s;-webkit-tap-highlight-color:transparent}
+.gstep-row .gst-act:active{opacity:1;background:rgba(255,255,255,.12);transform:scale(.88)}
+.gstep-row .gst-act.del:active{background:rgba(255,107,125,.2)}
 .sh-proj-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--rim);margin-top:6px;overflow:hidden}
 .gact{display:flex;gap:7px;margin-top:10px}
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
@@ -1354,13 +1361,14 @@ function render(){
       const stepsHtml=p.steps.map(s=>'<div class="gstep-row '+(s.done?'done':'')+'" data-sid="'+s.id+'">'+
         '<span class="drag-sh" ontouchstart="_startStepDrag(event,'+s.id+','+p.id+')" onmousedown="_startStepDrag(event,'+s.id+','+p.id+')"><i></i><i></i><i></i></span>'+
         '<span class="done-ck" onclick="stepToggle('+s.id+')">'+(s.done?'✓':'○')+'</span>'+
-        '<span class="gst" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span></div>').join('');
+        '<span class="gst" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>'+
+        '<span class="gst-act" onclick="event.stopPropagation();stepRename('+s.id+')" title="Переименовать">✏️</span>'+
+        '<span class="gst-act del" onclick="event.stopPropagation();stepDelete('+s.id+')" title="Удалить">🗑</span></div>').join('');
       const ideasHtml=linkedIdeas.map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
       h+='<div class="gsteps-rows" data-proj="'+p.id+'">'+stepsHtml+'</div>'+
         (ideasHtml?'<div class="gsteps" style="margin-top:6px">'+ideasHtml+'</div>':'')+
         '<div class="gact"><button onclick="stepAdd('+p.id+')">+ шаг</button>'+
-        '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">✏️ имя</button>'+
-        '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑</button></div>';
+        '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑 цель</button></div>';
     } else if(total||linkedIdeas.length){
       // Превью у свёрнутой цели тоже интерактивно: иначе нажатие на шаг лишь подсвечивало
       // его (CSS :active), но ничего не фиксировало — «загорается зелёным, отпускаю → серый».
@@ -1707,6 +1715,8 @@ async function _askGoalDone(pid){
   }
 }
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
+async function stepRename(id){const s=_step(id);if(!s)return;const t=await uiPrompt('Переименовать шаг:',s.text,{ok:'Сохранить'});if(t&&t.trim()){mutate(()=>{const x=_step(id);if(x)x.text=t.trim();},'/api/step_rename',{id,text:t.trim()});}}
+async function stepDelete(id){const s=_step(id);if(!s)return;if(await uiConfirm('Удалить шаг?',{sub:s.text,danger:true,ok:'Удалить'})){mutate(()=>{for(const p of (DATA.projects||[])){const i=(p.steps||[]).findIndex(x=>x.id===id);if(i>=0){p.steps.splice(i,1);break;}}},'/api/step_delete',{id});}}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
 async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){mutate(()=>{DATA.projects=(DATA.projects||[]).filter(p=>p.id!==id);},'/api/proj_delete',{id});}}
 function projSetMorning(id,on){const p=_proj(id);mutate(()=>{if(p)p.morning_brief=on?1:0;},'/api/proj_set_morning',{id,on});}
@@ -2897,8 +2907,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in routes:
             result = routes[path](payload)
         elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
-                      "/api/proj_rename", "/api/proj_delete", "/api/proj_archive",
-                      "/api/step_reorder", "/api/step_move"):
+                      "/api/step_rename", "/api/proj_rename", "/api/proj_delete",
+                      "/api/proj_archive", "/api/step_reorder", "/api/step_move"):
             result = api_steps(path, payload)
         else:
             result = {"ok": False}
