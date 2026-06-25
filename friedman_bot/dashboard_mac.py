@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.13 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.14 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1004,6 +1004,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
   transform:translateY(40px);opacity:0;transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .25s}
 .grab{width:42px;height:5px;border-radius:3px;background:var(--rim2);margin:0 auto 16px}
 .stitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:3px}
+.stitle-edit{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1.5px solid transparent;
+  border-radius:12px;color:var(--txt);font-family:inherit;padding:8px 12px;outline:none;transition:border-color .15s,background .15s}
+.stitle-edit:hover{background:rgba(255,255,255,.08)}
+.stitle-edit:focus{border-color:var(--blue);background:rgba(91,157,255,.1)}
 .ssub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;font-weight:600}
 .slider-row{margin-bottom:16px}
 .sl-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:9px}
@@ -1206,6 +1210,10 @@ select,textarea,.idea-txt{font-size:14px}
 .kcard{padding:13px 46px 13px 14px;border-radius:14px;cursor:grab;transition:transform .12s,box-shadow .12s}
 .kcard:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.35)}
 .kcard.dragging{opacity:.3;cursor:grabbing;transform:none!important;box-shadow:none!important}
+/* перетаскивание вводной в календарь */
+.task[draggable="true"]{cursor:grab}
+.task.chaos-dragging{opacity:.4}
+#cal-drop.cal-drop-over{box-shadow:0 0 0 2px #5b9dff,0 0 24px rgba(91,157,255,.3)!important;border-color:#5b9dff!important;transition:box-shadow .12s}
 #sheet{left:50%;transform:translateX(-50%) translateY(60px);right:auto;width:500px;max-width:calc(100vw - 40px);border-radius:24px}
 #sheet[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
 #sheet.mac-top{bottom:auto;top:80px;transform:translateX(-50%) translateY(-60px)}
@@ -1309,10 +1317,10 @@ select,textarea,.idea-txt{font-size:14px}
       </div>
       <div class="mhint">✋ тапни точку или задачу → оцени важность/срочность</div>
     </div>
-    <div class="block glass">
+    <div class="block glass" id="cal-drop">
       <div class="bh"><div class="t">📅 Прошивка календаря <span class="sm">эта неделя</span></div><div class="cnt">эта неделя</div></div>
       <div id="cal"></div>
-      <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
+      <div class="addr" style="margin-top:9px;cursor:default">↔ перетяни вводную сюда — выбрать день</div>
     </div>
     </div>
   </div>
@@ -1601,7 +1609,7 @@ function render(){
   if(!_dg){
     document.getElementById('chaos').innerHTML=parking.length?parking.map(c=>{
       const td=JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
-      return '<div class="task glass-sm" data-cid="'+c.id+'">'+
+      return '<div class="task glass-sm" data-cid="'+c.id+'" draggable="true" ondragstart="_chaosDragStart(event,'+c.id+')" ondragend="_chaosDragEnd(event)">'+
         '<span class="drag-h" ontouchstart="_startDrag(event,'+c.id+')" onmousedown="_startDrag(event,'+c.id+')"><i></i><i></i><i></i></span>'+
         '<span class="pdot '+priClass(c)+'"></span><span class="area">'+(AREAS[c.area]||'⚡')+'</span>'+
         '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+'</span>'+
@@ -1610,6 +1618,7 @@ function render(){
   }
   // calendar
   renderCal();
+  _wireCalDrop();
   // goals
   document.getElementById('goals-cnt').textContent=d.projects.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length+' в работе';
   document.getElementById('projects').innerHTML=d.projects.length?d.projects.map(p=>{
@@ -1814,6 +1823,45 @@ function _endDrag(){
   const allIds=(DATA.chaos||[]).filter(c=>!c.done).map(c=>c.id);
   mutate(null,'/api/chaos_reorder',{ids:allIds});
   _dg=null;
+}
+
+// ─── перетаскивание вводной в календарь (Мостик) ───
+// Тащишь карточку телом → HTML5 drag на блок «Прошивка календаря» → открывается выбор дня.
+// Перетаскивание за ручку (drag-h) по-прежнему делает reorder вверх-вниз (mousedown.preventDefault
+// гасит нативный drag, поэтому две механики не конфликтуют).
+let _chaosDragId=null;
+function _chaosDragStart(e,cid){
+  _chaosDragId=cid;
+  try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(cid));}catch(_){}
+  e.currentTarget.classList.add('chaos-dragging');
+}
+function _chaosDragEnd(e){
+  e.currentTarget.classList.remove('chaos-dragging');
+  const blk=document.getElementById('cal-drop');
+  if(blk)blk.classList.remove('cal-drop-over');
+  _chaosDragId=null;
+}
+function _wireCalDrop(){
+  const blk=document.getElementById('cal-drop');
+  if(!blk||blk._dropWired)return;
+  blk._dropWired=true;
+  blk.addEventListener('dragover',e=>{
+    if(_chaosDragId===null)return;
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    blk.classList.add('cal-drop-over');
+  });
+  blk.addEventListener('dragleave',e=>{
+    if(!blk.contains(e.relatedTarget))blk.classList.remove('cal-drop-over');
+  });
+  blk.addEventListener('drop',e=>{
+    e.preventDefault();
+    blk.classList.remove('cal-drop-over');
+    const cid=_chaosDragId;_chaosDragId=null;
+    if(cid===null)return;
+    const c=_chaos(cid);
+    if(!c)return;
+    openTask({kind:'chaos',id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
+  });
 }
 
 // ─── prioritization matrix dot menu ───
@@ -2086,9 +2134,9 @@ function openTask(t){
   const mbBlock=(t.kind==='event')?
     '<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700">🌅 Утренняя сводка:</span>'+
     '<div class="tog '+(mbOn?'on':'')+'" id="sh-mb" style="flex-shrink:0"><div class="tog-k"></div></div></div>':'';
-  sheet.innerHTML='<div class="grab"></div><div class="stitle">'+esc(t.text||'')+'</div>'+
-    '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'перенести / закрыть')+'</div>'+
-    (t.kind==='chaos'?'<div style="text-align:center;margin:-2px 0 10px"><button id="sh-ren" style="display:inline-flex;align-items:center;gap:6px;padding:7px 18px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:rgba(235,240,250,.7);font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:.2px">✏️ переименовать</button></div>':'')+
+  sheet.innerHTML='<div class="grab"></div>'+
+    (t.kind==='chaos'?'<input id="sh-title" class="stitle stitle-edit" spellcheck="false" autocomplete="off">':'<div class="stitle">'+esc(t.text||'')+'</div>')+
+    '<div class="ssub">'+(t.kind==='chaos'?'печатай — переименуешь · оцени или запланируй день':'перенести / закрыть')+'</div>'+
     rateBlock+
     projBlock+mbBlock+
     '<div class="sh-divider"></div>'+
@@ -2178,13 +2226,23 @@ function openTask(t){
       }
     },'/api/event_delete',{id:t.id});
   };
-  const shRen=sheet.querySelector('#sh-ren');
-  if(shRen)shRen.onclick=async()=>{
-    const nv=await uiPrompt('Переименовать задачу:',t.text);
-    if(!nv||!nv.trim())return;
-    closeSheet();
-    mutate(()=>{const c=_chaos(t.id);if(c)c.text=nv.trim();},'/api/chaos_rename',{id:t.id,text:nv.trim()});
-  };
+  // Название = редактируемое поле, текст на месте и сразу выделен: открыл карточку и печатаешь.
+  const shTitle=sheet.querySelector('#sh-title');
+  if(shTitle){
+    shTitle.value=t.text||'';
+    const saveTitle=()=>{
+      const nv=shTitle.value.trim();
+      if(!nv||nv===(t.text||''))return;
+      t.text=nv;
+      mutate(()=>{const c=_chaos(t.id);if(c)c.text=nv;},'/api/chaos_rename',{id:t.id,text:nv});
+    };
+    shTitle.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();saveTitle();shTitle.blur();}
+    });
+    shTitle.addEventListener('blur',saveTitle);
+    // фокус + выделение всего текста, чтобы можно было сразу печатать новое имя
+    setTimeout(()=>{try{shTitle.focus();shTitle.select();}catch(_){}},120);
+  }
   // Project selector — save on change (sheet stays open; page repaints behind it)
   const shProj=sheet.querySelector('#sh-proj');
   if(shProj){
