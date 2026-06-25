@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.12 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.13 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -257,7 +257,7 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE projects ADD COLUMN archived_at TEXT")
     if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
         conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
-            ("Идеи","#5b9dff",0),("В работе","#ff9aa6",1),
+            ("Вводные","#5b9dff",0),("В работе","#ff9aa6",1),
             ("На паузе","#ffd07a",2),("Готово","#52e08a",3)])
 
 
@@ -1155,7 +1155,7 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* ─── Мостик: 3 колонки ─── */
-/* balstrip=child1, wisdom=child2, Идеи=child3, Визуал=child4, plan-rcol=child5 */
+/* balstrip=child1, wisdom=child2, Вводные=child3, Визуал=child4, plan-rcol=child5 */
 #page-plan.on{display:grid;grid-template-columns:1fr 1.2fr 1.1fr;gap:18px;align-items:start}
 #page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
 #page-plan.on>.block:nth-child(3){grid-column:1;grid-row:3}
@@ -1289,8 +1289,8 @@ select,textarea,.idea-txt{font-size:14px}
     <div class="balstrip glass-sm" id="balstrip"></div>
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
-      <div class="bh"><div class="t">💡 Идеи</div></div>
-      <button class="big-add" onclick="openIdeaSheet()"><span class="ic">✨</span>Новая идея</button>
+      <div class="bh"><div class="t">💡 Вводные</div></div>
+      <button class="big-add" onclick="openIdeaSheet()"><span class="ic">✨</span>Новая вводная</button>
       <div id="chaos"></div>
     </div>
     <div class="block glass">
@@ -1757,7 +1757,7 @@ function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');return d.getDat
 // ─── project actions ───
 function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
 async function addChaos(){
-  const t=await uiPrompt('Новая задача / идея:','',{placeholder:'что добавить в парковку'});
+  const t=await uiPrompt('Новая задача / вводная:','',{placeholder:'что добавить в парковку'});
   if(!t||!t.trim())return;
   mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:t.trim(),area:'other',priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});},
     '/api/chaos_add',{text:t.trim()});
@@ -1874,7 +1874,7 @@ async function _askGoalDone(pid){
 }
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
-async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){mutate(()=>{DATA.projects=(DATA.projects||[]).filter(p=>p.id!==id);},'/api/proj_delete',{id});}}
+async function projDel(id,name){mutate(()=>{DATA.projects=(DATA.projects||[]).filter(p=>p.id!==id);},'/api/proj_delete',{id});}
 function projSetMorning(id,on){const p=_proj(id);mutate(()=>{if(p)p.morning_brief=on?1:0;},'/api/proj_set_morning',{id,on});}
 
 // ─── finance actions ───
@@ -1893,7 +1893,6 @@ function finAdd(sign){
   },'/api/finance_add',{amount:signed,account,comment});
 }
 async function finDel(id){
-  if(!(await uiConfirm('Удалить операцию?',{danger:true,ok:'Удалить'})))return;
   const op=_byId(DATA.fin_log,id);
   mutate(()=>{
     if(op){const a=op.amount||0;if(op.account==='cash')DATA.cash=(DATA.cash||0)-a;else DATA.card=(DATA.card||0)-a;DATA.balance=(DATA.balance||0)-a;}
@@ -1915,7 +1914,7 @@ async function addDebt(kind){
   }
   mutate(()=>{if(!DATA.debts)DATA.debts=[];DATA.debts.push({id:_tmpId(),paid:0,monthly:0,due_date:null,...body});},'/api/debt_add',body);
 }
-async function delDebt(id){if(await uiConfirm('Удалить долг?',{danger:true,ok:'Удалить'})){mutate(()=>{DATA.debts=(DATA.debts||[]).filter(x=>x.id!==id);},'/api/debt_delete',{id});}}
+async function delDebt(id){mutate(()=>{DATA.debts=(DATA.debts||[]).filter(x=>x.id!==id);},'/api/debt_delete',{id});}
 async function addPayment(){
   const title=await uiPrompt('Платёж — название:','',{placeholder:'за что'});
   if(!title||!title.trim())return;
@@ -1932,7 +1931,7 @@ async function addPayment(){
   }
   mutate(()=>{if(!DATA.payments)DATA.payments=[];DATA.payments.push({id:_tmpId(),day:1,date:null,recur:'monthly',...body});},'/api/payment_add',body);
 }
-async function delPayment(id){if(await uiConfirm('Удалить платёж?',{danger:true,ok:'Удалить'})){mutate(()=>{DATA.payments=(DATA.payments||[]).filter(p=>p.id!==id);},'/api/payment_delete',{id});}}
+async function delPayment(id){mutate(()=>{DATA.payments=(DATA.payments||[]).filter(p=>p.id!==id);},'/api/payment_delete',{id});}
 
 // ─── bottom sheet (rate / move) ───
 function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();const b=document.getElementById('sheet-bg');if(b)b.remove();}
@@ -1984,8 +1983,8 @@ function openIdeaSheet(){
   const areas=[['work','💼','Дело'],['money','💰','Деньги'],['health','🌿','Тело'],['people','👥','Люди'],['home','🏠','Дом'],['self','📚','Я'],['other','⚡','Прочее']];
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="idea-h"><span class="idea-spark">💡</span><div>'+
-      '<div class="stitle" style="text-align:left;margin:0">Новая идея</div>'+
-      '<div class="ssub" style="text-align:left">лови мысль — разложим её позже</div></div></div>'+
+      '<div class="stitle" style="text-align:left;margin:0">Новая вводная</div>'+
+      '<div class="ssub" style="text-align:left">поймай мысль — разложим её позже</div></div></div>'+
     '<textarea id="idea-txt" class="idea-txt" placeholder="Что пришло в голову?" rows="3"></textarea>'+
     '<div class="idea-lbl">Сфера жизни</div>'+
     '<div class="idea-chips" id="idea-chips">'+areas.map(a=>'<button class="idea-chip'+(a[0]==='other'?' on':'')+'" data-area="'+a[0]+'">'+a[1]+' '+a[2]+'</button>').join('')+'</div>'+
@@ -2155,7 +2154,6 @@ function openTask(t){
     },'/api/complete',{kind:t.kind,id:t.id});
   };
   sheet.querySelector('#sh-del').onclick=async()=>{
-    if(t.kind==='chaos'&&!(await uiConfirm('Удалить задачу навсегда?',{danger:true,ok:'Удалить'})))return;
     closeSheet();
     mutate(()=>{
       if(t.kind==='chaos'){
@@ -2170,7 +2168,6 @@ function openTask(t){
   // Delete event permanently (with linked chaos task)
   const shEvDel=sheet.querySelector('#sh-evdel');
   if(shEvDel)shEvDel.onclick=async()=>{
-    if(!(await uiConfirm('Удалить событие навсегда?',{danger:true,ok:'Удалить'})))return;
     closeSheet();
     mutate(()=>{
       const chaosId=(_card(t.id)||{}).chaos_id||null;
@@ -2451,9 +2448,6 @@ function kcolMenu(e,colId){
   };
   // delete project (list)
   sheet.querySelector('#kcol-del-btn').onclick=async()=>{
-    const cnt=(DATA.kanban_cards||[]).filter(c=>c.column_id===colId&&!c.archived).length;
-    const msg=cnt?`Удалить проект «${col.name}» и его карточек: ${cnt}?`:`Удалить проект «${col.name}»?`;
-    if(!(await uiConfirm(msg,{danger:true,ok:'Удалить'})))return;
     closeSheet();
     mutate(()=>{
       DATA.kanban_cols=(DATA.kanban_cols||[]).filter(x=>x.id!==colId);
@@ -2496,7 +2490,6 @@ function kcardClick(e,id,colId,el){
     mutate(()=>_karchLocal(id),'/api/kcard_archive',{id},()=>renderKanban(DATA));
   };
   sheet.querySelector('#kdel-btn').onclick=async()=>{
-    if(!(await uiConfirm('Удалить карточку навсегда?',{danger:true,ok:'Удалить'})))return;
     closeSheet();
     mutate(()=>{DATA.kanban_cards=(DATA.kanban_cards||[]).filter(x=>x.id!==id);},'/api/kcard_delete',{id},()=>renderKanban(DATA));
   };
@@ -3229,8 +3222,7 @@ function _openCalEventSheet(ds,defTime,existing){
     }
   };
   const delBtn=sheet.querySelector('#ce-del');
-  if(delBtn)delBtn.onclick=async()=>{
-    if(!(await uiConfirm('Удалить событие?',{danger:true,ok:'Удалить'})))return;
+  if(delBtn)delBtn.onclick=()=>{
     closeSheet();
     mutate(()=>{DATA.cards=(DATA.cards||[]).filter(x=>x.id!==existing.id);},'/api/event_delete',{id:existing.id},()=>renderCalPage());
   };
