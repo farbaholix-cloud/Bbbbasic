@@ -5,6 +5,9 @@ import math
 import time
 import secrets
 import calendar
+import subprocess
+import threading
+import urllib.request
 from contextlib import contextmanager
 from datetime import datetime, date, timedelta
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -12,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.8 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.9 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -45,6 +48,71 @@ def get_session_token():
 
 
 SESSION_TOKEN = get_session_token()
+
+
+def get_deploy_token():
+    """Стабильный токен для /__deploy (переживает рестарт), хранится в settings."""
+    with db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+        row = conn.execute("SELECT value FROM settings WHERE key='deploy_token'").fetchone()
+        if row and row["value"]:
+            return row["value"]
+        tok = secrets.token_urlsafe(18)
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('deploy_token', ?)", (tok,))
+        return tok
+
+
+DEPLOY_TOKEN = get_deploy_token()
+DEPLOY_BRANCH = "claude/schedule-display-app-ixjt6b"
+DEPLOY_URL = (
+    "https://api.github.com/repos/farbaholix-cloud/Bbbbasic/contents/"
+    "friedman_bot/dashboard_mac.py?ref=" + DEPLOY_BRANCH
+)
+SELF_PATH = os.path.abspath(__file__)
+
+
+def do_self_deploy():
+    """Скачать свежую версию себя с GitHub, проверить синтаксис, заменить файл и
+    перезапустить сервис. Возвращает (ok, message). НИЧЕГО не трогает, если файл
+    битый или не изменился — старая рабочая версия остаётся на месте."""
+    try:
+        req = urllib.request.Request(
+            DEPLOY_URL, headers={"Accept": "application/vnd.github.v3.raw",
+                                 "User-Agent": "friedman-dashboard"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            new_bytes = r.read()
+    except Exception as e:
+        return False, "download failed: %s" % e
+    if not new_bytes or len(new_bytes) < 1000:
+        return False, "downloaded file too small"
+    tmp = SELF_PATH + ".new"
+    try:
+        with open(tmp, "wb") as f:
+            f.write(new_bytes)
+        # проверка синтаксиса — битый файл не должен заменить рабочий
+        res = subprocess.run(["python3", "-m", "py_compile", tmp],
+                             capture_output=True, text=True)
+        if res.returncode != 0:
+            os.remove(tmp)
+            return False, "syntax error: %s" % (res.stderr or "").strip()[:300]
+        with open(SELF_PATH, "rb") as f:
+            cur_bytes = f.read()
+        if cur_bytes == new_bytes:
+            os.remove(tmp)
+            return True, "no changes (already up to date)"
+        # бэкап текущей рабочей версии для отката
+        os.replace(SELF_PATH, SELF_PATH + ".bak")
+        os.replace(tmp, SELF_PATH)
+    except Exception as e:
+        return False, "write failed: %s" % e
+
+    # перезапуск — в фоне с задержкой, чтобы успеть отдать HTTP-ответ
+    def _restart():
+        time.sleep(0.8)
+        subprocess.Popen(["systemctl", "restart", "friedman-dashboard-mac"])
+    threading.Thread(target=_restart, daemon=True).start()
+    return True, "updated, restarting"
+
 
 # Авто-блокировка по бездействию: пока дашборд открыт, он пингует сервер (polling +
 # keepalive). Свернул/закрыл приложение → visibilitychange шлёт /api/lock и гасит сессию
@@ -3180,6 +3248,23 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split('?', 1)[0]
+        # кнопка деплоя: /__deploy?token=... — тянет свежую версию с GitHub и
+        # перезапускает сервис. Не требует сессии (дёргается извне), защищён токеном.
+        if path == "/__deploy":
+            qs = self.path.split('?', 1)[1] if '?' in self.path else ""
+            token = ""
+            for part in qs.split('&'):
+                if part.startswith("token="):
+                    token = part.partition("=")[2]
+            if not secrets.compare_digest(token, DEPLOY_TOKEN):
+                self.send_response(403)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            ok, msg = do_self_deploy()
+            body = json.dumps({"ok": ok, "msg": msg}).encode()
+            self._send(body, "application/json; charset=utf-8")
+            return
         if not self._authed():
             # для API отвечаем 401, чтобы клиент перезагрузился на экран-замок
             if path.startswith("/api/"):
