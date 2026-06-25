@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.7"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.8"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -311,16 +311,25 @@ def get_data():
             if s["project_id"] in _projs:
                 _projs[s["project_id"]]["steps"].append(dict(s))
         projects = list(_projs.values())
+        # chaos — единый источник истины для важности/срочности: событие, рождённое
+        # из вводной, наследует её оценку, чтобы календарь и приоритизация не расходились
+        chaos_pri = {c["id"]: (c.get("importance", 0) or 0, c.get("urgency", 0) or 0)
+                     for c in chaos}
         cards = []
         for r in conn.execute("SELECT * FROM events").fetchall():
             d = dict(r)
+            imp = d.get("importance", 0) or 0
+            urg = d.get("urgency", 0) or 0
+            cid = d.get("chaos_id")
+            if cid and cid in chaos_pri:
+                imp, urg = chaos_pri[cid]
             cards.append({"kind": "event", "id": d["id"], "date": d["date"],
                           "time": d.get("time") or "", "text": d["text"],
-                          "chaos_id": d.get("chaos_id"),
+                          "chaos_id": cid,
                           "project_id": d.get("project_id"),
                           "morning_brief": d.get("morning_brief", 0) or 0,
-                          "importance": d.get("importance", 0) or 0,
-                          "urgency": d.get("urgency", 0) or 0})
+                          "importance": imp,
+                          "urgency": urg})
         try:
             for r in conn.execute("SELECT * FROM reminders WHERE sent=0").fetchall():
                 cards.append({"kind": "reminder", "id": r["id"], "date": r["due_at"][:10],
@@ -670,6 +679,12 @@ def api_event_update(payload):
             urg = max(0, min(10, int(payload["urgency"])))
             conn.execute("UPDATE events SET importance=?, urgency=? WHERE id=?",
                          (imp, urg, payload["id"]))
+            # событие связано с вводной — пишем оценку и в неё (единый источник истины)
+            row = conn.execute("SELECT chaos_id FROM events WHERE id=?", (payload["id"],)).fetchone()
+            if row and row["chaos_id"]:
+                pri = "high" if (imp >= 6 and urg >= 6) else ("low" if (imp < 6 and urg < 6) else "mid")
+                conn.execute("UPDATE chaos SET importance=?, urgency=?, priority=? WHERE id=?",
+                             (imp, urg, pri, row["chaos_id"]))
     return {"ok": True}
 
 
@@ -1650,7 +1665,7 @@ function openDotMenu(e,cid){
   d.querySelector('#dm-rate').onclick=()=>{
     const imp=+impEl.value,urg=+urgEl.value;
     d.remove();
-    mutate(()=>{const x=_chaos(cid);if(x){x.importance=imp;x.urgency=urg;}},'/api/rate',{id:cid,importance:imp,urgency:urg});
+    mutate(()=>{const x=_chaos(cid);if(x){x.importance=imp;x.urgency=urg;}(DATA.cards||[]).forEach(ev=>{if(ev.chaos_id===cid){ev.importance=imp;ev.urgency=urg;}});},'/api/rate',{id:cid,importance:imp,urgency:urg});
   };
   d.querySelector('#dm-go').onclick=()=>{
     const date=d.querySelector('#dm-date').value,time=d.querySelector('#dm-time').value||'';
@@ -1936,9 +1951,9 @@ function openTask(t){
       const imp=+impEl.value,urg=+urgEl.value;
       closeSheet();
       if(t.kind==='chaos'){
-        mutate(()=>{const c=_chaos(t.id);if(c){c.importance=imp;c.urgency=urg;}},'/api/rate',{id:t.id,importance:imp,urgency:urg});
+        mutate(()=>{const c=_chaos(t.id);if(c){c.importance=imp;c.urgency=urg;}(DATA.cards||[]).forEach(ev=>{if(ev.chaos_id===t.id){ev.importance=imp;ev.urgency=urg;}});},'/api/rate',{id:t.id,importance:imp,urgency:urg});
       } else {
-        mutate(()=>{const card=_card(t.id);if(card){card.importance=imp;card.urgency=urg;}},'/api/event_update',{id:t.id,importance:imp,urgency:urg});
+        mutate(()=>{const card=_card(t.id);if(card){card.importance=imp;card.urgency=urg;if(card.chaos_id){const c=_chaos(card.chaos_id);if(c){c.importance=imp;c.urgency=urg;}}}},'/api/event_update',{id:t.id,importance:imp,urgency:urg});
       }
     };
   }
