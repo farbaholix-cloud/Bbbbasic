@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.1"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.2"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -365,7 +365,11 @@ def api_move(payload):
     new_date = payload["date"]
     with db() as conn:
         if kind == "event":
-            conn.execute("UPDATE events SET date=? WHERE id=?", (new_date, payload["id"]))
+            if payload.get("time"):
+                conn.execute("UPDATE events SET date=?, time=? WHERE id=?",
+                             (new_date, payload["time"], payload["id"]))
+            else:
+                conn.execute("UPDATE events SET date=? WHERE id=?", (new_date, payload["id"]))
         elif kind == "reminder":
             row = conn.execute("SELECT due_at FROM reminders WHERE id=?", (payload["id"],)).fetchone()
             if row:
@@ -883,9 +887,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .sh-quad{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:14px;font-size:13px;font-weight:800;margin:14px 0}
 .sh-days{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
 .sh-day{background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 4px;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
-.sh-picker{display:flex;gap:8px;margin-bottom:12px}
+.sh-picker{display:flex;gap:8px;margin-bottom:12px;align-items:stretch}
 .sh-picker select{flex:1;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px;font-size:15px;-webkit-appearance:none;text-align:center}
-.sh-picker button{flex:1.1;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:12px;color:#fff;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
+.sh-picker input[type=date],.sh-picker input[type=time]{flex:1;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 8px;font-size:15px;font-weight:700;font-family:inherit;text-align:center;-webkit-appearance:none}
+.sh-picker input[type=time]{flex:.8}
+.sh-picker button{flex:1.2;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:12px;color:#fff;padding:11px 6px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+.sh-pick-lbl{font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:2px 0 8px;letter-spacing:.3px}
 .sh-actions{display:flex;gap:10px;margin-top:4px}
 .sh-btn{flex:1;padding:14px;border-radius:15px;font-size:13.5px;font-weight:800;text-align:center;border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer}
 .sh-btn.prime{background:linear-gradient(135deg,var(--blue),var(--violet));border-color:rgba(255,255,255,.3)}
@@ -1741,9 +1748,11 @@ function openTask(t){
     projBlock+mbBlock+
     '<div class="sh-divider"></div>'+
     '<div class="sh-days">'+dayBtns+'</div>'+
-    '<div class="sh-picker"><select id="sh-month">'+MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===now.getMonth()?'selected':'')+'>'+m+'</option>').join('')+'</select>'+
-    '<select id="sh-day">'+Array.from({length:31},(_,i)=>'<option value="'+(i+1)+'" '+(i+1===now.getDate()?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select>'+
-    '<button id="sh-go">📅 в день</button></div>'+
+    '<div class="sh-pick-lbl">или выбери дату и время</div>'+
+    '<div class="sh-picker">'+
+      '<input type="date" id="sh-date" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).date)||localISO(now))+'">'+
+      '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'">'+
+      '<button id="sh-go">📅 запланировать</button></div>'+
     '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
     '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>'+
     (t.kind==='event'?'<button class="sh-act sh-del" id="sh-evdel" style="margin-top:10px;width:100%">🗑 Удалить навсегда</button>':'');
@@ -1771,25 +1780,24 @@ function openTask(t){
     };
   }
   // move to a date — mirrors api_move: chaos creates a calendar event, event/reminder reschedules
-  function doMove(date){
+  function doMove(date,time){
+    time=time||'';
     closeSheet();
     mutate(()=>{
       if(t.kind==='chaos'){
         const c=_chaos(t.id);
         if(!DATA.cards)DATA.cards=[];
-        DATA.cards.push({kind:'event',id:_tmpId(),date,time:'',text:(c?c.text:t.text),chaos_id:t.id,project_id:(c?c.project_id:null)||null,morning_brief:0});
+        DATA.cards.push({kind:'event',id:_tmpId(),date,time,text:(c?c.text:t.text),chaos_id:t.id,project_id:(c?c.project_id:null)||null,morning_brief:0});
       } else {
-        const card=_card(t.id);if(card)card.date=date;
+        const card=_card(t.id);if(card){card.date=date;if(time)card.time=time;}
       }
-    },'/api/move',{kind:t.kind,id:t.id,date});
+    },'/api/move',{kind:t.kind,id:t.id,date,time});
   }
   sheet.querySelectorAll('.sh-day').forEach(b=>b.onclick=()=>doMove(b.dataset.date));
   sheet.querySelector('#sh-go').onclick=()=>{
-    const m=+sheet.querySelector('#sh-month').value;let day=+sheet.querySelector('#sh-day').value;
-    let y=now.getFullYear();const last=new Date(y,m+1,0).getDate();if(day>last)day=last;
-    let target=new Date(y,m,day);const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-    if(target<todayMid)target=new Date(y+1,m,day);
-    doMove(localISO(target));
+    const date=sheet.querySelector('#sh-date').value||localISO(now);
+    const time=sheet.querySelector('#sh-time').value||'';
+    doMove(date,time);
   };
   sheet.querySelector('#sh-done').onclick=()=>{
     closeSheet();
