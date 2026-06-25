@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.4"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.5"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -158,13 +158,17 @@ def ensure_schema(conn):
       hobby INTEGER DEFAULT 5, love INTEGER DEFAULT 5,
       note TEXT, logged_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
-    # events: project link + morning brief flag
+    # events: project link + morning brief flag + priority
     ev_cols = [r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()]
     if ev_cols:
         if "project_id" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN project_id INTEGER")
         if "morning_brief" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN morning_brief INTEGER DEFAULT 0")
+        if "importance" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN importance INTEGER DEFAULT 0")
+        if "urgency" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN urgency INTEGER DEFAULT 0")
     # chaos: project link + drag position
     ch_cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
     if ch_cols:
@@ -310,7 +314,9 @@ def get_data():
                           "time": d.get("time") or "", "text": d["text"],
                           "chaos_id": d.get("chaos_id"),
                           "project_id": d.get("project_id"),
-                          "morning_brief": d.get("morning_brief", 0) or 0})
+                          "morning_brief": d.get("morning_brief", 0) or 0,
+                          "importance": d.get("importance", 0) or 0,
+                          "urgency": d.get("urgency", 0) or 0})
         try:
             for r in conn.execute("SELECT * FROM reminders WHERE sent=0").fetchall():
                 cards.append({"kind": "reminder", "id": r["id"], "date": r["due_at"][:10],
@@ -644,6 +650,11 @@ def api_event_update(payload):
             row = conn.execute("SELECT chaos_id FROM events WHERE id=?", (payload["id"],)).fetchone()
             if row and row["chaos_id"]:
                 conn.execute("UPDATE chaos SET text=? WHERE id=?", (new_text, row["chaos_id"]))
+        if "importance" in payload and "urgency" in payload:
+            imp = max(0, min(10, int(payload["importance"])))
+            urg = max(0, min(10, int(payload["urgency"])))
+            conn.execute("UPDATE events SET importance=?, urgency=? WHERE id=?",
+                         (imp, urg, payload["id"]))
     return {"ok": True}
 
 
@@ -1355,6 +1366,7 @@ function renderCal(){
   for(const ds of sorted){
     const dd=new Date(ds+'T00:00');
     const evs=DATA.cards.filter(e=>e.date===ds);
+    if(!evs.length)continue;
     const today=ds===todayISO;const past=ds<todayISO;
     const inWeek=dd>=mon&&(dd-mon)<7*864e5;
     const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(inWeek?'':' '+MONTHS[dd.getMonth()])+(past?' ⚠️':'')+(today?' · сегодня':'');
@@ -1362,10 +1374,16 @@ function renderCal(){
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
       evs.map(e=>{
         const tdata={kind:e.kind,id:e.id,text:e.text};
-        if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;}
+        if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;tdata.imp=e.importance||0;tdata.urg=e.urgency||0;}
         const mbDot=e.morning_brief?'<span style="font-size:9px;opacity:.7;margin-left:4px">🌅</span>':'';
+        let priDot='';
+        if(e.kind==='event'&&(e.importance||e.urgency)){
+          const q=quadClass(e.importance||0,e.urgency||0);
+          const col=({r:'#ff9aa6',a:'#ffd07a',b:'#86b8ff',g:'var(--muted)'})[q]||'var(--muted)';
+          priDot='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+col+';margin-left:5px;flex-shrink:0;vertical-align:middle"></span>';
+        }
         return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'" onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
-          (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+mbDot+'</div>';
+          (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+mbDot+priDot+'</div>';
       }).join('')+'</div>';
   }
   document.getElementById('cal').innerHTML=html||'<div class="empty">на этой неделе пусто</div>';
@@ -1734,8 +1752,8 @@ function openTask(t){
     const lbl=i===0?'сегодня':i===1?'завтра':DOW[(dd.getDay()+6)%7]+' '+dd.getDate();
     dayBtns+='<button class="sh-day" data-date="'+ds+'">'+lbl+'</button>';}
   let rateBlock='';
-  if(t.kind==='chaos'){
-    const imp=t.imp||5,urg=t.urg||5;
+  if(t.kind==='chaos'||t.kind==='event'){
+    const imp=t.imp||0,urg=t.urg||0;
     rateBlock='<div class="slider-row"><div class="sl-top"><span>🔴 Важность</span><span class="val" id="imp-val">'+imp+' / 10</span></div>'+
       '<input type="range" class="imp" id="imp" min="0" max="10" value="'+imp+'"></div>'+
       '<div class="slider-row"><div class="sl-top"><span>⚡ Срочность</span><span class="val" id="urg-val">'+urg+' / 10</span></div>'+
@@ -1759,7 +1777,7 @@ function openTask(t){
     '<div class="stitle-row"><span class="title-edit-spacer"></span>'+
       '<div class="stitle">'+esc(t.text||'')+'</div>'+
       '<button id="sh-ren" class="title-edit-btn" title="Переименовать">✏️</button></div>'+
-    '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'перенести / закрыть')+'</div>'+
+    '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'оцени приоритет / перенести / закрыть')+'</div>'+
     rateBlock+
     projBlock+mbBlock+
     '<div class="sh-divider"></div>'+
@@ -1776,7 +1794,7 @@ function openTask(t){
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
 
-  if(t.kind==='chaos'){
+  if(t.kind==='chaos'||t.kind==='event'){
     const impEl=sheet.querySelector('#imp'),urgEl=sheet.querySelector('#urg'),quad=sheet.querySelector('#quad');
     function upd(){
       const i=+impEl.value,u=+urgEl.value;
@@ -1785,14 +1803,18 @@ function openTask(t){
       const q=(i>=6&&u>=6)?['🔴 Делай сейчас — важно и срочно','rgba(255,107,125,.16)','rgba(255,107,125,.4)','#ff9aa6']
         :(i>=6&&u<6)?['🟡 Запланируй — важно, не срочно','rgba(255,198,87,.16)','rgba(255,198,87,.4)','#ffd07a']
         :(i<6&&u>=6)?['🔵 Делегируй — не важно, срочно','rgba(91,157,255,.16)','rgba(91,157,255,.4)','#86b8ff']
-        :['⚪ Может, удалить? — не важно и не срочно','rgba(235,240,250,.08)','var(--rim)','var(--muted)'];
+        :['⚪ Оценка не задана','rgba(235,240,250,.08)','var(--rim)','var(--muted)'];
       quad.textContent=q[0];quad.style.background=q[1];quad.style.borderColor=q[2];quad.style.color=q[3];
     }
     impEl.oninput=upd;urgEl.oninput=upd;upd();
     sheet.querySelector('#rate-save').onclick=()=>{
       const imp=+impEl.value,urg=+urgEl.value;
       closeSheet();
-      mutate(()=>{const c=_chaos(t.id);if(c){c.importance=imp;c.urgency=urg;}},'/api/rate',{id:t.id,importance:imp,urgency:urg});
+      if(t.kind==='chaos'){
+        mutate(()=>{const c=_chaos(t.id);if(c){c.importance=imp;c.urgency=urg;}},'/api/rate',{id:t.id,importance:imp,urgency:urg});
+      } else {
+        mutate(()=>{const card=_card(t.id);if(card){card.importance=imp;card.urgency=urg;}},'/api/event_update',{id:t.id,importance:imp,urgency:urg});
+      }
     };
   }
   // move to a date — mirrors api_move: chaos creates a calendar event, event/reminder reschedules
