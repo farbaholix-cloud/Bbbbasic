@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.11 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.12 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2564,6 +2564,72 @@ function renderHappiness(d){
   updateHNodes();
   requestAnimationFrame(drawHLines);
   drawHChart(_hapHistory);
+  _wireHNodeDrag();
+}
+
+// ─── перетаскивание кружков прямо по карте ───
+// Тянешь узел к центру/от центра по его радиальной оси → меняется уровень (1..5).
+// Короткий клик без движения по-прежнему открывает меню-ползунок (editHNode).
+let _hnDragMoved=false;
+function _wireHNodeDrag(){
+  const wrap=document.getElementById('hmap-wrap');
+  if(!wrap||wrap._hnWired)return;
+  wrap._hnWired=true;
+  function axisFor(key){
+    const W=wrap.offsetWidth||390,HP=wrap.offsetHeight||420;
+    const Rpx=0.38*W;
+    const dxp=Rpx/W/Math.SQRT2*100, dyp=Rpx/HP/Math.SQRT2*100;
+    const POS={work:{maxL:50+dxp,maxT:50-dyp},friendship:{maxL:50-dxp,maxT:50-dyp},
+      health:{maxL:88,maxT:50},love:{maxL:12,maxT:50},
+      wellbeing:{maxL:50+dxp,maxT:50+dyp},hobby:{maxL:50-dxp,maxT:50+dyp}};
+    const p=POS[key];return{ax:p.maxL-50,ay:p.maxT-50};
+  }
+  function valFromEvent(key,e){
+    const r=wrap.getBoundingClientRect();
+    const px=(e.clientX-r.left)/r.width*100-50;
+    const py=(e.clientY-r.top)/r.height*100-50;
+    const a=axisFor(key);
+    let t=(px*a.ax+py*a.ay)/(a.ax*a.ax+a.ay*a.ay);  // проекция на ось узла
+    t=Math.max(0,Math.min(1,t));
+    return Math.max(1,Math.min(5,Math.round(t*t*5)));  // обратно к sqrt-шкале
+  }
+  H_KEYS.forEach(key=>{
+    const node=document.getElementById('hn-'+key);
+    if(!node)return;
+    node.style.cursor='grab';
+    let active=false,moved=false,sx=0,sy=0;
+    node.addEventListener('pointerdown',e=>{
+      active=true;moved=false;sx=e.clientX;sy=e.clientY;
+      try{node.setPointerCapture(e.pointerId);}catch(_){}
+      node.style.cursor='grabbing';
+    });
+    node.addEventListener('pointermove',e=>{
+      if(!active)return;
+      if(!moved && Math.hypot(e.clientX-sx,e.clientY-sy)<5)return;
+      moved=true;
+      const v=valFromEvent(key,e);
+      if(v!==hValues[key]){
+        hValues[key]=v;
+        if(!DATA.happiness)DATA.happiness={};
+        DATA.happiness[key]=v;
+        updateHNodes();
+        requestAnimationFrame(drawHLines);
+      }
+    });
+    function end(e){
+      if(!active)return;
+      active=false;
+      node.style.cursor='grab';
+      try{node.releasePointerCapture(e.pointerId);}catch(_){}
+      if(moved){
+        _hnDragMoved=true;  // подавляем click → editHNode сразу после перетаскивания
+        setTimeout(()=>{_hnDragMoved=false;},60);
+        mutate(null,'/api/happiness_save',_hapBody(),()=>{_hapSync();updateHNodes();requestAnimationFrame(drawHLines);});
+      }
+    }
+    node.addEventListener('pointerup',end);
+    node.addEventListener('pointercancel',end);
+  });
 }
 
 function updateHNodes(){
@@ -2754,6 +2820,7 @@ function _hapSync(){const h=(DATA&&DATA.happiness)||{};H_KEYS.forEach(k=>{if(h[k
 function _hapBody(extra){const h=(DATA&&DATA.happiness)||{};const b=Object.assign({note:''},extra||{});H_KEYS.forEach(k=>b[k]=(h[k]!=null?Number(h[k]):hValues[k]));return b;}
 
 function editHNode(key){
+  if(_hnDragMoved){_hnDragMoved=false;return;}  // только что тащили кружок — меню не открываем
   const color=H_COLORS[key];
   const label=H_LABELS[key];
   const cur=Math.min(5,Math.max(1,hValues[key]||3));
