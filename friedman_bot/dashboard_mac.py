@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.9 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.10 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1980,7 +1980,7 @@ function _openSheet(html,pos){
 function openIdeaSheet(){
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
-  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';sheet.classList.add('mac-top-left');
   const areas=[['work','💼','Дело'],['money','💰','Деньги'],['health','🌿','Тело'],['people','👥','Люди'],['home','🏠','Дом'],['self','📚','Я'],['other','⚡','Прочее']];
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="idea-h"><span class="idea-spark">💡</span><div>'+
@@ -2060,7 +2060,7 @@ function openTask(t){
   closeSheet();
   const now=new Date();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
-  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';sheet.classList.add('mac-top-left');
   let dayBtns='';
   for(let i=0;i<8;i++){const dd=new Date(now);dd.setDate(now.getDate()+i);const ds=localISO(dd);
     const lbl=i===0?'сегодня':i===1?'завтра':DOW[(dd.getDay()+6)%7]+' '+dd.getDate();
@@ -2768,7 +2768,7 @@ function editHNode(key){
     `</div>`+
     `<div style="display:flex;gap:10px;margin-bottom:6px">${btns}</div>`+
     `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">нажми на оценку</div>`
-  );
+  ,'top-left');
   sheet.querySelector('#hrate-close').onclick=closeSheet;
   sheet.querySelectorAll('.hrate-btn').forEach(btn=>{
     btn.onclick=()=>{
@@ -3115,7 +3115,7 @@ function _openCalEventSheet(ds,defTime,existing){
       (existing?'<button class="sh-btn danger" id="ce-del">🗑 Удалить</button>':'')+
       '<button class="sh-btn prime" id="ce-save">💾 Сохранить</button>'+
     '</div>'
-  );
+  ,'top-left');
   const impEl=sheet.querySelector('#ce-imp'),urgEl=sheet.querySelector('#ce-urg');
   if(impEl)impEl.oninput=()=>sheet.querySelector('#ce-imp-val').textContent=impEl.value+' / 10';
   if(urgEl)urgEl.oninput=()=>sheet.querySelector('#ce-urg-val').textContent=urgEl.value+' / 10';
