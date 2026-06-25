@@ -1776,11 +1776,9 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "• _Срочно! Оплатить страховку_\n"
         "• 🎤 Голосовое сообщение\n\n"
         "*Меню:*\n"
-        "/list — все записи\n"
-        "/projects — проекты\n"
-        "/goals — цели\n"
-        "/bridge — разбор периода\n"
-        "/stats — обзор",
+        "/ip — ссылка на дашборд\n"
+        "/brief — сводка сейчас\n"
+        "/update — обновить вручную прямо сейчас",
         parse_mode="Markdown",
         reply_markup=MAIN_KBD
     )
@@ -2827,15 +2825,8 @@ async def _on_start(app):
                 f"Версия: {BOT_VERSION}\n\n"
                 f"Авто-деплой включён: новые изменения подхватываю сам за ~1.5 мин.\n\n"
                 f"Команды:\n"
-                f"• /setkey — ключ Gemini для живого разговора\n"
-                f"• /setupvoicelive — поднять живой разговор (PWA)\n"
-                f"• /voiceapp — ссылка на живой разговор\n"
-                f"• /voicelog — диагностика голосового сервера\n"
-                f"• /setupvoice — озвучка в боте (голосовые)\n"
-                f"• /voice — голосовые ответы вкл/выкл\n"
                 f"• /ip — ссылка на дашборд\n"
                 f"• /brief — сводка сейчас\n"
-                f"• /setupbrief — включить картинку-постер\n"
                 f"• /update — обновить вручную прямо сейчас",
             )
     except Exception as e:
@@ -2850,25 +2841,12 @@ def main():
     init_db()
     app = Application.builder().token(TOKEN).post_init(_on_start).build()
 
+    # Команды бота сведены к минимуму — только /ip, /brief, /update.
+    # /start оставлен как точка входа Telegram (инфраструктура, не фича-команда).
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("list", cmd_list))
-    app.add_handler(CommandHandler("projects", cmd_projects))
-    app.add_handler(CommandHandler("goals", cmd_goals))
-    app.add_handler(CommandHandler("bridge", cmd_bridge))
-    app.add_handler(CommandHandler("stats", cmd_stats))
-    app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(CommandHandler("brief", cmd_brief))
-    app.add_handler(CommandHandler("setupbrief", cmd_setupbrief))
-    app.add_handler(CommandHandler("update", cmd_update))
-    app.add_handler(CommandHandler("ping", cmd_ping))
     app.add_handler(CommandHandler("ip", cmd_ip))
-    app.add_handler(CommandHandler("voice", cmd_voice))
-    app.add_handler(CommandHandler("setupvoice", cmd_setupvoice))
-    app.add_handler(CommandHandler("settoken", cmd_settoken))
-    app.add_handler(CommandHandler("setkey", cmd_setkey))
-    app.add_handler(CommandHandler("setupvoicelive", cmd_setupvoicelive))
-    app.add_handler(CommandHandler("voiceapp", cmd_voiceapp))
-    app.add_handler(CommandHandler("voicelog", cmd_voicelog))
+    app.add_handler(CommandHandler("update", cmd_update))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
