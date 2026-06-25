@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.10 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.11 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2756,31 +2756,54 @@ function _hapBody(extra){const h=(DATA&&DATA.happiness)||{};const b=Object.assig
 function editHNode(key){
   const color=H_COLORS[key];
   const label=H_LABELS[key];
-  const cur=hValues[key]||3;
-  const btns=[1,2,3,4,5].map(v=>{
-    const active=v===cur?`background:${color};color:#fff;box-shadow:0 0 0 2px ${color},0 4px 14px ${color}55`:'background:rgba(255,255,255,.07);color:var(--txt)';
-    return `<button class="hrate-btn" data-v="${v}" style="${active};border:1.5px solid ${v===cur?color:'rgba(255,255,255,.15)'};border-radius:14px;font-size:22px;font-weight:900;padding:14px 0;flex:1;cursor:pointer;transition:all .15s">${v}</button>`;
-  }).join('');
+  const cur=Math.min(5,Math.max(1,hValues[key]||3));
+  // живой апдор карты во время перетаскивания (без сохранения на каждый тик)
+  const applyLive=v=>{
+    hValues[key]=v;
+    if(!DATA.happiness)DATA.happiness={};
+    DATA.happiness[key]=v;
+    updateHNodes();
+    requestAnimationFrame(drawHLines);
+  };
+  const trackBg=`linear-gradient(90deg,${color} 0%,${color} ${(cur-1)/4*100}%,rgba(0,0,0,.3) ${(cur-1)/4*100}%,rgba(0,0,0,.3) 100%)`;
   const {sheet}=_openSheet(
-    `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">`+
-    `<div style="font-size:16px;font-weight:800;color:${color}">${label}</div>`+
+    `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">`+
+    `<div style="display:flex;align-items:center;gap:10px">`+
+      `<span style="width:14px;height:14px;border-radius:50%;background:${color};box-shadow:0 0 12px ${color}aa"></span>`+
+      `<span style="font-size:16px;font-weight:800;color:${color}">${label}</span>`+
+    `</div>`+
     `<button id="hrate-close" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1">✕</button>`+
     `</div>`+
-    `<div style="display:flex;gap:10px;margin-bottom:6px">${btns}</div>`+
-    `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">нажми на оценку</div>`
+    `<div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin-bottom:18px">`+
+      `<span id="hrate-num" style="font-size:54px;font-weight:900;color:${color};line-height:1">${cur}</span>`+
+      `<span style="font-size:18px;font-weight:700;color:var(--muted)">/ 5</span>`+
+    `</div>`+
+    `<input type="range" id="hrate-slider" min="1" max="5" step="1" value="${cur}" `+
+      `style="width:100%;height:12px;border-radius:7px;background:${trackBg};border:1px solid rgba(255,255,255,.1)">`+
+    `<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;font-weight:700;color:var(--muted);padding:0 2px">`+
+      `<span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>`+
+    `</div>`+
+    `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:16px">тяни ползунок — карта двигается следом</div>`
   ,'top-left');
   sheet.querySelector('#hrate-close').onclick=closeSheet;
-  sheet.querySelectorAll('.hrate-btn').forEach(btn=>{
-    btn.onclick=()=>{
-      const val=Number(btn.dataset.v);
-      closeSheet();
-      hValues[key]=val;
-      if(!DATA.happiness)DATA.happiness={};
-      DATA.happiness[key]=val;
-      updateHNodes();
-      requestAnimationFrame(drawHLines);
-      mutate(null,'/api/happiness_save',_hapBody(),()=>{_hapSync();updateHNodes();requestAnimationFrame(drawHLines);});
-    };
+  const slider=sheet.querySelector('#hrate-slider');
+  const num=sheet.querySelector('#hrate-num');
+  const paint=v=>{
+    const pct=(v-1)/4*100;
+    slider.style.background=`linear-gradient(90deg,${color} 0%,${color} ${pct}%,rgba(0,0,0,.3) ${pct}%,rgba(0,0,0,.3) 100%)`;
+    num.textContent=v;
+  };
+  // input → живой апдор карты + заливка трека (без записи в БД на каждый тик)
+  slider.addEventListener('input',()=>{
+    const v=Number(slider.value);
+    paint(v);
+    applyLive(v);
+  });
+  // change (отпустил) → сохраняем в БД, как остальной общий функционал
+  slider.addEventListener('change',()=>{
+    const v=Number(slider.value);
+    applyLive(v);
+    mutate(null,'/api/happiness_save',_hapBody(),()=>{_hapSync();updateHNodes();requestAnimationFrame(drawHLines);});
   });
 }
 
