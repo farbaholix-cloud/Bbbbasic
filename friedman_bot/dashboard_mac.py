@@ -1142,6 +1142,8 @@ select,textarea,.idea-txt{font-size:14px}
 #sheet[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
 #sheet.mac-top{bottom:auto;top:80px;transform:translateX(-50%) translateY(-60px)}
 #sheet.mac-top[style*="translateY(0)"]{transform:translateX(-50%) translateY(0)!important}
+#sheet.mac-top-left{bottom:auto;top:80px;left:40px;transform:translateY(-60px);right:auto}
+#sheet.mac-top-left[style*="translateY(0)"]{transform:translateY(0)!important}
 .matrix{height:320px}
 .hmap-wrap{height:380px}
 
@@ -1892,11 +1894,12 @@ function _swipeDismiss(sheet,closeFn){
 }
 
 // Свои диалоги вместо prompt/confirm/alert — нативные отключены в standalone-PWA на iOS
-function _openSheet(html,atTop){
+function _openSheet(html,pos){
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
-  if(atTop)sheet.classList.add('mac-top');
+  if(pos==='top-left')sheet.classList.add('mac-top-left');
+  else if(pos==='top')sheet.classList.add('mac-top');
   sheet.innerHTML=html;document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   bg.onclick=closeSheet;
@@ -2320,7 +2323,7 @@ function kcolMenu(e,colId){
     // rename
     `<button class="sh-act" id="kcol-ren-btn">✏️ Переименовать список</button>`+
     `</div>`,
-    true);
+    'top-left');
   sheet.querySelector('#kmc-close').onclick=closeSheet;
   // goal
   const goalInput=sheet.querySelector('#kcol-goal');
