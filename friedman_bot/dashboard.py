@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.6"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.7"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1320,6 +1320,8 @@ function render(){
   renderCal();
   // goals
   document.getElementById('goals-cnt').textContent=d.projects.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length+' в работе';
+  // skip projects DOM rebuild while a step drag is in progress (otherwise the refresh poll kills the drag)
+  if(!_sd)
   document.getElementById('projects').innerHTML=d.projects.length?d.projects.map(p=>{
     const done=p.steps.filter(s=>s.done).length,total=p.steps.length;
     const pct=total?Math.round(done/total*100):0;const opened=openProjects.has(p.id);
