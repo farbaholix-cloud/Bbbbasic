@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.3"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.4"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -637,6 +637,13 @@ def api_event_update(payload):
         if "project_id" in payload:
             conn.execute("UPDATE events SET project_id=? WHERE id=?",
                          (payload["project_id"] or None, payload["id"]))
+        if "text" in payload and (payload["text"] or "").strip():
+            new_text = payload["text"].strip()
+            conn.execute("UPDATE events SET text=? WHERE id=?", (new_text, payload["id"]))
+            # если событие порождено вводной — синхронизируем исходный текст
+            row = conn.execute("SELECT chaos_id FROM events WHERE id=?", (payload["id"],)).fetchone()
+            if row and row["chaos_id"]:
+                conn.execute("UPDATE chaos SET text=? WHERE id=?", (new_text, row["chaos_id"]))
     return {"ok": True}
 
 
@@ -876,6 +883,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
   transform:translateY(40px);opacity:0;transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .25s}
 .grab{width:42px;height:5px;border-radius:3px;background:var(--rim2);margin:0 auto 16px}
 .stitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:3px}
+.stitle-row{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.stitle-row .stitle{flex:1;min-width:0;margin:0}
+.title-edit-spacer{width:34px;flex-shrink:0}
+.title-edit-btn{width:34px;height:34px;flex-shrink:0;border-radius:11px;border:1px solid var(--rim);
+  background:rgba(255,255,255,.06);color:rgba(235,240,250,.6);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.title-edit-btn:active{background:rgba(255,255,255,.16);transform:scale(.92)}
 .ssub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;font-weight:600}
 .slider-row{margin-bottom:16px}
 .sl-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:9px}
@@ -1741,9 +1755,11 @@ function openTask(t){
   const mbBlock=(t.kind==='event')?
     '<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700">🌅 Утренняя сводка:</span>'+
     '<div class="tog '+(mbOn?'on':'')+'" id="sh-mb" style="flex-shrink:0"><div class="tog-k"></div></div></div>':'';
-  sheet.innerHTML='<div class="grab"></div><div class="stitle">'+esc(t.text||'')+'</div>'+
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span>'+
+      '<div class="stitle">'+esc(t.text||'')+'</div>'+
+      '<button id="sh-ren" class="title-edit-btn" title="Переименовать">✏️</button></div>'+
     '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'перенести / закрыть')+'</div>'+
-    (t.kind==='chaos'?'<div style="text-align:center;margin:-2px 0 10px"><button id="sh-ren" style="display:inline-flex;align-items:center;gap:6px;padding:7px 18px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:rgba(235,240,250,.7);font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:.2px">✏️ переименовать</button></div>':'')+
     rateBlock+
     projBlock+mbBlock+
     '<div class="sh-divider"></div>'+
@@ -1836,12 +1852,23 @@ function openTask(t){
       }
     },'/api/event_delete',{id:t.id});
   };
+  // Переименование по карандашику — логика как в проектах (uiPrompt). Работает и для
+  // вводной (chaos), и для события календаря (event). Шторка остаётся открытой, имя в ней
+  // обновляется на месте.
   const shRen=sheet.querySelector('#sh-ren');
   if(shRen)shRen.onclick=async()=>{
-    const nv=await uiPrompt('Переименовать задачу:',t.text);
+    const nv=await uiPrompt('Переименовать:',t.text);
     if(!nv||!nv.trim())return;
-    closeSheet();
-    mutate(()=>{const c=_chaos(t.id);if(c)c.text=nv.trim();},'/api/chaos_rename',{id:t.id,text:nv.trim()});
+    const val=nv.trim();
+    t.text=val;
+    const st=sheet.querySelector('.stitle');if(st)st.textContent=val;
+    if(t.kind==='chaos'){
+      mutate(()=>{const c=_chaos(t.id);if(c)c.text=val;},'/api/chaos_rename',{id:t.id,text:val});
+    } else if(t.kind==='event'){
+      mutate(()=>{const card=_card(t.id);if(card)card.text=val;
+        if(card&&card.chaos_id){const c=_chaos(card.chaos_id);if(c)c.text=val;}},
+        '/api/event_update',{id:t.id,text:val});
+    }
   };
   // Project selector — save on change (sheet stays open; page repaints behind it)
   const shProj=sheet.querySelector('#sh-proj');
