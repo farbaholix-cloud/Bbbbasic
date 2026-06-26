@@ -390,6 +390,7 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
 6в. СЧЕТА (RECHNUNG): «выстави счёт», «сделай инвойс», «Rechnung для X на сумму Y за работу Z» -> action invoice. Извлеки: recipient (получатель: название + адрес, каждая часть с новой строки через \n), items (позиции: desc — описание работы НА НЕМЕЦКОМ профессионально с правильными умляутами ä ö ü ß, напр. «Künstlerische Gestaltung der Fassade ...», price — сумма в евро числом), salutation (обращение если знаешь: «Frau Kluegling» / «Herr Schmidt»), customer_no (если назван). Если не хватает получателя или суммы — спроси одним вопросом, не выдумывай.
 7. Отвечай по-человечески: коротко, тепло. Максимум один уточняющий вопрос.
 8. Не выдумывай данные которых нет в контексте.
+9. ВЕБ: если в промпте есть блок «ВЕБ (актуальные данные из интернета):» — используй его данные для ответа. Это свежие данные из поиска, они надёжнее твоих внутренних знаний. Приводи конкретные цифры/факты из блока.
 
 Области: work, health, money, people, home, self, other. Приоритеты: high, mid, low.
 
@@ -488,9 +489,64 @@ def get_context() -> str:
     return "\n".join(lines)
 
 
+_WEB_RE = re.compile(
+    r'\b(найди|поищи|погугли|загугли|найдите|поиск|'
+    r'погода|прогноз погоды|температура|'
+    r'курс (евро|доллар|рубл|фунт|юан|крон)|'
+    r'новости|что нового|что происходит|'
+    r'что такое|кто такой|кто такая|что значит|'
+    r'где находится|адрес|телефон|сайт|часы работы|когда открыт|расписание|'
+    r'сколько стоит|цена|стоимость|купить за|'
+    r'как добраться|маршрут до|как доехать|'
+    r'переведи с|перевод слова|как по-немецки|как по-русски|'
+    r'последние|актуальн|свежи|обновлени|только что|прямо сейчас|'
+    r'wikipedia|wiki|ближайш|в интернете|в сети|search|google)\b',
+    re.IGNORECASE
+)
+
+
+def _needs_web(text: str) -> bool:
+    return bool(_WEB_RE.search(text))
+
+
+def _web_research_sync(query: str) -> str:
+    """Ищет в интернете через Claude + WebSearch/WebFetch, возвращает текстовое резюме."""
+    prompt = (
+        f"Запрос пользователя: «{query}»\n\n"
+        "Найди актуальную информацию в интернете и дай чёткий, фактический ответ по-русски. "
+        "Если это погода — текущая температура и прогноз. "
+        "Если курс — точное значение на сегодня. "
+        "Если адрес/часы — конкретные данные. "
+        "Будь краток: 3-6 предложений, только суть, никакой воды. "
+        "Если не нашёл — скажи честно."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt,
+             "--allowedTools", "WebSearch,WebFetch",
+             "--model", "haiku",
+             "--max-turns", "6"],
+            capture_output=True, text=True, timeout=90,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+        )
+        out = (result.stdout or "").strip()
+        return out if out else ""
+    except Exception as e:
+        log.error(f"web research: {e}")
+        return ""
+
+
 def ask_claude_sync(user_text: str) -> dict:
     context = get_context()
-    prompt = f"{context}\n\nНОВОЕ СООБЩЕНИЕ ОТ ЧЕЛОВЕКА:\n{user_text}"
+
+    web_block = ""
+    if _needs_web(user_text):
+        web_data = _web_research_sync(user_text)
+        if web_data:
+            web_block = f"\n\nВЕБ (актуальные данные из интернета):\n{web_data}"
+            log.info(f"web injected: {len(web_data)} chars")
+
+    prompt = f"{context}{web_block}\n\nНОВОЕ СООБЩЕНИЕ ОТ ЧЕЛОВЕКА:\n{user_text}"
     sys_prompt = SECRETARY_PROMPT.replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A"))
     try:
         result = subprocess.run(
