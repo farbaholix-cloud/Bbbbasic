@@ -861,6 +861,51 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await create_invoice_from_text(update, text)
         return
 
+    if state == "img_event_date":
+        plan = ctx.user_data.get("pending_plan") or {}
+        title = plan.get("title", "Событие")
+        time_str = plan.get("time") or ""
+        # Разбираем дату из свободного текста через Claude
+        def parse_date_sync(raw: str) -> str:
+            today = datetime.now().strftime("%Y-%m-%d")
+            prompt = (
+                f"Сегодня {today}. Человек написал дату: «{raw}». "
+                "Верни её в формате YYYY-MM-DD одной строкой без пояснений. "
+                "Если не понять — верни пустую строку."
+            )
+            try:
+                r = subprocess.run(
+                    [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""],
+                    capture_output=True, text=True, timeout=30,
+                    env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+                )
+                out = r.stdout.strip()
+                m = re.search(r'\d{4}-\d{2}-\d{2}', out)
+                return m.group() if m else ""
+            except Exception:
+                return ""
+        date_str = await asyncio.get_event_loop().run_in_executor(None, lambda: parse_date_sync(text))
+        if date_str:
+            save_event(title, date_str, time_str)
+            months_ru = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"]
+            try:
+                from datetime import datetime as _dt
+                d = _dt.strptime(date_str, "%Y-%m-%d")
+                date_nice = f"{d.day} {months_ru[d.month-1]}"
+            except Exception:
+                date_nice = date_str
+            ctx.user_data.pop("pending_plan", None)
+            ctx.user_data["state"] = None
+            await update.message.reply_text(
+                f"📅 Добавлено в календарь: *{title}*\n{date_nice}{' · ' + time_str if time_str else ''}",
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                "Не понял дату. Напиши, например: «15 марта», «2026-07-10» или «следующая пятница»."
+            )
+        return
+
     # Всё остальное — живой разговор через Claude
     await ai_converse(update, text)
 
@@ -1298,6 +1343,65 @@ async def doc_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"✅ Добавил в долгосрочные долги: *{added}* {'план' if added == 1 else 'плана/планов'}.\n"
             "Смотри на дашборде → 💰 Финансы → 🏦 Долгосрочные долги.",
             parse_mode="Markdown")
+    elif data.get("a") == "img_plan_cal":
+        plan = ctx.user_data.get("pending_plan") or {}
+        title = plan.get("title", "Событие")
+        date_str = plan.get("date")
+        time_str = plan.get("time") or ""
+        if date_str:
+            save_event(title, date_str, time_str)
+            date_nice = date_str
+            try:
+                from datetime import datetime as _dt
+                d = _dt.strptime(date_str, "%Y-%m-%d")
+                months_ru = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"]
+                date_nice = f"{d.day} {months_ru[d.month-1]}"
+            except Exception:
+                pass
+            await q.edit_message_text(
+                f"📅 Добавлено в календарь: *{title}*\n{date_nice}{' · ' + time_str if time_str else ''}",
+                parse_mode="Markdown"
+            )
+            ctx.user_data.pop("pending_plan", None)
+        else:
+            ctx.user_data["state"] = "img_event_date"
+            await q.edit_message_text(
+                f"📅 *{title}* — дата не найдена на скриншоте.\n\nНапиши дату (например: «15 марта» или «2026-03-15»):",
+                parse_mode="Markdown"
+            )
+
+    elif data.get("a") == "img_plan_park":
+        plan = ctx.user_data.get("pending_plan") or {}
+        title = plan.get("title", "Вводная со скриншота")
+        note = plan.get("note")
+        full = f"{title} — {note}" if note else title
+        item_id = save_item(full, detect_area(full), detect_priority(full))
+        await q.edit_message_text(
+            f"📌 Припарковано: *{title}*",
+            parse_mode="Markdown",
+            reply_markup=confirm_kbd(item_id)
+        )
+        ctx.user_data.pop("pending_plan", None)
+
+    elif data.get("a") in ("img_plan_guess", "img_plan_guess_park"):
+        file_id = ctx.user_data.get("last_img_file_id")
+        if not file_id:
+            await q.edit_message_text("⚠️ Фото устарело, пришли заново.")
+            return
+        await q.edit_message_reply_markup(None)
+        tg_file = await ctx.bot.get_file(file_id)
+        tmp = os.path.join(tempfile.gettempdir(), f"img_{file_id[:16]}.jpg")
+        await tg_file.download_to_drive(tmp)
+        forced = "event" if data["a"] == "img_plan_guess" else "parking"
+        try:
+            wait = await q.message.reply_text("🔍 Читаю...")
+            await _analyze_as_planning(update, ctx, tmp, wait, forced_kind=forced)
+        finally:
+            try:
+                os.unlink(tmp)
+            except Exception:
+                pass
+
     elif data.get("a") in ("img_doc", "img_wall"):
         # Пользователь вручную выбрал тип неоднозначного фото
         file_id = ctx.user_data.get("last_img_file_id")
@@ -1324,17 +1428,19 @@ async def doc_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 CLASSIFY_PROMPT = """Прочитай изображение по пути {path} (инструмент Read).
 Определи, что это:
-- klarna — скриншот приложения рассрочек/платежей (Klarna, PayPal Ratenzahlung, и т.п.):
+- event — приглашение на мероприятие, билет (авиа, поезд, автобус, концерт, кино, театр, спорт, ресторан, день рождения), скриншот встречи/события с датой, подтверждение бронирования.
+- parking — задача, идея, заметка, ссылка, напоминание — то, что надо не забыть, без конкретной даты или события.
+- klarna — скриншот приложения рассрочек/платежей (Klarna, PayPal Ratenzahlung и т.п.):
   список предстоящих платежей, «Autopay», «Due in N days», рассрочка «X of Y», суммы в €.
 - document — финансовый/официальный ДОКУМЕНТ (чек, счёт, Rechnung, Kassenbon,
   Kontoauszug, договор, письмо, квитанция, выписка, инвойс).
 - wall — СТЕНА/поверхность для граффити (фото улицы, здания, забора, фасада).
 - other — что-то ещё.
-Ответь СТРОГО одним словом: klarna ИЛИ document ИЛИ wall ИЛИ other"""
+Ответь СТРОГО одним словом: event ИЛИ parking ИЛИ klarna ИЛИ document ИЛИ wall ИЛИ other"""
 
 
 def classify_image_sync(path: str) -> str:
-    """Быстрая классификация: klarna / document / wall / other через Claude CLI (haiku)."""
+    """Быстрая классификация: event / parking / klarna / document / wall / other."""
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", CLASSIFY_PROMPT.format(path=path),
@@ -1349,10 +1455,41 @@ def classify_image_sync(path: str) -> str:
             return "document"
         if "wall" in out:
             return "wall"
+        if "event" in out:
+            return "event"
+        if "parking" in out:
+            return "parking"
         return "other"
     except Exception as e:
         log.error(f"classify: {e}")
         return "other"
+
+
+PLANNING_EXTRACT_PROMPT = """Прочитай изображение по пути {path} (инструмент Read).
+Извлеки структурированную информацию. Верни СТРОГО JSON без пояснений:
+{{
+  "kind": "event если это мероприятие/билет/встреча с датой, иначе parking",
+  "title": "короткое название по-русски, 2-7 слов — ЧТО именно",
+  "date": "YYYY-MM-DD если есть, иначе null",
+  "time": "HH:MM если есть, иначе null",
+  "place": "место если есть, иначе null",
+  "note": "контекст в 2-4 слова: откуда это, кто прислал, маршрут — или null"
+}}"""
+
+
+def extract_planning_sync(path: str) -> dict:
+    """Извлекает title/date/time/place/note из скриншота приглашения или задачи."""
+    result = subprocess.run(
+        [CLAUDE_BIN, "-p", PLANNING_EXTRACT_PROMPT.format(path=path),
+         "--allowedTools", "Read", "--model", "haiku", "--max-turns", "3"],
+        capture_output=True, text=True, timeout=90,
+        env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+    )
+    raw = result.stdout.strip()
+    m = re.search(r'\{[\s\S]*\}', raw)
+    if m:
+        return jsonlib.loads(m.group())
+    raise ValueError(f"no JSON: {raw[:200]}")
 
 
 KLARNA_PROMPT = """Прочитай изображение по пути {path} (инструмент Read).
@@ -1491,6 +1628,72 @@ async def _analyze_as_wall(update, ctx, path, wait):
         await ctx.bot.send_message(chat_id, f"📐 {answer}")
 
 
+def save_event(text: str, date_str: str, time_str: str = "") -> int:
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO events (text, date, time) VALUES (?,?,?)",
+            (text, date_str, time_str or None)
+        )
+        return cur.lastrowid
+
+
+async def _analyze_as_planning(update, ctx, path, wait, forced_kind: str = None):
+    """Извлекает событие/задачу из скриншота и предлагает выбор: календарь или парковка."""
+    import json as _json
+    chat_id = update.effective_chat.id
+    try:
+        data = await asyncio.to_thread(extract_planning_sync, path)
+    except Exception as e:
+        log.error(f"planning extract: {e}")
+        try:
+            await ctx.bot.edit_message_text("⚠️ Не удалось прочитать скриншот", chat_id, wait.message_id)
+        except Exception:
+            pass
+        return
+
+    kind = forced_kind or data.get("kind", "parking")
+    title = (data.get("title") or "").strip() or "Без названия"
+    date_str = data.get("date")
+    time_str = data.get("time") or ""
+    place = data.get("place")
+    note = data.get("note")
+
+    # Собираем человекочитаемое резюме
+    lines = [f"{'📅' if kind == 'event' else '📌'} *{title}*"]
+    if date_str:
+        try:
+            from datetime import datetime as _dt
+            d = _dt.strptime(date_str, "%Y-%m-%d")
+            months_ru = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"]
+            dstr = f"{d.day} {months_ru[d.month-1]}"
+            lines.append(f"🗓 {dstr}{' · ' + time_str if time_str else ''}")
+        except Exception:
+            lines.append(f"🗓 {date_str}{' · ' + time_str if time_str else ''}")
+    if place:
+        lines.append(f"📍 {place}")
+    if note:
+        lines.append(f"💬 _{note}_")
+    lines.append("")
+    lines.append("Куда добавить?")
+
+    ctx.user_data["pending_plan"] = {
+        "title": title, "date": date_str, "time": time_str,
+        "place": place, "note": note, "kind": kind,
+    }
+
+    kbd = InlineKeyboardMarkup([[
+        InlineKeyboardButton("📅 В календарь", callback_data=_json.dumps({"a": "img_plan_cal"})),
+        InlineKeyboardButton("📌 На парковку", callback_data=_json.dumps({"a": "img_plan_park"})),
+    ]])
+    try:
+        await ctx.bot.edit_message_text(
+            "\n".join(lines), chat_id, wait.message_id,
+            parse_mode="Markdown", reply_markup=kbd
+        )
+    except Exception:
+        await ctx.bot.send_message(chat_id, "\n".join(lines), parse_mode="Markdown", reply_markup=kbd)
+
+
 async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     caption = update.message.caption or ""
     photo = update.message.photo[-1]
@@ -1506,7 +1709,14 @@ async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     else:
         kind = await asyncio.to_thread(classify_image_sync, tmp)
 
-    if kind == "klarna":
+    if kind in ("event", "parking"):
+        try:
+            lbl = "📅 Похоже на событие — читаю..." if kind == "event" else "📌 Похоже на задачу — читаю..."
+            await ctx.bot.edit_message_text(lbl, update.effective_chat.id, wait.message_id)
+        except Exception:
+            pass
+        await _analyze_as_planning(update, ctx, tmp, wait, forced_kind=kind)
+    elif kind == "klarna":
         try:
             await ctx.bot.edit_message_text("💳 Скриншот рассрочек — разбираю...",
                                             update.effective_chat.id, wait.message_id)
@@ -1528,12 +1738,14 @@ async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             pass
         await _analyze_as_wall(update, ctx, tmp, wait)
     else:
-        # неоднозначно — спрашиваем пользователя кнопками (file_id хватит, чтобы скачать заново)
+        # неоднозначно — спрашиваем пользователя кнопками
         import json as _json
-        kbd = InlineKeyboardMarkup([[
-            InlineKeyboardButton("🧾 Документ", callback_data=_json.dumps({"a": "img_doc"})),
-            InlineKeyboardButton("📐 Стена", callback_data=_json.dumps({"a": "img_wall"})),
-        ]])
+        kbd = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📅 Событие", callback_data=_json.dumps({"a": "img_plan_guess"})),
+             InlineKeyboardButton("📌 Задача/идея", callback_data=_json.dumps({"a": "img_plan_guess_park"}))],
+            [InlineKeyboardButton("🧾 Документ", callback_data=_json.dumps({"a": "img_doc"})),
+             InlineKeyboardButton("📐 Стена", callback_data=_json.dumps({"a": "img_wall"}))],
+        ])
         ctx.user_data["last_img_file_id"] = photo.file_id
         try:
             await ctx.bot.edit_message_text("🤔 Не уверен, что это. Подскажи:",
