@@ -2777,8 +2777,11 @@ def _settings_set(key, val):
 
 
 def get_jurist_token() -> str:
-    """Токен Юрист-бота: сначала окружение, затем настройка в БД (никогда не в git)."""
-    return os.environ.get("JURIST_BOT_TOKEN") or _settings_get("jurist_bot_token") or ""
+    """Токен Юрист-бота: сначала окружение, затем настройка в БД (никогда не в git).
+    Чистим любые пробелы/переводы строк — токен их не содержит, а автокоррекция в Telegram
+    иногда вставляет пробел внутрь (из-за чего Telegram отвергает токен как невалидный)."""
+    raw = os.environ.get("JURIST_BOT_TOKEN") or _settings_get("jurist_bot_token") or ""
+    return "".join(raw.split())
 
 
 async def legal_deadlines_check(ctx: ContextTypes.DEFAULT_TYPE):
@@ -3004,15 +3007,17 @@ async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     owner = get_chat_id()
     if owner and chat_id != owner:
         return
-    token = (update.message.text or "").partition(" ")[2].strip()
+    token = (update.message.text or "").partition(" ")[2]
+    token = "".join(token.split())  # убираем любые пробелы/переводы строк (автокоррекция Telegram)
     # удаляем сообщение с токеном немедленно, чтобы он не висел в истории чата
     try:
         await ctx.bot.delete_message(chat_id, update.message.message_id)
     except Exception:
         pass
-    if not token or ":" not in token:
+    if not re.match(r'^\d{6,}:[A-Za-z0-9_-]{30,}$', token):
         await ctx.bot.send_message(
-            chat_id, "Пришли так: `/setjuristtoken ТОКЕН_ОТ_BotFather`", parse_mode="Markdown")
+            chat_id, "Это не похоже на токен. Пришли так: `/setjuristtoken 123456789:AA...`",
+            parse_mode="Markdown")
         return
     _settings_set("jurist_bot_token", token)
     save_chat_id(chat_id)
