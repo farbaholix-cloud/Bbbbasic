@@ -300,28 +300,8 @@ def confirm_kbd(item_id: int) -> InlineKeyboardMarkup:
 
 
 MAIN_KBD = ReplyKeyboardMarkup(
-    [[KeyboardButton("📋 Хаос"), KeyboardButton("🧾 Архив инвойсов")],
-     [KeyboardButton("⚖️ Юрист")]],
+    [[KeyboardButton("📋 Хаос"), KeyboardButton("🧾 Архив инвойсов")]],
     resize_keyboard=True, is_persistent=True
-)
-
-JURIST_KBD = ReplyKeyboardMarkup(
-    [[KeyboardButton("⬅️ Выход из Юриста")]],
-    resize_keyboard=True, is_persistent=True
-)
-
-JURIST_INTRO = (
-    "⚖️ *Юрист на связи.*\n\n"
-    "Я твой налогово-правовой консультант: вижу твои финансы, счета и долги, знаю немецкую "
-    "специфику Freiberufler/Kleinunternehmer/KSK/ELSTER и контекст §24 (украинец на временной защите).\n\n"
-    "Спроси что угодно, например:\n"
-    "• _«проанализируй мой оборот — близок ли я к порогу Kleinunternehmer?»_\n"
-    "• _«стоит ли вступать в KSK?»_\n"
-    "• _«помоги заполнить Anlage EÜR в ELSTER»_\n"
-    "• _«напиши письмо в Finanzamt о продлении срока»_\n"
-    "• _«могу ли сэкономить на страховке?»_\n"
-    "• _«когда мне подавать декларацию и что именно?»_\n\n"
-    "Чтобы вернуться в обычный режим — нажми «⬅️ Выход из Юриста»."
 )
 
 
@@ -1023,20 +1003,6 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if text == "🧾 Архив инвойсов":
         await show_invoice_archive(update)
-        return
-
-    # ─── Юрист: вход / выход / режим консультации ───
-    if text == "⚖️ Юрист":
-        ctx.user_data["jurist"] = True
-        await update.message.reply_text(JURIST_INTRO, parse_mode="Markdown", reply_markup=JURIST_KBD)
-        return
-    if text in ("⬅️ Выход из Юриста", "⬅️ Выход"):
-        ctx.user_data["jurist"] = False
-        await update.message.reply_text("Вышел из режима Юриста. Я снова обычный секретарь 🗂",
-                                        reply_markup=MAIN_KBD)
-        return
-    if ctx.user_data.get("jurist"):
-        await ai_lawyer(update, ctx, text)
         return
 
     # Проверяем не ждём ли мы ввода от пользователя
@@ -2280,7 +2246,6 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "*Меню:*\n"
         "/ip — ссылка на дашборд\n"
         "/brief — сводка сейчас\n"
-        "/jurist — ⚖️ налогово-правовой консультант (DE)\n"
         "/update — обновить вручную прямо сейчас",
         parse_mode="Markdown",
         reply_markup=MAIN_KBD
@@ -2767,17 +2732,6 @@ async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await morning_focus(ctx, verbose=True)
 
 
-async def cmd_jurist(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Войти в режим Юриста (или сразу задать вопрос: /jurist стоит ли в KSK)."""
-    save_chat_id(update.effective_chat.id)
-    arg = (update.message.text or "").partition(" ")[2].strip()
-    if arg:
-        await ai_lawyer(update, ctx, arg)
-        return
-    ctx.user_data["jurist"] = True
-    await update.message.reply_text(JURIST_INTRO, parse_mode="Markdown", reply_markup=JURIST_KBD)
-
-
 # ─── Юрист: проактивные напоминания о немецких сроках/отчётах ──────────────────
 # (месяц, день, ярлык, [за сколько дней предупредить], пояснение)
 LEGAL_DEADLINES = [
@@ -2894,7 +2848,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+UPDATE_FILES = ["bot.py", "jurist_bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -2960,11 +2914,12 @@ def _download_code(d, sha):
 
 
 def ensure_legal_kb():
-    """Самолечение базы знаний Юриста: если файлы legal_kb отсутствуют (первый запуск
-    новой версии до того, как авто-деплой подтянет подпапку) — тянем их с ветки напрямую."""
+    """Самолечение Юриста: если файлы legal_kb или сам jurist_bot.py отсутствуют (первый
+    запуск новой версии до того, как авто-деплой подтянет подпапку/файл) — тянем с ветки."""
     import urllib.request
     d = os.path.dirname(os.path.abspath(__file__))
-    for f in [x for x in UPDATE_FILES if x.startswith("legal_kb/")]:
+    need = ["jurist_bot.py"] + [x for x in UPDATE_FILES if x.startswith("legal_kb/")]
+    for f in need:
         dest = os.path.join(d, f)
         if os.path.exists(dest):
             continue
@@ -3012,6 +2967,21 @@ def _restart_dashboard(d):
     logf = open("/tmp/dash.log", "ab")
     subprocess.Popen([sys.executable, "dashboard.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
+
+
+def _restart_jurist(d):
+    """Поднять/перезапустить отдельного Юрист-бота (jurist_bot.py).
+    Запускается только если задан JURIST_BOT_TOKEN. Сначала гасим старый процесс,
+    чтобы после деплоя поднялся свежий код, потом стартуем заново в отдельной сессии."""
+    import sys
+    if not os.environ.get("JURIST_BOT_TOKEN"):
+        log.info("JURIST_BOT_TOKEN не задан — Юрист-бот не запускаю")
+        return
+    subprocess.run("pkill -9 -f jurist_bot.py; true", shell=True)
+    logf = open("/tmp/jurist.log", "ab")
+    subprocess.Popen([sys.executable, "jurist_bot.py"], cwd=d,
+                     stdout=logf, stderr=logf, start_new_session=True)
+    log.info("Юрист-бот запущен (supervised)")
 
 
 async def cmd_ping(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -3463,7 +3433,6 @@ async def _on_start(app):
                 f"Команды:\n"
                 f"• /ip — ссылка на дашборд\n"
                 f"• /brief — сводка сейчас\n"
-                f"• /jurist — ⚖️ налогово-правовой консультант (DE)\n"
                 f"• /update — обновить вручную прямо сейчас",
             )
     except Exception as e:
@@ -3488,7 +3457,6 @@ def main():
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
-    app.add_handler(CommandHandler("jurist", cmd_jurist))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
@@ -3506,8 +3474,12 @@ def main():
     bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
     jq.run_daily(morning_focus, time=brief_t)
     jq.run_daily(sunday_bridge, time=bridge_t, days=(6,))
-    legal_t = time(9, 0, tzinfo=BERLIN) if BERLIN else time(9, 0)
-    jq.run_daily(legal_deadlines_check, time=legal_t)  # Юрист: напоминания о сроках/отчётах
+
+    # Юрист — отдельный бот (jurist_bot.py); поднимаем его, если задан токен
+    try:
+        _restart_jurist(os.path.dirname(os.path.abspath(__file__)))
+    except Exception as e:
+        log.error(f"start jurist: {e}")
 
     log.info("Секретарь запущен 🗂")
     app.run_polling(drop_pending_updates=False)
