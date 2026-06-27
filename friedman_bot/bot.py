@@ -3057,21 +3057,57 @@ async def cmd_juriststatus(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     try:
         if os.path.exists("/tmp/jurist.log"):
             with open("/tmp/jurist.log", "rb") as f:
-                tail = f.read()[-1400:].decode("utf-8", "replace")
+                tail = f.read()[-4000:].decode("utf-8", "replace")
     except Exception as e:
         tail = f"(лог не прочитать: {e})"
+
+    # Вытаскиваем последнюю строку-исключение — это и есть настоящая причина
+    err_line = ""
+    for line in reversed(tail.splitlines()):
+        s = line.strip()
+        if s and ("Error" in s or "Exception" in s or "Conflict" in s
+                  or "Unauthorized" in s or "Timed" in s or s.startswith("telegram.")):
+            err_line = s
+            break
 
     msg = ("⚖️ *Статус Юрист-бота*\n"
            f"• токен: {'✅ есть' if has_tok else '❌ нет'} (источник: {tok_src})\n"
            f"• файл jurist_bot.py: {'✅' if file_ok else '❌ отсутствует'}\n"
            f"• база знаний legal_kb: {'✅' if kb_ok else '❌ нет'}\n"
            f"• процесс: {'✅ работает (' + str(n_proc) + ')' if n_proc else '❌ не запущен'}"
-           + ("\n♻️ был простой — попробовал перезапустить, проверь лог ниже" if relaunched else ""))
+           + ("\n♻️ был простой — попробовал перезапустить" if relaunched else ""))
     if not has_tok:
         msg += "\n\n→ пришли токен: `/setjuristtoken ТОКЕН`"
+    if err_line:
+        msg += f"\n\n❗ *Похоже, ошибка:*\n`{err_line[:300]}`"
     if tail:
-        msg += f"\n\nлог /tmp/jurist.log:\n```\n{tail[-1100:]}\n```"
+        msg += f"\n\nхвост лога:\n```\n{tail[-700:]}\n```"
+    msg += "\n\n_Принудительно перезапустить:_ /juristrestart"
     await ctx.bot.send_message(chat_id, msg, parse_mode="Markdown")
+
+
+async def cmd_juristrestart(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Жёстко погасить и заново поднять Юрист-бота (после смены токена и т.п.)."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    if not get_jurist_token():
+        await ctx.bot.send_message(chat_id, "Сначала пришли токен: /setjuristtoken ТОКЕН")
+        return
+    d = os.path.dirname(os.path.abspath(__file__))
+    # чистим лог, чтобы /juriststatus показал свежую попытку
+    try:
+        open("/tmp/jurist.log", "w").close()
+    except Exception:
+        pass
+    try:
+        _restart_jurist(d)
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"Не вышло перезапустить: {e}")
+        return
+    await ctx.bot.send_message(
+        chat_id, "♻️ Перезапустил Юриста. Через ~5 сек дай /juriststatus — посмотрим, поднялся ли.")
 
 
 async def cmd_ping(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -3549,6 +3585,7 @@ def main():
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
     app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
+    app.add_handler(CommandHandler("juristrestart", cmd_juristrestart))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
