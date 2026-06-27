@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.9"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.10"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -158,7 +158,7 @@ def ensure_schema(conn):
       hobby INTEGER DEFAULT 5, love INTEGER DEFAULT 5,
       note TEXT, logged_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
-    # events: project link + morning brief flag + priority
+    # events: project link + morning brief flag + priority + comment
     ev_cols = [r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()]
     if ev_cols:
         if "project_id" not in ev_cols:
@@ -169,17 +169,28 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE events ADD COLUMN importance INTEGER DEFAULT 0")
         if "urgency" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN urgency INTEGER DEFAULT 0")
-    # steps: drag position + project move
+        if "comment" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN comment TEXT")
+    # steps: drag position + project move + comment
     st_cols = [r[1] for r in conn.execute("PRAGMA table_info(steps)").fetchall()]
-    if st_cols and "position" not in st_cols:
-        conn.execute("ALTER TABLE steps ADD COLUMN position INTEGER DEFAULT 0")
-    # chaos: project link + drag position
+    if st_cols:
+        if "position" not in st_cols:
+            conn.execute("ALTER TABLE steps ADD COLUMN position INTEGER DEFAULT 0")
+        if "comment" not in st_cols:
+            conn.execute("ALTER TABLE steps ADD COLUMN comment TEXT")
+    # chaos: project link + drag position + comment
     ch_cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
     if ch_cols:
         if "project_id" not in ch_cols:
             conn.execute("ALTER TABLE chaos ADD COLUMN project_id INTEGER")
         if "position" not in ch_cols:
             conn.execute("ALTER TABLE chaos ADD COLUMN position INTEGER DEFAULT 0")
+        if "comment" not in ch_cols:
+            conn.execute("ALTER TABLE chaos ADD COLUMN comment TEXT")
+    # kanban cards: comment
+    kc_cols = [r[1] for r in conn.execute("PRAGMA table_info(kanban_cards)").fetchall()]
+    if kc_cols and "comment" not in kc_cols:
+        conn.execute("ALTER TABLE kanban_cards ADD COLUMN comment TEXT")
     # projects: morning brief flag
     pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if pr_cols:
@@ -329,7 +340,8 @@ def get_data():
                           "project_id": d.get("project_id"),
                           "morning_brief": d.get("morning_brief", 0) or 0,
                           "importance": imp,
-                          "urgency": urg})
+                          "urgency": urg,
+                          "comment": d.get("comment") or ""})
         try:
             for r in conn.execute("SELECT * FROM reminders WHERE sent=0").fetchall():
                 cards.append({"kind": "reminder", "id": r["id"], "date": r["due_at"][:10],
@@ -692,6 +704,20 @@ def api_event_update(payload):
     return {"ok": True}
 
 
+def api_card_comment(payload):
+    """Универсальный комментарий для любой карточки: chaos | event | step | kcard."""
+    kind = payload.get("kind")
+    cid = payload.get("id")
+    comment = (payload.get("comment") or "").strip() or None
+    table = {"chaos": "chaos", "event": "events", "step": "steps",
+             "kcard": "kanban_cards"}.get(kind)
+    if not table or cid is None:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute(f"UPDATE {table} SET comment=? WHERE id=?", (comment, cid))
+    return {"ok": True}
+
+
 def api_chaos_set_project(payload):
     with db() as conn:
         conn.execute("UPDATE chaos SET project_id=? WHERE id=?",
@@ -873,7 +899,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gstep-row .gst-act{flex-shrink:0;font-size:12px;line-height:1;padding:5px 6px;border-radius:8px;opacity:.45;cursor:pointer;transition:opacity .12s,background .12s,transform .1s;-webkit-tap-highlight-color:transparent}
 .gstep-row .gst-act:active{opacity:1;background:rgba(255,255,255,.12);transform:scale(.88)}
 .gstep-row .gst-act.del:active{background:rgba(255,107,125,.2)}
+.gstep-row .gst-act.on{opacity:.9}
 .sh-proj-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--rim);margin-top:6px;overflow:hidden}
+.sh-comment-wrap{padding:10px 0 2px;border-top:1px solid var(--rim);margin-top:6px}
+.sh-comment-lbl{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:7px}
+.sh-comment{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:12px;color:#fff;font-size:13.5px;font-family:inherit;line-height:1.4;padding:10px 12px;resize:vertical;min-height:42px;outline:none}
+.sh-comment:focus{border-color:rgba(91,157,255,.5)}
+.cmt-dot{font-size:10px;opacity:.65;margin-left:4px;flex-shrink:0}
 .gact{display:flex;gap:7px;margin-top:10px}
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
 .gact button.danger{color:#ff9aa6}
@@ -1334,7 +1366,7 @@ function render(){
       return '<div class="task glass-sm" data-cid="'+c.id+'">'+
         '<span class="drag-h" ontouchstart="_startDrag(event,'+c.id+')" onmousedown="_startDrag(event,'+c.id+')"><i></i><i></i><i></i></span>'+
         '<span class="pdot '+priClass(c)+'"></span>'+
-        '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+'</span>'+
+        '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+(c.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'')+'</span>'+
         '<span class="chev" onclick=\'openTask('+td+')\'>›</span></div>';
     }).join(''):'<div class="empty">парковка пуста — всё запланировано 🎉</div>';
   }
@@ -1361,7 +1393,8 @@ function render(){
       const stepsHtml=p.steps.map(s=>'<div class="gstep-row '+(s.done?'done':'')+'" data-sid="'+s.id+'">'+
         '<span class="drag-sh" ontouchstart="_startStepDrag(event,'+s.id+','+p.id+')" onmousedown="_startStepDrag(event,'+s.id+','+p.id+')"><i></i><i></i><i></i></span>'+
         '<span class="done-ck" onclick="stepToggle('+s.id+')">'+(s.done?'✓':'○')+'</span>'+
-        '<span class="gst" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>'+
+        '<span class="gst" onclick="stepToggle('+s.id+')">'+esc(s.text)+(s.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'')+'</span>'+
+        '<span class="gst-act'+(s.comment?' on':'')+'" onclick="event.stopPropagation();stepComment('+s.id+')" title="Комментарий">💬</span>'+
         '<span class="gst-act" onclick="event.stopPropagation();stepRename('+s.id+')" title="Переименовать">✏️</span>'+
         '<span class="gst-act del" onclick="event.stopPropagation();stepDelete('+s.id+')" title="Удалить">🗑</span></div>').join('');
       const ideasHtml=linkedIdeas.map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
@@ -1430,6 +1463,7 @@ function renderCal(){
         const tdata={kind:e.kind,id:e.id,text:e.text};
         if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;tdata.imp=e.importance||0;tdata.urg=e.urgency||0;}
         const mbDot=e.morning_brief?'<span style="font-size:9px;opacity:.7;margin-left:4px">🌅</span>':'';
+        const cmtDot=e.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'';
         let priDot='';
         if(e.kind==='event'&&(e.importance||e.urgency)){
           const q=quadClass(e.importance||0,e.urgency||0);
@@ -1437,7 +1471,7 @@ function renderCal(){
           priDot='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+col+';margin-left:5px;flex-shrink:0;vertical-align:middle"></span>';
         }
         return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'" onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
-          (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+mbDot+priDot+'</div>';
+          (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
       }).join('')+'</div>';
   }
   document.getElementById('cal').innerHTML=html||'<div class="empty">на этой неделе пусто</div>';
@@ -1716,6 +1750,7 @@ async function _askGoalDone(pid){
 }
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
 async function stepRename(id){const s=_step(id);if(!s)return;const t=await uiPrompt('Переименовать шаг:',s.text,{ok:'Сохранить'});if(t&&t.trim()){mutate(()=>{const x=_step(id);if(x)x.text=t.trim();},'/api/step_rename',{id,text:t.trim()});}}
+async function stepComment(id){const s=_step(id);if(!s)return;const t=await uiPrompt('💬 Комментарий к шагу:',s.comment||'',{ok:'Сохранить',placeholder:'заметка…'});if(t===null)return;mutate(()=>{const x=_step(id);if(x)x.comment=t.trim();},'/api/card_comment',{kind:'step',id,comment:t.trim()});}
 async function stepDelete(id){const s=_step(id);if(!s)return;if(await uiConfirm('Удалить шаг?',{sub:s.text,danger:true,ok:'Удалить'})){mutate(()=>{for(const p of (DATA.projects||[])){const i=(p.steps||[]).findIndex(x=>x.id===id);if(i>=0){p.steps.splice(i,1);break;}}},'/api/step_delete',{id});}}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
 async function projDel(id,name){if(await uiConfirm('Удалить цель?',{sub:name,danger:true,ok:'Удалить'})){mutate(()=>{DATA.projects=(DATA.projects||[]).filter(p=>p.id!==id);},'/api/proj_delete',{id});}}
@@ -1923,13 +1958,17 @@ function openTask(t){
   const mbBlock=(t.kind==='event')?
     '<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700">🌅 Утренняя сводка:</span>'+
     '<div class="tog '+(mbOn?'on':'')+'" id="sh-mb" style="flex-shrink:0"><div class="tog-k"></div></div></div>':'';
+  // Comment block (both chaos and event)
+  const curComment=((t.kind==='chaos'?(_chaos(t.id)||{}):(_card(t.id)||{})).comment)||'';
+  const commentBlock='<div class="sh-comment-wrap"><div class="sh-comment-lbl">💬 Комментарий</div>'+
+    '<textarea id="sh-comment" class="sh-comment" rows="2" placeholder="заметка к карточке…">'+esc(curComment)+'</textarea></div>';
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="stitle-row"><span class="title-edit-spacer"></span>'+
       '<div class="stitle">'+esc(t.text||'')+'</div>'+
       '<button id="sh-ren" class="title-edit-btn" title="Переименовать">✏️</button></div>'+
     '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'оцени приоритет / перенести / закрыть')+'</div>'+
     rateBlock+
-    projBlock+mbBlock+
+    projBlock+mbBlock+commentBlock+
     '<div class="sh-divider"></div>'+
     '<div class="sh-days">'+dayBtns+'</div>'+
     '<div class="sh-pick-lbl">или выбери дату и время</div>'+
@@ -2064,6 +2103,20 @@ function openTask(t){
       mutate(()=>{const card=_card(t.id);if(card)card.morning_brief=mbState;},'/api/event_update',{id:t.id,morning_brief:mbState});
     };
   }
+  // Comment — save on blur / change (sheet stays open)
+  const shComment=sheet.querySelector('#sh-comment');
+  if(shComment){
+    let last=curComment;
+    const saveComment=()=>{
+      const v=shComment.value;
+      if(v===last)return;
+      last=v;
+      mutate(()=>{const o=(t.kind==='chaos'?_chaos(t.id):_card(t.id));if(o)o.comment=v;},
+        '/api/card_comment',{kind:t.kind,id:t.id,comment:v});
+    };
+    shComment.addEventListener('blur',saveComment);
+    shComment.addEventListener('change',saveComment);
+  }
 }
 
 // ─── KANBAN ───
@@ -2107,8 +2160,9 @@ function renderKanban(d){
       const done=c.checked?'done':'';
       return `<div class="kcard ${done}" onclick="kcardClick(event,${c.id},${col.id},this)">
         <button class="kren" onclick="krename(event,${c.id},this)" title="Переименовать">✏️</button>
-        <div class="kt">${esc(c.title)}</div>
+        <div class="kt">${esc(c.title)}${c.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':''}</div>
         ${c.description?`<div class="kdesc">${esc(c.description)}</div>`:''}
+        ${c.comment?`<div class="kdesc kcmt-prev">💬 ${esc(c.comment)}</div>`:''}
       </div>`;
     }).join('');
     return `<div class="kol${isCurrent?' current':''}" data-col-id="${col.id}">
@@ -2271,12 +2325,23 @@ function kcardClick(e,id,colId,el){
   e.stopPropagation();
   const title=el.querySelector('.kt').textContent;
   const hasCols=(DATA.kanban_cols||[]).length>1;
+  const kc=_kcard(id)||{};
+  const curC=kc.comment||'';
   const {sheet}=_openSheet(`<div class="grab"></div><div class="stitle">${esc(title)}</div>`+
+    `<div class="sh-comment-wrap"><div class="sh-comment-lbl">💬 Комментарий</div>`+
+    `<textarea id="kcmt" class="sh-comment" rows="2" placeholder="заметка к карточке…">${esc(curC)}</textarea></div>`+
     `<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">`+
     `<button class="sh-act" id="kren-btn">✏️ Переименовать</button>`+
     (hasCols?`<button class="sh-act" id="kmove-open-btn">↗ Переместить на доску</button>`:'')+
     `<button class="sh-act" id="karch-btn">📦 В архив</button>`+
     `<button class="sh-act sh-del" id="kdel-btn">🗑 Удалить навсегда</button></div>`);
+  const kcmt=sheet.querySelector('#kcmt');
+  if(kcmt){
+    let last=curC;
+    const save=()=>{const v=kcmt.value;if(v===last)return;last=v;
+      mutate(()=>{const c=_kcard(id);if(c)c.comment=v;},'/api/card_comment',{kind:'kcard',id,comment:v},()=>renderKanban(DATA));};
+    kcmt.addEventListener('blur',save);kcmt.addEventListener('change',save);
+  }
   if(hasCols) sheet.querySelector('#kmove-open-btn').onclick=()=>{closeSheet();_openKMoveSheet(id,colId,title);};
   sheet.querySelector('#kren-btn').onclick=async()=>{
     const nv=await uiPrompt('Новое название:',title);
@@ -2903,6 +2968,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/event_delete": api_event_delete, "/api/event_update": api_event_update,
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
+            "/api/card_comment": api_card_comment,
         }
         if path in routes:
             result = routes[path](payload)
