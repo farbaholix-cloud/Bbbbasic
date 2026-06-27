@@ -3029,6 +3029,51 @@ async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown")
 
 
+async def cmd_juriststatus(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Диагностика Юрист-бота: токен, файлы, процесс, хвост лога. При простое — пробует поднять."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    import subprocess as sp
+    d = os.path.dirname(os.path.abspath(__file__))
+    has_tok = bool(get_jurist_token())
+    tok_src = ("env" if os.environ.get("JURIST_BOT_TOKEN")
+               else ("БД" if _settings_get("jurist_bot_token") else "нет"))
+    file_ok = os.path.exists(os.path.join(d, "jurist_bot.py"))
+    kb_ok = os.path.exists(os.path.join(d, "legal_kb", "SKILL.md"))
+    pg = sp.run("pgrep -f jurist_bot.py", shell=True, capture_output=True, text=True).stdout.strip()
+    n_proc = len([x for x in pg.split("\n") if x.strip()])
+
+    relaunched = False
+    if has_tok and file_ok and n_proc == 0:
+        try:
+            _restart_jurist(d)
+            relaunched = True
+        except Exception as e:
+            log.error(f"juriststatus relaunch: {e}")
+
+    tail = ""
+    try:
+        if os.path.exists("/tmp/jurist.log"):
+            with open("/tmp/jurist.log", "rb") as f:
+                tail = f.read()[-1400:].decode("utf-8", "replace")
+    except Exception as e:
+        tail = f"(лог не прочитать: {e})"
+
+    msg = ("⚖️ *Статус Юрист-бота*\n"
+           f"• токен: {'✅ есть' if has_tok else '❌ нет'} (источник: {tok_src})\n"
+           f"• файл jurist_bot.py: {'✅' if file_ok else '❌ отсутствует'}\n"
+           f"• база знаний legal_kb: {'✅' if kb_ok else '❌ нет'}\n"
+           f"• процесс: {'✅ работает (' + str(n_proc) + ')' if n_proc else '❌ не запущен'}"
+           + ("\n♻️ был простой — попробовал перезапустить, проверь лог ниже" if relaunched else ""))
+    if not has_tok:
+        msg += "\n\n→ пришли токен: `/setjuristtoken ТОКЕН`"
+    if tail:
+        msg += f"\n\nлог /tmp/jurist.log:\n```\n{tail[-1100:]}\n```"
+    await ctx.bot.send_message(chat_id, msg, parse_mode="Markdown")
+
+
 async def cmd_ping(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🏓 {BOT_VERSION}")
 
@@ -3503,6 +3548,7 @@ def main():
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
+    app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
