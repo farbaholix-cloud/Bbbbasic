@@ -23,7 +23,6 @@ from telegram.ext import (
 import bot as B  # переиспользуем «мозг» Юриста и доступ к БД/базе знаний
 
 load_dotenv()
-TOKEN = os.getenv("JURIST_BOT_TOKEN", "")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [jurist] %(message)s")
 log = logging.getLogger("jurist")
@@ -106,18 +105,19 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    if not TOKEN:
-        raise SystemExit(
-            "JURIST_BOT_TOKEN не задан. Создай отдельного бота в @BotFather, получи токен "
-            "и пропиши его в окружение/.env как JURIST_BOT_TOKEN, затем перезапусти."
-        )
     B.init_db()
+    token = B.get_jurist_token()  # из окружения или из настроек в БД (не из git)
+    if not token:
+        raise SystemExit(
+            "Токен Юрист-бота не задан. Пришли его секретарю командой "
+            "/setjuristtoken ТОКЕН, либо задай JURIST_BOT_TOKEN в окружении."
+        )
     try:
         B.ensure_legal_kb()  # база знаний должна быть на диске
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
 
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))

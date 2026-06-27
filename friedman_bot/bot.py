@@ -2768,6 +2768,11 @@ def _settings_set(key, val):
         log.error(f"settings_set: {e}")
 
 
+def get_jurist_token() -> str:
+    """Токен Юрист-бота: сначала окружение, затем настройка в БД (никогда не в git)."""
+    return os.environ.get("JURIST_BOT_TOKEN") or _settings_get("jurist_bot_token") or ""
+
+
 async def legal_deadlines_check(ctx: ContextTypes.DEFAULT_TYPE):
     """Раз в день: если до немецкого срока осталось ровно N дней — напомнить (без дублей)."""
     chat_id = get_chat_id()
@@ -2971,17 +2976,49 @@ def _restart_dashboard(d):
 
 def _restart_jurist(d):
     """Поднять/перезапустить отдельного Юрист-бота (jurist_bot.py).
-    Запускается только если задан JURIST_BOT_TOKEN. Сначала гасим старый процесс,
-    чтобы после деплоя поднялся свежий код, потом стартуем заново в отдельной сессии."""
+    Запускается только если есть токен (env или настройка в БД). Сначала гасим старый
+    процесс, чтобы после деплоя поднялся свежий код, потом стартуем в отдельной сессии."""
     import sys
-    if not os.environ.get("JURIST_BOT_TOKEN"):
-        log.info("JURIST_BOT_TOKEN не задан — Юрист-бот не запускаю")
+    if not get_jurist_token():
+        log.info("Токен Юрист-бота не задан — Юрист-бот не запускаю")
         return
     subprocess.run("pkill -9 -f jurist_bot.py; true", shell=True)
     logf = open("/tmp/jurist.log", "ab")
     subprocess.Popen([sys.executable, "jurist_bot.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
     log.info("Юрист-бот запущен (supervised)")
+
+
+async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Принять токен Юрист-бота от владельца, сохранить в БД (не в git) и поднять бота.
+    Сообщение с токеном сразу удаляем из чата ради безопасности."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    token = (update.message.text or "").partition(" ")[2].strip()
+    # удаляем сообщение с токеном немедленно, чтобы он не висел в истории чата
+    try:
+        await ctx.bot.delete_message(chat_id, update.message.message_id)
+    except Exception:
+        pass
+    if not token or ":" not in token:
+        await ctx.bot.send_message(
+            chat_id, "Пришли так: `/setjuristtoken ТОКЕН_ОТ_BotFather`", parse_mode="Markdown")
+        return
+    _settings_set("jurist_bot_token", token)
+    save_chat_id(chat_id)
+    d = os.path.dirname(os.path.abspath(__file__))
+    try:
+        _restart_jurist(d)
+    except Exception as e:
+        log.error(f"setjuristtoken restart: {e}")
+        await ctx.bot.send_message(chat_id, f"Токен сохранён, но запуск дал сбой: {e}")
+        return
+    await ctx.bot.send_message(
+        chat_id, "✅ Токен Юрист-бота сохранён, запускаю отдельного бота.\n"
+                 "Открой нового бота в Telegram и нажми *Start* — он на связи.",
+        parse_mode="Markdown")
 
 
 async def cmd_ping(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -3457,6 +3494,7 @@ def main():
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
+    app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
