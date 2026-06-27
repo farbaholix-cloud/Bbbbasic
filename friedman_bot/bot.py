@@ -1005,6 +1005,14 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await show_invoice_archive(update)
         return
 
+    # Остатки старой клавиатуры Юриста: гасим залипшие кнопки и возвращаем обычное меню
+    if text in ("⚖️ Юрист", "⬅️ Выход из Юриста", "⬅️ Выход"):
+        await update.message.reply_text(
+            "Юрист теперь — отдельный бот, пиши ему напрямую (⚖️ @Farbaholix_jurist).\n"
+            "Здесь я обычный секретарь 🗂",
+            reply_markup=MAIN_KBD)
+        return
+
     # Проверяем не ждём ли мы ввода от пользователя
     state = ctx.user_data.get("state")
 
