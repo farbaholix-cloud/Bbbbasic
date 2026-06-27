@@ -300,8 +300,28 @@ def confirm_kbd(item_id: int) -> InlineKeyboardMarkup:
 
 
 MAIN_KBD = ReplyKeyboardMarkup(
-    [[KeyboardButton("📋 Хаос"), KeyboardButton("🧾 Архив инвойсов")]],
+    [[KeyboardButton("📋 Хаос"), KeyboardButton("🧾 Архив инвойсов")],
+     [KeyboardButton("⚖️ Юрист")]],
     resize_keyboard=True, is_persistent=True
+)
+
+JURIST_KBD = ReplyKeyboardMarkup(
+    [[KeyboardButton("⬅️ Выход из Юриста")]],
+    resize_keyboard=True, is_persistent=True
+)
+
+JURIST_INTRO = (
+    "⚖️ *Юрист на связи.*\n\n"
+    "Я твой налогово-правовой консультант: вижу твои финансы, счета и долги, знаю немецкую "
+    "специфику Freiberufler/Kleinunternehmer/KSK/ELSTER и контекст §24 (украинец на временной защите).\n\n"
+    "Спроси что угодно, например:\n"
+    "• _«проанализируй мой оборот — близок ли я к порогу Kleinunternehmer?»_\n"
+    "• _«стоит ли вступать в KSK?»_\n"
+    "• _«помоги заполнить Anlage EÜR в ELSTER»_\n"
+    "• _«напиши письмо в Finanzamt о продлении срока»_\n"
+    "• _«могу ли сэкономить на страховке?»_\n"
+    "• _«когда мне подавать декларацию и что именно?»_\n\n"
+    "Чтобы вернуться в обычный режим — нажми «⬅️ Выход из Юриста»."
 )
 
 
@@ -571,6 +591,206 @@ def ask_claude_sync(user_text: str) -> dict:
         return {"reply": "", "actions": []}
 
 
+# ─── Юрист: налогово-правовой консультант (DE, Freiberufler/§24) ───────────────
+
+LEGAL_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "legal_kb")
+
+LAWYER_PROMPT = """Ты — «Юрист», личный налогово-правовой консультант Вячеслава (Slavik): украинец в Германии со статусом §24 AufenthG (временная защита), работает как художник-фрилансер (Freiberufler Künstler, бренд FARBAHOLIX), Kleinunternehmer §19 UStG, gesetzlich krankenversichert, в KSK пока не состоит.
+
+ТВОЯ БАЗА ЗНАНИЙ — каталог файлов: {kb}
+Там SKILL.md (карта тем) и references/*.md: Freiberufler vs Gewerbe, Kleinunternehmer, ELSTER/EÜR/Steuererklärung, KSK, IHK/Handwerk, Sozialversicherung, письма в инстанции. ВСЕГДА сначала прочитай нужный reference-файл инструментом Read, прежде чем отвечать по теме. Не выдумывай факты, которых там нет.
+
+Контекст §24: украинец на временной защите имеет право на самозанятость (selbständige Erwerbstätigkeit), доступ к gesetzliche Krankenversicherung, может получать Bürgergeld через Jobcenter — доход от самозанятости влияет на эти выплаты (учитывается как Einkommen). Правила §24 и пороги меняются — для актуальных цифр делай web_search, не угадывай.
+
+ТВОИ ЗАДАЧИ:
+1. Анализ финансов: тебе дан баланс, счета (Rechnungen) с оборотом по годам, долги, расходы. Оцени налогово-правовую картину, предупреди о рисках: превышение порога Kleinunternehmer (оборот), переквалификация Freiberufler→Gewerbe, обязанность Künstlersozialabgabe как Verwerter при выплатах другим художникам сверх Bagatellgrenze.
+2. Сроки: напоминай о подаче деклараций (ESt + Anlage EÜR + Anlage S, обычно к 31 июля) и ежегодных обновлениях. Если просят — поставь напоминание (action remind).
+3. Инвойсы: если есть данные для счёта — предложи action invoice (recipient, items на немецком, сумма).
+4. Письма/заявления: по reference letters.md составь готовый текст письма на немецком (Finanzamt, KSK, Krankenkasse, Handwerkskammer, Jobcenter) прямо в reply.
+5. ELSTER: помоги понять, какие формы (Anlage S, Anlage EÜR), как заполнять, какие поля — пошагово.
+6. Статус: рекомендуй изменения (вступление в KSK ради экономии ~50% на страховке, переход на Regelbesteuerung, регистрация Gewerbe/GmbH) — но как ОРИЕНТИР; финальное решение и расчёт — со Steuerberater.
+
+ЖЁСТКИЕ ПРАВИЛА:
+- НИКОГДА не вписывай в текст/письма/документы реальные IBAN, BIC, Steuernummer, персональный Steuer-Identifikationsnummer. Если форма требует — оставь плейсхолдер вида [Steuernummer].
+- Ты не заменяешь Steuerberater: по решениям с налоговыми последствиями давай механику и пороги, но прямо говори, что финал подтверждает бухгалтер.
+- Отвечай по-русски, тепло и конкретно. Тексты писем — на немецком, профессионально, с ä ö ü ß.
+
+Сегодня: {today}.
+
+ВСЕГДА отвечай строго в JSON:
+{"reply": "ответ человеку (может содержать текст письма на немецком)", "actions": [
+ {"type": "remind", "when": "2026-07-20 09:00", "text": "подать Einkommensteuererklärung"},
+ {"type": "invoice", "recipient": "Galerie X\\nStraße 1\\n60311 Frankfurt", "items": [{"desc": "Künstlerische Wandgestaltung", "price": 1200}], "salutation": "", "customer_no": ""},
+ {"type": "contact", "name": "Steuerberater Müller", "note": "ведёт ESt 2025"}
+]}
+actions может быть пустым []. Никакого текста вне JSON."""
+
+
+def get_legal_context() -> str:
+    """Финансово-правовой срез БД для Юриста: баланс, счета (оборот по годам), долги, платежи."""
+    cur_year = datetime.now().year
+    with db() as conn:
+        balance = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
+        cash = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
+        card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
+        fin_last = conn.execute(
+            "SELECT amount, comment, account, created_at FROM finance ORDER BY id DESC LIMIT 15").fetchall()
+        invoices = conn.execute(
+            "SELECT number, COALESCE(date, created_at) AS d, recipient, total, description "
+            "FROM invoices ORDER BY d DESC, id DESC LIMIT 25").fetchall()
+        debts = conn.execute(
+            "SELECT name, kind, total, paid, due_date, monthly FROM debts ORDER BY kind, due_date").fetchall()
+        payments = conn.execute(
+            "SELECT title, amount, kind, recur, day FROM payments WHERE active=1 ORDER BY kind, day").fetchall()
+        history = conn.execute(
+            "SELECT role, text FROM messages WHERE text LIKE '⚖%' OR role='lawyer' ORDER BY id DESC LIMIT 8").fetchall()
+
+    def _year_of(s):
+        s = s or ""
+        if "." in s:
+            return s.split(".")[-1][:4]
+        return s[:4] or "—"
+
+    # Оборот по счетам за год — для анализа порога Kleinunternehmer
+    turnover = {}
+    for r in invoices:
+        turnover[_year_of(r["d"])] = turnover.get(_year_of(r["d"]), 0) + (r["total"] or 0)
+
+    lines = [f"ФИНАНСОВЫЙ СРЕЗ (для налогово-правового анализа), год {cur_year}:",
+             f"Баланс: всего {balance:+.2f}€ (наличные {cash:+.2f}€ · карта {card:+.2f}€)"]
+
+    if turnover:
+        lines.append("\nОБОРОТ ПО ВЫСТАВЛЕННЫМ СЧЕТАМ (Umsatz, по годам — важно для порога Kleinunternehmer §19):")
+        for y in sorted(turnover.keys(), reverse=True):
+            lines.append(f"  {y}: {turnover[y]:.2f}€")
+
+    if invoices:
+        lines.append("\nПОСЛЕДНИЕ СЧЕТА (Ausgangsrechnungen):")
+        for r in invoices[:15]:
+            rec = (r["recipient"] or "").split(chr(10))[0][:40]
+            lines.append(f"  №{r['number'] or '—'} {r['d'] or ''} · {rec} · {r['total'] or 0:.0f}€ · {(r['description'] or '')[:50]}")
+
+    if fin_last:
+        lines.append("\nПОСЛЕДНИЕ ФИНАНСОВЫЕ ОПЕРАЦИИ:")
+        for f in fin_last:
+            acc = "нал" if f["account"] == "cash" else "карта"
+            lines.append(f"  {f['amount']:+.0f}€ — {f['comment']} ({acc}, {f['created_at'][:10]})")
+
+    if debts:
+        lines.append("\nДОЛГИ:")
+        for x in debts:
+            lines.append(f"  [{x['kind']}] {x['name']}: {x['paid']:.0f}/{x['total']:.0f}€"
+                         + (f", {x['monthly']:.0f}€/мес" if x["monthly"] else "")
+                         + (f", срок {x['due_date']}" if x["due_date"] else ""))
+
+    if payments:
+        lines.append("\nРЕГУЛЯРНЫЕ ПЛАТЕЖИ:")
+        for p in payments:
+            lines.append(f"  {p['title']}: {p['amount']:.0f}€ ({p['recur']}, {p['day']}-го)")
+
+    if history:
+        lines.append("\nПОСЛЕДНИЙ ДИАЛОГ С ЮРИСТОМ:")
+        for h in reversed(history):
+            who = "Человек" if h["role"] == "user" else "Юрист"
+            lines.append(f"{who}: {h['text'][:200]}")
+
+    return "\n".join(lines)
+
+
+def ask_lawyer_sync(user_text: str) -> dict:
+    context = get_legal_context()
+    prompt = f"{context}\n\nВОПРОС/ЗАПРОС К ЮРИСТУ:\n{user_text}"
+    sys_prompt = (LAWYER_PROMPT
+                  .replace("{kb}", LEGAL_KB_DIR)
+                  .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt,
+             "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch",
+             "--model", "sonnet",
+             "--max-turns", "14"],
+            capture_output=True, text=True, timeout=240,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+        )
+        raw = result.stdout.strip()
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                return jsonlib.loads(raw[start:end + 1])
+            except Exception:
+                pass
+        if raw and not raw.startswith("Error:") and "max turns" not in raw.lower():
+            return {"reply": raw, "actions": []}
+        return {"reply": "", "actions": []}
+    except Exception as e:
+        log.error(f"Lawyer CLI: {e}")
+        return {"reply": "", "actions": []}
+
+
+async def ai_lawyer(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_text: str):
+    """Диалог с Юристом: налогово-правовой консультант с доступом к финансовой БД и базе знаний."""
+    save_chat_id(update.effective_chat.id)
+    remember("user", "⚖️ " + user_text)
+    wait = await update.message.reply_text("⚖️ Юрист изучает вопрос и сверяется с базой…")
+
+    resp = await asyncio.get_event_loop().run_in_executor(None, lambda: ask_lawyer_sync(user_text))
+    reply = resp.get("reply", "") or "Не смог сформулировать ответ — попробуй переформулировать вопрос."
+    actions = resp.get("actions", [])
+    applied = apply_actions(actions)
+
+    remember("lawyer", "⚖️ " + reply[:400])
+
+    extras = []
+    for kind, item_id, text, area, pri in applied:
+        if kind == "remind":
+            extras.append(f"⏰ напоминание: _{text}_")
+        elif kind == "invoice":
+            extras.append(f"🧾 _{text}_ — PDF ниже")
+        elif kind == "contact":
+            extras.append(f"👤 _{text}_")
+        elif kind == "finance":
+            extras.append(f"💰 _{text}_")
+
+    msg = "⚖️ *Юрист:*\n\n" + reply
+    if extras:
+        msg += "\n\n" + "\n".join(extras)
+
+    try:
+        await ctx.bot.delete_message(update.effective_chat.id, wait.message_id)
+    except Exception:
+        pass
+    # Длинные письма могут не влезть в один Markdown-месседж — режем аккуратно
+    for chunk in _split_msg(msg, 3800):
+        try:
+            await update.message.reply_text(chunk, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
+
+    for kind, _id, _text, path, _pri in applied:
+        if kind == "invoice" and path:
+            try:
+                with open(path, "rb") as doc:
+                    await update.message.reply_document(doc, filename=path.split("/")[-1])
+            except Exception as e:
+                log.error(f"lawyer invoice send: {e}")
+
+
+def _split_msg(text: str, limit: int = 3800):
+    if len(text) <= limit:
+        return [text]
+    parts, cur = [], ""
+    for line in text.split("\n"):
+        if len(cur) + len(line) + 1 > limit:
+            parts.append(cur)
+            cur = ""
+        cur += line + "\n"
+    if cur:
+        parts.append(cur)
+    return parts
+
+
 def next_invoice_number() -> str:
     base = datetime.now().strftime("%d%m%y")
     with db() as conn:
@@ -803,6 +1023,20 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     if text == "🧾 Архив инвойсов":
         await show_invoice_archive(update)
+        return
+
+    # ─── Юрист: вход / выход / режим консультации ───
+    if text == "⚖️ Юрист":
+        ctx.user_data["jurist"] = True
+        await update.message.reply_text(JURIST_INTRO, parse_mode="Markdown", reply_markup=JURIST_KBD)
+        return
+    if text in ("⬅️ Выход из Юриста", "⬅️ Выход"):
+        ctx.user_data["jurist"] = False
+        await update.message.reply_text("Вышел из режима Юриста. Я снова обычный секретарь 🗂",
+                                        reply_markup=MAIN_KBD)
+        return
+    if ctx.user_data.get("jurist"):
+        await ai_lawyer(update, ctx, text)
         return
 
     # Проверяем не ждём ли мы ввода от пользователя
@@ -2046,6 +2280,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "*Меню:*\n"
         "/ip — ссылка на дашборд\n"
         "/brief — сводка сейчас\n"
+        "/jurist — ⚖️ налогово-правовой консультант (DE)\n"
         "/update — обновить вручную прямо сейчас",
         parse_mode="Markdown",
         reply_markup=MAIN_KBD
@@ -2532,6 +2767,82 @@ async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await morning_focus(ctx, verbose=True)
 
 
+async def cmd_jurist(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Войти в режим Юриста (или сразу задать вопрос: /jurist стоит ли в KSK)."""
+    save_chat_id(update.effective_chat.id)
+    arg = (update.message.text or "").partition(" ")[2].strip()
+    if arg:
+        await ai_lawyer(update, ctx, arg)
+        return
+    ctx.user_data["jurist"] = True
+    await update.message.reply_text(JURIST_INTRO, parse_mode="Markdown", reply_markup=JURIST_KBD)
+
+
+# ─── Юрист: проактивные напоминания о немецких сроках/отчётах ──────────────────
+# (месяц, день, ярлык, [за сколько дней предупредить], пояснение)
+LEGAL_DEADLINES = [
+    (7, 31, "Einkommensteuererklärung (ESt + Anlage EÜR + Anlage S)",
+     [45, 14, 3, 0],
+     "Срок самостоятельной подачи декларации о доходах за прошлый год (Freiberufler). "
+     "Нужны: Anlage S (свободная профессия), Anlage EÜR (приход−расход). "
+     "Со Steuerberater срок продлевается. Нужна помощь — нажми «⚖️ Юрист»."),
+    (12, 1, "KSK · Änderungsmitteilung (если состоишь в KSK)",
+     [10, 0],
+     "Годовая оценка дохода от художественной деятельности на следующий год. "
+     "Актуально только если ты член KSK. Если ещё думаешь о вступлении — спроси Юриста."),
+    (1, 15, "Новый налоговый год: пороги и ставки обновились",
+     [0],
+     "Ставки KSK/Künstlersozialabgabe, порог Kleinunternehmer и правила §24 пересматриваются ежегодно. "
+     "Хороший момент свериться с Юристом: не пора ли менять статус, вступать в KSK, проверить оборот."),
+]
+
+
+def _settings_get(key):
+    try:
+        with db() as conn:
+            r = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return r["value"] if r else None
+    except Exception:
+        return None
+
+
+def _settings_set(key, val):
+    try:
+        with db() as conn:
+            conn.execute("INSERT OR REPLACE INTO settings(key, value) VALUES(?,?)", (key, str(val)))
+    except Exception as e:
+        log.error(f"settings_set: {e}")
+
+
+async def legal_deadlines_check(ctx: ContextTypes.DEFAULT_TYPE):
+    """Раз в день: если до немецкого срока осталось ровно N дней — напомнить (без дублей)."""
+    chat_id = get_chat_id()
+    if not chat_id:
+        return
+    today = datetime.now(BERLIN).date() if BERLIN else date.today()
+    for (mo, da, label, advs, note) in LEGAL_DEADLINES:
+        try:
+            dl = date(today.year, mo, da)
+        except ValueError:
+            continue
+        for adv in advs:
+            if dl - timedelta(days=adv) != today:
+                continue
+            key = f"legalremind:{label}:{today.year}:{adv}"
+            if _settings_get(key):
+                continue
+            _settings_set(key, "1")
+            days_left = (dl - today).days
+            when = "сегодня" if days_left == 0 else f"через {days_left} дн."
+            try:
+                await ctx.bot.send_message(
+                    chat_id,
+                    f"⚖️ *Юрист напоминает*\n\n📅 *{label}* — срок {dl.strftime('%d.%m.%Y')} ({when}).\n\n{note}",
+                    parse_mode="Markdown")
+            except Exception as e:
+                log.error(f"legal remind: {e}")
+
+
 async def cmd_setupbrief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Разово доустановить Chromium (Playwright), чтобы сводка приходила красивым постером."""
     chat_id = update.effective_chat.id
@@ -2583,7 +2894,15 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py"]
+UPDATE_FILES = ["bot.py", "dashboard.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+                "legal_kb/SKILL.md",
+                "legal_kb/references/freiberufler-status.md",
+                "legal_kb/references/kleinunternehmer.md",
+                "legal_kb/references/elster-steuer.md",
+                "legal_kb/references/ksk.md",
+                "legal_kb/references/ihk-handwerk.md",
+                "legal_kb/references/sozialversicherung.md",
+                "legal_kb/references/letters.md"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -2632,10 +2951,37 @@ def _download_code(d, sha):
             data = r.read()
         if len(data) < 100:
             raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
-        with open(os.path.join(d, f), "wb") as out:
+        dest = os.path.join(d, f)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)  # подпапки (legal_kb/…) создаём при необходимости
+        with open(dest, "wb") as out:
             out.write(data)
         downloaded.append(f)
     return downloaded
+
+
+def ensure_legal_kb():
+    """Самолечение базы знаний Юриста: если файлы legal_kb отсутствуют (первый запуск
+    новой версии до того, как авто-деплой подтянет подпапку) — тянем их с ветки напрямую."""
+    import urllib.request
+    d = os.path.dirname(os.path.abspath(__file__))
+    for f in [x for x in UPDATE_FILES if x.startswith("legal_kb/")]:
+        dest = os.path.join(d, f)
+        if os.path.exists(dest):
+            continue
+        try:
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{BRANCH}/friedman_bot/{f}", headers=h)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = r.read()
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "wb") as out:
+                out.write(data)
+            log.info(f"legal_kb fetched: {f}")
+        except Exception as e:
+            log.error(f"legal_kb fetch {f}: {e}")
 
 
 def _self_restart(d: str):
@@ -3117,6 +3463,7 @@ async def _on_start(app):
                 f"Команды:\n"
                 f"• /ip — ссылка на дашборд\n"
                 f"• /brief — сводка сейчас\n"
+                f"• /jurist — ⚖️ налогово-правовой консультант (DE)\n"
                 f"• /update — обновить вручную прямо сейчас",
             )
     except Exception as e:
@@ -3129,6 +3476,10 @@ def main():
         return
 
     init_db()
+    try:
+        ensure_legal_kb()  # подтянуть базу знаний Юриста, если её ещё нет на диске
+    except Exception as e:
+        log.error(f"ensure_legal_kb: {e}")
     app = Application.builder().token(TOKEN).post_init(_on_start).build()
 
     # Команды бота сведены к минимуму — только /ip, /brief, /update.
@@ -3137,6 +3488,7 @@ def main():
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
+    app.add_handler(CommandHandler("jurist", cmd_jurist))
 
     app.add_handler(CallbackQueryHandler(callback, pattern="^(done:|del:|rezone:|setzone:|list:|bridge:)"))
     app.add_handler(CallbackQueryHandler(extra_callback, pattern="^(newproj|back:|goals_period:|proj:)"))
@@ -3154,6 +3506,8 @@ def main():
     bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
     jq.run_daily(morning_focus, time=brief_t)
     jq.run_daily(sunday_bridge, time=bridge_t, days=(6,))
+    legal_t = time(9, 0, tzinfo=BERLIN) if BERLIN else time(9, 0)
+    jq.run_daily(legal_deadlines_check, time=legal_t)  # Юрист: напоминания о сроках/отчётах
 
     log.info("Секретарь запущен 🗂")
     app.run_polling(drop_pending_updates=False)
