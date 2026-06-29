@@ -1401,27 +1401,41 @@ DOC_KEYWORDS = ["чек", "счёт", "счет", "фактур", "rechnung", "k
                 "invoice", "receipt", "kontoauszug", "договор", "квитанция", "выписка",
                 "dokument", "документ", "pdf", "финанс", "расход", "доход", "оплат"]
 
-DOC_PROMPT = """Прочитай файл по пути {path} (инструмент Read).
-Это финансовый документ (чек, Rechnung, Kassenbon, Kontoauszug, договор, и т.д.).
+DOC_PROMPT = """Внимательно прочитай файл по пути {path} (инструмент Read).
 
-Проанализируй его по немецкому налоговому законодательству и верни ТОЛЬКО JSON без markdown:
+Если это ФОТО бумажного документа — оно может быть снято под углом, бумага помята, со
+складками, тенями и сгибами. Всё равно аккуратно распознай ВЕСЬ текст и ВСЕ числа, мысленно
+выровняв страницу. Не пропускай строки и суммы. Если цифра нечёткая — выбери наиболее
+вероятную по контексту, но не выдумывай.
+
+Немецкий формат чисел: 4.372,32 = 4372.32 (точка — разделитель тысяч, запятая — десятичная).
+
+Это официальный/финансовый документ (чек, Rechnung, Kassenbon, Kontoauszug, письмо из
+ведомства или кассы — Krankenkasse/Finanzamt/AOK и т.п., договор и т.д.).
+
+Проанализируй по немецкому праву и верни ТОЛЬКО JSON без markdown:
 {{
-  "doc_type": "Kassenbon|Rechnung|Kontoauszug|Vertrag|Sonstiges",
+  "doc_type": "Kassenbon|Rechnung|Kontoauszug|Vertrag|Behoerdenbrief|Sonstiges",
   "date": "YYYY-MM-DD или null",
   "amount": число или null,
   "currency": "EUR",
   "is_expense": true/false,
   "category": "краткая категория по-русски",
-  "counterparty": "название магазина/компании или null",
+  "counterparty": "от кого документ (организация) или null",
   "mwst_rate": 7 или 19 или 0 или null,
   "mwst_amount": число или null,
   "vorsteuer": true если можно заявить Vorsteuerabzug (только если корректная Rechnung с MwSt-Ausweis),
   "betriebsausgabe": true если деловой расход по §4 EStG,
-  "tax_note": "комментарий о налоговой значимости по немецкому праву, 1-2 предложения по-русски",
+  "summary": "1-2 строки по-русски: что это за документ и ключевые суммы/сроки",
+  "tax_note": "комментарий о налогово-правовой значимости по немецкому праву, 1-2 предложения по-русски",
   "recommendation": "что сделать с документом по-русски",
   "finance_comment": "короткое описание для записи в финансы",
   "add_to_finance": true если стоит записать в финансы
-}}"""
+}}
+
+ВАЖНО про amount: бери ИТОГОВУЮ сумму. Для Kontoauszug — конечное сальдо «Saldo neu» / сумму
+к оплате. Для счёта (Rechnung) — Gesamtbetrag. Для письма с требованием оплаты — итог к оплате.
+Никогда не вписывай в ответ IBAN, BIC, Steuernummer или Versichertennummer."""
 
 
 def _is_doc_caption(caption: str) -> bool:
@@ -1432,13 +1446,13 @@ def _is_doc_caption(caption: str) -> bool:
 
 
 def analyze_doc_sync(path: str) -> dict:
-    """Распознаёт финансовый документ через Claude CLI, возвращает dict."""
+    """Распознаёт финансовый/официальный документ через Claude CLI (sonnet — точнее OCR)."""
     result = subprocess.run(
         [CLAUDE_BIN, "-p", DOC_PROMPT.format(path=path),
          "--allowedTools", "Read",
-         "--model", "haiku",
-         "--max-turns", "3"],
-        capture_output=True, text=True, timeout=90,
+         "--model", "sonnet",
+         "--max-turns", "5"],
+        capture_output=True, text=True, timeout=160,
         env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
     )
     raw = result.stdout.strip()
@@ -1465,6 +1479,8 @@ async def _send_doc_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE, r: 
         f"🏪 {r.get('counterparty') or '—'}",
         f"🏷 {r.get('category','—')}",
     ]
+    if r.get("summary"):
+        lines.append(f"\n📋 _{r['summary']}_")
 
     mwst = r.get("mwst_rate")
     if mwst is not None:
@@ -1485,6 +1501,11 @@ async def _send_doc_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE, r: 
         lines.append(f"\n💡 _{r['tax_note']}_")
     if r.get("recommendation"):
         lines.append(f"📌 {r['recommendation']}")
+
+    # Письма из ведомств/касс — это профиль Юриста: подскажем переслать туда
+    if r.get("doc_type") in ("Behoerdenbrief", "Kontoauszug", "Vertrag"):
+        lines.append("\n⚖️ Это вопрос для Юриста — перешли документ боту @Farbaholix_jurist, "
+                     "он разберёт по сути и подскажет, что делать.")
 
     text = "\n".join(lines)
 
@@ -1708,8 +1729,8 @@ def classify_image_sync(path: str) -> str:
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", CLASSIFY_PROMPT.format(path=path),
-             "--allowedTools", "Read", "--model", "haiku", "--max-turns", "2"],
-            capture_output=True, text=True, timeout=60,
+             "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "3"],
+            capture_output=True, text=True, timeout=90,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
         )
         out = (result.stdout or "").strip().lower()
