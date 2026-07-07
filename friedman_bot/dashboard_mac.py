@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.17 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.18 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1082,8 +1082,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .sh-day{background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 4px;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
 .sh-picker{display:flex;gap:8px;margin-bottom:12px}
 .sh-picker select{flex:1;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px;font-size:15px;-webkit-appearance:none;text-align:center}
-.sh-picker input[type=time]{flex:1;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:9px 6px;font-size:14px;font-family:inherit;text-align:center;-webkit-appearance:none;color-scheme:dark}
-.sh-picker input[type=time]:focus{border-color:rgba(91,157,255,.5);outline:none}
+.sh-picker input[type=time],.sh-picker input[type=date]{flex:1;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:9px 6px;font-size:14px;font-family:inherit;text-align:center;-webkit-appearance:none;color-scheme:dark}
+.sh-picker input[type=date]{flex:1.3}
+.sh-picker input[type=time]:focus,.sh-picker input[type=date]:focus{border-color:rgba(91,157,255,.5);outline:none}
 .sh-picker button{flex:1.1;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:12px;color:#fff;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
 .sh-actions{display:flex;gap:10px;margin-top:4px}
 .sh-btn{flex:1;padding:14px;border-radius:15px;font-size:13.5px;font-weight:800;text-align:center;border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer}
@@ -2243,8 +2244,7 @@ function openTask(t){
     projBlock+mbBlock+commentBlock+
     '<div class="sh-divider"></div>'+
     '<div class="sh-days">'+dayBtns+'</div>'+
-    '<div class="sh-picker"><select id="sh-month">'+MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===now.getMonth()?'selected':'')+'>'+m+'</option>').join('')+'</select>'+
-    '<select id="sh-day">'+Array.from({length:31},(_,i)=>'<option value="'+(i+1)+'" '+(i+1===now.getDate()?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select>'+
+    '<div class="sh-picker"><input type="date" id="sh-date" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).date)||localISO(now))+'">'+
     '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'" title="Начало (пусто — без времени)">'+
     '<input type="time" id="sh-time2" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time_end)||'')+'" title="Конец">'+
     '<button id="sh-go">📅 в день</button></div>'+
@@ -2303,11 +2303,8 @@ function openTask(t){
     }
   });
   sheet.querySelector('#sh-go').onclick=()=>{
-    const m=+sheet.querySelector('#sh-month').value;let day=+sheet.querySelector('#sh-day').value;
-    let y=now.getFullYear();const last=new Date(y,m+1,0).getDate();if(day>last)day=last;
-    let target=new Date(y,m,day);const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-    if(target<todayMid)target=new Date(y+1,m,day);
-    doMove(localISO(target));
+    const date=sheet.querySelector('#sh-date').value||localISO(now);
+    doMove(date);
   };
   sheet.querySelector('#sh-done').onclick=()=>{
     closeSheet();
