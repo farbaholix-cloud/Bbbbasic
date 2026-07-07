@@ -3020,6 +3020,57 @@ def _restart_jurist(d):
     log.info("Юрист-бот запущен (supervised)")
 
 
+def _restart_dashboard_mac(d):
+    """Перезапуск только Mac-дашборда — освобождаем порт 8766."""
+    import sys
+    subprocess.run("pkill -9 -f dashboard_mac.py; fuser -k 8766/tcp 2>/dev/null; true",
+                   shell=True)
+    logf = open("/tmp/dash_mac.log", "ab")
+    subprocess.Popen([sys.executable, "dashboard_mac.py"], cwd=d,
+                     stdout=logf, stderr=logf, start_new_session=True)
+
+
+def _download_file(d, sha, filename):
+    """Скачать один файл по SHA (неизменяемый URL)."""
+    import urllib.request
+    h = {"User-Agent": "friedman-bot"}
+    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if tok:
+        h["Authorization"] = f"Bearer {tok}"
+    req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{filename}", headers=h)
+    with urllib.request.urlopen(req, timeout=40) as r:
+        data = r.read()
+    if len(data) < 100:
+        raise RuntimeError(f"{filename}: подозрительно мал ({len(data)} б)")
+    dest = os.path.join(d, filename)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(dest, "wb") as out:
+        out.write(data)
+    return filename
+
+
+async def cmd_update_mac(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Быстрое обновление только dashboard_mac.py и перезапуск Mac-дашборда."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    d = os.path.dirname(os.path.abspath(__file__))
+    await ctx.bot.send_message(chat_id, "🔄 Обновляю dashboard_mac.py…")
+    try:
+        sha = _remote_sha()
+        filename = _download_file(d, sha, "dashboard_mac.py")
+        await ctx.bot.send_message(chat_id, f"✅ Скачано ({sha[:7]}): {filename}\n♻️ Перезапускаю Mac-дашборд…")
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"⚠️ Не удалось обновить: {e}")
+        return
+    try:
+        _restart_dashboard_mac(d)
+        await ctx.bot.send_message(chat_id, "🚀 Mac-дашборд обновлён! Обнови страницу.")
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"⚠️ Mac-дашборд не стартовал: {e}")
+
+
 async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Принять токен Юрист-бота от владельца, сохранить в БД (не в git) и поднять бота.
     Сообщение с токеном сразу удаляем из чата ради безопасности."""
@@ -3602,12 +3653,13 @@ def main():
         log.error(f"ensure_legal_kb: {e}")
     app = Application.builder().token(TOKEN).post_init(_on_start).build()
 
-    # Команды бота сведены к минимуму — только /ip, /brief, /update.
+    # Команды бота сведены к минимуму — только /ip, /brief, /update, /update_mac.
     # /start оставлен как точка входа Telegram (инфраструктура, не фича-команда).
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
+    app.add_handler(CommandHandler("update_mac", cmd_update_mac))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
     app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
     app.add_handler(CommandHandler("juristrestart", cmd_juristrestart))
