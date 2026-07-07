@@ -3021,8 +3021,14 @@ def _restart_jurist(d):
 
 
 def _restart_dashboard_mac(d):
-    """Перезапуск только Mac-дашборда — освобождаем порт 8766."""
+    """Перезапуск Mac-дашборда. Он живёт как systemd-сервис (friedman-dashboard-mac),
+    поэтому сначала пробуем systemctl — иначе systemd поднимет старую копию и они
+    подерутся за порт 8766. Если сервиса нет — обычный pkill + запуск."""
     import sys
+    r = subprocess.run("systemctl restart friedman-dashboard-mac", shell=True,
+                       capture_output=True)
+    if r.returncode == 0:
+        return
     subprocess.run("pkill -9 -f dashboard_mac.py; fuser -k 8766/tcp 2>/dev/null; true",
                    shell=True)
     logf = open("/tmp/dash_mac.log", "ab")
@@ -3546,6 +3552,7 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     try:
         _restart_dashboard(d)
+        _restart_dashboard_mac(d)
         await asyncio.sleep(1.5)
     except Exception as e:
         await ctx.bot.send_message(chat_id, f"⚠️ Дашборд не стартовал: {e}")
@@ -3599,6 +3606,7 @@ async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
             pass
     try:
         _restart_dashboard(d)
+        _restart_dashboard_mac(d)
         await asyncio.sleep(1.5)
     except Exception:
         pass
@@ -3619,7 +3627,16 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "16.06 · 21:30"  # видимая метка сборки бота
+BOT_VERSION = "07.07"  # видимая метка сборки бота
+
+
+def _deployed_sha_short():
+    """Короткий SHA задеплоенного кода — по нему видно, что реально стоит свежая сборка."""
+    try:
+        with open(_SHA_FILE) as f:
+            return f.read().strip()[:7]
+    except Exception:
+        return "?"
 
 
 async def _on_start(app):
@@ -3630,12 +3647,13 @@ async def _on_start(app):
             await app.bot.send_message(
                 cid,
                 f"🚀 Секретарь обновлён и запущен.\n"
-                f"Версия: {BOT_VERSION}\n\n"
+                f"Версия: {BOT_VERSION} · сборка {_deployed_sha_short()}\n\n"
                 f"Авто-деплой включён: новые изменения подхватываю сам за ~1.5 мин.\n\n"
                 f"Команды:\n"
                 f"• /ip — ссылка на дашборд\n"
                 f"• /brief — сводка сейчас\n"
-                f"• /update — обновить вручную прямо сейчас",
+                f"• /update — обновить всё вручную\n"
+                f"• /update_mac — обновить только Mac-дашборд",
             )
     except Exception as e:
         log.error(f"startup notify failed: {e}")
