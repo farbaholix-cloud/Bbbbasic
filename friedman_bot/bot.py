@@ -3055,26 +3055,76 @@ def _download_file(d, sha, filename):
     return filename
 
 
+def _mac_file_version(d):
+    """VERSION из dashboard_mac.py на диске — что именно будет запущено."""
+    try:
+        with open(os.path.join(d, "dashboard_mac.py")) as f:
+            for line in f:
+                if line.startswith("VERSION"):
+                    return line.split('"')[1]
+    except Exception:
+        pass
+    return "?"
+
+
+def _update_mac_sync(d):
+    """Обновить Mac-дашборд, возвращает подробный отчёт (каждый шаг — строка).
+
+    Путь 1: /__deploy самого дашборда (проверка синтаксиса + systemctl restart) —
+    это его штатный, проверенный механизм. Путь 2 (если дашборд не отвечает):
+    скачать файл напрямую и перезапустить процесс."""
+    import urllib.request
+    steps = []
+    # токен деплоя лежит в общей БД (его пишет сам dashboard_mac при старте)
+    tok = _settings_get("deploy_token")
+    if tok:
+        try:
+            url = f"http://127.0.0.1:8766/__deploy?token={tok}"
+            with urllib.request.urlopen(url, timeout=60) as r:
+                body = r.read().decode(errors="replace")[:300]
+            steps.append(f"✅ /__deploy: {body}")
+            steps.append(f"📦 версия файла на диске: {_mac_file_version(d)}")
+            return steps
+        except Exception as e:
+            steps.append(f"⚠️ /__deploy не сработал: {e}")
+    else:
+        steps.append("⚠️ deploy_token не найден в настройках (дашборд ни разу не стартовал?)")
+    # запасной путь: скачать файл сами и перезапустить процесс
+    try:
+        sha = _remote_sha()
+        _download_file(d, sha, "dashboard_mac.py")
+        steps.append(f"✅ скачал dashboard_mac.py ({sha[:7]}), версия: {_mac_file_version(d)}")
+    except Exception as e:
+        steps.append(f"❌ скачивание: {e}")
+        return steps
+    r = subprocess.run("systemctl restart friedman-dashboard-mac", shell=True,
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        steps.append("✅ systemctl restart friedman-dashboard-mac")
+    else:
+        err = (r.stderr or r.stdout or "").strip()[:200]
+        steps.append(f"⚠️ systemctl: {err or 'код ' + str(r.returncode)} — пробую pkill")
+        _restart_dashboard_mac(d)
+        steps.append("✅ перезапустил процесс напрямую")
+    # проверяем, что процесс жив
+    import time as _t
+    _t.sleep(2)
+    chk = subprocess.run("pgrep -f dashboard_mac.py", shell=True, capture_output=True)
+    steps.append("✅ процесс работает" if chk.returncode == 0 else
+                 "❌ процесс НЕ поднялся — смотри /tmp/dash_mac.log")
+    return steps
+
+
 async def cmd_update_mac(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Быстрое обновление только dashboard_mac.py и перезапуск Mac-дашборда."""
+    """Быстрое обновление только Mac-дашборда, с пошаговым отчётом."""
     chat_id = update.effective_chat.id
     owner = get_chat_id()
     if owner and chat_id != owner:
         return
     d = os.path.dirname(os.path.abspath(__file__))
-    await ctx.bot.send_message(chat_id, "🔄 Обновляю dashboard_mac.py…")
-    try:
-        sha = _remote_sha()
-        filename = _download_file(d, sha, "dashboard_mac.py")
-        await ctx.bot.send_message(chat_id, f"✅ Скачано ({sha[:7]}): {filename}\n♻️ Перезапускаю Mac-дашборд…")
-    except Exception as e:
-        await ctx.bot.send_message(chat_id, f"⚠️ Не удалось обновить: {e}")
-        return
-    try:
-        _restart_dashboard_mac(d)
-        await ctx.bot.send_message(chat_id, "🚀 Mac-дашборд обновлён! Обнови страницу.")
-    except Exception as e:
-        await ctx.bot.send_message(chat_id, f"⚠️ Mac-дашборд не стартовал: {e}")
+    await ctx.bot.send_message(chat_id, "🔄 Обновляю Mac-дашборд…")
+    steps = await asyncio.get_event_loop().run_in_executor(None, lambda: _update_mac_sync(d))
+    await ctx.bot.send_message(chat_id, "\n".join(steps) + "\n\n♻️ Обнови страницу (Cmd+Shift+R).")
 
 
 async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
