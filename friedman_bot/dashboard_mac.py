@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.16 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.17 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -241,6 +241,8 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE events ADD COLUMN urgency INTEGER DEFAULT 0")
         if "comment" not in ev_cols:
             conn.execute("ALTER TABLE events ADD COLUMN comment TEXT")
+        if "time_end" not in ev_cols:
+            conn.execute("ALTER TABLE events ADD COLUMN time_end TEXT")
     # chaos: project link + drag position + comment
     ch_cols = [r[1] for r in conn.execute("PRAGMA table_info(chaos)").fetchall()]
     if ch_cols:
@@ -414,6 +416,7 @@ def get_data():
             d = dict(r)
             cards.append({"kind": "event", "id": d["id"], "date": d["date"],
                           "time": d.get("time") or "", "text": d["text"],
+                          "time_end": d.get("time_end") or "",
                           "chaos_id": d.get("chaos_id"),
                           "project_id": d.get("project_id"),
                           "importance": d.get("importance", 0) or 0,
@@ -474,13 +477,15 @@ def api_move(payload):
     new_date = payload["date"]
     with db() as conn:
         if kind == "event":
-            # time передаётся вместе с датой: строка "HH:MM" ставит время,
-            # пустая строка осознанно снимает его, отсутствие ключа — не трогает
+            # ключ передан → значение ставится как есть (пустая строка снимает время);
+            # ключа нет → поле не трогаем
+            sets, vals = ["date=?"], [new_date]
             if "time" in payload:
-                conn.execute("UPDATE events SET date=?, time=? WHERE id=?",
-                             (new_date, payload.get("time") or "", payload["id"]))
-            else:
-                conn.execute("UPDATE events SET date=? WHERE id=?", (new_date, payload["id"]))
+                sets.append("time=?"); vals.append(payload.get("time") or "")
+            if "time_end" in payload:
+                sets.append("time_end=?"); vals.append(payload.get("time_end") or "")
+            conn.execute(f"UPDATE events SET {', '.join(sets)} WHERE id=?",
+                         (*vals, payload["id"]))
         elif kind == "reminder":
             row = conn.execute("SELECT due_at FROM reminders WHERE id=?", (payload["id"],)).fetchone()
             if row:
@@ -489,8 +494,9 @@ def api_move(payload):
         elif kind == "chaos":
             row = conn.execute("SELECT text FROM chaos WHERE id=?", (payload["id"],)).fetchone()
             if row:
-                conn.execute("INSERT INTO events (text, date, time, chaos_id) VALUES (?,?,?,?)",
-                             (row["text"], new_date, payload.get("time", ""), payload["id"]))
+                conn.execute("INSERT INTO events (text, date, time, time_end, chaos_id) VALUES (?,?,?,?,?)",
+                             (row["text"], new_date, payload.get("time", ""),
+                              payload.get("time_end", ""), payload["id"]))
     return {"ok": True}
 
 
@@ -726,10 +732,17 @@ def api_chaos_add(payload):
         min_pos = conn.execute(
             "SELECT COALESCE(MIN(position), 1) FROM chaos WHERE done=0"
         ).fetchone()[0]
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO chaos (text, area, priority, importance, urgency, position) VALUES (?,?,?,?,?,?)",
             (text, area, "mid", 0, 0, min_pos - 1)
         )
+        # опциональное расписание в стиле iOS-календаря: дата + начало/конец (или весь день)
+        if payload.get("date"):
+            conn.execute(
+                "INSERT INTO events (text, date, time, time_end, chaos_id) VALUES (?,?,?,?,?)",
+                (text, payload["date"], payload.get("time") or "",
+                 payload.get("time_end") or "", cur.lastrowid)
+            )
     return {"ok": True}
 
 
@@ -936,6 +949,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
   padding:14px;resize:none;font-family:inherit;line-height:1.45;outline:none}
 .idea-txt:focus{border-color:rgba(91,157,255,.5)}
 .idea-lbl{font-size:11px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.6px;margin:14px 2px 8px}
+/* блок планирования в стиле iOS-календаря (весь день / начало / конец) */
+.sched-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 2px;border-bottom:1px solid var(--rim)}
+.sched-lbl{font-size:14px;font-weight:600;color:var(--txt);flex-shrink:0}
+.sched-inps{display:flex;gap:8px;min-width:0}
+.sched-inps input{background:rgba(255,255,255,.07);border:1px solid var(--rim);border-radius:11px;color:#fff;font-size:14px;font-family:inherit;padding:8px 10px;-webkit-appearance:none;color-scheme:dark;min-width:0}
+.sched-inps input:focus{border-color:rgba(91,157,255,.5);outline:none}
 .idea-chips{display:flex;flex-wrap:wrap;gap:7px}
 .idea-chip{font-size:12px;font-weight:700;padding:8px 13px;border-radius:13px;background:var(--glass2);border:1px solid var(--rim);color:var(--muted);cursor:pointer;transition:transform .12s}
 .idea-chip:active{transform:scale(.94)}
@@ -1750,8 +1769,9 @@ function renderCal(){
         if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;}
         const mbDot=e.morning_brief?'<span style="font-size:9px;opacity:.7;margin-left:4px">🌅</span>':'';
         const cmtDot=e.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'';
+        const tBadge=e.time?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
         return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'" onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
-          (e.time?'<span class="t">'+e.time+'</span> ':'')+esc(e.text)+mbDot+cmtDot+'</div>';
+          tBadge+esc(e.text)+mbDot+cmtDot+'</div>';
       }).join('')+'</div>';
   }
   document.getElementById('cal').innerHTML=html||'<div class="empty">нет запланированных событий</div>';
@@ -2084,6 +2104,12 @@ function openIdeaSheet(){
     '<textarea id="idea-txt" class="idea-txt" placeholder="Что пришло в голову?" rows="3"></textarea>'+
     '<div class="idea-lbl">Сфера жизни</div>'+
     '<div class="idea-chips" id="idea-chips">'+areas.map(a=>'<button class="idea-chip'+(a[0]==='other'?' on':'')+'" data-area="'+a[0]+'">'+a[1]+' '+a[2]+'</button>').join('')+'</div>'+
+    '<div class="sched-row" style="margin-top:12px"><span class="sched-lbl">📅 Запланировать</span><div class="tog" id="sc-on"><div class="tog-k"></div></div></div>'+
+    '<div id="sc-body" style="display:none">'+
+      '<div class="sched-row"><span class="sched-lbl">Весь день</span><div class="tog" id="sc-allday"><div class="tog-k"></div></div></div>'+
+      '<div class="sched-row"><span class="sched-lbl">Начало</span><div class="sched-inps"><input type="date" id="sc-date" value="'+localISO(new Date())+'"><input type="time" id="sc-t1"></div></div>'+
+      '<div class="sched-row" id="sc-endrow"><span class="sched-lbl">Конец</span><div class="sched-inps"><input type="time" id="sc-t2"></div></div>'+
+    '</div>'+
     '<button class="big-add" id="idea-save" style="margin-top:18px"><span class="ic">📌</span>Припарковать</button>';
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
@@ -2093,12 +2119,36 @@ function openIdeaSheet(){
   chips.forEach(c=>c.onclick=()=>{chips.forEach(x=>x.classList.remove('on'));c.classList.add('on');area=c.dataset.area;});
   const txt=sheet.querySelector('#idea-txt');
   setTimeout(()=>{try{txt.focus();}catch(_){}},160);
+  // блок планирования в стиле iOS-календаря: тумблер «Весь день», начало/конец
+  let schedOn=false,allDay=false;
+  const scOn=sheet.querySelector('#sc-on'),scBody=sheet.querySelector('#sc-body');
+  const scAll=sheet.querySelector('#sc-allday'),scEndRow=sheet.querySelector('#sc-endrow');
+  const t1=sheet.querySelector('#sc-t1'),t2=sheet.querySelector('#sc-t2');
+  const saveBtn=sheet.querySelector('#idea-save');
+  const updLabel=()=>{saveBtn.innerHTML='<span class="ic">'+(schedOn?'📅':'📌')+'</span>'+(schedOn?'В календарь':'Припарковать');};
+  scOn.onclick=()=>{schedOn=!schedOn;scOn.classList.toggle('on',schedOn);scBody.style.display=schedOn?'':'none';updLabel();};
+  scAll.onclick=()=>{allDay=!allDay;scAll.classList.toggle('on',allDay);t1.style.display=allDay?'none':'';scEndRow.style.display=allDay?'none':'';};
+  // конец автоматически = начало + 1 час (как в iOS), пока не задан вручную
+  t1.addEventListener('change',()=>{
+    if(!t1.value)return;
+    if(!t2.value||t2.value<=t1.value){
+      const p=t1.value.split(':').map(Number);
+      t2.value=String(Math.min(23,p[0]+1)).padStart(2,'0')+':'+String(p[1]).padStart(2,'0');
+    }
+  });
   const save=()=>{
     const v=(txt.value||'').trim();
     if(!v){txt.focus();return;}
+    const date=schedOn?(sheet.querySelector('#sc-date').value||localISO(new Date())):'';
+    const time=(schedOn&&!allDay)?(t1.value||''):'';
+    const time_end=(schedOn&&!allDay&&time)?(t2.value||''):'';
     closeSheet();
-    mutate(()=>{if(!DATA.chaos)DATA.chaos=[];DATA.chaos.unshift({id:_tmpId(),text:v,area,priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});},
-      '/api/chaos_add',{text:v,area});
+    mutate(()=>{
+      if(!DATA.chaos)DATA.chaos=[];
+      const cid=_tmpId();
+      DATA.chaos.unshift({id:cid,text:v,area,priority:'mid',importance:0,urgency:0,done:0,project_id:null,position:-999999});
+      if(date){if(!DATA.cards)DATA.cards=[];DATA.cards.push({kind:'event',id:_tmpId(),date,time,time_end,text:v,chaos_id:cid,project_id:null,morning_brief:0,importance:0,urgency:0});}
+    },'/api/chaos_add',date?{text:v,area,date,time,time_end}:{text:v,area});
   };
   sheet.querySelector('#idea-save').onclick=save;
   txt.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter')save();});
@@ -2195,7 +2245,8 @@ function openTask(t){
     '<div class="sh-days">'+dayBtns+'</div>'+
     '<div class="sh-picker"><select id="sh-month">'+MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===now.getMonth()?'selected':'')+'>'+m+'</option>').join('')+'</select>'+
     '<select id="sh-day">'+Array.from({length:31},(_,i)=>'<option value="'+(i+1)+'" '+(i+1===now.getDate()?'selected':'')+'>'+(i+1)+'</option>').join('')+'</select>'+
-    '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'" title="Время (пусто — без времени)">'+
+    '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'" title="Начало (пусто — без времени)">'+
+    '<input type="time" id="sh-time2" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time_end)||'')+'" title="Конец">'+
     '<button id="sh-go">📅 в день</button></div>'+
     '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
     '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>'+
@@ -2224,22 +2275,33 @@ function openTask(t){
     };
   }
   // move to a date — mirrors api_move: chaos creates a calendar event, event/reminder reschedules.
-  // Время берём из #sh-time: "HH:MM" ставит, пустое поле осознанно снимает
-  // (для события поле предзаполнено текущим временем, так что перенос дня время сохраняет).
+  // Время (начало/конец) берём из предзаполненных полей: "HH:MM" ставит, пустое поле
+  // осознанно снимает; перенос дня сохраняет время, т.к. поля предзаполнены текущим.
   function doMove(date){
     const time=(sheet.querySelector('#sh-time')||{}).value||'';
+    let time_end=(sheet.querySelector('#sh-time2')||{}).value||'';
+    if(!time)time_end='';
     closeSheet();
     mutate(()=>{
       if(t.kind==='chaos'){
         const c=_chaos(t.id);
         if(!DATA.cards)DATA.cards=[];
-        DATA.cards.push({kind:'event',id:_tmpId(),date,time,text:(c?c.text:t.text),chaos_id:t.id,project_id:(c?c.project_id:null)||null,morning_brief:0});
+        DATA.cards.push({kind:'event',id:_tmpId(),date,time,time_end,text:(c?c.text:t.text),chaos_id:t.id,project_id:(c?c.project_id:null)||null,morning_brief:0});
       } else {
-        const card=_card(t.id);if(card){card.date=date;if(t.kind==='event')card.time=time;}
+        const card=_card(t.id);if(card){card.date=date;if(t.kind==='event'){card.time=time;card.time_end=time_end;}}
       }
-    },'/api/move',t.kind==='reminder'?{kind:t.kind,id:t.id,date}:{kind:t.kind,id:t.id,date,time});
+    },'/api/move',t.kind==='reminder'?{kind:t.kind,id:t.id,date}:{kind:t.kind,id:t.id,date,time,time_end});
   }
   sheet.querySelectorAll('.sh-day').forEach(b=>b.onclick=()=>doMove(b.dataset.date));
+  // конец автоматически = начало + 1 час, если пуст или раньше начала
+  const _t1=sheet.querySelector('#sh-time'),_t2=sheet.querySelector('#sh-time2');
+  if(_t1&&_t2)_t1.addEventListener('change',()=>{
+    if(!_t1.value)return;
+    if(!_t2.value||_t2.value<=_t1.value){
+      const p=_t1.value.split(':').map(Number);
+      _t2.value=String(Math.min(23,p[0]+1)).padStart(2,'0')+':'+String(p[1]).padStart(2,'0');
+    }
+  });
   sheet.querySelector('#sh-go').onclick=()=>{
     const m=+sheet.querySelector('#sh-month').value;let day=+sheet.querySelector('#sh-day').value;
     let y=now.getFullYear();const last=new Date(y,m+1,0).getDate();if(day>last)day=last;
@@ -3153,9 +3215,19 @@ function _calTGrid(cols){
       if(isNaN(eh))return;
       const top=(eh-HOUR_START)*SLOT_H+(em||0)/60*SLOT_H;
       if(top<0||top>totalH)return;
+      // высота блока = длительность (time_end), как в настоящем календаре
+      let hStyle='';
+      if(ev.time_end){
+        const [h2,m2]=ev.time_end.split(':').map(Number);
+        if(!isNaN(h2)){
+          const bottom=(h2-HOUR_START)*SLOT_H+(m2||0)/60*SLOT_H;
+          const hgt=Math.min(totalH-top,bottom-top);
+          if(hgt>20)hStyle='height:'+hgt+'px;';
+        }
+      }
       const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-      html+='<div class="t-event" style="top:'+top+'px" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
-        +'<span style="font-size:9px;opacity:.7">'+ev.time+'</span> '+esc(ev.text)+'</div>';
+      html+='<div class="t-event" style="top:'+top+'px;'+hStyle+'" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
+        +'<span style="font-size:9px;opacity:.7">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span> '+esc(ev.text)+'</div>';
     });
     // all-day events (no time)
     const allDay=evs.filter(e=>!e.time);
