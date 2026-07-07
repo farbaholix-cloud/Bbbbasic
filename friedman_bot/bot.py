@@ -7,7 +7,7 @@ import asyncio
 import calendar as _calendar
 from datetime import datetime, time, date, timedelta
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, filters, JobQueue
@@ -299,10 +299,9 @@ def confirm_kbd(item_id: int) -> InlineKeyboardMarkup:
     ]])
 
 
-MAIN_KBD = ReplyKeyboardMarkup(
-    [[KeyboardButton("📋 Хаос"), KeyboardButton("🧾 Архив инвойсов")]],
-    resize_keyboard=True, is_persistent=True
-)
+# Кнопки убраны по просьбе владельца: reply-клавиатура снимается у всех,
+# кто её видел; списки по-прежнему доступны текстом («📋 Хаос», «🧾 Архив инвойсов»)
+MAIN_KBD = ReplyKeyboardRemove()
 
 
 def list_filter_kbd() -> InlineKeyboardMarkup:
