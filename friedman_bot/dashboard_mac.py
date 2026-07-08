@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.18 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.19 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1082,8 +1082,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .sh-day{background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 4px;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
 .sh-picker{display:flex;gap:8px;margin-bottom:12px}
 .sh-picker select{flex:1;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px;font-size:15px;-webkit-appearance:none;text-align:center}
-.sh-picker input[type=time],.sh-picker input[type=date]{flex:1;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:9px 6px;font-size:14px;font-family:inherit;text-align:center;-webkit-appearance:none;color-scheme:dark}
-.sh-picker input[type=date]{flex:1.3}
+.sh-picker input[type=time],.sh-picker input[type=date]{min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:9px 4px;font-size:13px;font-family:inherit;text-align:center;-webkit-appearance:none;color-scheme:dark}
+.sh-picker input[type=date]{flex:1.7}
+.sh-picker input[type=time]{flex:1}
 .sh-picker input[type=time]:focus,.sh-picker input[type=date]:focus{border-color:rgba(91,157,255,.5);outline:none}
 .sh-picker button{flex:1.1;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:12px;color:#fff;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
 .sh-actions{display:flex;gap:10px;margin-top:4px}
