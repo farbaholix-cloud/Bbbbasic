@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.20 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.21 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -260,6 +260,16 @@ def ensure_schema(conn):
     kc_cols = [r[1] for r in conn.execute("PRAGMA table_info(kanban_cards)").fetchall()]
     if kc_cols and "comment" not in kc_cols:
         conn.execute("ALTER TABLE kanban_cards ADD COLUMN comment TEXT")
+    # goals: стратегические цели на «Мостике» — ручной прогресс + горизонт
+    conn.execute("""CREATE TABLE IF NOT EXISTS goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL, area TEXT DEFAULT 'work', period TEXT DEFAULT 'week',
+        done INTEGER DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
+    g_cols = [r[1] for r in conn.execute("PRAGMA table_info(goals)").fetchall()]
+    if "progress" not in g_cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN progress INTEGER DEFAULT 0")
+    if "target" not in g_cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN target TEXT")
     # projects: morning brief flag
     pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if pr_cols:
@@ -474,8 +484,10 @@ def get_data():
         happiness = dict(hap_row) if hap_row else {"work":5,"friendship":5,"health":5,"wellbeing":5,"hobby":5,"love":5}
         happiness_history = [dict(r) for r in conn.execute(
             "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY id DESC LIMIT 365").fetchall()]
+        sgoals = [dict(r) for r in conn.execute(
+            "SELECT * FROM goals WHERE period='strategic' AND done=0 ORDER BY id").fetchall()]
         rev = _read_rev(conn)
-    return {"chaos": chaos, "projects": projects, "cards": cards,
+    return {"chaos": chaos, "projects": projects, "cards": cards, "sgoals": sgoals,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -486,6 +498,41 @@ def get_data():
 
 
 # ─── planning APIs (kept compatible with the bot) ─────────────────────────────
+
+def api_sgoal_add(payload):
+    text = (payload.get("text") or "").strip()
+    if not text:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute("INSERT INTO goals (text, period, progress, target) VALUES (?,?,?,?)",
+                     (text, "strategic", int(payload.get("progress") or 0),
+                      (payload.get("target") or "").strip() or None))
+    return {"ok": True}
+
+
+def api_sgoal_update(payload):
+    """Явная семантика ключей: передан ключ — пишем, нет — не трогаем."""
+    sets, vals = [], []
+    if "text" in payload:
+        sets.append("text=?"); vals.append((payload.get("text") or "").strip())
+    if "progress" in payload:
+        sets.append("progress=?"); vals.append(max(0, min(100, int(payload.get("progress") or 0))))
+    if "target" in payload:
+        sets.append("target=?"); vals.append((payload.get("target") or "").strip() or None)
+    if "done" in payload:
+        sets.append("done=?"); vals.append(1 if payload.get("done") else 0)
+    if not sets:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute(f"UPDATE goals SET {', '.join(sets)} WHERE id=?", (*vals, payload["id"]))
+    return {"ok": True}
+
+
+def api_sgoal_delete(payload):
+    with db() as conn:
+        conn.execute("DELETE FROM goals WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
 
 def api_move(payload):
     kind = payload["kind"]
@@ -996,6 +1043,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gh .gp{font-size:11.5px;font-weight:800;color:var(--muted)}
 .gh .gp b{color:var(--green)}
 .gbar{height:8px;border-radius:6px;background:rgba(0,0,0,.28);overflow:hidden;margin-top:9px;border:1px solid rgba(255,255,255,.08)}
+.sgoal{cursor:pointer;transition:transform .12s}
+.sgoal:hover{transform:translateY(-1px)}
+.sg-target{font-size:11px;font-weight:700;color:var(--muted);background:var(--glass2);border:1px solid var(--rim);border-radius:9px;padding:2px 8px}
 .gfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--green),var(--cyan));box-shadow:0 0 12px rgba(82,224,138,.5)}
 .gsteps{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .gstep{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:10px;background:var(--glass2);border:1px solid var(--rim);color:var(--muted);cursor:pointer;transition:transform .1s,background .15s,color .15s,border-color .15s;-webkit-tap-highlight-color:transparent}
@@ -1382,8 +1432,9 @@ select,textarea,.idea-txt{font-size:14px}
       <div id="chaos"></div>
     </div>
     <div class="block glass">
-      <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
-      <div id="projects"></div>
+      <div class="bh"><div class="t">🏔 Стратегические цели <span class="sm">горизонт · прогресс</span></div><div class="cnt" id="sgoal-cnt"></div></div>
+      <div id="sgoals"></div>
+      <div class="addr" onclick="addSGoal()" style="cursor:pointer">🎯 Новая стратегическая цель</div>
     </div>
     <div class="plan-rcol">
     <div class="block glass">
@@ -1438,6 +1489,10 @@ select,textarea,.idea-txt{font-size:14px}
     </div>
   </div>
   <div class="page" id="page-proj">
+    <div class="block glass">
+      <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
+      <div id="projects"></div>
+    </div>
     <div class="kanban-wrap">
       <div class="kanban-toolbar">
         <div class="btn-sm glass-sm" onclick="addKCol()" style="padding:6px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ колонка</div>
@@ -1699,7 +1754,17 @@ function render(){
   // calendar
   renderCal();
   _wireCalDrop();
-  // goals
+  // стратегические цели на «Мостике»
+  const sg=d.sgoals||[];
+  document.getElementById('sgoal-cnt').textContent=sg.length?sg.length+' в фокусе':'';
+  document.getElementById('sgoals').innerHTML=sg.length?sg.map(g=>{
+    const pct=Math.max(0,Math.min(100,g.progress||0));
+    return '<div class="goal glass-sm sgoal" onclick="openSGoal('+g.id+')">'+
+      '<div class="gh"><span class="em">🎯</span><span class="gn">'+esc(g.text)+'</span>'+
+      '<span class="gp">'+(g.target?'<span class="sg-target">'+esc(g.target)+'</span> · ':'')+'<b>'+pct+'%</b></span></div>'+
+      '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div></div>';
+  }).join(''):'<div class="empty">целей пока нет — сформулируй 3–7 больших направлений</div>';
+  // goals (проекты-декомпозиция, вкладка «Проекты»)
   document.getElementById('goals-cnt').textContent=d.projects.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length+' в работе';
   document.getElementById('projects').innerHTML=d.projects.length?d.projects.map(p=>{
     const done=p.steps.filter(s=>s.done).length,total=p.steps.length;
@@ -2007,6 +2072,49 @@ async function _askGoalDone(pid){
 async function stepAdd(pid){const t=await uiPrompt('Новый шаг:','',{placeholder:'что сделать'});if(t&&t.trim()){const p=_proj(pid);mutate(()=>{if(p){if(!p.steps)p.steps=[];p.steps.push({id:_tmpId(),text:t.trim(),done:0,project_id:pid});}},'/api/step_add',{project_id:pid,text:t.trim()});}}
 async function stepComment(id){const s=_step(id);if(!s)return;const t=await uiPrompt('💬 Комментарий к шагу:',s.comment||'',{ok:'Сохранить',placeholder:'заметка…'});if(t===null)return;mutate(()=>{const x=_step(id);if(x)x.comment=t.trim();},'/api/card_comment',{kind:'step',id,comment:t.trim()});}
 async function projRename(id,old){const t=await uiPrompt('Название цели:',old);if(t&&t.trim()){const p=_proj(id);mutate(()=>{if(p)p.name=t.trim();},'/api/proj_rename',{id,name:t.trim()});}}
+
+// ─── стратегические цели (Мостик) ───
+function _sgoal(id){return (DATA.sgoals||[]).find(g=>g.id===id);}
+async function addSGoal(){
+  const t=await uiPrompt('Стратегическая цель (крупно, на месяцы):','');
+  if(!t||!t.trim())return;
+  const target=await uiPrompt('Горизонт (напр. «до дек 2026», можно пусто):','');
+  mutate(()=>{if(!DATA.sgoals)DATA.sgoals=[];DATA.sgoals.push({id:_tmpId(),text:t.trim(),target:(target||'').trim(),progress:0});},
+    '/api/sgoal_add',{text:t.trim(),target:(target||'').trim()});
+}
+function openSGoal(id){
+  const g=_sgoal(id);if(!g)return;
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';sheet.classList.add('mac-top-left');
+  const pct=Math.max(0,Math.min(100,g.progress||0));
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="stitle">🎯 '+esc(g.text)+'</div>'+
+    '<div class="ssub">'+(g.target?'горизонт: '+esc(g.target):'горизонт не задан')+'</div>'+
+    '<div class="slider-row" style="margin-top:14px"><div class="sl-top"><span>Прогресс</span><span class="val" id="sg-val">'+pct+'%</span></div>'+
+    '<input type="range" min="0" max="100" step="5" value="'+pct+'" id="sg-prog" class="urg"></div>'+
+    '<div class="sh-actions">'+
+    '<button class="sh-btn" id="sg-done">🏆 Достигнута</button>'+
+    '<button class="sh-btn" id="sg-ren">✏️ Название</button>'+
+    '<button class="sh-btn" id="sg-target">📅 Горизонт</button>'+
+    '<button class="sh-btn danger" id="sg-del">🗑 Удалить</button></div>';
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
+  const slider=sheet.querySelector('#sg-prog'),val=sheet.querySelector('#sg-val');
+  slider.oninput=()=>{val.textContent=slider.value+'%';};
+  slider.onchange=()=>{const p=+slider.value;mutate(()=>{const x=_sgoal(id);if(x)x.progress=p;},'/api/sgoal_update',{id,progress:p});};
+  sheet.querySelector('#sg-done').onclick=()=>{closeSheet();
+    mutate(()=>{DATA.sgoals=(DATA.sgoals||[]).filter(x=>x.id!==id);},'/api/sgoal_update',{id,done:1});};
+  sheet.querySelector('#sg-ren').onclick=async()=>{
+    const t=await uiPrompt('Название цели:',g.text);
+    if(t&&t.trim())mutate(()=>{const x=_sgoal(id);if(x)x.text=t.trim();},'/api/sgoal_update',{id,text:t.trim()});};
+  sheet.querySelector('#sg-target').onclick=async()=>{
+    const t=await uiPrompt('Горизонт (напр. «до дек 2026»):',g.target||'');
+    if(t!==null)mutate(()=>{const x=_sgoal(id);if(x)x.target=t.trim();},'/api/sgoal_update',{id,target:t.trim()});};
+  sheet.querySelector('#sg-del').onclick=()=>{closeSheet();
+    mutate(()=>{DATA.sgoals=(DATA.sgoals||[]).filter(x=>x.id!==id);},'/api/sgoal_delete',{id});};
+}
 async function projDel(id,name){mutate(()=>{DATA.projects=(DATA.projects||[]).filter(p=>p.id!==id);},'/api/proj_delete',{id});}
 function projSetMorning(id,on){const p=_proj(id);mutate(()=>{if(p)p.morning_brief=on?1:0;},'/api/proj_set_morning',{id,on});}
 
@@ -3640,6 +3748,8 @@ class Handler(BaseHTTPRequestHandler):
 
         routes = {
             "/api/move": api_move, "/api/unplan": api_unplan, "/api/complete": api_complete,
+            "/api/sgoal_add": api_sgoal_add, "/api/sgoal_update": api_sgoal_update,
+            "/api/sgoal_delete": api_sgoal_delete,
             "/api/rate": api_rate,
             "/api/finance_add": api_finance_add, "/api/finance_delete": api_finance_delete,
             "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,

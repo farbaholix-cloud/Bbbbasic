@@ -3844,6 +3844,33 @@ def run_data_import_20260709():
     log.info("ревизия+импорт 09.07 выполнены (бэкап: friedman_backup_import.db)")
 
 
+def seed_strategic_goals():
+    """Одноразовый сид стратегических целей для блока «Мостик» (предложение
+    ассистента 09.07 — владелец правит/удаляет прямо в дашборде)."""
+    if _settings_get("goals_seed_20260709"):
+        return
+    with db() as conn:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(goals)").fetchall()]
+        if "progress" not in cols:
+            conn.execute("ALTER TABLE goals ADD COLUMN progress INTEGER DEFAULT 0")
+        if "target" not in cols:
+            conn.execute("ALTER TABLE goals ADD COLUMN target TEXT")
+        for text, target, progress in [
+                ("Выйти из долгов: закрыть свежие $ и Klarna", "до июн 2027", 10),
+                ("Налоговый порядок: декларация 2025 сдана, НДС-2026 разрулен", "до 31 июл 2026", 20),
+                ("FARBAHOLIX: 3 якорных клиента и стабильный поток заказов", "до дек 2026", 40),
+                ("Издать Книгу 3.0", "до дек 2026", 90),
+                ("Построить студию и записать первый трек", "до мар 2027", 5),
+                ("Вступить в KSK — снизить страховку", "до окт 2026", 0),
+                ("South Bags Украина: запуск продаж", "до ноя 2026", 30)]:
+            conn.execute("INSERT INTO goals (text, period, progress, target) VALUES (?,?,?,?)",
+                         (text, "strategic", progress, target))
+        conn.execute("INSERT INTO settings (key, value) VALUES ('data_rev','1') "
+                     "ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1")
+    _settings_set("goals_seed_20260709", "done")
+    log.info("стратегические цели засеяны")
+
+
 async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Откат ревизии 09.07: вернуть БД из бэкапа и перезапустить всё."""
     chat_id = update.effective_chat.id
@@ -3910,6 +3937,10 @@ def main():
         run_data_import_20260709()  # одноразовая ревизия+импорт (флаг в settings)
     except Exception as e:
         log.error(f"data import 09.07: {e}")
+    try:
+        seed_strategic_goals()
+    except Exception as e:
+        log.error(f"goals seed: {e}")
     try:
         ensure_legal_kb()  # подтянуть базу знаний Юриста, если её ещё нет на диске
     except Exception as e:
