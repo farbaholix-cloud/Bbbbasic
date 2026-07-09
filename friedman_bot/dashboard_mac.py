@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.19 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.20 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -395,6 +395,21 @@ def _read_rev(conn):
         return int(row["value"]) if row and row["value"] else 0
     except Exception:
         return 0
+
+
+def get_export():
+    """Полный read-only дамп базы для ревизии/бэкапа: все таблицы как есть.
+    settings исключена намеренно — в ней живут токены (сессия, deploy, Юрист)."""
+    out = {"exported_at": datetime.now().isoformat(timespec="seconds"),
+           "dashboard_version": VERSION, "tables": {}}
+    with db() as conn:
+        names = [r["name"] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]
+        for name in names:
+            if name == "settings" or name.startswith("sqlite_"):
+                continue
+            out["tables"][name] = [dict(r) for r in conn.execute(f"SELECT * FROM {name}")]
+    return out
 
 
 def get_data():
@@ -3569,6 +3584,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/data":
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+        elif path == "/api/export":
+            # полный дамп для ревизии — открой в браузере и скопируй/сохрани
+            self._send(json.dumps(get_export(), ensure_ascii=False, indent=1).encode(),
                        "application/json; charset=utf-8")
         else:
             # вшиваем данные прямо в HTML — браузеру не нужен второй запрос
