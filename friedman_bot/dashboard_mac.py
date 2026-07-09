@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.21 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.22 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1387,10 +1387,10 @@ select,textarea,.idea-txt{font-size:14px}
 .t-cursor{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:10;pointer-events:none;box-shadow:0 0 6px rgba(255,59,91,.5)}
 .t-cursor::before{content:'';position:absolute;left:-2px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--red)}
 /* month grid */
-.mgrid-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.mgrid-hdr{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:4px}
 .mgrid-hdr span{text-align:center;font-size:10px;font-weight:800;color:var(--faint);padding:7px 0}
-.mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.mday{min-height:80px;padding:7px;border-radius:10px;cursor:pointer;transition:background .12s;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.mday{min-width:0;min-height:80px;padding:7px;border-radius:10px;cursor:pointer;transition:background .12s;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
 .mday:hover{background:rgba(255,255,255,.09)}
 .mday.other-month{opacity:.3}
 .mday.today{border-color:rgba(91,157,255,.55);box-shadow:0 0 12px rgba(91,157,255,.18)}
