@@ -3675,9 +3675,200 @@ async def cmd_digest(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Буду присылать утренний дайджест в 08:00 каждый день!")
 
 
+# ─── одноразовая ревизия данных 09.07.2026 ────────────────────────────────────
+# Чистка тестовых карточек + импорт Trello-досок, долгов и Klarna по скриншотам
+# владельца. Перед изменениями БД копируется в friedman_backup_import.db;
+# откат — командой /rollback_import. Выполняется один раз (флаг в settings).
+
+def run_data_import_20260709():
+    if _settings_get("import_20260709"):
+        return
+    import shutil
+    d = os.path.dirname(os.path.abspath(__file__))
+    bak = os.path.join(d, "friedman_backup_import.db")
+    if not os.path.exists(bak):
+        shutil.copy2(DB, bak)
+
+    with db() as conn:
+        # 1) тестовые карточки: chaos + их события, канбан-мусор, дубль Book 3.0
+        conn.execute("DELETE FROM chaos WHERE id IN (18,36,47,78,80,83,85,86)")
+        # прошедшие события возвращаем на парковку (chaos остаётся), отпуск закрываем
+        conn.execute("DELETE FROM events WHERE id IN (3,4,5,26,27,28,29,31,32,33,34,35,36,38,39)")
+        conn.execute("UPDATE chaos SET done=1 WHERE id IN (76,77)")
+        # Мируна: дедлайн 26.07 — переносим со вчерашнего на 24.07
+        conn.execute("UPDATE events SET date='2026-07-24' WHERE id=41")
+        conn.execute("DELETE FROM kanban_cards WHERE id IN (7,8,10,13,14,15,16,17,18,19,20,21)")
+        conn.execute("DELETE FROM kanban_columns WHERE id IN (5,6,7,8,9,11,12,13)")
+        # серии игры со слайдерами счастья — оставляем последний замер каждой серии
+        conn.execute("DELETE FROM happiness_log WHERE (id BETWEEN 86 AND 102) "
+                     "OR id IN (104,105,106,107,112,113,114,115,116)")
+
+        # 2) баланс: карта 850, нал 0 (вводная владельца 09.07)
+        for acc, target in (("card", 850.0), ("cash", 0.0)):
+            cur = conn.execute(
+                "SELECT COALESCE(SUM(amount),0) AS s FROM finance WHERE account=?", (acc,)
+            ).fetchone()["s"]
+            delta = round(target - cur, 2)
+            if abs(delta) >= 0.01:
+                conn.execute(
+                    "INSERT INTO finance (amount, comment, account) VALUES (?,?,?)",
+                    (delta, "коррекция баланса (ревизия 09.07)", acc))
+
+        # 3) долги. Несгораемые (давние) — kind=long; свежие в долларах — kind=current
+        for name, total in [("Швея — 5 кг конфет", 10), ("Аренда студии", 180),
+                            ("Лариса Грин", 700), ("Балу", 250), ("Дэнис", 3500),
+                            ("Олег", 3000), ("Гаврик", 1300), ("Роман", 500),
+                            ("Граффити СТО", 587)]:
+            conn.execute("INSERT INTO debts (name, kind, total, paid, icon, note) "
+                         "VALUES (?,?,?,0,?,?)",
+                         (name, "long", total, "🤝", "несгораемый (Trello-таблица)"))
+        for name, total in [("Кубэк", 1150), ("Маша", 150), ("Серёга плем", 1220),
+                            ("Антон", 1000), ("ЗАеЦь", 316.80), ("Катя США", 100),
+                            ("Дядя Лёва", 1500), ("Алексей Херборн", 250), ("Гаврик", 300)]:
+            conn.execute("INSERT INTO debts (name, kind, total, paid, icon, note) "
+                         "VALUES (?,?,?,0,?,?)",
+                         (name + " · $", "current", total, "💵", "свежий, сумма в USD"))
+        # Klarna: три активные рассрочки (суммы в €)
+        for name, total, paid, monthly, due in [
+                ("Klarna · Rex (#2026-H2199)", 305.75, 105.68, 52.84, "2026-07-27"),
+                ("Klarna · план 12×116,54", 1163.51, 116.54, 116.54, "2026-07-22"),
+                ("Klarna · мелкий план", 75.87, 0, 25.30, "2026-08-01")]:
+            conn.execute("INSERT INTO debts (name, kind, total, paid, monthly, due_date, icon, note) "
+                         "VALUES (?,?,?,?,?,?,?,?)",
+                         (name, "long", total, paid, monthly, due, "🛍",
+                          "рассрочка Klarna, Sparkasse ····9122"))
+        # ежемесячные платежи Klarna
+        for title, amount, day in [("Klarna Rex", 52.84, 27),
+                                   ("Klarna план", 116.54, 22),
+                                   ("Klarna мелкий", 25.30, 1)]:
+            conn.execute("INSERT INTO payments (title, amount, account, kind, recur, day, icon) "
+                         "VALUES (?,?,?,?,?,?,?)",
+                         (title, amount, "card", "recurring", "monthly", day, "🛍"))
+        conn.execute("INSERT INTO reminders (due_at, text) VALUES (?,?)",
+                     ("2026-08-02 10:00",
+                      "Klarna: проверить, прошёл ли перевыставленный платёж 25,30 € "
+                      "(29.06 платёж провалился, перенесён на 01.08)"))
+
+        # 4) проекты из Trello-доски «Проекты» (+3 из «Важно несрочно»)
+        trello_projects = [
+            ("ZOO", ["Звонок жене фотографа", "Визит в VGF (вместе с Willy Brandt Platz)"]),
+            ("ПОЛИГРАФИЯ", ["Книга", "Визитки", "Стикеры"]),
+            ("ЕЦБ", ["Печать обновлённой презентации", "Визит к секьюрити"]),
+            ("ПОРТРЕТЫ ОУВЕР", ["Инвойс + контракт"]),
+            ("SASIS", ["Эскизы"]),
+            ("ЕНДЖ", ["Новый эскиз", "Телевизор"]),
+            ("МИНИОПЕЛЬ ПАГИ", ["Эскиз"]),
+            ("SANKT GEORGEN PARK", ["Фото склейка", "Видео", "Фото на сайт"]),
+            ("HERZ", ["Новый эскиз"]),
+            ("NEU ISENBURG", ["Дождаться ответа"]),
+            ("ОСТХАФЕН", ["Монтагзгезельшафт"]),
+            ("ВИЛЛИ БРАНДТ", ["Печать эскизов", "Визит в VGF"]),
+            ("ДОМ ЗЁНГЕНА", ["Металл", "Весь дом"]),
+            ("PORSCHE", ["Визит"]),
+            ("FSV", ["Фото с моста", "Эскизы фаншопов", "Видео с дрона",
+                     "По бокам машинкой+валиком 50см", "Лого pad bank arena слева под очки"]),
+            ("SIEMENS", ["Контакт Таниэля — связаться", "Посчитать трафик людей"]),
+            ("HAIRDRESSER", ["Напомнить Изабэль"]),
+            ("CANSATIVA", ["Напомнить о себе осенью"]),
+            ("АЙНТРАХТ АНИМЕ КОМНАТА", ["Зимой"]),
+            ("BBBANK ARENA", []),
+            ("SALVADORE KORRIDORE", []), ("OLDSMOBILE", []), ("LOVEFAMILYPARK", []),
+            ("МИКОЛАЇВ ВІДПОЧИВАЄ", []), ("ВОКЗАЛ", []), ("МОСТ", []),
+            ("SOUTH BAGS УКРАИНА", [
+                "Завершить договор, подписать, отправить другу",
+                "Аудит ТМЦ", "Найти формы отчётов, отправить Швее для заполнения",
+                "Подбор поставщиков — по 2 на каждый элемент",
+                "Рекалькуляция себестоимости", "Инвестпрезентация"]),
+            ("МАРКЕТИНГ", [
+                "Linkedin — ревизия", "Подстричься", "Обновить книгу (х3 + Вере)",
+                "Стенд высокий узкий (6 подпунктов в Trello)", "Банер на loxam",
+                "Холсты на мольбертах", "Стол для флёмаркта", "Сине-чёрный BMX с лого",
+                "Упоминание среди партнёров", "Логотипы на фасаде",
+                "Лого на униформе — футболка х3 и кепка", "Съёмки дроном",
+                "Баушильд", "Таблички на ленту оградительную", "Стефан — интервью"]),
+            ("ТВОРЧЕСТВО", [
+                "Наксос: порисовать граффити шрифт/нешрифт по скетчу",
+                "Подарки каллиграфия", "Тэг Slavik can on", "FlippaFlipp logo"]),
+        ]
+        for pname, psteps in trello_projects:
+            cur = conn.execute("INSERT INTO projects (name, area) VALUES (?, 'work')", (pname,))
+            pid = cur.lastrowid
+            for i, st in enumerate(psteps):
+                conn.execute("INSERT INTO steps (project_id, text, done, position) "
+                             "VALUES (?,?,0,?)", (pid, st, i))
+
+        # 5) вводные на парковку. «Важно несрочно» → квадрант «запланируй» (7/3)
+        base = conn.execute("SELECT COALESCE(MAX(position),0) AS m FROM chaos").fetchone()["m"] + 1
+        important = [
+            "Письмо Раму в ФШМ — 15 мин",
+            "Терморегулятор и герюсте — фото и письмо Роланду — 10 мин",
+            "Эскиз Оли", "Память в телефоне и в маке — 2 часа",
+            "Название вместо Farbaholix — 1 час",
+            "Перевод документов — поиск переводчика — 15 мин",
+            "Получить корел и фотошоп", "Письмо в финанцамт — 15 мин",
+            "ЕКС себе — 1 час", "Письмо в компас — 15 мин",
+            "ЕЦБ Банк эскизы — 3 часа", "Наклейка «нет рекламы» — 10 минут",
+            "Paint rests sketch"]
+        for i, txt in enumerate(important):
+            comment = None
+            if txt.startswith("Перевод документов"):
+                comment = ("Поиск: свидетельство о рождении — 3 экз. (2×Украина: моё и Маши, "
+                           "1×Беларусь: папы); свидетельство о браке СССР (папа-мама); "
+                           "военный билет СССР папы. Всего 5 документов.")
+            conn.execute("INSERT INTO chaos (text, area, priority, importance, urgency, position, comment) "
+                         "VALUES (?,?,?,?,?,?,?)",
+                         (txt, "work", "mid", 7, 3, base + i, comment))
+        # «Календарь → За ноутом/столом/мобилкой» — задачи за компьютером, без оценки
+        base += len(important)
+        laptop = [
+            "Оправить сообщения (3 подпункта в Trello)", "EBay (1 подпункт в Trello)",
+            "Дни рождения (4 подпункта в Trello)", "Спортзалы research",
+            "Datacenters карта", "Дата центры", "Концепт линкдин-канала фарбаголикс",
+            "Carhartt: деньги + шмотки", "Форма еврейская", "Видео Höll",
+            "SGP — обновление эскизов + печать", "Новое приложение ar",
+            "Обновить таблицу нетворкинг, включив в неё др.", "Цифровая уборка",
+            "Презентации", "Adidas", "Лодки", "Скетч Kiki", "Лого Creactivation",
+            "Очистка Farbaholix"]
+        for i, txt in enumerate(laptop):
+            conn.execute("INSERT INTO chaos (text, area, priority, position) "
+                         "VALUES (?,?,?,?)", (txt, "work", "mid", base + i))
+
+        # 6) событие из Trello-колонки «25–26 июля»
+        conn.execute("INSERT INTO events (text, date, time, comment) VALUES (?,?,?,?)",
+                     ("Марио сцена", "2026-07-25", "", "25–26 июля (из Trello)"))
+
+        conn.execute("INSERT INTO settings (key, value) VALUES ('data_rev','1') "
+                     "ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1")
+
+    _settings_set("import_20260709", "done")
+    log.info("ревизия+импорт 09.07 выполнены (бэкап: friedman_backup_import.db)")
+
+
+async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Откат ревизии 09.07: вернуть БД из бэкапа и перезапустить всё."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    import shutil
+    d = os.path.dirname(os.path.abspath(__file__))
+    bak = os.path.join(d, "friedman_backup_import.db")
+    if not os.path.exists(bak):
+        await ctx.bot.send_message(chat_id, "⚠️ Бэкап не найден — откатывать нечего.")
+        return
+    shutil.copy2(bak, DB)
+    # ставим флаг в восстановленной БД, чтобы импорт не повторился при рестарте
+    _settings_set("import_20260709", "rolled_back")
+    await ctx.bot.send_message(chat_id, "↩️ БД восстановлена из бэкапа. Перезапускаюсь…")
+    _restart_dashboard(d)
+    _restart_dashboard_mac(d)
+    _self_restart(d)
+    os._exit(0)
+
+
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "07.07"  # видимая метка сборки бота
+BOT_VERSION = "09.07"  # видимая метка сборки бота
 
 
 def _deployed_sha_short():
@@ -3716,6 +3907,10 @@ def main():
 
     init_db()
     try:
+        run_data_import_20260709()  # одноразовая ревизия+импорт (флаг в settings)
+    except Exception as e:
+        log.error(f"data import 09.07: {e}")
+    try:
         ensure_legal_kb()  # подтянуть базу знаний Юриста, если её ещё нет на диске
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
@@ -3728,6 +3923,7 @@ def main():
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
+    app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
     app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
     app.add_handler(CommandHandler("juristrestart", cmd_juristrestart))
