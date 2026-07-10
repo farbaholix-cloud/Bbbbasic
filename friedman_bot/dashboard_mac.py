@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.34 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.35 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1194,6 +1194,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .debt .x{color:var(--faint);font-size:17px;padding:0 2px;cursor:pointer}
 /* Карта долгов — столбчатый график */
 .debtchart{display:flex;gap:12px;align-items:flex-end;overflow-x:auto;padding:8px 2px 4px;min-height:170px}
+.debtchart .runout{width:1px;flex:0 0 1px;align-self:stretch;background:#ff4d5e;box-shadow:0 0 6px rgba(255,77,94,.8);margin:0 5px;position:relative}
+.debtchart .runout::before{content:'💸';position:absolute;top:-2px;left:50%;transform:translateX(-50%);font-size:12px}
 .debtchart::-webkit-scrollbar{height:0}
 .dbar{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;width:56px;cursor:pointer;justify-content:flex-end}
 .dbar .dbar-amt{font-size:10.5px;font-weight:900;color:var(--txt);white-space:nowrap}
@@ -2315,10 +2317,13 @@ function renderPaymentChart(d){
   const maxAmt=Math.max(1,...arr.map(v=>v.p.amount||0));
   const soon30=arr.filter(v=>v.i.days<=30).reduce((s,v)=>s+(v.p.amount||0),0);
   document.getElementById('pay-total').textContent=eur(soon30)+' · 30 дн';
-  document.getElementById('paychart').innerHTML=arr.map(({p,i})=>{
+  const card=DATA.card||0;let cum=0,runIdx=-1;
+  for(let k=0;k<arr.length;k++){cum+=arr[k].p.amount||0;if(cum>card){runIdx=k;break;}}
+  document.getElementById('paychart').innerHTML=arr.map(({p,i},k)=>{
     const h=Math.round(28+((p.amount||0)/maxAmt)*112);
     const dlabel=i.days<=0?'сегодня':i.days===1?'завтра':i.days+'д';
-    return '<div class="dbar" onclick="openPayment('+p.id+')">'+
+    const line=(k===runIdx)?'<div class="runout" title="здесь деньги на карте закончатся (без поступлений)"></div>':'';
+    return line+'<div class="dbar" onclick="openPayment('+p.id+')">'+
       '<div class="dbar-amt">'+eur(p.amount||0).replace(/\s?€/,'')+'</div>'+
       '<div class="col '+(i.urg==='now'?'pnow':'')+'" style="height:'+h+'px;background:'+_PAY_COL[i.urg]+'"><span class="pico">'+(p.icon||'')+'</span></div>'+
       '<div class="nm">'+esc(p.title)+'</div>'+
