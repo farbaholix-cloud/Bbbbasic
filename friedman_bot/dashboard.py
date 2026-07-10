@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.17"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.18"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -603,6 +603,8 @@ def api_debt_update(payload):
     sets, vals = [], []
     if "name" in payload:
         sets.append("name=?"); vals.append((payload.get("name") or "").strip() or "Долг")
+    if "kind" in payload:
+        sets.append("kind=?"); vals.append(payload.get("kind") if payload.get("kind") in ("current", "long") else "current")
     if "total" in payload:
         sets.append("total=?"); vals.append(max(0.0, float(payload.get("total") or 0)))
     if "paid" in payload:
@@ -1089,6 +1091,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .ldebt .lh{display:flex;align-items:center;gap:9px;margin-bottom:9px}
 .ldebt .lh .em{font-size:16px}
 .ldebt .lh .t{font-size:13.5px;font-weight:700;flex:1}
+.ldebt .lh .due-pill{font-size:9px;font-weight:800;padding:3px 8px;border-radius:9px;flex-shrink:0;background:rgba(255,198,87,.16);color:#ffd07a}
+.ldebt .lh .due-pill.urg{background:rgba(255,107,125,.18);color:#ff9aa6}
+.ldebt .lh .due-pill.soon{background:rgba(255,198,87,.16);color:#ffd07a}
+.ldebt .lh .due-pill.ok{background:rgba(91,157,255,.16);color:#86b8ff}
 .ldebt .lh .p{font-size:11.5px;font-weight:800;color:var(--muted)}
 .ldebt .lh .x{color:var(--faint);font-size:16px;cursor:pointer}
 .ldebt .lbar{height:8px;border-radius:5px;background:rgba(0,0,0,.28);overflow:hidden;border:1px solid rgba(255,255,255,.08)}
@@ -1805,7 +1811,9 @@ function renderFinance(){
   document.getElementById('long-cnt').textContent=lng.length||'нет';
   document.getElementById('long-debts').innerHTML=lng.length?lng.map(x=>{
     const pct=x.total?Math.round((x.paid||0)/x.total*100):0;const paid=pct>=100;
-    return '<div class="ldebt glass-sm'+(paid?' paidrow':'')+'" onclick="openDebt('+x.id+')"><div class="lh"><span class="em">'+(paid?'✅':(x.icon||'🏦'))+'</span><span class="t">'+esc(x.name)+'</span>'+
+    const u=_debtUrg(x);
+    const duePill=(!paid&&x.due_date&&u.pillText)?'<span class="due-pill '+u.pillCls+'" style="margin:0 0 0 6px">'+u.pillText+'</span>':'';
+    return '<div class="ldebt glass-sm'+(paid?' paidrow':'')+'" onclick="openDebt('+x.id+')"><div class="lh"><span class="em">'+(paid?'✅':(x.icon||'🏦'))+'</span><span class="t">'+esc(x.name)+'</span>'+duePill+
       '<span class="p">'+pct+'%</span><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>'+
       '<div class="lbar"><div class="lfill" style="width:'+pct+'%"></div></div>'+
       '<div class="lm"><span>выплачено <b>'+eur(x.paid||0)+'</b> из '+eur(x.total)+'</span>'+(x.monthly?'<span>'+eur(x.monthly)+'/мес</span>':'')+'</div></div>';
@@ -2229,7 +2237,9 @@ function openDebt(id){
     '<div class="sh-actions" style="flex-direction:column;gap:8px">'+
     '<button class="sh-btn" id="debt-name">✏️ Название</button>'+
     '<button class="sh-btn" id="debt-total">💶 Сумма долга</button>'+
-    (x.kind==='current'?'<button class="sh-btn" id="debt-due">📅 Дата возврата'+(x.due_date?' · '+fmtDate(x.due_date):'')+'</button>':'<button class="sh-btn" id="debt-monthly">📆 Платёж в месяц</button>')+
+    '<button class="sh-btn" id="debt-due">📅 Дата возврата'+(x.due_date?' · '+fmtDate(x.due_date):'')+'</button>'+
+    (x.kind==='long'?'<button class="sh-btn" id="debt-monthly">📆 Платёж в месяц'+(x.monthly?' · '+eur(x.monthly):'')+'</button>':'')+
+    '<button class="sh-btn" id="debt-move">'+(x.kind==='current'?'📦 Перенести в долгосрочные':'📥 Перенести в текущие')+'</button>'+
     '<button class="sh-btn danger" id="debt-del">🗑 Удалить долг</button></div>';
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
@@ -2257,6 +2267,9 @@ function openDebt(id){
   if(mBtn)mBtn.onclick=async()=>{
     const v=parseFloat(await uiNum('Платёж в месяц €:',String(x.monthly||0)));
     if(!isNaN(v))mutate(()=>{const y=_debt(id);if(y)y.monthly=v;},'/api/debt_update',{id,monthly:v});};
+  sheet.querySelector('#debt-move').onclick=()=>{
+    const nk=x.kind==='current'?'long':'current';closeSheet();
+    mutate(()=>{const y=_debt(id);if(y)y.kind=nk;},'/api/debt_update',{id,kind:nk});};
   sheet.querySelector('#debt-del').onclick=()=>{closeSheet();delDebt(id);};
 }
 async function addPayment(){
