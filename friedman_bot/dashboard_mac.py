@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.27 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.28 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2090,7 +2090,7 @@ function renderFinance(){
       '<div class="nm"><div class="t">'+esc(x.name)+'</div>'+pill+'</div>'+
       '<div class="amt">'+eur(_rem(x))+'</div><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>';
   }).join(''):'<div class="empty">задолженностей нет 👍</div>';
-  document.getElementById('long-cnt').textContent=lng.length||'нет';
+  document.getElementById('long-cnt').textContent=lng.length?lng.length+' · '+eur(lng.reduce((a,b)=>a+_rem(b),0)):'нет';
   document.getElementById('long-debts').innerHTML=lng.length?lng.map(x=>{
     const pct=x.total?Math.round((x.paid||0)/x.total*100):0;const paid=pct>=100;
     const u=_debtUrg(x);
