@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.24"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.25"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2091,7 +2091,8 @@ function renderIncomeChart(d){
   const arr=_incomeProjects(d);
   if(!arr.length){block.style.display='none';return;}
   block.style.display='block';
-  const sorted=arr.slice().sort((a,b)=>(b.expected_income||0)-(a.expected_income||0));
+  const IRANK={invoiced:0,agreed:1,lead:2};
+  const sorted=arr.slice().sort((a,b)=>(IRANK[a.income_status||'lead']-IRANK[b.income_status||'lead'])||((b.expected_income||0)-(a.expected_income||0)));
   const maxA=Math.max(1,...sorted.map(p=>p.expected_income||0));
   const total=sorted.reduce((s,p)=>s+(p.expected_income||0),0);
   const weighted=sorted.reduce((s,p)=>s+(p.expected_income||0)*(INCOME_META[p.income_status||'lead']||INCOME_META.lead).w,0);
