@@ -2097,19 +2097,24 @@ function renderForecast(d){
   el.querySelectorAll('.fc-per button').forEach(b=>b.onclick=()=>{_fcPeriod=+b.dataset.p;renderForecast(DATA);});
 }
 let _fcPeriod=30;
+// Пикер даты открывает свою шторку (закрывая эту), поэтому правки сохраняем в _piEdit
+// на время выбора даты и восстанавливаем при повторном открытии.
+let _piEdit=null;
 function projIncome(id){
   const p=_proj(id);if(!p)return;
+  const base=(_piEdit&&_piEdit.id===id)?_piEdit:{id,amount:p.expected_income||0,stage:p.income_status||'lead',date:p.income_date||null};
+  _piEdit=null;  // consume
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
-  const cur=p.expected_income||0,st=p.income_status||'lead';
+  const cur=base.amount||0;
   const stages=[['lead','🔵 Лид'],['agreed','🟡 Согласовано'],['invoiced','🟠 Счёт выставлен']];
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">💰 Ожидаемый профит</div><span class="title-edit-spacer"></span></div>'+
     '<div class="ssub">'+esc(p.name)+'</div>'+
     '<input class="ui-input" id="pi-amt" type="number" inputmode="decimal" placeholder="Сумма €" value="'+(cur||'')+'" style="margin-top:12px">'+
-    '<div class="bal-acc" id="pi-stage">'+stages.map(s=>'<button data-s="'+s[0]+'" class="'+(st===s[0]?'on':'')+'">'+s[1]+'</button>').join('')+'</div>'+
-    '<button class="sh-btn" id="pi-date" style="margin-top:10px;width:100%">📅 Дата оплаты'+(p.income_date?' · '+fmtDate(p.income_date):'')+'</button>'+
+    '<div class="bal-acc" id="pi-stage">'+stages.map(s=>'<button data-s="'+s[0]+'" class="'+(base.stage===s[0]?'on':'')+'">'+s[1]+'</button>').join('')+'</div>'+
+    '<button class="sh-btn" id="pi-date" style="margin-top:10px;width:100%">📅 Дата оплаты'+(base.date?' · '+fmtDate(base.date):'')+'</button>'+
     '<div class="bal-btns" style="margin-top:12px">'+
       '<button class="bal-b set" id="pi-save">💾 Сохранить</button>'+
       '<button class="bal-b in" id="pi-paid">✅ Оплачено</button></div>'+
@@ -2117,9 +2122,14 @@ function projIncome(id){
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
-  let stage=st,newDate=p.income_date||null;
+  let stage=base.stage,newDate=base.date;
   sheet.querySelector('#pi-stage').querySelectorAll('button').forEach(b=>b.onclick=()=>{stage=b.dataset.s;sheet.querySelector('#pi-stage').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));});
-  sheet.querySelector('#pi-date').onclick=async()=>{const r=await uiDate('Дата оплаты',newDate,{clear:'Без даты'});if(r===undefined)return;newDate=r||null;sheet.querySelector('#pi-date').textContent='📅 Дата оплаты'+(newDate?' · '+fmtDate(newDate):'');};
+  sheet.querySelector('#pi-date').onclick=async()=>{
+    _piEdit={id,amount:parseFloat(sheet.querySelector('#pi-amt').value)||0,stage,date:newDate};
+    const r=await uiDate('Дата оплаты',newDate,{clear:'Без даты'});
+    if(r===undefined){projIncome(id);return;}   // отмена — вернуть шторку профита с правками
+    _piEdit.date=r||null;projIncome(id);
+  };
   sheet.querySelector('#pi-save').onclick=()=>{
     const v=parseFloat(sheet.querySelector('#pi-amt').value)||0;closeSheet();
     mutate(()=>{const x=_proj(id);if(x){x.expected_income=v;x.income_status=stage;x.income_date=newDate;}},'/api/proj_income',{id,amount:v,status:stage,date:newDate||''});
