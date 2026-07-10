@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.28 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.29 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2092,13 +2092,12 @@ function renderFinance(){
   }).join(''):'<div class="empty">задолженностей нет 👍</div>';
   document.getElementById('long-cnt').textContent=lng.length?lng.length+' · '+eur(lng.reduce((a,b)=>a+_rem(b),0)):'нет';
   document.getElementById('long-debts').innerHTML=lng.length?lng.map(x=>{
-    const pct=x.total?Math.round((x.paid||0)/x.total*100):0;const paid=pct>=100;
     const u=_debtUrg(x);
-    const duePill=(!paid&&x.due_date&&u.pillText)?'<span class="due-pill '+u.pillCls+'" style="margin:0 0 0 6px">'+u.pillText+'</span>':'';
-    return '<div class="ldebt glass-sm'+(paid?' paidrow':'')+'" onclick="openDebt('+x.id+')"><div class="lh"><span class="em">'+(paid?'✅':(x.icon||'🏦'))+'</span><span class="t">'+esc(x.name)+'</span>'+duePill+
-      '<span class="p">'+pct+'%</span><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>'+
-      '<div class="lbar"><div class="lfill" style="width:'+pct+'%"></div></div>'+
-      '<div class="lm"><span>выплачено <b>'+eur(x.paid||0)+'</b> из '+eur(x.total)+'</span>'+(x.monthly?'<span>'+eur(x.monthly)+'/мес</span>':'')+'</div></div>';
+    const pill=u.paid?'<span class="due-pill done">✓ погашен</span>':
+      (u.pillText?'<span class="due-pill '+u.pillCls+'">'+u.pillText+'</span>':'');
+    return '<div class="debt glass-sm '+(u.urg==='overdue'||u.urg==='urgent'?'soon':'')+(u.paid?' paidrow':'')+'" onclick="openDebt('+x.id+')">'+
+      '<div class="nm"><div class="t">'+esc(x.name)+'</div>'+pill+'</div>'+
+      '<div class="amt">'+eur(_rem(x))+'</div><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>';
   }).join(''):'<div class="empty">долгосрочных долгов нет</div>';
   // payments
   const pays=d.payments||[];
@@ -2223,11 +2222,13 @@ function openPayment(id){
   const dayBtn=sheet.querySelector('#pay-day');
   if(dayBtn)dayBtn.onclick=async()=>{const v=parseInt(await uiNum('Какого числа каждый месяц? (1-31):',String(p.day||1)));if(!isNaN(v))mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.day=Math.max(1,Math.min(31,v));},'/api/payment_update',{id,day:Math.max(1,Math.min(31,v))});};
   const dateBtn=sheet.querySelector('#pay-date');
-  if(dateBtn)dateBtn.onclick=async()=>{const r=await uiDate('Дата платежа',p.date);if(r===undefined)return;mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.date=r||null;},'/api/payment_update',{id,date:r||''});};
+  if(dateBtn)dateBtn.onclick=async()=>{const r=await uiDate('Дата платежа',p.date,{clear:'Без срока'});if(r===undefined)return;mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.date=r||null;},'/api/payment_update',{id,date:r||''});};
   sheet.querySelector('#pay-del').onclick=()=>{closeSheet();delPayment(id);};
 }
-// Выбор даты барабанами день/мес/год. resolve: ISO — дата; null — без срока; undefined — отмена.
-function uiDate(title,curISO){
+// Выбор даты барабанами день/мес/год. opts.clear: строка — кнопка сброса (resolve null); иначе скрыта.
+// resolve: ISO — дата; null — сброс; undefined — отмена.
+function uiDate(title,curISO,opts){
+  opts=opts||{};
   return new Promise(resolve=>{
     const now=new Date();
     let base=curISO?new Date(curISO+'T00:00'):now;if(isNaN(base))base=now;
@@ -2236,14 +2237,14 @@ function uiDate(title,curISO){
     const monOpts=MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===base.getMonth()?'selected':'')+'>'+m+'</option>').join('');
     const dim0=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
     let dayOpts='';for(let dd=1;dd<=dim0;dd++)dayOpts+='<option value="'+dd+'" '+(dd===base.getDate()?'selected':'')+'>'+dd+'</option>';
+    const clearBtn=opts.clear?'<button class="sh-btn" id="ui-clear">'+esc(opts.clear)+'</button>':'';
     const {bg,sheet}=_openSheet(
       '<div class="grab"></div><div class="stitle">'+esc(title)+'</div>'+
       '<div class="date-roller">'+
         '<select id="dr-d" class="roller">'+dayOpts+'</select>'+
         '<select id="dr-m" class="roller">'+monOpts+'</select>'+
         '<select id="dr-y" class="roller">'+yrOpts+'</select></div>'+
-      '<div class="sh-actions" style="margin-top:14px">'+
-      '<button class="sh-btn" id="ui-clear">Без срока</button>'+
+      '<div class="sh-actions" style="margin-top:14px">'+clearBtn+
       '<button class="sh-btn" id="ui-cancel">Отмена</button>'+
       '<button class="sh-btn prime" id="ui-ok">Готово</button></div>');
     const dSel=sheet.querySelector('#dr-d'),mSel=sheet.querySelector('#dr-m'),ySel=sheet.querySelector('#dr-y');
@@ -2252,7 +2253,7 @@ function uiDate(title,curISO){
     const done=v=>{closeSheet();resolve(v);};
     bg.onclick=()=>done(undefined);
     sheet.querySelector('#ui-cancel').onclick=()=>done(undefined);
-    sheet.querySelector('#ui-clear').onclick=()=>done(null);
+    const cb=sheet.querySelector('#ui-clear');if(cb)cb.onclick=()=>done(null);
     sheet.querySelector('#ui-ok').onclick=()=>{const y=+ySel.value,m=+mSel.value,dd=+dSel.value;done(y+'-'+String(m+1).padStart(2,'0')+'-'+String(dd).padStart(2,'0'));};
   });
 }
@@ -2286,7 +2287,7 @@ function openDebt(id){
   sheet.querySelector('#debt-name').onclick=async()=>{const t=await uiPrompt('Название долга:',x.name);if(t&&t.trim())mutate(()=>{const y=_debt(id);if(y)y.name=t.trim();},'/api/debt_update',{id,name:t.trim()});};
   sheet.querySelector('#debt-total').onclick=async()=>{const v=parseFloat(await uiNum('Сумма долга €:',String(x.total||0)));if(!isNaN(v))mutate(()=>{const y=_debt(id);if(y)y.total=v;},'/api/debt_update',{id,total:v});};
   const dueBtn=sheet.querySelector('#debt-due');
-  if(dueBtn)dueBtn.onclick=async()=>{const r=await uiDate('Дата возврата',x.due_date);if(r===undefined)return;mutate(()=>{const y=_debt(id);if(y)y.due_date=r||null;},'/api/debt_update',{id,due_date:r||''});};
+  if(dueBtn)dueBtn.onclick=async()=>{const r=await uiDate('Дата возврата',x.due_date,x.kind==='long'?{clear:'Без дедлайна'}:{});if(r===undefined)return;mutate(()=>{const y=_debt(id);if(y)y.due_date=r||null;},'/api/debt_update',{id,due_date:r||''});};
   const mBtn=sheet.querySelector('#debt-monthly');
   if(mBtn)mBtn.onclick=async()=>{const v=parseFloat(await uiNum('Платёж в месяц €:',String(x.monthly||0)));if(!isNaN(v))mutate(()=>{const y=_debt(id);if(y)y.monthly=v;},'/api/debt_update',{id,monthly:v});};
   sheet.querySelector('#debt-move').onclick=()=>{const nk=x.kind==='current'?'long':'current';closeSheet();mutate(()=>{const y=_debt(id);if(y)y.kind=nk;},'/api/debt_update',{id,kind:nk});};
@@ -2529,9 +2530,10 @@ async function addDebt(kind){
   if(kind==='long'){
     const paid=parseFloat(await uiNum('Уже выплачено €:','0'))||0;
     const monthly=parseFloat(await uiNum('Платёж в месяц € (можно пусто):','0'))||0;
-    body={name:name.trim(),kind:'long',total,paid,monthly,icon:'🏦'};
+    const due=await uiDate('Дедлайн (необязательно)',null,{clear:'Без дедлайна'});
+    body={name:name.trim(),kind:'long',total,paid,monthly,due_date:(due&&due!==undefined)?due:null,icon:'🏦'};
   } else {
-    const due=await uiDate('Дата возврата',null);   // барабаны день/мес/год
+    const due=await uiDate('Дата возврата',null);   // текущие — дедлайн всегда (без сброса)
     body={name:name.trim(),kind:'current',total,due_date:(due&&due!==undefined)?due:null,icon:'🔴'};
   }
   mutate(()=>{if(!DATA.debts)DATA.debts=[];DATA.debts.push({id:_tmpId(),paid:0,monthly:0,due_date:null,...body});},'/api/debt_add',body);

@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.19"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.20"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1810,13 +1810,12 @@ function renderFinance(){
   }).join(''):'<div class="empty">задолженностей нет 👍</div>';
   document.getElementById('long-cnt').textContent=lng.length?lng.length+' · '+eur(lng.reduce((a,b)=>a+_rem(b),0)):'нет';
   document.getElementById('long-debts').innerHTML=lng.length?lng.map(x=>{
-    const pct=x.total?Math.round((x.paid||0)/x.total*100):0;const paid=pct>=100;
     const u=_debtUrg(x);
-    const duePill=(!paid&&x.due_date&&u.pillText)?'<span class="due-pill '+u.pillCls+'" style="margin:0 0 0 6px">'+u.pillText+'</span>':'';
-    return '<div class="ldebt glass-sm'+(paid?' paidrow':'')+'" onclick="openDebt('+x.id+')"><div class="lh"><span class="em">'+(paid?'✅':(x.icon||'🏦'))+'</span><span class="t">'+esc(x.name)+'</span>'+duePill+
-      '<span class="p">'+pct+'%</span><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>'+
-      '<div class="lbar"><div class="lfill" style="width:'+pct+'%"></div></div>'+
-      '<div class="lm"><span>выплачено <b>'+eur(x.paid||0)+'</b> из '+eur(x.total)+'</span>'+(x.monthly?'<span>'+eur(x.monthly)+'/мес</span>':'')+'</div></div>';
+    const pill=u.paid?'<span class="due-pill done">✓ погашен</span>':
+      (u.pillText?'<span class="due-pill '+u.pillCls+'">'+u.pillText+'</span>':'');
+    return '<div class="debt glass-sm '+(u.urg==='overdue'||u.urg==='urgent'?'soon':'')+(u.paid?' paidrow':'')+'" onclick="openDebt('+x.id+')">'+
+      '<div class="nm"><div class="t">'+esc(x.name)+'</div>'+pill+'</div>'+
+      '<div class="amt">'+eur(_rem(x))+'</div><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>';
   }).join(''):'<div class="empty">долгосрочных долгов нет</div>';
   // payments
   const pays=d.payments||[];
@@ -1950,7 +1949,7 @@ function openPayment(id){
   const dayBtn=sheet.querySelector('#pay-day');
   if(dayBtn)dayBtn.onclick=async()=>{const v=parseInt(await uiNum('Какого числа каждый месяц? (1-31):',String(p.day||1)));if(!isNaN(v))mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.day=Math.max(1,Math.min(31,v));},'/api/payment_update',{id,day:Math.max(1,Math.min(31,v))});};
   const dateBtn=sheet.querySelector('#pay-date');
-  if(dateBtn)dateBtn.onclick=async()=>{const r=await uiDate('Дата платежа',p.date);if(r===undefined)return;mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.date=r||null;},'/api/payment_update',{id,date:r||''});};
+  if(dateBtn)dateBtn.onclick=async()=>{const r=await uiDate('Дата платежа',p.date,{clear:'Без срока'});if(r===undefined)return;mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.date=r||null;},'/api/payment_update',{id,date:r||''});};
   sheet.querySelector('#pay-del').onclick=()=>{closeSheet();delPayment(id);};
 }
 
@@ -2211,9 +2210,10 @@ async function addDebt(kind){
   if(kind==='long'){
     const paid=parseFloat(await uiNum('Уже выплачено €:','0'))||0;
     const monthly=parseFloat(await uiNum('Платёж в месяц € (можно пусто):','0'))||0;
-    body={name:name.trim(),kind:'long',total,paid,monthly,icon:'🏦'};
+    const due=await uiDate('Дедлайн (необязательно)',null,{clear:'Без дедлайна'});
+    body={name:name.trim(),kind:'long',total,paid,monthly,due_date:(due&&due!==undefined)?due:null,icon:'🏦'};
   } else {
-    const due=await uiDate('Дата возврата',null);   // барабаны день/мес/год
+    const due=await uiDate('Дата возврата',null);   // текущие — дедлайн всегда (без кнопки сброса)
     body={name:name.trim(),kind:'current',total,due_date:(due&&due!==undefined)?due:null,icon:'🔴'};
   }
   mutate(()=>{if(!DATA.debts)DATA.debts=[];DATA.debts.push({id:_tmpId(),paid:0,monthly:0,due_date:null,...body});},'/api/debt_add',body);
@@ -2260,7 +2260,7 @@ function openDebt(id){
     if(!isNaN(v))mutate(()=>{const y=_debt(id);if(y)y.total=v;},'/api/debt_update',{id,total:v});};
   const dueBtn=sheet.querySelector('#debt-due');
   if(dueBtn)dueBtn.onclick=async()=>{
-    const r=await uiDate('Дата возврата',x.due_date);
+    const r=await uiDate('Дата возврата',x.due_date,x.kind==='long'?{clear:'Без дедлайна'}:{});
     if(r===undefined)return;                 // отмена — не трогаем
     mutate(()=>{const y=_debt(id);if(y)y.due_date=r||null;},'/api/debt_update',{id,due_date:r||''});};
   const mBtn=sheet.querySelector('#debt-monthly');
@@ -2421,8 +2421,10 @@ function uiConfirm(title,opts={}){
   });
 }
 // Выбор даты барабанами-«револьверами» день/мес/год (на телефоне select = нативное колесо).
-// resolve: ISO-строка — дата выбрана; null — «без срока»; undefined — отмена (не менять).
-function uiDate(title,curISO){
+// opts.clear: строка — показать кнопку сброса с этой подписью (resolve null); false/пусто — скрыть.
+// resolve: ISO-строка — дата выбрана; null — сброс; undefined — отмена (не менять).
+function uiDate(title,curISO,opts){
+  opts=opts||{};
   return new Promise(resolve=>{
     const now=new Date();
     let base=curISO?new Date(curISO+'T00:00'):now;if(isNaN(base))base=now;
@@ -2431,6 +2433,7 @@ function uiDate(title,curISO){
     const monOpts=MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===base.getMonth()?'selected':'')+'>'+m+'</option>').join('');
     const dim0=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
     let dayOpts='';for(let d=1;d<=dim0;d++)dayOpts+='<option value="'+d+'" '+(d===base.getDate()?'selected':'')+'>'+d+'</option>';
+    const clearBtn=opts.clear?'<button class="sh-btn" id="ui-clear">'+esc(opts.clear)+'</button>':'';
     const {bg,sheet}=_openSheet(
       '<div class="grab"></div><div class="stitle">'+esc(title)+'</div>'+
       '<div class="date-roller">'+
@@ -2438,8 +2441,7 @@ function uiDate(title,curISO){
         '<select id="dr-m" class="roller">'+monOpts+'</select>'+
         '<select id="dr-y" class="roller">'+yrOpts+'</select>'+
       '</div>'+
-      '<div class="sh-actions" style="margin-top:14px">'+
-      '<button class="sh-btn" id="ui-clear">Без срока</button>'+
+      '<div class="sh-actions" style="margin-top:14px">'+clearBtn+
       '<button class="sh-btn" id="ui-cancel">Отмена</button>'+
       '<button class="sh-btn prime" id="ui-ok">Готово</button></div>');
     const dSel=sheet.querySelector('#dr-d'),mSel=sheet.querySelector('#dr-m'),ySel=sheet.querySelector('#dr-y');
@@ -2453,7 +2455,7 @@ function uiDate(title,curISO){
     const done=v=>{closeSheet();resolve(v);};
     bg.onclick=()=>done(undefined);
     sheet.querySelector('#ui-cancel').onclick=()=>done(undefined);
-    sheet.querySelector('#ui-clear').onclick=()=>done(null);
+    const cb=sheet.querySelector('#ui-clear');if(cb)cb.onclick=()=>done(null);
     sheet.querySelector('#ui-ok').onclick=()=>{
       const y=+ySel.value,m=+mSel.value,d=+dSel.value;
       done(y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
