@@ -991,10 +991,24 @@ async def show_invoice_archive(update: Update):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 
+async def _ensure_kbd_cleared(update: Update):
+    """Разово снимает залипшую reply-клавиатуру (Хаос / Архив инвойсов) у владельца.
+    Инлайн-кнопки подтверждения не могут нести ReplyKeyboardRemove в том же
+    сообщении, поэтому один раз шлём отдельное тихое сообщение и ставим флаг."""
+    if _settings_get("kbd_cleared"):
+        return
+    try:
+        await update.message.reply_text("🗂 Обновил меню.", reply_markup=ReplyKeyboardRemove())
+        _settings_set("kbd_cleared", "1")
+    except Exception:
+        pass
+
+
 async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
+    await _ensure_kbd_cleared(update)
 
     if text == "📋 Хаос":
         await show_list(update, area_filter="open")
@@ -1307,6 +1321,7 @@ async def create_goal_project(update: Update, goal_text: str):
 # ─── Голос ────────────────────────────────────────────────────────────────────
 
 async def handle_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await _ensure_kbd_cleared(update)
     await update.message.reply_text("🎤 Слушаю...")
     voice = update.message.voice
     file = await ctx.bot.get_file(voice.file_id)
@@ -1979,6 +1994,7 @@ async def _analyze_as_planning(update, ctx, path, wait, forced_kind: str = None)
 
 
 async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await _ensure_kbd_cleared(update)
     caption = update.message.caption or ""
     photo = update.message.photo[-1]
     tg_file = await ctx.bot.get_file(photo.file_id)
@@ -3895,7 +3911,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.07"  # видимая метка сборки бота
+BOT_VERSION = "09.07b"  # видимая метка сборки бота
 
 
 def _deployed_sha_short():
