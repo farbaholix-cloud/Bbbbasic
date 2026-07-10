@@ -2747,9 +2747,18 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     img_path = os.path.join(os.path.dirname(__file__), "brief_today.jpg")
     try:
         from brief_render import render_brief_jpeg
-        await asyncio.to_thread(render_brief_jpeg, brief_data, img_path)
+        # высота постера в CSS-px: если сводка выше ~1.4 экрана iPhone (844pt),
+        # Telegram обрезает высокое фото в ленте — тогда шлём картинку ДОКУМЕНТОМ
+        # (не режется, открываешь и листаешь целиком). Короткие — обычным фото.
+        height_css = await asyncio.to_thread(render_brief_jpeg, brief_data, img_path)
+        tall = (height_css or 0) > 1180
         with open(img_path, "rb") as f:
-            await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
+            if tall:
+                await ctx.bot.send_document(
+                    chat_id, f, filename="Сводка.jpg",
+                    caption="☀️ Сводка на сегодня — открой, чтобы пролистать целиком")
+            else:
+                await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
         if hap_reminder:
             await ctx.bot.send_message(chat_id, hap_reminder, parse_mode="Markdown")
         return

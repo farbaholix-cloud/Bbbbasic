@@ -221,9 +221,11 @@ def build_html(d):
 
 
 def render_brief_jpeg(d, out_path):
-    """Рендер JPEG через Playwright. Бросает исключение при сбое — вызывающий ловит и шлёт текст."""
+    """Рендер JPEG через Playwright. Возвращает высоту картинки в CSS-px (для
+    решения фото/документ). Бросает исключение при сбое — вызывающий ловит и шлёт текст."""
     from playwright.sync_api import sync_playwright
     htmltext = build_html(d)
+    height_css = IPHONE_H
     with sync_playwright() as pw:
         browser = pw.chromium.launch(args=["--no-sandbox", "--disable-setuid-sandbox",
                                             "--force-color-profile=srgb"])
@@ -231,12 +233,16 @@ def render_brief_jpeg(d, out_path):
                                 device_scale_factor=SCALE)
         page.set_content(htmltext, wait_until="networkidle")
         page.wait_for_timeout(250)
+        try:
+            height_css = int(page.evaluate("document.documentElement.scrollHeight")) or IPHONE_H
+        except Exception:
+            height_css = IPHONE_H
         # full_page: если сводка выше экрана iPhone — картинка получается длинной,
         # владелец пролистывает её при необходимости (min-height держит короткие
         # сводки ровно в один экран).
         page.screenshot(path=out_path, type="jpeg", quality=92, full_page=True)
         browser.close()
-    return out_path
+    return height_css
 
 
 if __name__ == "__main__":
@@ -259,4 +265,4 @@ if __name__ == "__main__":
         "happiness": {"work": 4, "friendship": 3, "health": 5, "wellbeing": 2, "hobby": 4, "love": 3},
     }
     out = os.path.join(os.path.dirname(__file__), "brief_sample.jpg")
-    print(render_brief_jpeg(sample, out))
+    print("height css:", render_brief_jpeg(sample, out), "→", out)
