@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.22 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.23 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -620,6 +620,15 @@ def api_steps(path, payload):
         elif path == "/api/step_add":
             conn.execute("INSERT INTO steps (project_id, text) VALUES (?,?)",
                          (payload["project_id"], payload["text"]))
+        elif path == "/api/step_rename":
+            conn.execute("UPDATE steps SET text=? WHERE id=?",
+                         (payload["text"], payload["id"]))
+        elif path == "/api/step_move":
+            conn.execute("UPDATE steps SET project_id=? WHERE id=?",
+                         (payload["project_id"], payload["id"]))
+        elif path == "/api/proj_add":
+            conn.execute("INSERT INTO projects (name, area) VALUES (?, 'work')",
+                         (payload["name"],))
         elif path == "/api/proj_rename":
             conn.execute("UPDATE projects SET name=? WHERE id=?", (payload["name"], payload["id"]))
         elif path == "/api/proj_delete":
@@ -1195,6 +1204,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
   scroll-snap-align:start;border-radius:18px;padding:12px;
   background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.10);transition:border-color .35s,box-shadow .35s}
 .kol.current{border-color:#52e08a;box-shadow:0 0 0 1px rgba(82,224,138,.25),0 0 20px rgba(82,224,138,.12)}
+.kol.drop{border-color:rgba(91,157,255,.7);box-shadow:0 0 0 1px rgba(91,157,255,.4),0 0 22px rgba(91,157,255,.25)}
+/* Проекты-как-доски: колонка проекта, шаги — карточки */
+.pcol-bar{height:5px;border-radius:4px;background:rgba(0,0,0,.28);overflow:hidden;margin:-2px 2px 4px;border:1px solid rgba(255,255,255,.07)}
+.pcol-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--violet));border-radius:4px;transition:width .3s}
+.kcard.pstep{padding:11px 34px 11px 34px;cursor:grab;display:block}
+.kcard.pstep .pcheck{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;cursor:pointer;opacity:.8}
+.kcard.pstep .pstep-tx{cursor:text;line-height:1.35}
+.kcard.pstep .pdel{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;opacity:0;cursor:pointer;transition:opacity .15s}
+.kcard.pstep:hover .pdel{opacity:.55}
+.kcard.pstep .gstep-cmt{position:absolute;right:30px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.3;cursor:pointer}
+.kcard.pstep .gstep-cmt.on{opacity:.9}
+.kcard.pstep.done .pstep-tx{text-decoration:line-through;opacity:.5}
+.kcard.pstep.dragging{opacity:.4}
+.kcard.pidea{background:rgba(255,208,122,.14);border-color:rgba(255,208,122,.35);font-size:12px;cursor:pointer;padding:10px 13px}
 .kol-head{padding:7px 4px 9px;border-radius:12px;font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
 .kol-head:active{opacity:.75}
 .kol-head .kh-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -1489,21 +1512,13 @@ select,textarea,.idea-txt{font-size:14px}
     </div>
   </div>
   <div class="page" id="page-proj">
-    <div class="block glass">
-      <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
-      <div id="projects"></div>
-    </div>
     <div class="kanban-wrap">
       <div class="kanban-toolbar">
-        <div class="btn-sm glass-sm" onclick="addKCol()" style="padding:6px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ колонка</div>
+        <div class="cnt" id="goals-cnt" style="margin-right:auto"></div>
+        <div class="btn-sm glass-sm" onclick="addProject()" style="padding:6px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ проект</div>
       </div>
-      <div class="kanban" id="kanban"></div>
+      <div class="kanban" id="projboard"></div>
     </div>
-    <div class="block glass" id="arch-block" style="display:none">
-      <div class="bh"><div class="t">🗄 Архив карточек</div><div class="cnt" id="arch-cnt"></div></div>
-      <div id="arch-cards"></div>
-    </div>
-    <div class="addr" onclick="document.getElementById('arch-block').style.display=document.getElementById('arch-block').style.display==='none'?'block':'none'" style="margin-top:0;cursor:pointer">📦 Показать/скрыть архив</div>
   </div>
 
   <div class="page" id="page-hap">
@@ -1765,43 +1780,122 @@ function render(){
       '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div></div>';
   }).join(''):'<div class="empty">целей пока нет — сформулируй 3–7 больших направлений</div>';
   // goals (проекты-декомпозиция, вкладка «Проекты»)
-  document.getElementById('goals-cnt').textContent=d.projects.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length+' в работе';
-  document.getElementById('projects').innerHTML=d.projects.length?d.projects.map(p=>{
-    const done=p.steps.filter(s=>s.done).length,total=p.steps.length;
-    const pct=total?Math.round(done/total*100):0;const opened=openProjects.has(p.id);
-    const mbOn=p.morning_brief?true:false;
-    const linkedIdeas=(d.chaos||[]).filter(c=>!c.done&&c.project_id===p.id);
-    let h='<div class="goal glass-sm">'+
-      '<div style="display:flex;align-items:center;gap:6px">'+
-      '<div class="gh" onclick="toggleProj('+p.id+')" style="flex:1">'+
-      '<span class="em">'+(AREAS[p.area]||'⚡')+'</span><span class="gn">'+(opened?'▾ ':'▸ ')+esc(p.name)+'</span>'+
-      '<span class="gp"><b>'+pct+'%</b> · '+done+'/'+total+'</span></div>'+
-      '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')" title="Переименовать цель" style="flex-shrink:0;padding:5px 9px;border-radius:10px;border:1px solid var(--rim);background:transparent;color:rgba(235,240,250,.55);font-size:13px;cursor:pointer">✏️</button>'+
-      '</div>'+
-      '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div>';
-    if(opened){
-      const stepsHtml=p.steps.map(s=>'<span class="gstep '+(s.done?'done':'')+'">'+
-        '<span class="gstep-tx" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>'+
-        '<span class="gstep-cmt'+(s.comment?' on':'')+'" onclick="event.stopPropagation();stepComment('+s.id+')" title="Комментарий">💬</span></span>').join('');
-      const ideasHtml=linkedIdeas.map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
-      h+='<div class="gsteps">'+stepsHtml+ideasHtml+'</div>'+
-        '<div class="gact"><button onclick="stepAdd('+p.id+')">+ шаг</button>'+
-        '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">✏️ имя</button>'+
-        '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑</button></div>';
-    } else if(total||linkedIdeas.length){
-      // Превью у свёрнутой цели тоже интерактивно: иначе нажатие на шаг лишь подсвечивало
-      // его (CSS :active), но ничего не фиксировало — «загорается зелёным, отпускаю → серый».
-      const stepsPreview=p.steps.slice(0,4).map(s=>'<span class="gstep '+(s.done?'done':'')+'" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>').join('');
-      const ideasPreview=linkedIdeas.slice(0,2).map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
-      h+='<div class="gsteps">'+stepsPreview+ideasPreview+'</div>';
-    }
-    h+='</div>';return h;
-  }).join(''):'<div class="empty">целей нет — скажи боту «добавь цель ...»</div>';
-
+  renderProjectBoard(d);
   renderFinance();
-  renderKanban(d);
   renderHappiness(d);
   renderCalPage();
+}
+
+// ─── Проекты как Trello-доска: каждый проект — колонка, шаги — карточки ───
+function renderProjectBoard(d){
+  const board=document.getElementById('projboard');if(!board)return;
+  const projs=d.projects||[];
+  const inWork=projs.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length;
+  const gc=document.getElementById('goals-cnt');if(gc)gc.textContent=projs.length+' проектов · '+inWork+' в работе';
+  if(_pbDrag)return;  // не перерисовываем во время перетаскивания карточки
+  board.innerHTML=projs.length?projs.map(p=>{
+    const steps=p.steps||[];
+    const done=steps.filter(s=>s.done).length,total=steps.length;
+    const pct=total?Math.round(done/total*100):0;
+    const linkedIdeas=(d.chaos||[]).filter(c=>!c.done&&c.project_id===p.id);
+    const stepCards=steps.map(s=>
+      '<div class="kcard pstep'+(s.done?' done':'')+'" draggable="true" data-step-id="'+s.id+'" data-proj-id="'+p.id+'">'+
+        '<span class="pcheck" onclick="event.stopPropagation();stepToggle('+s.id+')">'+(s.done?'☑':'☐')+'</span>'+
+        '<span class="pstep-tx" onclick="event.stopPropagation();stepRename('+s.id+')">'+esc(s.text)+'</span>'+
+        '<span class="gstep-cmt'+(s.comment?' on':'')+'" onclick="event.stopPropagation();stepComment('+s.id+')" title="Комментарий">💬</span>'+
+        '<span class="pdel" onclick="event.stopPropagation();stepDel('+s.id+')" title="Удалить">🗑</span>'+
+      '</div>').join('');
+    const ideaCards=linkedIdeas.map(c=>
+      '<div class="kcard pidea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+
+      '💡 '+esc(c.text)+'</div>').join('');
+    return '<div class="kol pcol" data-proj-id="'+p.id+'">'+
+      '<div class="kol-head" onclick="projMenu(event,'+p.id+')">'+
+        '<div class="kh-dot" style="background:linear-gradient(135deg,var(--blue),var(--violet))"></div>'+
+        '<div class="kh-name">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div>'+
+        '<div class="kh-cnt">'+done+'/'+total+'</div>'+
+        '<div class="kh-more">···</div>'+
+      '</div>'+
+      '<div class="pcol-bar"><div class="pcol-fill" style="width:'+pct+'%"></div></div>'+
+      stepCards+ideaCards+
+      '<button class="kadd" onclick="stepAdd('+p.id+')">＋ шаг</button>'+
+    '</div>';
+  }).join(''):'<div class="empty">проектов нет — жми «＋ проект»</div>';
+  _wireProjBoardDrag(board);
+}
+
+async function addProject(){
+  const t=await uiPrompt('Название проекта:','',{placeholder:'например, Творчество'});
+  if(!t||!t.trim())return;
+  mutate(()=>{if(!DATA.projects)DATA.projects=[];DATA.projects.unshift({id:_tmpId(),name:t.trim(),area:'work',steps:[]});},
+    '/api/proj_add',{name:t.trim()});
+}
+async function stepRename(id){
+  const s=_step(id);if(!s)return;
+  const t=await uiPrompt('Шаг:',s.text);
+  if(t&&t.trim())mutate(()=>{const x=_step(id);if(x)x.text=t.trim();},'/api/step_rename',{id,text:t.trim()});
+}
+async function stepDel(id){
+  const s=_step(id);if(!s)return;
+  if(!await uiConfirm('Удалить шаг «'+s.text+'»?'))return;
+  mutate(()=>{(DATA.projects||[]).forEach(p=>{if(p.steps)p.steps=p.steps.filter(x=>x.id!==id);});},'/api/step_delete',{id});
+}
+function projMenu(ev,id){
+  ev.stopPropagation();
+  const p=_proj(id);if(!p)return;
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';sheet.classList.add('mac-top-left');
+  const done=(p.steps||[]).filter(s=>s.done).length,total=(p.steps||[]).length;
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="stitle">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div>'+
+    '<div class="ssub">'+done+' из '+total+' шагов готово</div>'+
+    '<div class="sh-actions">'+
+    '<button class="sh-btn" id="pm-add">＋ Шаг</button>'+
+    '<button class="sh-btn" id="pm-ren">✏️ Переименовать</button>'+
+    '<button class="sh-btn" id="pm-arch">🏆 В архив (завершён)</button>'+
+    '<button class="sh-btn danger" id="pm-del">🗑 Удалить проект</button></div>';
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
+  sheet.querySelector('#pm-add').onclick=()=>{closeSheet();stepAdd(id);};
+  sheet.querySelector('#pm-ren').onclick=()=>{closeSheet();projRename(id,p.name);};
+  sheet.querySelector('#pm-arch').onclick=()=>{closeSheet();
+    mutate(()=>{DATA.projects=(DATA.projects||[]).filter(x=>x.id!==id);},'/api/proj_archive',{id});};
+  sheet.querySelector('#pm-del').onclick=async()=>{closeSheet();
+    if(!await uiConfirm('Удалить проект «'+p.name+'» со всеми шагами?'))return;
+    mutate(()=>{DATA.projects=(DATA.projects||[]).filter(x=>x.id!==id);},'/api/proj_delete',{id});};
+}
+
+// перетаскивание шага между проектами (как карточки в Trello)
+let _pbDrag=false;
+function _wireProjBoardDrag(board){
+  if(board._wired)return;board._wired=true;
+  let dragId=null,fromProj=null;
+  board.addEventListener('dragstart',e=>{
+    const card=e.target.closest('.pstep');if(!card){e.preventDefault();return;}
+    _pbDrag=true;dragId=parseInt(card.dataset.stepId,10);fromProj=parseInt(card.dataset.projId,10);
+    card.classList.add('dragging');e.dataTransfer.effectAllowed='move';
+  });
+  board.addEventListener('dragend',e=>{
+    _pbDrag=false;const c=e.target.closest('.pstep');if(c)c.classList.remove('dragging');
+    board.querySelectorAll('.kol.drop').forEach(k=>k.classList.remove('drop'));
+  });
+  board.addEventListener('dragover',e=>{
+    const kol=e.target.closest('.pcol');if(!kol)return;e.preventDefault();
+    board.querySelectorAll('.kol.drop').forEach(k=>k.classList.remove('drop'));kol.classList.add('drop');
+  });
+  board.addEventListener('drop',e=>{
+    const kol=e.target.closest('.pcol');if(!kol||dragId==null)return;e.preventDefault();
+    const toProj=parseInt(kol.dataset.projId,10);
+    kol.classList.remove('drop');
+    if(toProj&&toProj!==fromProj){
+      const sid=dragId,tp=toProj;
+      mutate(()=>{let moved=null;(DATA.projects||[]).forEach(p=>{if(p.steps){const f=p.steps.find(s=>s.id===sid);if(f){moved=f;p.steps=p.steps.filter(s=>s.id!==sid);}}});
+        if(moved){const dst=(DATA.projects||[]).find(p=>p.id===tp);if(dst){if(!dst.steps)dst.steps=[];dst.steps.push(moved);}}},
+        '/api/step_move',{id:sid,project_id:tp});
+    }
+    dragId=null;fromProj=null;
+  });
 }
 
 function renderMatrix(open){
@@ -3774,6 +3868,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in routes:
             result = routes[path](payload)
         elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
+                      "/api/step_rename", "/api/step_move", "/api/proj_add",
                       "/api/proj_rename", "/api/proj_delete", "/api/proj_archive"):
             result = api_steps(path, payload)
         else:
