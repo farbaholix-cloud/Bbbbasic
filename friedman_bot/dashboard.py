@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.15"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.16"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1131,6 +1131,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .ui-input{width:100%;margin-top:14px;padding:14px;border-radius:14px;border:1px solid var(--rim);
   background:rgba(0,0,0,.3);color:var(--txt);font-size:16px;font-weight:600;outline:none;-webkit-appearance:none}
 .ui-input:focus{border-color:var(--blue)}
+/* Барабаны выбора даты (день/мес/год) — на телефоне select = нативное колесо */
+.date-roller{display:flex;gap:10px;margin-top:16px}
+.date-roller .roller{flex:1;min-width:0;text-align:center;text-align-last:center;padding:16px 6px;border-radius:16px;
+  border:1px solid var(--rim);background:rgba(0,0,0,.32);color:var(--txt);font-size:18px;font-weight:800;
+  outline:none;-webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(180deg,rgba(91,157,255,.10),rgba(0,0,0,0) 42%,rgba(0,0,0,0) 58%,rgba(91,157,255,.10))}
+.date-roller #dr-d{flex:.7}
+.date-roller #dr-y{flex:.9}
+.date-roller .roller:focus{border-color:var(--blue);box-shadow:0 0 0 1px rgba(91,157,255,.4)}
 .ssub2{font-size:12.5px;color:var(--muted);text-align:center;margin-top:4px;font-weight:600;line-height:1.4}
 
 /* kanban */
@@ -2082,8 +2091,8 @@ async function addDebt(kind){
     const monthly=parseFloat(await uiNum('Платёж в месяц € (можно пусто):','0'))||0;
     body={name:name.trim(),kind:'long',total,paid,monthly,icon:'🏦'};
   } else {
-    const due=await uiPrompt('Срок оплаты (можно пусто):','',{placeholder:'ГГГГ-ММ-ДД'});
-    body={name:name.trim(),kind:'current',total,due_date:due&&due.trim()?due.trim():null,icon:'🔴'};
+    const due=await uiDate('Дата возврата',null);   // барабаны день/мес/год
+    body={name:name.trim(),kind:'current',total,due_date:(due&&due!==undefined)?due:null,icon:'🔴'};
   }
   mutate(()=>{if(!DATA.debts)DATA.debts=[];DATA.debts.push({id:_tmpId(),paid:0,monthly:0,due_date:null,...body});},'/api/debt_add',body);
 }
@@ -2106,7 +2115,7 @@ function openDebt(id){
     '<div class="sh-actions" style="flex-direction:column;gap:8px">'+
     '<button class="sh-btn" id="debt-name">✏️ Название</button>'+
     '<button class="sh-btn" id="debt-total">💶 Сумма долга</button>'+
-    (x.kind==='current'?'<button class="sh-btn" id="debt-due">📅 Срок оплаты</button>':'<button class="sh-btn" id="debt-monthly">📆 Платёж в месяц</button>')+
+    (x.kind==='current'?'<button class="sh-btn" id="debt-due">📅 Дата возврата'+(x.due_date?' · '+fmtDate(x.due_date):'')+'</button>':'<button class="sh-btn" id="debt-monthly">📆 Платёж в месяц</button>')+
     '<button class="sh-btn danger" id="debt-del">🗑 Удалить долг</button></div>';
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
@@ -2127,8 +2136,9 @@ function openDebt(id){
     if(!isNaN(v))mutate(()=>{const y=_debt(id);if(y)y.total=v;},'/api/debt_update',{id,total:v});};
   const dueBtn=sheet.querySelector('#debt-due');
   if(dueBtn)dueBtn.onclick=async()=>{
-    const t=await uiPrompt('Срок оплаты (ГГГГ-ММ-ДД, пусто — убрать):',x.due_date||'',{placeholder:'2026-08-01'});
-    if(t!==null)mutate(()=>{const y=_debt(id);if(y)y.due_date=t.trim()||null;},'/api/debt_update',{id,due_date:t.trim()});};
+    const r=await uiDate('Дата возврата',x.due_date);
+    if(r===undefined)return;                 // отмена — не трогаем
+    mutate(()=>{const y=_debt(id);if(y)y.due_date=r||null;},'/api/debt_update',{id,due_date:r||''});};
   const mBtn=sheet.querySelector('#debt-monthly');
   if(mBtn)mBtn.onclick=async()=>{
     const v=parseFloat(await uiNum('Платёж в месяц €:',String(x.monthly||0)));
@@ -2281,6 +2291,46 @@ function uiConfirm(title,opts={}){
     bg.onclick=()=>done(false);
     sheet.querySelector('#ui-cancel').onclick=()=>done(false);
     sheet.querySelector('#ui-ok').onclick=()=>done(true);
+  });
+}
+// Выбор даты барабанами-«револьверами» день/мес/год (на телефоне select = нативное колесо).
+// resolve: ISO-строка — дата выбрана; null — «без срока»; undefined — отмена (не менять).
+function uiDate(title,curISO){
+  return new Promise(resolve=>{
+    const now=new Date();
+    let base=curISO?new Date(curISO+'T00:00'):now;if(isNaN(base))base=now;
+    const y0=now.getFullYear();
+    let yrOpts='';for(let y=y0;y<=y0+6;y++)yrOpts+='<option value="'+y+'" '+(y===base.getFullYear()?'selected':'')+'>'+y+'</option>';
+    const monOpts=MONTHS.map((m,i)=>'<option value="'+i+'" '+(i===base.getMonth()?'selected':'')+'>'+m+'</option>').join('');
+    const dim0=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
+    let dayOpts='';for(let d=1;d<=dim0;d++)dayOpts+='<option value="'+d+'" '+(d===base.getDate()?'selected':'')+'>'+d+'</option>';
+    const {bg,sheet}=_openSheet(
+      '<div class="grab"></div><div class="stitle">'+esc(title)+'</div>'+
+      '<div class="date-roller">'+
+        '<select id="dr-d" class="roller">'+dayOpts+'</select>'+
+        '<select id="dr-m" class="roller">'+monOpts+'</select>'+
+        '<select id="dr-y" class="roller">'+yrOpts+'</select>'+
+      '</div>'+
+      '<div class="sh-actions" style="margin-top:14px">'+
+      '<button class="sh-btn" id="ui-clear">Без срока</button>'+
+      '<button class="sh-btn" id="ui-cancel">Отмена</button>'+
+      '<button class="sh-btn prime" id="ui-ok">Готово</button></div>');
+    const dSel=sheet.querySelector('#dr-d'),mSel=sheet.querySelector('#dr-m'),ySel=sheet.querySelector('#dr-y');
+    function fixDays(){
+      const dim=new Date(+ySel.value,+mSel.value+1,0).getDate();
+      const cur=Math.min(+dSel.value||1,dim);let h='';
+      for(let d=1;d<=dim;d++)h+='<option value="'+d+'" '+(d===cur?'selected':'')+'>'+d+'</option>';
+      dSel.innerHTML=h;
+    }
+    mSel.onchange=fixDays;ySel.onchange=fixDays;
+    const done=v=>{closeSheet();resolve(v);};
+    bg.onclick=()=>done(undefined);
+    sheet.querySelector('#ui-cancel').onclick=()=>done(undefined);
+    sheet.querySelector('#ui-clear').onclick=()=>done(null);
+    sheet.querySelector('#ui-ok').onclick=()=>{
+      const y=+ySel.value,m=+mSel.value,d=+dSel.value;
+      done(y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+    };
   });
 }
 function uiAlert(msg,title){
