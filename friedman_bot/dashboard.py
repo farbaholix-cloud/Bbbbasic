@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.14"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.15"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -597,6 +597,27 @@ def api_debt_add(payload):
     return {"ok": True}
 
 
+def api_debt_update(payload):
+    """Явная семантика ключей: передан ключ — пишем, нет — не трогаем.
+    «Возврат» реализуется через paid (клиент присылает новое значение)."""
+    sets, vals = [], []
+    if "name" in payload:
+        sets.append("name=?"); vals.append((payload.get("name") or "").strip() or "Долг")
+    if "total" in payload:
+        sets.append("total=?"); vals.append(max(0.0, float(payload.get("total") or 0)))
+    if "paid" in payload:
+        sets.append("paid=?"); vals.append(max(0.0, float(payload.get("paid") or 0)))
+    if "due_date" in payload:
+        sets.append("due_date=?"); vals.append((payload.get("due_date") or "").strip() or None)
+    if "monthly" in payload:
+        sets.append("monthly=?"); vals.append(max(0.0, float(payload.get("monthly") or 0)))
+    if not sets:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute(f"UPDATE debts SET {', '.join(sets)} WHERE id=?", (*vals, payload["id"]))
+    return {"ok": True}
+
+
 def api_debt_delete(payload):
     with db() as conn:
         conn.execute("DELETE FROM debts WHERE id=?", (payload["id"],))
@@ -1005,9 +1026,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .debt{display:flex;align-items:center;gap:11px;padding:13px 14px;border-radius:15px;margin-bottom:9px}
 .debt .nm{flex:1}
 .debt .nm .t{font-size:13.5px;font-weight:700}
-.debt .nm .due-pill{font-size:9px;font-weight:800;padding:3px 8px;border-radius:9px;background:rgba(255,107,125,.18);color:#ff9aa6;margin-top:5px;display:inline-block}
-.debt .nm .due-pill.ok{background:rgba(255,198,87,.16);color:#ffd07a}
+.debt .nm .due-pill{font-size:9px;font-weight:800;padding:3px 8px;border-radius:9px;background:rgba(255,198,87,.16);color:#ffd07a;margin-top:5px;display:inline-block}
+.debt .nm .due-pill.urg{background:rgba(255,107,125,.18);color:#ff9aa6}
+.debt .nm .due-pill.soon{background:rgba(255,198,87,.16);color:#ffd07a}
+.debt .nm .due-pill.ok{background:rgba(91,157,255,.16);color:#86b8ff}
+.debt .nm .due-pill.done{background:rgba(82,224,138,.16);color:#52e08a}
+.debt.paidrow,.ldebt.paidrow{opacity:.55}
+.debt.paidrow .amt{color:var(--muted)}
+.debt,.ldebt{cursor:pointer}
 .debt .amt{font-size:16px;font-weight:900;color:#ff9aa6}
+/* Карта долгов — столбчатый график */
+.debtchart{display:flex;gap:10px;align-items:flex-end;overflow-x:auto;padding:8px 2px 4px;min-height:160px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.debtchart::-webkit-scrollbar{display:none}
+.dbar{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;width:52px;cursor:pointer;justify-content:flex-end}
+.dbar .dbar-amt{font-size:10px;font-weight:900;color:var(--txt);white-space:nowrap}
+.dbar .col{width:40px;border-radius:10px 10px 6px 6px;display:flex;align-items:center;justify-content:center;transition:height .35s,opacity .3s;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.dbar .col.paid{background:transparent;border:2px dashed rgba(82,224,138,.55);box-shadow:none}
+.dbar .col.paid .chk{font-size:18px;color:#52e08a;font-weight:900}
+.dbar .col.overdue,.dbar .col.urgent{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 0 14px rgba(255,107,125,.35)}
+.dbar .nm{font-size:9.5px;color:var(--muted);font-weight:700;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.dlegend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:10.5px;font-weight:700;color:var(--muted)}
+.dlegend span{display:flex;align-items:center;gap:5px}
+.dlegend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.dlegend .lg-r{background:linear-gradient(180deg,#ff6b7d,#ff9aa6)}
+.dlegend .lg-a{background:linear-gradient(180deg,#ffb648,#ffd07a)}
+.dlegend .lg-b{background:linear-gradient(180deg,#5b9dff,#86b8ff)}
+.dlegend .lg-ok{background:transparent;border:2px dashed rgba(82,224,138,.6)}
 .debt .x{color:var(--faint);font-size:17px;padding:0 2px;cursor:pointer}
 .debt.soon{border-color:rgba(255,107,125,.45);box-shadow:0 0 16px rgba(255,107,125,.12),inset 0 1px 0 var(--rim2)}
 .ldebt{padding:14px 15px;border-radius:16px;margin-bottom:11px}
@@ -1251,6 +1295,16 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 
   <div class="page" id="page-fin">
     <div class="fin-cards" id="fin-cards"></div>
+    <div class="block glass" id="debtchart-block" style="display:none">
+      <div class="bh"><div class="t">📊 Карта долгов</div><div class="cnt" id="debt-total"></div></div>
+      <div class="debtchart" id="debtchart"></div>
+      <div class="dlegend">
+        <span><i class="lg-r"></i>срочный</span>
+        <span><i class="lg-a"></i>скоро</span>
+        <span><i class="lg-b"></i>обычный</span>
+        <span><i class="lg-ok"></i>погашен</span>
+      </div>
+    </div>
     <div class="daysum" id="daysum"></div>
     <div class="block glass">
       <div class="bh"><div class="t">🔴 Текущие задолженности</div><div class="cnt" id="cur-cnt"></div></div>
@@ -1687,21 +1741,24 @@ function renderFinance(){
     '<div class="ds glass"><div class="l">🗓 ближайшие 7 дней</div><div class="v">'+eur(sumW)+'</div><div class="mini">'+esc(wnames)+'</div></div>';
   // debts
   const cur=(d.debts||[]).filter(x=>x.kind==='current'),lng=(d.debts||[]).filter(x=>x.kind==='long');
-  document.getElementById('cur-cnt').textContent=cur.length?cur.length+' · '+eur(cur.reduce((a,b)=>a+b.total,0)):'нет';
+  renderDebtChart(d);
+  const curRem=cur.reduce((a,b)=>a+_rem(b),0);
+  document.getElementById('cur-cnt').textContent=cur.length?cur.length+' · '+eur(curRem):'нет';
   document.getElementById('cur-debts').innerHTML=cur.length?cur.map(x=>{
-    let pill='',soon='';
-    if(x.due_date){const days=Math.ceil((new Date(x.due_date)-new Date())/864e5);
-      soon=(days<=5)?'soon':'';pill='<span class="due-pill '+(days<=5?'':'ok')+'">'+(days<0?'просрочено':((days<=5?'⏳ ':'')+'до '+fmtDate(x.due_date)+' · '+days+' дн'))+'</span>';}
-    return '<div class="debt glass-sm '+soon+'"><div class="nm"><div class="t">'+esc(x.name)+'</div>'+pill+'</div>'+
-      '<div class="amt">'+eur(x.total)+'</div><span class="x" onclick="delDebt('+x.id+')">×</span></div>';
+    const u=_debtUrg(x);
+    const pill=u.paid?'<span class="due-pill done">✓ погашен</span>':
+      (u.pillText?'<span class="due-pill '+u.pillCls+'">'+u.pillText+'</span>':'');
+    return '<div class="debt glass-sm '+(u.urg==='overdue'||u.urg==='urgent'?'soon':'')+(u.paid?' paidrow':'')+'" onclick="openDebt('+x.id+')">'+
+      '<div class="nm"><div class="t">'+esc(x.name)+'</div>'+pill+'</div>'+
+      '<div class="amt">'+eur(_rem(x))+'</div><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>';
   }).join(''):'<div class="empty">задолженностей нет 👍</div>';
   document.getElementById('long-cnt').textContent=lng.length||'нет';
   document.getElementById('long-debts').innerHTML=lng.length?lng.map(x=>{
-    const pct=x.total?Math.round(x.paid/x.total*100):0;
-    return '<div class="ldebt glass-sm"><div class="lh"><span class="em">'+(x.icon||'🏦')+'</span><span class="t">'+esc(x.name)+'</span>'+
-      '<span class="p">'+pct+'%</span><span class="x" onclick="delDebt('+x.id+')">×</span></div>'+
+    const pct=x.total?Math.round((x.paid||0)/x.total*100):0;const paid=pct>=100;
+    return '<div class="ldebt glass-sm'+(paid?' paidrow':'')+'" onclick="openDebt('+x.id+')"><div class="lh"><span class="em">'+(paid?'✅':(x.icon||'🏦'))+'</span><span class="t">'+esc(x.name)+'</span>'+
+      '<span class="p">'+pct+'%</span><span class="x" onclick="event.stopPropagation();delDebt('+x.id+')">×</span></div>'+
       '<div class="lbar"><div class="lfill" style="width:'+pct+'%"></div></div>'+
-      '<div class="lm"><span>выплачено <b>'+eur(x.paid)+'</b> из '+eur(x.total)+'</span>'+(x.monthly?'<span>'+eur(x.monthly)+'/мес</span>':'')+'</div></div>';
+      '<div class="lm"><span>выплачено <b>'+eur(x.paid||0)+'</b> из '+eur(x.total)+'</span>'+(x.monthly?'<span>'+eur(x.monthly)+'/мес</span>':'')+'</div></div>';
   }).join(''):'<div class="empty">долгосрочных долгов нет</div>';
   // payments
   const pays=d.payments||[];
@@ -1722,7 +1779,49 @@ function renderFinance(){
       '<span class="x" onclick="finDel('+r.id+')">×</span></div>';
   }).join(''):'<div class="empty">операций пока нет</div>';
 }
-function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');return d.getDate()+' '+MONTHS[d.getMonth()];}
+function fmtDate(s){if(!s)return '';const d=new Date(s+'T00:00');if(isNaN(d))return '';return d.getDate()+' '+MONTHS[d.getMonth()];}
+function _debt(id){return (DATA.debts||[]).find(x=>x.id===id);}
+function _rem(x){return Math.max(0,(x.total||0)-(x.paid||0));}
+// Срочность долга: цвет по сроку/остатку, статус «погашен» по paid≥total
+function _debtUrg(x){
+  const rem=_rem(x);
+  const paid=(x.total||0)>0&&rem<=0.005;
+  let days=null;
+  if(x.due_date){const d=new Date(x.due_date+'T00:00');if(!isNaN(d))days=Math.ceil((d-new Date())/864e5);}
+  let urg='normal',pillText='',pillCls='ok';
+  if(paid){urg='paid';}
+  else if(days!==null){
+    if(days<0){urg='overdue';pillText='⚠️ просрочено';pillCls='urg';}
+    else if(days<=7){urg='urgent';pillText='⏳ до '+fmtDate(x.due_date)+' · '+days+' дн';pillCls='urg';}
+    else if(days<=30){urg='soon';pillText='до '+fmtDate(x.due_date)+' · '+days+' дн';pillCls='soon';}
+    else {urg='normal';pillText='до '+fmtDate(x.due_date);pillCls='ok';}
+  }
+  const col={overdue:'linear-gradient(180deg,#ff5566,#ff8895)',urgent:'linear-gradient(180deg,#ff6b7d,#ff9aa6)',
+    soon:'linear-gradient(180deg,#ffb648,#ffd07a)',normal:'linear-gradient(180deg,#5b9dff,#86b8ff)',paid:'transparent'}[urg];
+  return {rem,paid,days,urg,pillText,pillCls,col};
+}
+function renderDebtChart(d){
+  const block=document.getElementById('debtchart-block');
+  const debts=(d.debts||[]).slice();
+  if(!debts.length){block.style.display='none';return;}
+  block.style.display='block';
+  // сортировка: срочные раньше, затем по остатку (крупные — выше и левее)
+  const rank={overdue:0,urgent:1,soon:2,normal:3,paid:4};
+  const arr=debts.map(x=>({x,u:_debtUrg(x)})).sort((a,b)=>(rank[a.u.urg]-rank[b.u.urg])||(b.u.rem-a.u.rem));
+  const maxRem=Math.max(1,...arr.map(v=>v.u.rem));
+  const totalRem=arr.reduce((s,v)=>s+v.u.rem,0);
+  const openN=arr.filter(v=>!v.u.paid).length;
+  document.getElementById('debt-total').textContent=eur(totalRem)+' · '+openN+' активных';
+  document.getElementById('debtchart').innerHTML=arr.map(({x,u})=>{
+    const h=u.paid?44:Math.round(24+(u.rem/maxRem)*104); // 24..128px
+    const inner=u.paid?'<span class="chk">✓</span>':'';
+    const amtLbl=u.paid?'':eur(u.rem).replace(/\s?€/,'');
+    return '<div class="dbar" onclick="openDebt('+x.id+')">'+
+      '<div class="dbar-amt">'+(u.paid?'✓':amtLbl)+'</div>'+
+      '<div class="col '+u.urg+'" style="height:'+h+'px;'+(u.paid?'':'background:'+u.col)+'">'+inner+'</div>'+
+      '<div class="nm">'+esc((x.name||'').replace(/ · \$$/,'')) +'</div></div>';
+  }).join('');
+}
 
 // ─── project actions ───
 function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
@@ -1989,6 +2088,53 @@ async function addDebt(kind){
   mutate(()=>{if(!DATA.debts)DATA.debts=[];DATA.debts.push({id:_tmpId(),paid:0,monthly:0,due_date:null,...body});},'/api/debt_add',body);
 }
 async function delDebt(id){if(await uiConfirm('Удалить долг?',{danger:true,ok:'Удалить'})){mutate(()=>{DATA.debts=(DATA.debts||[]).filter(x=>x.id!==id);},'/api/debt_delete',{id});}}
+function openDebt(id){
+  const x=_debt(id);if(!x)return;
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const u=_debtUrg(x);const pct=x.total?Math.round((x.paid||0)/x.total*100):0;
+  const sub=u.paid?'✅ погашен полностью':('осталось '+eur(u.rem)+' из '+eur(x.total)+
+    (u.pillText?' · '+u.pillText:''));
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(x.icon||'💳')+' '+esc(x.name)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="ssub">'+sub+'</div>'+
+    '<div class="lbar" style="margin:10px 0 4px"><div class="lfill" style="width:'+pct+'%"></div></div>'+
+    (u.paid?'':'<div class="sh-comment-wrap"><div class="sh-comment-lbl">↩️ Возврат</div>'+
+      '<div class="fin-row"><input class="fin-inp" id="debt-ret" type="number" inputmode="decimal" placeholder="сумма € (осталось '+eur(u.rem).replace(/\s?€/,'')+')"/>'+
+      '<button class="fbtn in" id="debt-ret-go" style="flex:0 0 auto;padding:0 16px">записать</button></div></div>')+
+    '<div class="sh-actions" style="flex-direction:column;gap:8px">'+
+    '<button class="sh-btn" id="debt-name">✏️ Название</button>'+
+    '<button class="sh-btn" id="debt-total">💶 Сумма долга</button>'+
+    (x.kind==='current'?'<button class="sh-btn" id="debt-due">📅 Срок оплаты</button>':'<button class="sh-btn" id="debt-monthly">📆 Платёж в месяц</button>')+
+    '<button class="sh-btn danger" id="debt-del">🗑 Удалить долг</button></div>';
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
+  const retGo=sheet.querySelector('#debt-ret-go');
+  if(retGo)retGo.onclick=()=>{
+    const inp=sheet.querySelector('#debt-ret');const amt=parseFloat(inp.value)||0;
+    if(amt<=0){inp.focus();return;}
+    const newPaid=Math.min(x.total||((x.paid||0)+amt),(x.paid||0)+amt);
+    closeSheet();
+    mutate(()=>{const y=_debt(id);if(y)y.paid=newPaid;},'/api/debt_update',{id,paid:newPaid});
+  };
+  sheet.querySelector('#debt-name').onclick=async()=>{
+    const t=await uiPrompt('Название долга:',x.name);
+    if(t&&t.trim())mutate(()=>{const y=_debt(id);if(y)y.name=t.trim();},'/api/debt_update',{id,name:t.trim()});};
+  sheet.querySelector('#debt-total').onclick=async()=>{
+    const v=parseFloat(await uiNum('Сумма долга €:',String(x.total||0)));
+    if(!isNaN(v))mutate(()=>{const y=_debt(id);if(y)y.total=v;},'/api/debt_update',{id,total:v});};
+  const dueBtn=sheet.querySelector('#debt-due');
+  if(dueBtn)dueBtn.onclick=async()=>{
+    const t=await uiPrompt('Срок оплаты (ГГГГ-ММ-ДД, пусто — убрать):',x.due_date||'',{placeholder:'2026-08-01'});
+    if(t!==null)mutate(()=>{const y=_debt(id);if(y)y.due_date=t.trim()||null;},'/api/debt_update',{id,due_date:t.trim()});};
+  const mBtn=sheet.querySelector('#debt-monthly');
+  if(mBtn)mBtn.onclick=async()=>{
+    const v=parseFloat(await uiNum('Платёж в месяц €:',String(x.monthly||0)));
+    if(!isNaN(v))mutate(()=>{const y=_debt(id);if(y)y.monthly=v;},'/api/debt_update',{id,monthly:v});};
+  sheet.querySelector('#debt-del').onclick=()=>{closeSheet();delDebt(id);};
+}
 async function addPayment(){
   const title=await uiPrompt('Платёж — название:','',{placeholder:'за что'});
   if(!title||!title.trim())return;
@@ -3177,6 +3323,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/rate": api_rate,
             "/api/finance_add": api_finance_add, "/api/finance_delete": api_finance_delete,
             "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,
+            "/api/debt_update": api_debt_update,
             "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
             "/api/kcard_add": api_kcard_add, "/api/kcard_check": api_kcard_check,
             "/api/kcard_archive": api_kcard_archive, "/api/kcard_unarchive": api_kcard_unarchive,
