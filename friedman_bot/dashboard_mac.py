@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.23 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.24 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2446,11 +2446,7 @@ function openTask(t){
   const projOpts='<option value="">— без проекта —</option>'+projs.map(p=>'<option value="'+p.id+'" '+(curProjId==p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('');
   const projBlock='<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700;flex-shrink:0">📁 Проект:</span>'+
     '<select id="sh-proj" style="flex:1;min-width:0;max-width:100%;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:10px;color:#fff;font-size:13px;padding:6px 10px">'+projOpts+'</select></div>';
-  // Morning brief toggle (events only)
-  const mbOn=t.mb||0;
-  const mbBlock=(t.kind==='event')?
-    '<div class="sh-proj-row"><span style="font-size:12px;color:var(--muted);font-weight:700">🌅 Утренняя сводка:</span>'+
-    '<div class="tog '+(mbOn?'on':'')+'" id="sh-mb" style="flex-shrink:0"><div class="tog-k"></div></div></div>':'';
+  const mbBlock='';
   // Comment block (both chaos and event)
   const curComment=((t.kind==='chaos'?(_chaos(t.id)||{}):(_card(t.id)||{})).comment)||'';
   const commentBlock='<div class="sh-comment-wrap"><div class="sh-comment-lbl">💬 Комментарий</div>'+
@@ -2586,16 +2582,6 @@ function openTask(t){
       } else if(t.kind==='chaos'){
         mutate(()=>{const c=_chaos(t.id);if(c)c.project_id=pid;},'/api/chaos_set_project',{id:t.id,project_id:pid});
       }
-    };
-  }
-  // Morning brief toggle (events)
-  const shMb=sheet.querySelector('#sh-mb');
-  if(shMb&&t.kind==='event'){
-    let mbState=mbOn?1:0;
-    shMb.onclick=()=>{
-      mbState=mbState?0:1;
-      shMb.classList.toggle('on',!!mbState);
-      mutate(()=>{const card=_card(t.id);if(card)card.morning_brief=mbState;},'/api/event_update',{id:t.id,morning_brief:mbState});
     };
   }
   // Comment — save on blur / change
