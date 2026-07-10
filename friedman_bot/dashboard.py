@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.11"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.12"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -193,6 +193,16 @@ def ensure_schema(conn):
     kc_cols = [r[1] for r in conn.execute("PRAGMA table_info(kanban_cards)").fetchall()]
     if kc_cols and "comment" not in kc_cols:
         conn.execute("ALTER TABLE kanban_cards ADD COLUMN comment TEXT")
+    # goals: стратегические цели на «Мостике» — ручной прогресс + горизонт
+    conn.execute("""CREATE TABLE IF NOT EXISTS goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL, area TEXT DEFAULT 'work', period TEXT DEFAULT 'week',
+        done INTEGER DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
+    g_cols = [r[1] for r in conn.execute("PRAGMA table_info(goals)").fetchall()]
+    if "progress" not in g_cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN progress INTEGER DEFAULT 0")
+    if "target" not in g_cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN target TEXT")
     # projects: morning brief flag
     pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if pr_cols:
@@ -381,8 +391,13 @@ def get_data():
         happiness = dict(hap_row) if hap_row else {"work":5,"friendship":5,"health":5,"wellbeing":5,"hobby":5,"love":5}
         happiness_history = [dict(r) for r in conn.execute(
             "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY id DESC LIMIT 365").fetchall()]
+        try:
+            sgoals = [dict(r) for r in conn.execute(
+                "SELECT * FROM goals WHERE period='strategic' AND done=0 ORDER BY id").fetchall()]
+        except sqlite3.OperationalError:
+            sgoals = []
         rev = _read_rev(conn)
-    return {"chaos": chaos, "projects": projects, "cards": cards,
+    return {"chaos": chaos, "projects": projects, "cards": cards, "sgoals": sgoals,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -504,6 +519,44 @@ def api_steps(path, payload):
             ids = payload.get("ids") or []
             for i, step_id in enumerate(ids):
                 conn.execute("UPDATE steps SET position=? WHERE id=?", (i, step_id))
+        elif path == "/api/proj_add":
+            name = (payload.get("name") or "").strip()
+            if name:
+                conn.execute("INSERT INTO projects (name, area) VALUES (?, 'work')", (name,))
+    return {"ok": True}
+
+
+def api_sgoal_add(payload):
+    text = (payload.get("text") or "").strip()
+    if not text:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute("INSERT INTO goals (text, period, progress, target) VALUES (?,?,?,?)",
+                     (text, "strategic", int(payload.get("progress") or 0),
+                      (payload.get("target") or "").strip() or None))
+    return {"ok": True}
+
+
+def api_sgoal_update(payload):
+    sets, vals = [], []
+    if "text" in payload:
+        sets.append("text=?"); vals.append((payload.get("text") or "").strip())
+    if "progress" in payload:
+        sets.append("progress=?"); vals.append(max(0, min(100, int(payload.get("progress") or 0))))
+    if "target" in payload:
+        sets.append("target=?"); vals.append((payload.get("target") or "").strip() or None)
+    if "done" in payload:
+        sets.append("done=?"); vals.append(1 if payload.get("done") else 0)
+    if not sets:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute(f"UPDATE goals SET {', '.join(sets)} WHERE id=?", (*vals, payload["id"]))
+    return {"ok": True}
+
+
+def api_sgoal_delete(payload):
+    with db() as conn:
+        conn.execute("DELETE FROM goals WHERE id=?", (payload["id"],))
     return {"ok": True}
 
 
@@ -1067,6 +1120,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kol-head .kh-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kol-head .kh-cnt{opacity:.45;font-weight:600;font-size:11px;flex-shrink:0}
 .kol-head .kh-more{opacity:.35;font-size:15px;flex-shrink:0;line-height:1}
+/* Проекты-как-доски: колонка проекта, шаги — карточки */
+.pcol-bar{height:5px;border-radius:4px;background:rgba(0,0,0,.28);overflow:hidden;margin:-2px 2px 4px;border:1px solid rgba(255,255,255,.07)}
+.pcol-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--violet));border-radius:4px;transition:width .3s}
+.kcard.pstep{padding:11px 34px 11px 34px;display:block}
+.kcard.pstep .pcheck{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;cursor:pointer;opacity:.85}
+.kcard.pstep .pstep-tx{cursor:text;line-height:1.35}
+.kcard.pstep .pdel{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.4;cursor:pointer}
+.kcard.pstep .gstep-cmt{position:absolute;right:31px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.3;cursor:pointer}
+.kcard.pstep .gstep-cmt.on{opacity:.9}
+.kcard.pstep.done .pstep-tx{text-decoration:line-through;opacity:.5}
+.kcard.pidea{background:rgba(255,208,122,.14);border-color:rgba(255,208,122,.35);font-size:12px;cursor:pointer;padding:10px 13px}
+.sgoal{cursor:pointer}
+.sg-target{font-size:11px;font-weight:700;color:var(--muted);background:var(--glass2);border:1px solid var(--rim);border-radius:9px;padding:2px 8px}
 .kdl{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;
   padding:3px 8px;border-radius:20px;margin-top:0;margin-bottom:2px;cursor:pointer}
 .kdl.ok{background:rgba(91,157,255,.18);color:#5b9dff}
@@ -1151,8 +1217,9 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       <div id="chaos"></div>
     </div>
     <div class="block glass">
-      <div class="bh"><div class="t">🏔 Визуализация выполнения <span class="sm">формулировка · декомпозиция</span></div><div class="cnt" id="goals-cnt"></div></div>
-      <div id="projects"></div>
+      <div class="bh"><div class="t">🏔 Стратегические цели <span class="sm">горизонт · прогресс</span></div><div class="cnt" id="sgoal-cnt"></div></div>
+      <div id="sgoals"></div>
+      <div class="addr" onclick="addSGoal()" style="cursor:pointer">🎯 Новая стратегическая цель</div>
     </div>
     <div class="block glass">
       <div class="bh"><div class="t">🎯 Расстановка приоритетов <span class="sm">важно · срочно</span></div><div class="cnt">приоритеты</div></div>
@@ -1207,15 +1274,11 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
   <div class="page" id="page-proj">
     <div class="kanban-wrap">
       <div class="kanban-toolbar">
-        <div class="btn-sm glass-sm" onclick="addKCol()" style="padding:6px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ колонка</div>
+        <div class="cnt" id="goals-cnt" style="margin-right:auto"></div>
+        <div class="btn-sm glass-sm" onclick="addProject()" style="padding:6px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ проект</div>
       </div>
-      <div class="kanban" id="kanban"></div>
+      <div class="kanban" id="projboard"></div>
     </div>
-    <div class="block glass" id="arch-block" style="display:none">
-      <div class="bh"><div class="t">🗄 Архив карточек</div><div class="cnt" id="arch-cnt"></div></div>
-      <div id="arch-cards"></div>
-    </div>
-    <div class="addr" onclick="document.getElementById('arch-block').style.display=document.getElementById('arch-block').style.display==='none'?'block':'none'" style="margin-top:0;cursor:pointer">📦 Показать/скрыть архив</div>
   </div>
 
   <div class="page" id="page-hap">
@@ -1393,49 +1456,131 @@ function render(){
   }
   // calendar
   renderCal();
-  // goals
-  document.getElementById('goals-cnt').textContent=d.projects.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length+' в работе';
-  // skip projects DOM rebuild while a step drag is in progress (otherwise the refresh poll kills the drag)
-  if(!_sd)
-  document.getElementById('projects').innerHTML=d.projects.length?d.projects.map(p=>{
-    const done=p.steps.filter(s=>s.done).length,total=p.steps.length;
-    const pct=total?Math.round(done/total*100):0;const opened=openProjects.has(p.id);
-    const mbOn=p.morning_brief?true:false;
-    const linkedIdeas=(d.chaos||[]).filter(c=>!c.done&&c.project_id===p.id);
-    let h='<div class="goal glass-sm">'+
-      '<div style="display:flex;align-items:center;gap:6px">'+
-      '<div class="gh" onclick="toggleProj('+p.id+')" style="flex:1">'+
-      '<span class="em">'+(AREAS[p.area]||'⚡')+'</span><span class="gn">'+(opened?'▾ ':'▸ ')+esc(p.name)+'</span>'+
-      '<span class="gp"><b>'+pct+'%</b> · '+done+'/'+total+'</span></div>'+
-      '<button onclick="projRename('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')" title="Переименовать цель" style="flex-shrink:0;padding:5px 9px;border-radius:10px;border:1px solid var(--rim);background:transparent;color:rgba(235,240,250,.55);font-size:13px;cursor:pointer">✏️</button>'+
-      '</div>'+
-      '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div>';
-    if(opened){
-      const stepsHtml=p.steps.map(s=>'<div class="gstep-row '+(s.done?'done':'')+'" data-sid="'+s.id+'">'+
-        '<span class="drag-sh" ontouchstart="_startStepDrag(event,'+s.id+','+p.id+')" onmousedown="_startStepDrag(event,'+s.id+','+p.id+')"><i></i><i></i><i></i></span>'+
-        '<span class="done-ck" onclick="stepToggle('+s.id+')">'+(s.done?'✓':'○')+'</span>'+
-        '<span class="gst" onclick="stepToggle('+s.id+')">'+esc(s.text)+(s.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'')+'</span>'+
-        '<span class="gst-act'+(s.comment?' on':'')+'" onclick="event.stopPropagation();stepComment('+s.id+')" title="Комментарий">💬</span>'+
-        '<span class="gst-act" onclick="event.stopPropagation();stepRename('+s.id+')" title="Переименовать">✏️</span>'+
-        '<span class="gst-act del" onclick="event.stopPropagation();stepDelete('+s.id+')" title="Удалить">🗑</span></div>').join('');
-      const ideasHtml=linkedIdeas.map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
-      h+='<div class="gsteps-rows" data-proj="'+p.id+'">'+stepsHtml+'</div>'+
-        (ideasHtml?'<div class="gsteps" style="margin-top:6px">'+ideasHtml+'</div>':'')+
-        '<div class="gact"><button onclick="stepAdd('+p.id+')">+ шаг</button>'+
-        '<button class="danger" onclick="projDel('+p.id+',\''+esc(p.name).replace(/'/g,"\\'")+'\')">🗑 цель</button></div>';
-    } else if(total||linkedIdeas.length){
-      // Превью у свёрнутой цели тоже интерактивно: иначе нажатие на шаг лишь подсвечивало
-      // его (CSS :active), но ничего не фиксировало — «загорается зелёным, отпускаю → серый».
-      const stepsPreview=p.steps.slice(0,4).map(s=>'<span class="gstep '+(s.done?'done':'')+'" onclick="stepToggle('+s.id+')">'+esc(s.text)+'</span>').join('');
-      const ideasPreview=linkedIdeas.slice(0,2).map(c=>'<span class="gstep idea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+'💡 '+esc(c.text)+'</span>').join('');
-      h+='<div class="gsteps">'+stepsPreview+ideasPreview+'</div>';
-    }
-    h+='</div>';return h;
-  }).join(''):'<div class="empty">целей нет — скажи боту «добавь цель ...»</div>';
-
+  // стратегические цели на «Мостике»
+  const sg=d.sgoals||[];
+  const scnt=document.getElementById('sgoal-cnt');if(scnt)scnt.textContent=sg.length?sg.length+' в фокусе':'';
+  const sgEl=document.getElementById('sgoals');
+  if(sgEl)sgEl.innerHTML=sg.length?sg.map(g=>{
+    const pct=Math.max(0,Math.min(100,g.progress||0));
+    return '<div class="goal glass-sm sgoal" onclick="openSGoal('+g.id+')">'+
+      '<div class="gh"><span class="em">🎯</span><span class="gn">'+esc(g.text)+'</span>'+
+      '<span class="gp">'+(g.target?'<span class="sg-target">'+esc(g.target)+'</span> · ':'')+'<b>'+pct+'%</b></span></div>'+
+      '<div class="gbar"><div class="gfill" style="width:'+pct+'%"></div></div></div>';
+  }).join(''):'<div class="empty">целей пока нет — сформулируй 3–7 больших направлений</div>';
+  // Проекты как доска
+  renderProjectBoard(d);
   renderFinance();
-  renderKanban(d);
   renderHappiness(d);
+}
+
+// ─── Проекты как Trello-доска: каждый проект — колонка, шаги — карточки ───
+function renderProjectBoard(d){
+  const board=document.getElementById('projboard');if(!board)return;
+  const projs=d.projects||[];
+  const inWork=projs.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length;
+  const gc=document.getElementById('goals-cnt');if(gc)gc.textContent=projs.length+' проектов · '+inWork+' в работе';
+  if(_sd)return;  // не перерисовываем во время перетаскивания шага
+  board.innerHTML=projs.length?projs.map(p=>{
+    const steps=p.steps||[];
+    const done=steps.filter(s=>s.done).length,total=steps.length;
+    const pct=total?Math.round(done/total*100):0;
+    const linkedIdeas=(d.chaos||[]).filter(c=>!c.done&&c.project_id===p.id);
+    const stepCards=steps.map(s=>
+      '<div class="kcard pstep'+(s.done?' done':'')+'" data-step-id="'+s.id+'" data-proj-id="'+p.id+'">'+
+        '<span class="pcheck" onclick="event.stopPropagation();stepToggle('+s.id+')">'+(s.done?'☑':'☐')+'</span>'+
+        '<span class="pstep-tx" onclick="event.stopPropagation();stepRename('+s.id+')">'+esc(s.text)+'</span>'+
+        '<span class="gstep-cmt'+(s.comment?' on':'')+'" onclick="event.stopPropagation();stepComment('+s.id+')" title="Комментарий">💬</span>'+
+        '<span class="pdel" onclick="event.stopPropagation();stepDelete('+s.id+')" title="Удалить">🗑</span>'+
+      '</div>').join('');
+    const ideaCards=linkedIdeas.map(c=>
+      '<div class="kcard pidea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+
+      '💡 '+esc(c.text)+'</div>').join('');
+    return '<div class="kol pcol" data-proj-id="'+p.id+'">'+
+      '<div class="kol-head" onclick="projMenu(event,'+p.id+')">'+
+        '<div class="kh-dot" style="background:linear-gradient(135deg,var(--blue),var(--violet))"></div>'+
+        '<div class="kh-name">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div>'+
+        '<div class="kh-cnt">'+done+'/'+total+'</div>'+
+        '<div class="kh-more">···</div>'+
+      '</div>'+
+      '<div class="pcol-bar"><div class="pcol-fill" style="width:'+pct+'%"></div></div>'+
+      stepCards+ideaCards+
+      '<button class="kadd" onclick="stepAdd('+p.id+')">＋ шаг</button>'+
+    '</div>';
+  }).join(''):'<div class="empty">проектов нет — жми «＋ проект»</div>';
+}
+
+async function addProject(){
+  const t=await uiPrompt('Название проекта:','',{placeholder:'например, Творчество'});
+  if(!t||!t.trim())return;
+  mutate(()=>{if(!DATA.projects)DATA.projects=[];DATA.projects.unshift({id:_tmpId(),name:t.trim(),area:'work',steps:[]});},
+    '/api/proj_add',{name:t.trim()});
+}
+function projMenu(ev,id){
+  ev.stopPropagation();
+  const p=_proj(id);if(!p)return;
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const done=(p.steps||[]).filter(s=>s.done).length,total=(p.steps||[]).length;
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="ssub">'+done+' из '+total+' шагов готово</div>'+
+    '<div class="sh-actions" style="flex-direction:column;gap:8px">'+
+    '<button class="sh-btn" id="pm-add">＋ Шаг</button>'+
+    '<button class="sh-btn" id="pm-ren">✏️ Переименовать проект</button>'+
+    '<button class="sh-btn" id="pm-arch">🏆 В архив (завершён)</button>'+
+    '<button class="sh-btn danger" id="pm-del">🗑 Удалить проект</button></div>';
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
+  sheet.querySelector('#pm-add').onclick=()=>{closeSheet();stepAdd(id);};
+  sheet.querySelector('#pm-ren').onclick=()=>{closeSheet();projRename(id,p.name);};
+  sheet.querySelector('#pm-arch').onclick=()=>{closeSheet();
+    mutate(()=>{DATA.projects=(DATA.projects||[]).filter(x=>x.id!==id);},'/api/proj_archive',{id});};
+  sheet.querySelector('#pm-del').onclick=()=>{closeSheet();projDel(id,p.name);};
+}
+
+// ─── стратегические цели (Мостик) ───
+function _sgoal(id){return (DATA.sgoals||[]).find(g=>g.id===id);}
+async function addSGoal(){
+  const t=await uiPrompt('Стратегическая цель (крупно, на месяцы):','');
+  if(!t||!t.trim())return;
+  const target=await uiPrompt('Горизонт (напр. «до дек 2026», можно пусто):','');
+  mutate(()=>{if(!DATA.sgoals)DATA.sgoals=[];DATA.sgoals.push({id:_tmpId(),text:t.trim(),target:(target||'').trim(),progress:0});},
+    '/api/sgoal_add',{text:t.trim(),target:(target||'').trim()});
+}
+function openSGoal(id){
+  const g=_sgoal(id);if(!g)return;
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const pct=Math.max(0,Math.min(100,g.progress||0));
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">🎯 '+esc(g.text)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="ssub">'+(g.target?'горизонт: '+esc(g.target):'горизонт не задан')+'</div>'+
+    '<div class="slider-row" style="margin-top:14px"><div class="sl-top"><span>Прогресс</span><span class="val" id="sg-val">'+pct+'%</span></div>'+
+    '<input type="range" min="0" max="100" step="5" value="'+pct+'" id="sg-prog" class="urg"></div>'+
+    '<div class="sh-actions" style="flex-direction:column;gap:8px">'+
+    '<button class="sh-btn" id="sg-done">🏆 Достигнута</button>'+
+    '<button class="sh-btn" id="sg-ren">✏️ Название</button>'+
+    '<button class="sh-btn" id="sg-target">📅 Горизонт</button>'+
+    '<button class="sh-btn danger" id="sg-del">🗑 Удалить</button></div>';
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
+  const slider=sheet.querySelector('#sg-prog'),val=sheet.querySelector('#sg-val');
+  slider.oninput=()=>{val.textContent=slider.value+'%';};
+  slider.onchange=()=>{const p=+slider.value;mutate(()=>{const x=_sgoal(id);if(x)x.progress=p;},'/api/sgoal_update',{id,progress:p});};
+  sheet.querySelector('#sg-done').onclick=()=>{closeSheet();
+    mutate(()=>{DATA.sgoals=(DATA.sgoals||[]).filter(x=>x.id!==id);},'/api/sgoal_update',{id,done:1});};
+  sheet.querySelector('#sg-ren').onclick=async()=>{
+    const t=await uiPrompt('Название цели:',g.text);
+    if(t&&t.trim())mutate(()=>{const x=_sgoal(id);if(x)x.text=t.trim();},'/api/sgoal_update',{id,text:t.trim()});};
+  sheet.querySelector('#sg-target').onclick=async()=>{
+    const t=await uiPrompt('Горизонт (напр. «до дек 2026»):',g.target||'');
+    if(t!==null)mutate(()=>{const x=_sgoal(id);if(x)x.target=t.trim();},'/api/sgoal_update',{id,target:t.trim()});};
+  sheet.querySelector('#sg-del').onclick=()=>{closeSheet();
+    mutate(()=>{DATA.sgoals=(DATA.sgoals||[]).filter(x=>x.id!==id);},'/api/sgoal_delete',{id});};
 }
 
 function renderMatrix(open){
@@ -3034,12 +3179,15 @@ class Handler(BaseHTTPRequestHandler):
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
             "/api/card_comment": api_card_comment,
+            "/api/sgoal_add": api_sgoal_add, "/api/sgoal_update": api_sgoal_update,
+            "/api/sgoal_delete": api_sgoal_delete,
         }
         if path in routes:
             result = routes[path](payload)
         elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
                       "/api/step_rename", "/api/proj_rename", "/api/proj_delete",
-                      "/api/proj_archive", "/api/step_reorder", "/api/step_move"):
+                      "/api/proj_archive", "/api/step_reorder", "/api/step_move",
+                      "/api/proj_add"):
             result = api_steps(path, payload)
         else:
             result = {"ok": False}
