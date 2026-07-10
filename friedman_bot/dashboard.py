@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.21"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.22"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -203,7 +203,7 @@ def ensure_schema(conn):
         conn.execute("ALTER TABLE goals ADD COLUMN progress INTEGER DEFAULT 0")
     if "target" not in g_cols:
         conn.execute("ALTER TABLE goals ADD COLUMN target TEXT")
-    # projects: morning brief flag
+    # projects: morning brief flag + перспективные поступления (ожидаемый профит)
     pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
     if pr_cols:
         if "morning_brief" not in pr_cols:
@@ -212,6 +212,12 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0")
         if "archived_at" not in pr_cols:
             conn.execute("ALTER TABLE projects ADD COLUMN archived_at TEXT")
+        if "expected_income" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN expected_income REAL DEFAULT 0")
+        if "income_date" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN income_date TEXT")
+        if "income_status" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN income_status TEXT DEFAULT 'lead'")
     if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
         conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
             ("Идеи","#5b9dff",0),("В работе","#ff9aa6",1),
@@ -523,6 +529,31 @@ def api_steps(path, payload):
             name = (payload.get("name") or "").strip()
             if name:
                 conn.execute("INSERT INTO projects (name, area) VALUES (?, 'work')", (name,))
+    return {"ok": True}
+
+
+def api_proj_income(payload):
+    """Ожидаемый профит проекта. Стадии: lead → agreed → invoiced → paid.
+    При 'paid' сумма конвертируется в реальный приход (finance) и обнуляется."""
+    pid = payload["id"]
+    status = payload.get("status") if payload.get("status") in ("lead", "agreed", "invoiced", "paid") else "lead"
+    with db() as conn:
+        if status == "paid":
+            row = conn.execute("SELECT name, expected_income FROM projects WHERE id=?", (pid,)).fetchone()
+            amt = float(payload.get("amount") if payload.get("amount") is not None else (row["expected_income"] if row else 0)) or 0
+            if amt > 0:
+                acc = payload.get("account") if payload.get("account") in ("cash", "card") else "card"
+                name = row["name"] if row else "проект"
+                conn.execute("INSERT INTO finance (amount, comment, account) VALUES (?,?,?)",
+                             (amt, f"оплата проекта: {name}", acc))
+            conn.execute("UPDATE projects SET expected_income=0, income_status='paid' WHERE id=?", (pid,))
+        else:
+            sets, vals = ["income_status=?"], [status]
+            if "amount" in payload:
+                sets.append("expected_income=?"); vals.append(max(0.0, float(payload.get("amount") or 0)))
+            if "date" in payload:
+                sets.append("income_date=?"); vals.append((payload.get("date") or "").strip() or None)
+            conn.execute(f"UPDATE projects SET {', '.join(sets)} WHERE id=?", (*vals, pid))
     return {"ok": True}
 
 
@@ -1086,6 +1117,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .dlegend .lg-soon2{background:linear-gradient(180deg,#ff7a45,#ffa870)}
 .dlegend .lg-mid{background:linear-gradient(180deg,#ffc657,#ffe08a)}
 .dlegend .lg-far{background:linear-gradient(180deg,#5b9dff,#86b8ff)}
+.dlegend .lg-lead{background:linear-gradient(180deg,#5b9dff,#86b8ff)}
+.dlegend .lg-agreed{background:linear-gradient(180deg,#ffb648,#ffd07a)}
+.dlegend .lg-invoiced{background:linear-gradient(180deg,#52e08a,#7fe0c4)}
+/* бейдж ожидаемого профита на карточке проекта */
+.pinc{font-size:10px;font-weight:800;padding:5px 9px;border-radius:10px;margin-bottom:7px;cursor:pointer;text-align:center}
+/* Прогноз денежного потока */
+.forecast{padding:15px 16px;border-radius:20px;margin-bottom:14px}
+.forecast .fc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.forecast .fc-h{font-size:14px;font-weight:800}
+.forecast .fc-per{display:flex;gap:3px;background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:10px;padding:2px}
+.forecast .fc-per button{font-size:11px;font-weight:700;color:var(--muted);background:transparent;border:none;padding:5px 10px;border-radius:8px;cursor:pointer}
+.forecast .fc-per button.on{color:#fff;background:linear-gradient(135deg,var(--blue),var(--violet))}
+.forecast .fc-line{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;font-weight:600;color:var(--muted);padding:5px 0;line-height:1.3}
+.forecast .fc-line b{font-weight:800;color:var(--txt);flex-shrink:0}
+.forecast .fc-line.pos b{color:#52e08a}
+.forecast .fc-line.neg b{color:#ff9aa6}
+.forecast .fc-res{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:9px;padding:12px 13px;border-radius:14px;font-size:14px;font-weight:800}
+.forecast .fc-res b{font-size:18px}
+.forecast .fc-res.ok{background:rgba(82,224,138,.14);color:#7fe0a8}
+.forecast .fc-res.gap{background:rgba(255,107,125,.16);color:#ff9aa6}
+.forecast .fc-cov{font-size:11px;font-weight:700;color:var(--muted);margin-top:9px;text-align:center}
+.forecast .fc-cov b{color:#86b8ff}
 .dbar .col.pnow{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 0 16px rgba(255,77,94,.5)}
 .dbar .col .pico{font-size:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
 .dbar .pay-sub{font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;background:rgba(255,255,255,.08);color:var(--muted)}
@@ -1372,6 +1425,16 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
         <span><i class="lg-far"></i>дальше</span>
       </div>
     </div>
+    <div class="block glass" id="income-block" style="display:none">
+      <div class="bh"><div class="t">💰 Карта поступлений <span class="sm">ожидаемый профит</span></div><div class="cnt" id="income-total"></div></div>
+      <div class="debtchart" id="incomechart"></div>
+      <div class="dlegend">
+        <span><i class="lg-lead"></i>лид</span>
+        <span><i class="lg-agreed"></i>согласовано</span>
+        <span><i class="lg-invoiced"></i>счёт выставлен</span>
+      </div>
+    </div>
+    <div class="forecast glass" id="forecast" style="display:none"></div>
     <div class="daysum" id="daysum"></div>
     <div class="block glass">
       <div class="bh"><div class="t">🔴 Текущие задолженности</div><div class="cnt" id="cur-cnt"></div></div>
@@ -1626,6 +1689,8 @@ function renderProjectBoard(d){
     const ideaCards=linkedIdeas.map(c=>
       '<div class="kcard pidea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+
       '💡 '+esc(c.text)+'</div>').join('');
+    const incM=(p.expected_income||0)>0&&p.income_status!=='paid'?(INCOME_META[p.income_status||'lead']||INCOME_META.lead):null;
+    const incBadge=incM?'<div class="pinc" style="background:'+incM.bg+';color:'+incM.chip+'" onclick="event.stopPropagation();projIncome('+p.id+')">💰 '+eur(p.expected_income||0)+' · '+incM.label+'</div>':'';
     return '<div class="kol pcol" data-proj-id="'+p.id+'">'+
       '<div class="kol-head" onclick="projMenu(event,'+p.id+')">'+
         '<div class="kh-dot" style="background:linear-gradient(135deg,var(--blue),var(--violet))"></div>'+
@@ -1634,6 +1699,7 @@ function renderProjectBoard(d){
         '<div class="kh-more">···</div>'+
       '</div>'+
       '<div class="pcol-bar"><div class="pcol-fill" style="width:'+pct+'%"></div></div>'+
+      incBadge+
       stepCards+ideaCards+
       '<button class="kadd" onclick="stepAdd('+p.id+')">＋ шаг</button>'+
     '</div>';
@@ -1658,6 +1724,7 @@ function projMenu(ev,id){
     '<div class="ssub">'+done+' из '+total+' шагов готово</div>'+
     '<div class="sh-actions" style="flex-direction:column;gap:8px">'+
     '<button class="sh-btn" id="pm-add">＋ Шаг</button>'+
+    '<button class="sh-btn" id="pm-inc">💰 Ожидаемый профит</button>'+
     '<button class="sh-btn" id="pm-ren">✏️ Переименовать проект</button>'+
     '<button class="sh-btn" id="pm-arch">🏆 В архив (завершён)</button>'+
     '<button class="sh-btn danger" id="pm-del">🗑 Удалить проект</button></div>';
@@ -1665,6 +1732,7 @@ function projMenu(ev,id){
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
   sheet.querySelector('#pm-add').onclick=()=>{closeSheet();stepAdd(id);};
+  sheet.querySelector('#pm-inc').onclick=()=>{closeSheet();projIncome(id);};
   sheet.querySelector('#pm-ren').onclick=()=>{closeSheet();projRename(id,p.name);};
   sheet.querySelector('#pm-arch').onclick=()=>{closeSheet();
     mutate(()=>{DATA.projects=(DATA.projects||[]).filter(x=>x.id!==id);},'/api/proj_archive',{id});};
@@ -1831,6 +1899,8 @@ function renderFinance(){
   // payments
   const pays=d.payments||[];
   renderPaymentChart(d);
+  renderIncomeChart(d);
+  renderForecast(d);
   const monthly=pays.filter(p=>p.kind==='recurring'&&p.recur==='monthly').reduce((a,b)=>a+b.amount,0);
   document.getElementById('pay-cnt').textContent=pays.length?pays.length+' · '+eur(monthly)+'/мес':'нет';
   document.getElementById('payments').innerHTML=pays.length?pays.map(p=>{
@@ -1963,6 +2033,103 @@ function openPayment(id){
   if(dateBtn)dateBtn.onclick=async()=>{const r=await uiDate('Дата платежа',p.date,{clear:'Без срока'});if(r===undefined)return;mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.date=r||null;},'/api/payment_update',{id,date:r||''});};
   sheet.querySelector('#pay-del').onclick=()=>{closeSheet();delPayment(id);};
 }
+
+// ─── Перспективные поступления (ожидаемый профит проектов) ───
+// Стадии воронки: lead → agreed → invoiced (→ paid уходит в баланс). Вес — уверенность в прогнозе.
+const INCOME_META={
+  lead:    {w:0.5, label:'лид',           col:'linear-gradient(180deg,#5b9dff,#86b8ff)', chip:'#86b8ff', bg:'rgba(91,157,255,.16)'},
+  agreed:  {w:0.8, label:'согласовано',   col:'linear-gradient(180deg,#ffb648,#ffd07a)', chip:'#ffd07a', bg:'rgba(255,198,87,.16)'},
+  invoiced:{w:0.95,label:'счёт выставлен',col:'linear-gradient(180deg,#52e08a,#7fe0c4)', chip:'#7fe0c4', bg:'rgba(82,224,138,.16)'},
+};
+function _incomeProjects(d){return (d.projects||[]).filter(p=>(p.expected_income||0)>0&&p.income_status!=='paid');}
+function _incDays(p){if(!p.income_date)return null;const dt=new Date(p.income_date+'T00:00');if(isNaN(dt))return null;const n=new Date();n.setHours(0,0,0,0);return Math.round((dt-n)/864e5);}
+function renderIncomeChart(d){
+  const block=document.getElementById('income-block');if(!block)return;
+  const arr=_incomeProjects(d);
+  if(!arr.length){block.style.display='none';return;}
+  block.style.display='block';
+  const sorted=arr.slice().sort((a,b)=>(b.expected_income||0)-(a.expected_income||0));
+  const maxA=Math.max(1,...sorted.map(p=>p.expected_income||0));
+  const total=sorted.reduce((s,p)=>s+(p.expected_income||0),0);
+  const weighted=sorted.reduce((s,p)=>s+(p.expected_income||0)*(INCOME_META[p.income_status||'lead']||INCOME_META.lead).w,0);
+  document.getElementById('income-total').textContent='+'+eur(total)+' · ~'+eur(weighted)+' взвеш.';
+  document.getElementById('incomechart').innerHTML=sorted.map(p=>{
+    const m=INCOME_META[p.income_status||'lead']||INCOME_META.lead;
+    const h=Math.round(24+((p.expected_income||0)/maxA)*104);
+    const dnum=_incDays(p);
+    const dlabel=dnum==null?'—':(dnum<=0?'ждём':dnum+'д');
+    return '<div class="dbar" onclick="projIncome('+p.id+')">'+
+      '<div class="dbar-amt">'+eur(p.expected_income||0).replace(/\s?€/,'')+'</div>'+
+      '<div class="col" style="height:'+h+'px;background:'+m.col+'"></div>'+
+      '<div class="nm">'+esc(p.name)+'</div>'+
+      '<div class="pay-sub" style="background:'+m.bg+';color:'+m.chip+'">'+dlabel+'</div></div>';
+  }).join('');
+}
+// Прогноз денежного потока: хватит ли ожидаемых поступлений на потребности периода
+function renderForecast(d){
+  const el=document.getElementById('forecast');if(!el)return;
+  const inc=_incomeProjects(d);
+  const pays=(d.payments||[]).filter(p=>p.active!==0);
+  const debts=d.debts||[];
+  if(!inc.length && !pays.length && !debts.some(x=>x.due_date)){el.style.display='none';return;}
+  const period=_fcPeriod;
+  const inPeriod=days=>days!=null&&days<=period;
+  // ожидаемые поступления периода (нет даты → считаем, что придут; взвешиваем по стадии)
+  let expW=0,expRaw=0;
+  inc.forEach(p=>{const dn=_incDays(p);if(dn==null||dn<=period){const w=(INCOME_META[p.income_status||'lead']||INCOME_META.lead).w;expW+=(p.expected_income||0)*w;expRaw+=(p.expected_income||0);}});
+  // потребности периода: платежи + остаток долгов с дедлайном в периоде
+  let needPay=0;pays.forEach(p=>{const i=_payInfo(p);if(inPeriod(i.days))needPay+=(p.amount||0);});
+  let needDebt=0;debts.forEach(x=>{const u=_debtUrg(x);if(!u.paid&&u.days!=null&&u.days<=period)needDebt+=_rem(x);});
+  const need=needPay+needDebt;
+  const bal=d.balance||0;
+  const projected=bal+expW-need;
+  const ok=projected>=0;
+  const coverage=need>0?Math.round((bal+expW)/need*100):null;
+  el.style.display='block';
+  el.innerHTML=
+    '<div class="fc-top"><div class="fc-h">🔮 Прогноз потока</div>'+
+      '<div class="fc-per"><button data-p="30" class="'+(period===30?'on':'')+'">30 дн</button><button data-p="60" class="'+(period===60?'on':'')+'">60 дн</button></div></div>'+
+    '<div class="fc-line"><span>Сейчас на счетах</span><b>'+eur(bal)+'</b></div>'+
+    '<div class="fc-line pos"><span>+ Ожидаемо (взвеш.)</span><b>+'+eur(expW)+'</b></div>'+
+    '<div class="fc-line neg"><span>− Потребности ('+eur(needPay)+' платежи · '+eur(needDebt)+' долги)</span><b>−'+eur(need)+'</b></div>'+
+    '<div class="fc-res '+(ok?'ok':'gap')+'"><span>'+(ok?'🟢 Хватает, остаётся':'🔴 Разрыв')+'</span><b>'+eur(projected)+'</b></div>'+
+    (coverage!=null?'<div class="fc-cov">Покрытие потребностей: <b>'+coverage+'%</b> · сырьём ожидается +'+eur(expRaw)+'</div>':'');
+  el.querySelectorAll('.fc-per button').forEach(b=>b.onclick=()=>{_fcPeriod=+b.dataset.p;renderForecast(DATA);});
+}
+let _fcPeriod=30;
+function projIncome(id){
+  const p=_proj(id);if(!p)return;
+  closeSheet();
+  const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
+  const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const cur=p.expected_income||0,st=p.income_status||'lead';
+  const stages=[['lead','🔵 Лид'],['agreed','🟡 Согласовано'],['invoiced','🟠 Счёт выставлен']];
+  sheet.innerHTML='<div class="grab"></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">💰 Ожидаемый профит</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="ssub">'+esc(p.name)+'</div>'+
+    '<input class="ui-input" id="pi-amt" type="number" inputmode="decimal" placeholder="Сумма €" value="'+(cur||'')+'" style="margin-top:12px">'+
+    '<div class="bal-acc" id="pi-stage">'+stages.map(s=>'<button data-s="'+s[0]+'" class="'+(st===s[0]?'on':'')+'">'+s[1]+'</button>').join('')+'</div>'+
+    '<button class="sh-btn" id="pi-date" style="margin-top:10px;width:100%">📅 Дата оплаты'+(p.income_date?' · '+fmtDate(p.income_date):'')+'</button>'+
+    '<div class="bal-btns" style="margin-top:12px">'+
+      '<button class="bal-b set" id="pi-save">💾 Сохранить</button>'+
+      '<button class="bal-b in" id="pi-paid">✅ Оплачено</button></div>'+
+    (cur?'<div class="addr" onclick="projIncomeClear('+id+')" style="cursor:pointer;color:#ff9aa6;text-align:center">убрать ожидаемый профит</div>':'');
+  document.body.appendChild(sheet);
+  requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
+  _swipeDismiss(sheet,closeSheet);
+  let stage=st,newDate=p.income_date||null;
+  sheet.querySelector('#pi-stage').querySelectorAll('button').forEach(b=>b.onclick=()=>{stage=b.dataset.s;sheet.querySelector('#pi-stage').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));});
+  sheet.querySelector('#pi-date').onclick=async()=>{const r=await uiDate('Дата оплаты',newDate,{clear:'Без даты'});if(r===undefined)return;newDate=r||null;sheet.querySelector('#pi-date').textContent='📅 Дата оплаты'+(newDate?' · '+fmtDate(newDate):'');};
+  sheet.querySelector('#pi-save').onclick=()=>{
+    const v=parseFloat(sheet.querySelector('#pi-amt').value)||0;closeSheet();
+    mutate(()=>{const x=_proj(id);if(x){x.expected_income=v;x.income_status=stage;x.income_date=newDate;}},'/api/proj_income',{id,amount:v,status:stage,date:newDate||''});
+  };
+  sheet.querySelector('#pi-paid').onclick=()=>{
+    const v=parseFloat(sheet.querySelector('#pi-amt').value)||cur;closeSheet();
+    mutate(()=>{const x=_proj(id);if(x){x.expected_income=0;x.income_status='paid';}DATA.balance=(DATA.balance||0)+v;DATA.card=(DATA.card||0)+v;if(!DATA.fin_log)DATA.fin_log=[];DATA.fin_log.unshift({id:_tmpId(),amount:v,account:'card',comment:'оплата проекта: '+p.name,created_at:new Date().toISOString()});},'/api/proj_income',{id,status:'paid',amount:v});
+  };
+}
+function projIncomeClear(id){closeSheet();mutate(()=>{const x=_proj(id);if(x){x.expected_income=0;x.income_status='lead';x.income_date=null;}},'/api/proj_income',{id,amount:0,status:'lead',date:''});}
 
 // ─── project actions ───
 function toggleProj(id){openProjects.has(id)?openProjects.delete(id):openProjects.add(id);render();}
@@ -3566,6 +3733,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/event_delete": api_event_delete, "/api/event_update": api_event_update,
             "/api/chaos_set_project": api_chaos_set_project,
             "/api/proj_set_morning": api_proj_set_morning,
+            "/api/proj_income": api_proj_income,
             "/api/card_comment": api_card_comment,
             "/api/sgoal_add": api_sgoal_add, "/api/sgoal_update": api_sgoal_update,
             "/api/sgoal_delete": api_sgoal_delete,
