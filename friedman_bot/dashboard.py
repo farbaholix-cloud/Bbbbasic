@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.12"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.13"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -869,6 +869,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .bh .t{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
 .bh .t .sm{font-size:10px;color:var(--faint);font-weight:700}
 .bh .cnt{font-size:10.5px;color:var(--muted);font-weight:700;padding:3px 10px;border-radius:12px;background:var(--glass2);border:1px solid var(--rim)}
+.cal-seg{display:flex;gap:2px;background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:11px;padding:2px}
+.cal-seg .cs{font-size:11px;font-weight:700;color:var(--muted);background:transparent;border:none;padding:5px 11px;border-radius:9px;cursor:pointer;transition:background .18s,color .18s}
+.cal-seg .cs.on{color:#fff;background:linear-gradient(135deg,var(--blue),var(--violet))}
+.cal-msep{font-size:11px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin:12px 2px 5px}
+.cal-msep:first-child{margin-top:0}
 .matrix{position:relative;width:100%;height:344px;border-radius:20px;overflow:hidden;border:1px solid var(--rim);
   background:
    radial-gradient(62% 60% at 100% 0%, rgba(255,107,125,.32), transparent 58%),
@@ -1233,7 +1238,12 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       <div class="mhint">✋ тапни точку или задачу → оцени важность/срочность</div>
     </div>
     <div class="block glass">
-      <div class="bh"><div class="t">📅 Прошивка календаря <span class="sm">эта неделя</span></div><div class="cnt">эта неделя</div></div>
+      <div class="bh"><div class="t">📅 Прошивка календаря</div>
+        <div class="cal-seg" id="cal-seg">
+          <button class="cs on" data-r="week" onclick="setCalRange('week')">неделя</button>
+          <button class="cs" data-r="month" onclick="setCalRange('month')">месяц</button>
+          <button class="cs" data-r="year" onclick="setCalRange('year')">год</button>
+        </div></div>
       <div id="cal"></div>
       <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
     </div>
@@ -1607,22 +1617,38 @@ function renderMatrix(open){
   m.innerHTML=html;
 }
 
+let _calRange='week';
+function setCalRange(r){
+  _calRange=r;
+  document.querySelectorAll('#cal-seg .cs').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
+  renderCal();
+}
 function renderCal(){
   const now=new Date();const dow=(now.getDay()+6)%7;
-  const mon=new Date(now);mon.setDate(now.getDate()-dow);
+  const mon=new Date(now);mon.setDate(now.getDate()-dow);mon.setHours(0,0,0,0);
   const todayISO=localISO(now);
+  // границы выбранного диапазона: неделя (пн–вс) / месяц / год
+  let start,end;
+  if(_calRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,1);}
+  else if(_calRange==='year'){start=new Date(now.getFullYear(),0,1);end=new Date(now.getFullYear()+1,0,1);}
+  else {start=new Date(mon);end=new Date(mon);end.setDate(mon.getDate()+7);}
+  const startISO=localISO(start),endISO=localISO(end);
   const dates=new Set();
-  for(let i=0;i<7;i++){const dd=new Date(mon);dd.setDate(mon.getDate()+i);const ds=localISO(dd);if(ds>=todayISO)dates.add(ds);}
-  DATA.cards.forEach(c=>{if(c.date)dates.add(c.date);});
+  if(_calRange==='week'){for(let i=0;i<7;i++){const dd=new Date(mon);dd.setDate(mon.getDate()+i);const ds=localISO(dd);if(ds>=todayISO)dates.add(ds);}}
+  DATA.cards.forEach(c=>{if(c.date&&c.date>=startISO&&c.date<endISO)dates.add(c.date);});
   const sorted=[...dates].sort();
   let html='';
+  let curMonth=-1;
   for(const ds of sorted){
     const dd=new Date(ds+'T00:00');
     const evs=DATA.cards.filter(e=>e.date===ds);
     if(!evs.length)continue;
+    // в режиме «год» — разделители по месяцам
+    if(_calRange==='year'&&dd.getMonth()!==curMonth){curMonth=dd.getMonth();html+='<div class="cal-msep">'+MONTHS[curMonth]+'</div>';}
     const today=ds===todayISO;const past=ds<todayISO;
     const inWeek=dd>=mon&&(dd-mon)<7*864e5;
-    const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(inWeek?'':' '+MONTHS[dd.getMonth()])+(past?' ⚠️':'')+(today?' · сегодня':'');
+    const showMonth=_calRange!=='week'||!inWeek;
+    const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(showMonth?' '+MONTHS[dd.getMonth()]:'')+(past?' ⚠️':'')+(today?' · сегодня':'');
     html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past?'past':'')+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
       evs.map(e=>{
@@ -1641,7 +1667,8 @@ function renderCal(){
           tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
       }).join('')+'</div>';
   }
-  document.getElementById('cal').innerHTML=html||'<div class="empty">на этой неделе пусто</div>';
+  const emptyMsg={week:'на этой неделе пусто',month:'в этом месяце пусто',year:'в этом году пусто'}[_calRange];
+  document.getElementById('cal').innerHTML=html||'<div class="empty">'+emptyMsg+'</div>';
 }
 
 function renderFinance(){
