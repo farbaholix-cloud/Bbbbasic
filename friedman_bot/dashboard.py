@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.23"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.24"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1425,16 +1425,6 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 
   <div class="page" id="page-fin">
     <div class="fin-cards" id="fin-cards"></div>
-    <div class="block glass" id="debtchart-block" style="display:none">
-      <div class="bh"><div class="t">📊 Карта долгов</div><div class="cnt" id="debt-total"></div></div>
-      <div class="debtchart" id="debtchart"></div>
-      <div class="dlegend">
-        <span><i class="lg-r"></i>срочный</span>
-        <span><i class="lg-a"></i>скоро</span>
-        <span><i class="lg-b"></i>обычный</span>
-        <span><i class="lg-ok"></i>погашен</span>
-      </div>
-    </div>
     <div class="block glass" id="paychart-block" style="display:none">
       <div class="bh"><div class="t">📆 Карта платежей <span class="sm">чем ближе — тем краснее</span></div><div class="cnt" id="pay-total"></div></div>
       <div class="debtchart" id="paychart"></div>
@@ -1452,6 +1442,16 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
         <span><i class="lg-lead"></i>лид</span>
         <span><i class="lg-agreed"></i>согласовано</span>
         <span><i class="lg-invoiced"></i>счёт выставлен</span>
+      </div>
+    </div>
+    <div class="block glass" id="debtchart-block" style="display:none">
+      <div class="bh"><div class="t">📊 Карта долгов</div><div class="cnt" id="debt-total"></div></div>
+      <div class="debtchart" id="debtchart"></div>
+      <div class="dlegend">
+        <span><i class="lg-r"></i>срочный</span>
+        <span><i class="lg-a"></i>скоро</span>
+        <span><i class="lg-b"></i>обычный</span>
+        <span><i class="lg-ok"></i>погашен</span>
       </div>
     </div>
     <div class="forecast glass" id="forecast" style="display:none"></div>
