@@ -73,9 +73,11 @@ SCALE = 3
 
 CSS = """
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:390px;height:844px;overflow:hidden}
+/* Высота НЕ фиксирована: короткая сводка = ровно экран iPhone (min-height),
+   длинная — растёт вниз, картинка получается выше экрана (листаешь). */
+html,body{width:390px;overflow:hidden}
 body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;color:#f4f6fb;position:relative;
-  background:#0a0b14}
+  min-height:844px;background:#0a0b14}
 .bg{position:absolute;inset:0;z-index:0;
   background:
    radial-gradient(46% 30% at 16% 6%, rgba(91,157,255,.62), transparent 60%),
@@ -84,7 +86,7 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
    radial-gradient(56% 34% at 6% 88%, rgba(255,122,192,.42), transparent 60%),
    radial-gradient(50% 28% at 50% 44%, rgba(255,198,87,.16), transparent 60%),
    linear-gradient(165deg,#0e1126,#0a0b14 65%)}
-.wrap{position:absolute;inset:0;z-index:1;padding:40px 18px 14px;display:flex;flex-direction:column;gap:8px}
+.wrap{position:relative;z-index:1;min-height:844px;padding:40px 18px 14px;display:flex;flex-direction:column;gap:8px}
 .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(26px) saturate(180%);
   border:1px solid rgba(255,255,255,.2);border-radius:22px;box-shadow:0 8px 26px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.32)}
 .head{display:flex;align-items:center;gap:12px}
@@ -118,6 +120,13 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
 .hiphop{padding:12px 15px;border-radius:18px;font-size:13px;font-weight:600;line-height:1.42;
   background:linear-gradient(135deg,rgba(255,198,87,.16),rgba(255,107,125,.11));border:1px solid rgba(255,198,87,.32)}
 .hiphop .t{font-weight:800;color:#ffd07a}
+.legal{padding:13px 15px;border-radius:18px;
+  background:linear-gradient(135deg,rgba(91,157,255,.16),rgba(65,227,212,.10));border:1px solid rgba(91,157,255,.34)}
+.legal .h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9dc0ff;margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.legal .body{font-size:13px;font-weight:600;line-height:1.5;color:#eef0f4}
+.legal .imp{font-size:12px;font-weight:600;color:rgba(235,240,250,.72);margin-top:7px;line-height:1.42}
+.legal .meta{font-size:10.5px;font-weight:700;color:rgba(235,240,250,.48);margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;gap:8px}
+.legal .meta .cf{color:#7fe0c4}
 /* Баланс счастья — «звезда Ж» из вкладки Счастье, внизу сводки */
 .hap{margin-top:auto;padding:12px 15px 13px}
 .hap .h{margin-bottom:2px}
@@ -186,6 +195,21 @@ def build_html(d):
     if d.get("hiphop"):
         parts.append(f'<div class="hiphop"><span class="t">🎤 Хип-хоп календарь:</span> {_esc(d["hiphop"])}</div>')
 
+    # Свежие немецкие/ЕС правовые новости для украинцев призывного возраста
+    legal = d.get("ua_legal") or {}
+    if legal.get("summary"):
+        imp = (f'<div class="imp">🎯 {_esc(legal["importance"])}</div>' if legal.get("importance") else "")
+        meta_bits = []
+        if legal.get("date"):
+            meta_bits.append(f'<span>🗓 {_esc(legal["date"])}</span>')
+        if legal.get("confidence"):
+            meta_bits.append(f'<span class="cf">✓ достоверность: {_esc(legal["confidence"])}</span>')
+        meta = f'<div class="meta">{"".join(meta_bits)}</div>' if meta_bits else ""
+        parts.append(
+            '<div class="legal">'
+            '<div class="h">🛂 Украинцы призывного возраста · DE/ЕС</div>'
+            f'<div class="body">{_esc(legal["summary"])}</div>{imp}{meta}</div>')
+
     # Внизу — «звезда счастья» (бывшая заглушка «Ж»), красиво вписанная в дизайн
     parts.append(_happiness_block(d.get("happiness")))
 
@@ -207,8 +231,10 @@ def render_brief_jpeg(d, out_path):
                                 device_scale_factor=SCALE)
         page.set_content(htmltext, wait_until="networkidle")
         page.wait_for_timeout(250)
-        page.screenshot(path=out_path, type="jpeg", quality=92,
-                        clip={"x": 0, "y": 0, "width": IPHONE_W, "height": IPHONE_H})
+        # full_page: если сводка выше экрана iPhone — картинка получается длинной,
+        # владелец пролистывает её при необходимости (min-height держит короткие
+        # сводки ровно в один экран).
+        page.screenshot(path=out_path, type="jpeg", quality=92, full_page=True)
         browser.close()
     return out_path
 
@@ -224,6 +250,12 @@ if __name__ == "__main__":
         "balance": 220, "cash": 340, "card": -120,
         "holiday": "Международный день уличного искусства — твой день, FARBAHOLIX 🎨",
         "hiphop": "Сегодня ДР у MF DOOM 🕊 — легенда андеграунда, мастер метафор.",
+        "ua_legal": {
+            "summary": "Временная защита §24 продлена до 04.03.2026 · BAMF: смена статуса на §24a возможна с 2025 · дискуссия в ЕС о правилах выезда мужчин 18–60 — решений пока нет",
+            "importance": "Касается напрямую: твой статус §24 продлён, срочных действий не требуется.",
+            "confidence": "высокая — источники BAMF и Bundesregierung",
+            "date": "новости за последние 3 недели",
+        },
         "happiness": {"work": 4, "friendship": 3, "health": 5, "wellbeing": 2, "hobby": 4, "love": 3},
     }
     out = os.path.join(os.path.dirname(__file__), "brief_sample.jpg")

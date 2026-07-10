@@ -2554,6 +2554,58 @@ def culture_for_today_sync() -> dict:
     return {}
 
 
+def legal_news_ua_men_sync() -> dict:
+    """Свежие новости немецкого/ЕС законодательства о пребывании украинцев
+    призывного возраста (муж. 18–60) в Германии и ЕС. Веб-исследование через
+    Claude CLI + WebSearch с оценкой достоверности и важности. Кэш — на сутки
+    (settings-ключ на дату), чтобы /brief несколько раз в день не перезапрашивал.
+    Тихо возвращает {} при сбое сети."""
+    cache_key = "ua_legal_brief:" + datetime.now().strftime("%Y-%m-%d")
+    cached = _settings_get(cache_key)
+    if cached:
+        try:
+            return jsonlib.loads(cached)
+        except Exception:
+            pass
+    today = datetime.now().strftime("%d.%m.%Y")
+    prompt = (
+        f"Сегодня {today}. Найди через WebSearch/WebFetch САМЫЕ СВЕЖИЕ (за последние ~2-4 недели) "
+        "новости и официальные публикации Германии и ЕС по теме: правовой статус и пребывание "
+        "УКРАИНЦЕВ ПРИЗЫВНОГО ВОЗРАСТА — мужчин 18–60 лет — в Германии и Евросоюзе. "
+        "Смотри: продление временной защиты (§24 AufenthG / EU Massenzustrom-Richtlinie, сроки до 2026/2027), "
+        "изменения по Aufenthaltstitel/Bürgergeld/Jobcenter для этой группы, украинские правила выезда/паспортов/"
+        "консульских услуг за границей и их влияние на статус в ЕС, любые решения ЕС/Бундестага/BAMF/МВД (BMI), "
+        "заявления о возможной депортации/невыезде/мобилизации в контексте пребывания в Германии. "
+        "Приоритет надёжным источникам: bamf.de, bundesregierung.de, auswaertiges-amt.de, bmi.bund.de, "
+        "tagesschau.de, mediendienst-integration.de, официальные пресс-релизы ЕС. "
+        "Проверяй даты и первоисточник, не выдумывай. Верни СТРОГО JSON без пояснений: "
+        '{"summary":"...","importance":"...","confidence":"...","date":"..."}. '
+        "summary — 1–3 очень коротких пункта самого важного и свежего (по-русски, через « · » как разделитель, "
+        "без воды); если реально ничего нового за период — напиши «существенных изменений нет, статус прежний». "
+        "importance — одной фразой, касается ли это лично украинца-мужчины призывного возраста на §24 в Германии. "
+        "confidence — оценка достоверности: «высокая/средняя/низкая» + очень кратко почему (офиц. источник или СМИ). "
+        "date — период/дата новостей."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt,
+             "--allowedTools", "WebSearch,WebFetch",
+             "--model", "haiku", "--max-turns", "10"],
+            capture_output=True, text=True, timeout=200,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+        )
+        raw = result.stdout.strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s >= 0 and e > s:
+            data = jsonlib.loads(raw[s:e + 1])
+            if data.get("summary"):
+                _settings_set(cache_key, jsonlib.dumps(data, ensure_ascii=False))
+                return data
+    except Exception as ex:
+        log.error(f"legal_news_ua: {ex}")
+    return {}
+
+
 async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     chat_id = get_chat_id()
     if not chat_id:
@@ -2610,6 +2662,8 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     from wisdom import today_wisdom
     # Культурная справка (праздник дня + хип-хоп календарь)
     culture = await asyncio.to_thread(culture_for_today_sync)
+    # Свежие немецкие/ЕС правовые новости про украинцев призывного возраста (кэш на день)
+    ua_legal = await asyncio.to_thread(legal_news_ua_men_sync)
 
     lines = [f"☀️ *Доброе утро, Слава!*\n", f"_{today_wisdom()}_\n"]
 
@@ -2659,6 +2713,12 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     if culture.get("hiphop"):
         lines.append(f"🎤 *Хип-хоп календарь:* {culture['hiphop']}")
 
+    if ua_legal.get("summary"):
+        lines.append(f"\n🛂 *Украинцы призывного возраста (DE/ЕС):*\n{ua_legal['summary']}")
+        conf = ua_legal.get("confidence")
+        if conf:
+            lines.append(f"_Достоверность: {conf}_")
+
     hap_reminder = ""
     if _hap_days >= 3:
         hap_reminder = f"🤗 *Переосознай счастье* — последняя оценка {_hap_days} дн. назад. Открой дашборд → вкладка Счастье."
@@ -2678,6 +2738,7 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         "balance": balance, "cash": cash, "card": card,
         "holiday": culture.get("holiday", ""),
         "hiphop": culture.get("hiphop", ""),
+        "ua_legal": ua_legal or {},
         "brief_projs": [(p["name"], int(p["done"]/p["total"]*100) if p["total"] else 0)
                         for p in brief_projs],
         "brief_events": [(e["text"], e["date"], e["time"] or "") for e in brief_events],
