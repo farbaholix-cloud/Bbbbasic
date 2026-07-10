@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.29 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.30 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1116,7 +1116,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
 .gact button.danger{color:#ff9aa6}
 .fin-cards{display:flex;gap:10px;margin-bottom:14px}
-.fc{flex:1;padding:15px 13px;border-radius:19px;position:relative;overflow:hidden;text-align:center}
+.fc{flex:1;padding:15px 13px;border-radius:19px;position:relative;overflow:hidden;text-align:center;cursor:pointer;transition:transform .12s}
+.fc:hover{transform:translateY(-2px)}
+/* Шторка изменения баланса (клик по фрейму) */
+.bal-acc{display:flex;gap:8px;margin-top:14px}
+.bal-acc button{flex:1;padding:11px;border-radius:13px;border:1px solid var(--rim);background:rgba(0,0,0,.28);color:var(--muted);font-size:13px;font-weight:800;cursor:pointer}
+.bal-acc button.on{color:#fff;background:linear-gradient(135deg,var(--blue),var(--violet));border-color:transparent}
+.bal-btns{display:flex;gap:8px;margin-top:12px}
+.bal-btns .bal-b{flex:1;padding:13px 6px;border-radius:14px;border:1px solid var(--rim);font-size:12.5px;font-weight:800;cursor:pointer;color:#fff}
+.bal-b.in{background:linear-gradient(135deg,rgba(82,224,138,.85),rgba(65,227,212,.7));border-color:transparent}
+.bal-b.out{background:linear-gradient(135deg,rgba(255,107,125,.85),rgba(255,138,77,.7));border-color:transparent}
+.bal-b.set{background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(177,139,255,.7));border-color:transparent}
+.bal-hint{font-size:11.5px;color:var(--muted);font-weight:700;text-align:center;margin-top:11px}
 .fc .glow{position:absolute;width:80px;height:80px;border-radius:50%;filter:blur(26px);opacity:.55;right:-12px;top:-18px}
 .fc.cash .glow{background:var(--green)} .fc.card .glow{background:var(--blue)} .fc.total .glow{background:var(--amber)}
 .fc .ic{font-size:22px;margin-bottom:8px;display:block}
@@ -2067,9 +2078,9 @@ function renderCal(){
 function renderFinance(){
   const d=DATA;
   document.getElementById('fin-cards').innerHTML=
-    '<div class="fc cash glass"><span class="glow"></span><span class="ic">💵</span><div class="l">Нал</div><div class="v '+((d.cash||0)<0?'neg':'pos')+'">'+eur(d.cash||0)+'</div></div>'+
-    '<div class="fc card glass"><span class="glow"></span><span class="ic">💳</span><div class="l">Карта</div><div class="v '+((d.card||0)<0?'neg':'pos')+'">'+eur(d.card||0)+'</div></div>'+
-    '<div class="fc total glass"><span class="glow"></span><span class="ic">👛</span><div class="l">Всего</div><div class="v">'+eur(d.balance||0)+'</div></div>';
+    '<div class="fc cash glass" onclick="openBalanceSheet(\'cash\')"><span class="glow"></span><span class="ic">💵</span><div class="l">Нал</div><div class="v '+((d.cash||0)<0?'neg':'pos')+'">'+eur(d.cash||0)+'</div></div>'+
+    '<div class="fc card glass" onclick="openBalanceSheet(\'card\')"><span class="glow"></span><span class="ic">💳</span><div class="l">Карта</div><div class="v '+((d.card||0)<0?'neg':'pos')+'">'+eur(d.card||0)+'</div></div>'+
+    '<div class="fc total glass" onclick="openBalanceSheet(\'card\')"><span class="glow"></span><span class="ic">👛</span><div class="l">Всего</div><div class="v">'+eur(d.balance||0)+'</div></div>';
   // day summary
   const st=d.spend_today||[],sw=d.spend_week||[];
   const sumT=st.reduce((a,b)=>a+b.amount,0),sumW=sw.reduce((a,b)=>a+b.amount,0);
@@ -2514,6 +2525,42 @@ function finAdd(sign){
     if(account==='cash')DATA.cash=(DATA.cash||0)+signed; else DATA.card=(DATA.card||0)+signed;
     DATA.balance=(DATA.balance||0)+signed;
   },'/api/finance_add',{amount:signed,account,comment});
+}
+// Клик по фрейму баланса — приход/расход/установка. Внешний вид не меняется.
+function _finApply(account,signed,comment){
+  mutate(()=>{
+    if(!DATA.fin_log)DATA.fin_log=[];
+    DATA.fin_log.unshift({id:_tmpId(),amount:signed,account,comment,created_at:new Date().toISOString()});
+    if(account==='cash')DATA.cash=(DATA.cash||0)+signed; else DATA.card=(DATA.card||0)+signed;
+    DATA.balance=(DATA.balance||0)+signed;
+  },'/api/finance_add',{amount:signed,account,comment});
+}
+function openBalanceSheet(acc){
+  let account=(acc==='cash')?'cash':'card';
+  const {bg,sheet}=_openSheet(
+    '<div class="grab"></div><div class="stitle">💰 Изменить баланс</div>'+
+    '<div class="ssub">приход, расход или актуальный остаток</div>'+
+    '<div class="bal-acc" id="bal-acc">'+
+      '<button data-a="cash" class="'+(account==='cash'?'on':'')+'">💵 Наличные</button>'+
+      '<button data-a="card" class="'+(account==='card'?'on':'')+'">💳 Карта</button></div>'+
+    '<input class="ui-input" id="bal-amt" type="number" inputmode="decimal" placeholder="Сумма €" style="margin-top:12px">'+
+    '<div class="bal-btns">'+
+      '<button class="bal-b in" id="bal-in">➕ Приход</button>'+
+      '<button class="bal-b out" id="bal-out">➖ Расход</button>'+
+      '<button class="bal-b set" id="bal-set">🎯 Установить</button></div>'+
+    '<div class="bal-hint" id="bal-hint"></div>');
+  const accWrap=sheet.querySelector('#bal-acc');
+  const amtEl=sheet.querySelector('#bal-amt'),hintEl=sheet.querySelector('#bal-hint');
+  function curBal(){return account==='cash'?(DATA.cash||0):(DATA.card||0);}
+  function refresh(){hintEl.textContent='Сейчас на «'+(account==='cash'?'наличных':'карте')+'»: '+eur(curBal());}
+  refresh();
+  accWrap.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    account=b.dataset.a;accWrap.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));refresh();});
+  setTimeout(()=>{try{amtEl.focus();}catch(_){}} ,140);
+  function val(){const v=parseFloat(amtEl.value);return isNaN(v)?null:v;}
+  sheet.querySelector('#bal-in').onclick=()=>{const v=val();if(v===null||v<=0){amtEl.focus();return;}closeSheet();_finApply(account,Math.abs(v),'приход');};
+  sheet.querySelector('#bal-out').onclick=()=>{const v=val();if(v===null||v<=0){amtEl.focus();return;}closeSheet();_finApply(account,-Math.abs(v),'расход');};
+  sheet.querySelector('#bal-set').onclick=()=>{const v=val();if(v===null){amtEl.focus();return;}const delta=Math.round((v-curBal())*100)/100;closeSheet();if(Math.abs(delta)>=0.01)_finApply(account,delta,'коррекция баланса');};
 }
 async function finDel(id){
   const op=_byId(DATA.fin_log,id);
