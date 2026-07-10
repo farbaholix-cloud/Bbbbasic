@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.16"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.17"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -640,6 +640,23 @@ def api_payment_add(payload):
     return {"ok": True}
 
 
+def api_payment_update(payload):
+    sets, vals = [], []
+    if "title" in payload:
+        sets.append("title=?"); vals.append((payload.get("title") or "").strip() or "Платёж")
+    if "amount" in payload:
+        sets.append("amount=?"); vals.append(max(0.0, float(payload.get("amount") or 0)))
+    if "day" in payload:
+        sets.append("day=?"); vals.append(max(1, min(31, int(payload.get("day") or 1))))
+    if "date" in payload:
+        sets.append("date=?"); vals.append((payload.get("date") or "").strip() or None)
+    if not sets:
+        return {"ok": False}
+    with db() as conn:
+        conn.execute(f"UPDATE payments SET {', '.join(sets)} WHERE id=?", (*vals, payload["id"]))
+    return {"ok": True}
+
+
 def api_payment_delete(payload):
     with db() as conn:
         conn.execute("UPDATE payments SET active=0 WHERE id=?", (payload["id"],))
@@ -1052,6 +1069,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .dlegend .lg-a{background:linear-gradient(180deg,#ffb648,#ffd07a)}
 .dlegend .lg-b{background:linear-gradient(180deg,#5b9dff,#86b8ff)}
 .dlegend .lg-ok{background:transparent;border:2px dashed rgba(82,224,138,.6)}
+.dlegend .lg-now{background:linear-gradient(180deg,#ff4d5e,#ff8895)}
+.dlegend .lg-soon2{background:linear-gradient(180deg,#ff7a45,#ffa870)}
+.dlegend .lg-mid{background:linear-gradient(180deg,#ffc657,#ffe08a)}
+.dlegend .lg-far{background:linear-gradient(180deg,#5b9dff,#86b8ff)}
+.dbar .col.pnow{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 0 16px rgba(255,77,94,.5)}
+.dbar .col .pico{font-size:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+.dbar .pay-sub{font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;background:rgba(255,255,255,.08);color:var(--muted)}
+.dbar .pay-sub.now{background:rgba(255,77,94,.2);color:#ff8895}
+.dbar .pay-sub.soon{background:rgba(255,138,77,.18);color:#ffa870}
+.dbar .pay-sub.mid{background:rgba(255,198,87,.16);color:#ffd07a}
+.pay-when{font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;margin-left:5px;background:rgba(91,157,255,.16);color:#86b8ff}
+.pay-when.now{background:rgba(255,77,94,.2);color:#ff8895}
+.pay-when.soon{background:rgba(255,138,77,.18);color:#ffa870}
+.pay-when.mid{background:rgba(255,198,87,.16);color:#ffd07a}
 .debt .x{color:var(--faint);font-size:17px;padding:0 2px;cursor:pointer}
 .debt.soon{border-color:rgba(255,107,125,.45);box-shadow:0 0 16px rgba(255,107,125,.12),inset 0 1px 0 var(--rim2)}
 .ldebt{padding:14px 15px;border-radius:16px;margin-bottom:11px}
@@ -1312,6 +1343,16 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
         <span><i class="lg-a"></i>скоро</span>
         <span><i class="lg-b"></i>обычный</span>
         <span><i class="lg-ok"></i>погашен</span>
+      </div>
+    </div>
+    <div class="block glass" id="paychart-block" style="display:none">
+      <div class="bh"><div class="t">📆 Карта платежей <span class="sm">чем ближе — тем краснее</span></div><div class="cnt" id="pay-total"></div></div>
+      <div class="debtchart" id="paychart"></div>
+      <div class="dlegend">
+        <span><i class="lg-now"></i>≤2 дн</span>
+        <span><i class="lg-soon2"></i>≤7 дн</span>
+        <span><i class="lg-mid"></i>≤15 дн</span>
+        <span><i class="lg-far"></i>дальше</span>
       </div>
     </div>
     <div class="daysum" id="daysum"></div>
@@ -1771,12 +1812,15 @@ function renderFinance(){
   }).join(''):'<div class="empty">долгосрочных долгов нет</div>';
   // payments
   const pays=d.payments||[];
+  renderPaymentChart(d);
   const monthly=pays.filter(p=>p.kind==='recurring'&&p.recur==='monthly').reduce((a,b)=>a+b.amount,0);
   document.getElementById('pay-cnt').textContent=pays.length?pays.length+' · '+eur(monthly)+'/мес':'нет';
   document.getElementById('payments').innerHTML=pays.length?pays.map(p=>{
+    const pi=_payInfo(p);
     let when=p.kind==='planned'?fmtDate(p.date):(p.recur==='weekly'?'каждый '+DOW[(p.day||0)%7]:p.day+' числа');
-    return '<div class="recur glass-sm"><div class="ic">'+(p.icon||'💸')+'</div><div class="nm">'+esc(p.title)+'</div>'+
-      '<div class="when">'+when+'</div><div class="amt">'+eur(p.amount)+'</div><span class="x" onclick="delPayment('+p.id+')">×</span></div>';
+    const dchip=pi.days!=null?'<span class="pay-when '+pi.urg+'">'+(pi.days<=0?'сегодня':pi.days===1?'завтра':'через '+pi.days+'д')+'</span>':'';
+    return '<div class="recur glass-sm" onclick="openPayment('+p.id+')"><div class="ic">'+(p.icon||'💸')+'</div><div class="nm">'+esc(p.title)+' '+dchip+'</div>'+
+      '<div class="when">'+when+'</div><div class="amt">'+eur(p.amount)+'</div><span class="x" onclick="event.stopPropagation();delPayment('+p.id+')">×</span></div>';
   }).join(''):'<div class="empty">платежей нет</div>';
   // log
   const log=d.fin_log||[];
@@ -1830,6 +1874,76 @@ function renderDebtChart(d){
       '<div class="col '+u.urg+'" style="height:'+h+'px;'+(u.paid?'':'background:'+u.col)+'">'+inner+'</div>'+
       '<div class="nm">'+esc((x.name||'').replace(/ · \$$/,'')) +'</div></div>';
   }).join('');
+}
+
+// ─── Карта регулярных платежей: дата следующего списания → цвет (краснее = ближе) ───
+function _payNext(p){
+  const now=new Date();now.setHours(0,0,0,0);
+  if(p.kind==='planned'){if(!p.date)return null;const d=new Date(p.date+'T00:00');return isNaN(d)?null:d;}
+  if(p.recur==='weekly'){
+    const target=((p.day||0)%7);              // 0=Пн … (DOW — с понедельника)
+    const curMon=(now.getDay()+6)%7;
+    const diff=(target-curMon+7)%7;           // 0 = сегодня
+    const d=new Date(now);d.setDate(now.getDate()+diff);return d;
+  }
+  // ежемесячный: ближайшее число (это или следующий месяц)
+  const day=Math.min(Math.max(p.day||1,1),31);
+  const y=now.getFullYear(),m=now.getMonth();
+  const dimThis=new Date(y,m+1,0).getDate();
+  let d=new Date(y,m,Math.min(day,dimThis));
+  if(d<now){const dimNext=new Date(y,m+2,0).getDate();d=new Date(y,m+1,Math.min(day,dimNext));}
+  return d;
+}
+function _payInfo(p){
+  const next=_payNext(p);
+  let days=null;
+  if(next){const now=new Date();now.setHours(0,0,0,0);days=Math.round((next-now)/864e5);}
+  let urg='far';
+  if(days!=null){urg=days<=2?'now':days<=7?'soon':days<=15?'mid':'far';}
+  return {next,days,urg};
+}
+const _PAY_COL={now:'linear-gradient(180deg,#ff4d5e,#ff8895)',soon:'linear-gradient(180deg,#ff7a45,#ffa870)',
+  mid:'linear-gradient(180deg,#ffc657,#ffe08a)',far:'linear-gradient(180deg,#5b9dff,#86b8ff)'};
+function renderPaymentChart(d){
+  const block=document.getElementById('paychart-block');if(!block)return;
+  const pays=(d.payments||[]).filter(p=>p.active!==0);
+  const arr=pays.map(p=>({p,i:_payInfo(p)})).filter(v=>v.i.next).sort((a,b)=>a.i.days-b.i.days);
+  if(!arr.length){block.style.display='none';return;}
+  block.style.display='block';
+  const maxAmt=Math.max(1,...arr.map(v=>v.p.amount||0));
+  const soon30=arr.filter(v=>v.i.days<=30).reduce((s,v)=>s+(v.p.amount||0),0);
+  document.getElementById('pay-total').textContent=eur(soon30)+' · 30 дн';
+  document.getElementById('paychart').innerHTML=arr.map(({p,i})=>{
+    const h=Math.round(24+((p.amount||0)/maxAmt)*104);
+    const dlabel=i.days<=0?'сегодня':i.days===1?'завтра':i.days+'д';
+    return '<div class="dbar" onclick="openPayment('+p.id+')">'+
+      '<div class="dbar-amt">'+eur(p.amount||0).replace(/\s?€/,'')+'</div>'+
+      '<div class="col '+(i.urg==='now'?'pnow':'')+'" style="height:'+h+'px;background:'+_PAY_COL[i.urg]+'"><span class="pico">'+(p.icon||'')+'</span></div>'+
+      '<div class="nm">'+esc(p.title)+'</div>'+
+      '<div class="pay-sub '+i.urg+'">'+dlabel+'</div></div>';
+  }).join('');
+}
+function openPayment(id){
+  const p=(DATA.payments||[]).find(x=>x.id===id);if(!p)return;
+  const i=_payInfo(p);
+  const when=p.kind==='planned'?('разовый · '+fmtDate(p.date)):(p.recur==='weekly'?'каждый '+DOW[(p.day||0)%7]:'каждое '+p.day+' число');
+  const sub=when+(i.days!=null?' · '+(i.days<=0?'сегодня':i.days===1?'завтра':'через '+i.days+' дн'):'');
+  const {bg,sheet}=_openSheet(
+    '<div class="grab"></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(p.icon||'💸')+' '+esc(p.title)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="ssub">'+sub+' · '+eur(p.amount||0)+'</div>'+
+    '<div class="sh-actions" style="flex-direction:column;gap:8px;margin-top:14px">'+
+    '<button class="sh-btn" id="pay-name">✏️ Название</button>'+
+    '<button class="sh-btn" id="pay-amt">💶 Сумма</button>'+
+    (p.kind==='planned'?'<button class="sh-btn" id="pay-date">📅 Дата платежа</button>':'<button class="sh-btn" id="pay-day">📆 Число месяца</button>')+
+    '<button class="sh-btn danger" id="pay-del">🗑 Удалить платёж</button></div>');
+  sheet.querySelector('#pay-name').onclick=async()=>{const t=await uiPrompt('Название платежа:',p.title);if(t&&t.trim())mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.title=t.trim();},'/api/payment_update',{id,title:t.trim()});};
+  sheet.querySelector('#pay-amt').onclick=async()=>{const v=parseFloat(await uiNum('Сумма €:',String(p.amount||0)));if(!isNaN(v))mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.amount=v;},'/api/payment_update',{id,amount:v});};
+  const dayBtn=sheet.querySelector('#pay-day');
+  if(dayBtn)dayBtn.onclick=async()=>{const v=parseInt(await uiNum('Какого числа каждый месяц? (1-31):',String(p.day||1)));if(!isNaN(v))mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.day=Math.max(1,Math.min(31,v));},'/api/payment_update',{id,day:Math.max(1,Math.min(31,v))});};
+  const dateBtn=sheet.querySelector('#pay-date');
+  if(dateBtn)dateBtn.onclick=async()=>{const r=await uiDate('Дата платежа',p.date);if(r===undefined)return;mutate(()=>{const y=(DATA.payments||[]).find(x=>x.id===id);if(y)y.date=r||null;},'/api/payment_update',{id,date:r||''});};
+  sheet.querySelector('#pay-del').onclick=()=>{closeSheet();delPayment(id);};
 }
 
 // ─── project actions ───
@@ -3375,6 +3489,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,
             "/api/debt_update": api_debt_update,
             "/api/payment_add": api_payment_add, "/api/payment_delete": api_payment_delete,
+            "/api/payment_update": api_payment_update,
             "/api/kcard_add": api_kcard_add, "/api/kcard_check": api_kcard_check,
             "/api/kcard_archive": api_kcard_archive, "/api/kcard_unarchive": api_kcard_unarchive,
             "/api/kcard_delete": api_kcard_delete,
