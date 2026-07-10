@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.31 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.32 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -438,10 +438,16 @@ def get_data():
         _projs = {dict(p)["id"]: {**dict(p), "steps": []}
                   for p in conn.execute(
                       "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY created_at DESC, id DESC").fetchall()}
+        _arch = {dict(p)["id"]: {**dict(p), "steps": []}
+                 for p in conn.execute(
+                     "SELECT * FROM projects WHERE COALESCE(archived,0)=1 ORDER BY archived_at DESC, id DESC").fetchall()}
         for s in conn.execute("SELECT * FROM steps ORDER BY project_id, id").fetchall():
             if s["project_id"] in _projs:
                 _projs[s["project_id"]]["steps"].append(dict(s))
+            elif s["project_id"] in _arch:
+                _arch[s["project_id"]]["steps"].append(dict(s))
         projects = list(_projs.values())
+        archived_projects = list(_arch.values())
         cards = []
         for r in conn.execute("SELECT * FROM events").fetchall():
             d = dict(r)
@@ -493,7 +499,7 @@ def get_data():
         sgoals = [dict(r) for r in conn.execute(
             "SELECT * FROM goals WHERE period='strategic' AND done=0 ORDER BY id").fetchall()]
         rev = _read_rev(conn)
-    return {"chaos": chaos, "projects": projects, "cards": cards, "sgoals": sgoals,
+    return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -644,6 +650,8 @@ def api_steps(path, payload):
             # Достигнутая цель уходит в общий архив (данные сохраняются, из активных пропадает)
             conn.execute("UPDATE projects SET archived=1, archived_at=datetime('now') WHERE id=?",
                          (payload["id"],))
+        elif path == "/api/proj_unarchive":
+            conn.execute("UPDATE projects SET archived=0, archived_at=NULL WHERE id=?", (payload["id"],))
     return {"ok": True}
 
 
@@ -1370,6 +1378,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kcard.pstep.done .pstep-tx{text-decoration:line-through;opacity:.5}
 .kcard.pstep.dragging{opacity:.4}
 .kcard.pidea{background:rgba(255,208,122,.14);border-color:rgba(255,208,122,.35);font-size:12px;cursor:pointer;padding:10px 13px}
+/* столбец «Архив» */
+.kol.arch-col{background:rgba(255,255,255,.03);border-style:dashed}
+.kol.arch-col .kh-name{color:var(--muted)}
+.arch-proj{margin-bottom:12px;padding:9px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.06)}
+.arch-ph{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;font-weight:800;color:var(--muted)}
+.arch-ph .arch-pn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arch-ph .arch-cnt{font-size:10px;font-weight:700;opacity:.6}
+.arch-ph .arch-act{cursor:pointer;font-size:12px;opacity:.7}
+.arch-ph .arch-act:hover{opacity:1}
+.kcard.arch-scard{padding:8px 11px;font-size:11.5px;opacity:.72;background:rgba(255,255,255,.05);cursor:default;margin-bottom:5px}
+.kcard.arch-scard.done{text-decoration:line-through;opacity:.45}
+.arch-empty{font-size:11px;color:var(--faint);font-weight:600;text-align:center;padding:12px 4px}
 .kol-head{padding:7px 4px 9px;border-radius:12px;font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
 .kol-head:active{opacity:.75}
 .kol-head .kh-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -1976,7 +1996,7 @@ function renderProjectBoard(d){
   const inWork=projs.filter(p=>!p.steps.length||p.steps.some(s=>!s.done)).length;
   const gc=document.getElementById('goals-cnt');if(gc)gc.textContent=projs.length+' проектов · '+inWork+' в работе';
   if(_pbDrag)return;  // не перерисовываем во время перетаскивания карточки
-  board.innerHTML=projs.length?projs.map(p=>{
+  const colsHtml=projs.map(p=>{
     const steps=p.steps||[];
     const done=steps.filter(s=>s.done).length,total=steps.length;
     const pct=total?Math.round(done/total*100):0;
@@ -2005,9 +2025,32 @@ function renderProjectBoard(d){
       stepCards+ideaCards+
       '<button class="kadd" onclick="stepAdd('+p.id+')">＋ шаг</button>'+
     '</div>';
-  }).join(''):'<div class="empty">проектов нет — жми «＋ проект»</div>';
+  }).join('');
+  // Последний столбец — архив: свёрнутые проекты со своими карточками
+  const arch=d.archived_projects||[];
+  const archInner=arch.length?arch.map(ap=>{
+    const st=ap.steps||[];const done=st.filter(s=>s.done).length,total=st.length;
+    const cards=st.map(s=>'<div class="kcard arch-scard'+(s.done?' done':'')+'">'+esc(s.text)+'</div>').join('');
+    return '<div class="arch-proj">'+
+      '<div class="arch-ph">'+
+        '<span class="arch-pn">'+(AREAS[ap.area]||'⚡')+' '+esc(ap.name)+'</span>'+
+        '<span class="arch-cnt">'+done+'/'+total+'</span>'+
+        '<span class="arch-act" onclick="projUnarchive('+ap.id+')" title="Восстановить">↩️</span>'+
+        '<span class="arch-act" onclick="projDelArch('+ap.id+',\''+esc(ap.name).replace(/'/g,"\\'")+'\')" title="Удалить навсегда">🗑</span>'+
+      '</div>'+cards+
+    '</div>';
+  }).join(''):'<div class="arch-empty">пусто — заверши проект, и он ляжет сюда</div>';
+  const archCol='<div class="kol pcol arch-col">'+
+    '<div class="kol-head" style="cursor:default">'+
+      '<div class="kh-dot" style="background:rgba(235,240,250,.25)"></div>'+
+      '<div class="kh-name">🗄 Архив</div>'+
+      '<div class="kh-cnt">'+arch.length+'</div>'+
+    '</div>'+archInner+'</div>';
+  board.innerHTML=(projs.length?colsHtml:'')+archCol;
   _wireProjBoardDrag(board);
 }
+function projUnarchive(id){mutate(()=>{const d=DATA;const ap=(d.archived_projects||[]).find(x=>x.id===id);if(ap){d.archived_projects=(d.archived_projects||[]).filter(x=>x.id!==id);if(!d.projects)d.projects=[];ap.archived=0;d.projects.unshift(ap);}},'/api/proj_unarchive',{id});}
+async function projDelArch(id,name){if(await uiConfirm('Удалить навсегда «'+name+'»?')){mutate(()=>{DATA.archived_projects=(DATA.archived_projects||[]).filter(x=>x.id!==id);},'/api/proj_delete',{id});}}
 
 async function addProject(){
   const t=await uiPrompt('Название проекта:','',{placeholder:'например, Творчество'});
@@ -4354,7 +4397,8 @@ class Handler(BaseHTTPRequestHandler):
             result = routes[path](payload)
         elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
                       "/api/step_rename", "/api/step_move", "/api/proj_add",
-                      "/api/proj_rename", "/api/proj_delete", "/api/proj_archive"):
+                      "/api/proj_rename", "/api/proj_delete", "/api/proj_archive",
+                      "/api/proj_unarchive"):
             result = api_steps(path, payload)
         else:
             result = {"ok": False}
