@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.35 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.36 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2406,7 +2406,7 @@ function renderForecast(d){
     '<div class="fc-line pos"><span>+ Ожидаемо (взвеш.)</span><b>+'+eur(expW)+'</b></div>'+
     '<div class="fc-line neg"><span>− Потребности ('+eur(needPay)+' платежи · '+eur(needDebt)+' долги)</span><b>−'+eur(need)+'</b></div>'+
     '<div class="fc-res '+(ok?'ok':'gap')+'"><span>'+(ok?'🟢 Хватает, остаётся':'🔴 Разрыв')+'</span><b>'+eur(projected)+'</b></div>'+
-    (coverage!=null?'<div class="fc-cov">Покрытие потребностей: <b>'+coverage+'%</b> · сырьём ожидается +'+eur(expRaw)+'</div>':'');
+    (coverage!=null?'<div class="fc-cov">Покрытие потребностей: <b>'+coverage+'%</b></div>':'');
   el.querySelectorAll('.fc-per button').forEach(b=>b.onclick=()=>{_fcPeriod=+b.dataset.p;renderForecast(DATA);});
 }
 let _piEdit=null;
