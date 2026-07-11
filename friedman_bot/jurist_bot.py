@@ -9,10 +9,11 @@
 поднимает его как supervised-процесс (см. _restart_jurist в bot.py).
 """
 import os
+import sys
 import asyncio
 import logging
 import tempfile
-from datetime import time
+from datetime import datetime, time
 
 from dotenv import load_dotenv
 from telegram import Update
@@ -47,6 +48,61 @@ GREETING = (
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     B.save_chat_id(update.effective_chat.id)
     await update.message.reply_text(GREETING, parse_mode="Markdown")
+
+
+# Легенда при перезапуске — короткое уведомление владельцу, что Юрист поднялся,
+# что умеет и что может перезапустить сам себя.
+RESTART_LEGEND = (
+    "⚖️ *Юрист перезапущен и снова на связи.*\n"
+    "_{when}_\n\n"
+    "Умею: счета (Rechnung PDF), анализ финансов и оборота, письма в ведомства, "
+    "напоминания о сроках, разбор присланных документов.\n"
+    "Самоперезапуск: пришли */restart* — подниму себя заново, не завися от секретаря."
+)
+
+
+async def _post_init(app):
+    """При старте бота шлём владельцу «легенду». Работает и при самоперезапуске.
+    Троттл ~90с — чтобы быстрые двойные рестарты (супервизор секретаря + деплой)
+    не давали дубль пингов."""
+    chat = B.get_chat_id()
+    if not chat:
+        return
+    import time as _t
+    try:
+        last = float(B._settings_get("jurist_legend_last") or 0)
+    except (TypeError, ValueError):
+        last = 0
+    now_ts = _t.time()
+    if now_ts - last < 90:
+        return
+    B._settings_set("jurist_legend_last", str(now_ts))
+    when = datetime.now(B.BERLIN).strftime("%d.%m.%Y %H:%M") if B.BERLIN else datetime.now().strftime("%d.%m.%Y %H:%M")
+    try:
+        await app.bot.send_message(chat, RESTART_LEGEND.format(when=when), parse_mode="Markdown")
+    except Exception as e:
+        log.error(f"post_init legend: {e}")
+
+
+async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Самоперезапуск Юриста независимо от секретаря: заменяем процесс свежим через execv.
+    Тот же PID, никакого второго инстанса (значит и без Telegram-Conflict); подхватывает
+    обновлённый на диске код. Только владелец."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    await update.message.reply_text("♻️ Перезапускаюсь, вернусь через пару секунд…")
+    d = os.path.dirname(os.path.abspath(__file__))
+    log.info("самоперезапуск по команде /restart")
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.chdir(d)
+        os.execv(sys.executable, [sys.executable, "jurist_bot.py"])  # заменяет текущий процесс
+    except Exception as e:
+        log.error(f"self-restart execv: {e}")
+        await update.message.reply_text(f"Не смог перезапуститься сам: {e}")
 
 
 async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -150,8 +206,9 @@ def main():
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
 
-    app = Application.builder().token(token).build()
+    app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("restart", cmd_restart))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))
     app.add_handler(MessageHandler(filters.PHOTO, on_file))
