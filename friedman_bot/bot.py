@@ -386,7 +386,7 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
 4. КОНТАКТЫ: важная информация о человеке («Роберт должен 500», «Стефан — контакт по фасадам») → action contact. Спросят про человека — собери всё из контекста.
 5. ПИСЬМА НА НЕМЕЦКОМ: попросят письмо/ответ для немецкого заказчика, фирмы, ведомства — напиши готовый текст письма на немецком прямо в reply (профессиональный тон), плюс 1 строка по-русски о чём оно.
 6. СМЕТЫ: «стена 6 на 3, сколько краски/цена» → посчитай: грунт ~1л/5м², баллон 400мл ~1-1.5м²/слой, обычно 2 слоя фон + детали. Работа стрит-арт в Германии ориентир 50-150€/м² по сложности.
-6в. СЧЕТА (RECHNUNG): «выстави счёт», «сделай инвойс», «Rechnung для X на сумму Y за работу Z» -> action invoice. Извлеки: recipient (получатель: название + адрес, каждая часть с новой строки через \n), items (позиции: desc — описание работы НА НЕМЕЦКОМ профессионально с правильными умляутами ä ö ü ß, напр. «Künstlerische Gestaltung der Fassade ...», price — сумма в евро числом), salutation (обращение если знаешь: «Frau Kluegling» / «Herr Schmidt»), customer_no (если назван). Если не хватает получателя или суммы — спроси одним вопросом, не выдумывай.
+6в. СЧЕТА (RECHNUNG): «выстави счёт», «сделай инвойс», «Rechnung для X на сумму Y за работу Z» -> action invoice. Извлеки: recipient (получатель: название + адрес, каждая часть с новой строки через \n), items (позиции: desc — описание работы НА НЕМЕЦКОМ профессионально с правильными умляутами ä ö ü ß, напр. «Künstlerische Gestaltung der Fassade ...», price — сумма в евро числом), salutation (обращение если знаешь: «Frau Kluegling» / «Herr Schmidt»), customer_no (если назван), intro (вводная фраза счёта НА НЕМЕЦКОМ, если из просьбы ясен повод/проект — напр. «Hiermit berechne ich Ihnen wie vorab besprochen für die Gestaltung ... folgende Vorauszahlung:»; иначе пусто). Если не хватает получателя или суммы — спроси одним вопросом, не выдумывай.
 7. Отвечай по-человечески: коротко, тепло. Максимум один уточняющий вопрос.
 8. Не выдумывай данные которых нет в контексте.
 9. ВЕБ: если в промпте есть блок «ВЕБ (актуальные данные из интернета):» — используй его данные для ответа. Это свежие данные из поиска, они надёжнее твоих внутренних знаний. Приводи конкретные цифры/факты из блока.
@@ -400,7 +400,7 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
  {"type": "finance", "amount": -40, "comment": "баллоны", "account": "cash"},
  {"type": "remind", "when": "2026-06-13 09:00", "text": "страховка"},
  {"type": "contact", "name": "Роберт", "note": "должен 500€"},
- {"type": "invoice", "recipient": "Café Sa'Sis\nAdlerstraße 1\n65812 Bad Soden", "items": [{"desc": "Künstlerische Gestaltung der Fassade", "price": 800}], "salutation": "Frau Klügling", "customer_no": ""},
+ {"type": "invoice", "recipient": "Café Sa'Sis\nAdlerstraße 1\n65812 Bad Soden", "items": [{"desc": "Künstlerische Gestaltung der Fassade", "price": 800}], "salutation": "Frau Klügling", "customer_no": "", "intro": ""},
  {"type": "project", "name": "КНИГА 3.0", "area": "work", "steps": ["шаг 1", "шаг 2"]},
  {"type": "progress", "project_id": 1, "count": 1}
 ]}
@@ -584,7 +584,7 @@ LAWYER_PROMPT = """Ты — «Юрист», личный налогово-пра
 ТВОИ ЗАДАЧИ:
 1. Анализ финансов: тебе дан баланс, счета (Rechnungen) с оборотом по годам, долги, расходы. Оцени налогово-правовую картину, предупреди о рисках: превышение порога Kleinunternehmer (оборот), переквалификация Freiberufler→Gewerbe, обязанность Künstlersozialabgabe как Verwerter при выплатах другим художникам сверх Bagatellgrenze.
 2. Сроки: напоминай о подаче деклараций (ESt + Anlage EÜR + Anlage S, обычно к 31 июля) и ежегодных обновлениях. Если просят — поставь напоминание (action remind).
-3. Инвойсы: если есть данные для счёта — предложи action invoice (recipient, items на немецком, сумма).
+3. Инвойсы: если есть данные для счёта — предложи action invoice (recipient, items на немецком, сумма, intro — вводная фраза счёта на немецком если ясен повод). ВАЖНО по НДС: по умолчанию счёт идёт с оговоркой Kleinunternehmer §19 UStG (без НДС). Если статус Kleinunternehmer утрачен (оборот прошлого года превысил порог — см. reference invoice.md/kleinunternehmer.md) — выставляй с НДС: добавь в action "vat_rate": 19. При сомнении — уточни у пользователя, не подставляй молча.
 4. Письма/заявления: по reference letters.md составь готовый текст письма на немецком (Finanzamt, KSK, Krankenkasse, Handwerkskammer, Jobcenter) прямо в reply.
 5. ELSTER: помоги понять, какие формы (Anlage S, Anlage EÜR), как заполнять, какие поля — пошагово.
 6. Статус: рекомендуй изменения (вступление в KSK ради экономии ~50% на страховке, переход на Regelbesteuerung, регистрация Gewerbe/GmbH) — но как ОРИЕНТИР; финальное решение и расчёт — со Steuerberater.
@@ -599,7 +599,7 @@ LAWYER_PROMPT = """Ты — «Юрист», личный налогово-пра
 ВСЕГДА отвечай строго в JSON:
 {"reply": "ответ человеку (может содержать текст письма на немецком)", "actions": [
  {"type": "remind", "when": "2026-07-20 09:00", "text": "подать Einkommensteuererklärung"},
- {"type": "invoice", "recipient": "Galerie X\\nStraße 1\\n60311 Frankfurt", "items": [{"desc": "Künstlerische Wandgestaltung", "price": 1200}], "salutation": "", "customer_no": ""},
+ {"type": "invoice", "recipient": "Galerie X\\nStraße 1\\n60311 Frankfurt", "items": [{"desc": "Künstlerische Wandgestaltung", "price": 1200}], "salutation": "", "customer_no": "", "intro": "", "vat_rate": null},
  {"type": "contact", "name": "Steuerberater Müller", "note": "ведёт ESt 2025"}
 ]}
 actions может быть пустым []. Никакого текста вне JSON."""
@@ -837,6 +837,8 @@ def apply_actions(actions: list) -> list:
                         salutation=a.get("salutation"),
                         customer_no=a.get("customer_no", ""),
                         number=next_invoice_number(),
+                        intro=a.get("intro") or None,
+                        vat_rate=a.get("vat_rate") or None,
                     )
                     desc = "; ".join(it.get("desc", "") for it in items)
                     with db() as conn:
@@ -1198,7 +1200,9 @@ async def create_invoice_from_text(update: Update, text: str):
             "Ответь строго JSON без иного текста: {\"recipient\": \"получатель: название и адрес, "
             "каждая часть с новой строки \\n\", \"items\": [{\"desc\": \"работа по-немецки\", "
             "\"price\": 1200}], \"salutation\": \"Frau Müller или Herr Schmidt если известно, иначе пусто\", "
-            "\"customer_no\": \"\"}. Если получатель или сумма не названы — верни {\"need\": \"чего не хватает\"}."
+            "\"customer_no\": \"\", \"intro\": \"вводная фраза счёта по-немецки, если из сообщения ясен "
+            "повод/проект (напр. Hiermit berechne ich Ihnen wie vorab besprochen für ... folgende "
+            "Vorauszahlung:), иначе пусто\"}. Если получатель или сумма не названы — верни {\"need\": \"чего не хватает\"}."
         )
         try:
             result = subprocess.run(
@@ -1231,6 +1235,7 @@ async def create_invoice_from_text(update: Update, text: str):
             salutation=data.get("salutation") or None,
             customer_no=data.get("customer_no", ""),
             number=next_invoice_number(),
+            intro=data.get("intro") or None,
         )
     except Exception as ex:
         log.error(f"invoice gen: {ex}")
@@ -2989,7 +2994,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "jurist_bot.py", "dashboard.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "dashboard.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -2997,7 +3002,8 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "dashboard.py", "dashboard_mac.py", "
                 "legal_kb/references/ksk.md",
                 "legal_kb/references/ihk-handwerk.md",
                 "legal_kb/references/sozialversicherung.md",
-                "legal_kb/references/letters.md"]
+                "legal_kb/references/letters.md",
+                "legal_kb/references/invoice.md"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -3059,7 +3065,7 @@ def ensure_legal_kb():
     запуск новой версии до того, как авто-деплой подтянет подпапку/файл) — тянем с ветки."""
     import urllib.request
     d = os.path.dirname(os.path.abspath(__file__))
-    need = ["jurist_bot.py"] + [x for x in UPDATE_FILES if x.startswith("legal_kb/")]
+    need = ["jurist_bot.py", "invoice.py"] + [x for x in UPDATE_FILES if x.startswith("legal_kb/")]
     for f in need:
         dest = os.path.join(d, f)
         if os.path.exists(dest):
@@ -3264,6 +3270,58 @@ async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         chat_id, "✅ Токен Юрист-бота сохранён, запускаю отдельного бота.\n"
                  "Открой нового бота в Telegram и нажми *Start* — он на связи.",
         parse_mode="Markdown")
+
+
+# Реквизиты счёта: поля, которые владелец задаёт командой. Секретные (iban/bic/
+# steuernummer/ident_nr) НИКОГДА не в git — только в settings; в PDF без них плейсхолдер.
+INVOICE_FIELDS = {
+    "iban": "inv_iban", "bic": "inv_bic",
+    "steuernummer": "inv_steuernummer", "stnr": "inv_steuernummer",
+    "ident_nr": "inv_ident_nr", "identnr": "inv_ident_nr", "ident": "inv_ident_nr",
+    "name": "inv_name", "title": "inv_title", "street": "inv_street",
+    "phone": "inv_phone", "email": "inv_email", "city": "inv_city", "bank": "inv_bank",
+}
+_INVOICE_SECRET_KEYS = {"inv_iban", "inv_bic", "inv_steuernummer", "inv_ident_nr"}
+
+
+async def cmd_setinvoicedata(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Задать реквизиты для счетов: /setinvoicedata <поле> <значение>.
+    Поля: iban, bic, steuernummer, ident_nr | name, title, street, phone, email, city, bank.
+    Секретные поля (iban/bic/steuernummer/ident_nr) хранятся только в БД, не в git;
+    сообщение с ними сразу удаляется из чата."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    args = (update.message.text or "").partition(" ")[2].strip()
+    field, _, value = args.partition(" ")
+    field = field.lower().strip()
+    value = value.strip()
+    secret = INVOICE_FIELDS.get(field) in _INVOICE_SECRET_KEYS
+    if secret:
+        # секрет — стираем сообщение немедленно, чтобы не висело в истории чата
+        try:
+            await ctx.bot.delete_message(chat_id, update.message.message_id)
+        except Exception:
+            pass
+    if field not in INVOICE_FIELDS or not value:
+        await ctx.bot.send_message(
+            chat_id,
+            "Формат: `/setinvoicedata <поле> <значение>`\n"
+            "Поля: `iban`, `bic`, `steuernummer`, `ident_nr` | "
+            "`name`, `title`, `street`, `phone`, `email`, `city`, `bank`\n"
+            "Напр.: `/setinvoicedata iban DE00 0000 0000 0000 0000 00`",
+            parse_mode="Markdown")
+        return
+    _settings_set(INVOICE_FIELDS[field], value)
+    if secret:
+        await ctx.bot.send_message(
+            chat_id, f"✅ Поле *{field}* сохранено ({len(value)} симв., значение скрыто).",
+            parse_mode="Markdown")
+    else:
+        await ctx.bot.send_message(
+            chat_id, f"✅ Поле *{field}* = «{value}» сохранено для счетов.",
+            parse_mode="Markdown")
 
 
 async def cmd_juriststatus(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -4061,6 +4119,7 @@ def main():
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
+    app.add_handler(CommandHandler("setinvoicedata", cmd_setinvoicedata))
     app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
     app.add_handler(CommandHandler("juristrestart", cmd_juristrestart))
 

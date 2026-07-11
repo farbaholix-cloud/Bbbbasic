@@ -40,6 +40,7 @@ description: >
 | IHK, Handwerkskammer, когда мурал-роспись может считаться Gewerbe (грань с малярным ремеслом) | `references/ihk-handwerk.md` |
 | Krankenversicherung, Pflegeversicherung, Rentenversicherung вне KSK | `references/sozialversicherung.md` |
 | Письма/заявления — структура, к кому, что приложить | `references/letters.md` |
+| Счета (Rechnung) — как выставить, поля, шаблон, §19 vs 19 % USt на счёте | `references/invoice.md` |
 
 ## Жёсткие правила (не нарушать)
 
