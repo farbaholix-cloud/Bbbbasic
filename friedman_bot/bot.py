@@ -2612,6 +2612,10 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         return
     today = datetime.now().strftime("%Y-%m-%d")
     today_d = date.today()
+    # Защита от двойной сводки: автоматическую утреннюю отправляет только один
+    # процесс/один раз в день (атомарная заявка в общей БД). Ручной /brief — всегда.
+    if not verbose and not _claim_daily("brief_sent:" + today):
+        return
     with db() as conn:
         high = conn.execute(
             "SELECT text FROM chaos WHERE done=0 AND priority='high' ORDER BY importance DESC, urgency DESC, created_at LIMIT 5"
@@ -2880,6 +2884,21 @@ def _settings_set(key, val):
             conn.execute("INSERT OR REPLACE INTO settings(key, value) VALUES(?,?)", (key, str(val)))
     except Exception as e:
         log.error(f"settings_set: {e}")
+
+
+def _claim_daily(key) -> bool:
+    """Атомарная заявка «сделать один раз»: возвращает True только первому, кто
+    вставил ключ (INSERT OR IGNORE → rowcount). Переживает несколько процессов
+    и рестарты, так как состояние в общей БД. Используется, чтобы утренняя сводка
+    не отправлялась дважды."""
+    try:
+        with db() as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT)")
+            cur = conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES(?, '1')", (key,))
+            return cur.rowcount == 1
+    except Exception as e:
+        log.error(f"claim_daily: {e}")
+        return True  # при сбое БД лучше отправить, чем промолчать
 
 
 def get_jurist_token() -> str:
