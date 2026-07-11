@@ -1110,6 +1110,77 @@ def year_archive_context(year: int = 2025) -> str:
     return "\n".join(lines)
 
 
+def _esc_x(v) -> str:
+    import html as _html
+    return _html.escape(str(v if v is not None else ""))
+
+
+def _eur_de(n) -> str:
+    """2000 → «2.000,00»."""
+    s = f"{float(n or 0):,.2f}"
+    return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
+def export_year_xls(year: int = 2025) -> str:
+    """Собрать .xls (HTML-таблица, без зависимостей) со всеми инвойсами года.
+    Оформление — в стиле инвойсов: серая шапка-блок, красный акцент, аккуратная
+    таблица с итогами. Возвращает путь к файлу."""
+    rows = year_archive_rows(year)
+    total_g = sum((r["gross"] or 0) for r in rows)
+    total_n = sum((r["net"] or 0) for r in rows)
+    total_v = sum((r["vat"] or 0) for r in rows)
+    stand = datetime.now().strftime("%d.%m.%Y")
+
+    body = []
+    for i, r in enumerate(rows, 1):
+        bg = "#ffffff" if i % 2 else "#f7f7f7"
+        klein = "§19" if r["kleinunternehmer"] else "USt"
+        body.append(
+            f"<tr>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{i}</td>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{_esc_x(r['number'])}</td>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{_esc_x(r['inv_date'])}</td>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{_esc_x(r['client_name'])}</td>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:right'>{_eur_de(r['net'])}</td>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:right'>{_eur_de(r['vat'])}</td>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:right;font-weight:700'>{_eur_de(r['gross'])}</td>"
+            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:center'>{klein}</td>"
+            f"</tr>")
+    th = ("background:#333333;color:#ffffff;font-weight:700;border:1px solid #222;"
+          "padding:8px 8px;text-align:left")
+    thr = th + ";text-align:right"
+    html = f"""<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">
+<style>body{{font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a}}</style></head><body>
+<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:13px">
+  <tr><td colspan="8" style="font-size:22px;font-weight:700;padding:6px 8px 0">FARBAHOLIX</td></tr>
+  <tr><td colspan="8" style="color:#b23a3a;font-size:14px;padding:0 8px 2px">Rechnungen {year} — Übersicht</td></tr>
+  <tr><td colspan="8" style="border-bottom:4px solid #b23a3a;height:4px;padding:0"></td></tr>
+  <tr><td colspan="8" style="padding:8px;color:#555">Stand: {stand} · Belege: {len(rows)}</td></tr>
+  <tr>
+    <td colspan="4" style="padding:4px 8px;font-weight:700">Umsatz gesamt (brutto): {_eur_de(total_g)} €</td>
+    <td colspan="4" style="padding:4px 8px;color:#555">netto {_eur_de(total_n)} € · USt {_eur_de(total_v)} €</td>
+  </tr>
+  <tr><td colspan="8" style="height:6px"></td></tr>
+  <tr>
+    <th style="{th}">#</th><th style="{th}">Rechnung Nr.</th><th style="{th}">Datum</th>
+    <th style="{th}">Kunde</th><th style="{thr}">Netto (€)</th><th style="{thr}">USt (€)</th>
+    <th style="{thr}">Brutto (€)</th><th style="{th};text-align:center">Steuer</th>
+  </tr>
+  {''.join(body)}
+  <tr>
+    <td colspan="4" style="border:1px solid #222;padding:8px;font-weight:700;background:#efefef">Summe {year}</td>
+    <td style="border:1px solid #222;padding:8px;text-align:right;font-weight:700;background:#efefef">{_eur_de(total_n)}</td>
+    <td style="border:1px solid #222;padding:8px;text-align:right;font-weight:700;background:#efefef">{_eur_de(total_v)}</td>
+    <td style="border:1px solid #222;padding:8px;text-align:right;font-weight:700;background:#efefef">{_eur_de(total_g)}</td>
+    <td style="border:1px solid #222;background:#efefef"></td>
+  </tr>
+</table></body></html>"""
+    out_path = os.path.join(tempfile.gettempdir(), f"Rechnungen_{year}.xls")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    return out_path
+
+
 def analyze_year_sync(year: int = 2025) -> str:
     """Совокупный юр-анализ всех инвойсов года по таблице архива. Сохраняет сводку."""
     rows = year_archive_rows(year)

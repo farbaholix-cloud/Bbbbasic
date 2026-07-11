@@ -61,6 +61,7 @@ RESTART_LEGEND = (
     "Команды:\n"
     "• */analysis2025* — режим анализа 2025: пришли инвойсы за год, потом "
     "«все инвойсы отправлены» — дам совокупные выводы\n"
+    "• */show2025* — выгрузить таблицу 2025 в .xls (в стиле инвойсов)\n"
     "• */restart* — самоперезапуск (не завися от секретаря)\n"
     "• */wipeinvoicestoday* — удалить все счета, созданные сегодня (архив + PDF)"
 )
@@ -143,6 +144,34 @@ async def cmd_analysisoff(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     B._settings_set("analysis_mode", "")
     await update.message.reply_text("Режим анализа выключен. Таблица 2025 сохранена — можешь спрашивать о ней в любой момент.")
+
+
+async def cmd_show2025(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Показать таблицу 2025: собрать красивый .xls (в стиле инвойсов) и прислать файлом."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    rows = B.year_archive_rows(2025)
+    if not rows:
+        await update.message.reply_text(
+            "Таблица 2025 пока пуста. Включи режим — /analysis2025 — и пришли инвойсы.")
+        return
+    total = sum((r["gross"] or 0) for r in rows)
+    try:
+        path = await asyncio.get_event_loop().run_in_executor(None, lambda: B.export_year_xls(2025))
+    except Exception as e:
+        log.error(f"show2025 xls: {e}")
+        await update.message.reply_text(f"Не смог собрать файл 😔 {e}")
+        return
+    await update.message.reply_text(
+        f"📊 В таблице 2025: *{len(rows)}* инвойсов · оборот *{B._eur_de(total)} €*.",
+        parse_mode="Markdown")
+    try:
+        with open(path, "rb") as doc:
+            await update.message.reply_document(doc, filename=f"Rechnungen_2025.xls")
+    except Exception as e:
+        log.error(f"show2025 send: {e}")
 
 
 async def finalize_2025(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -309,6 +338,7 @@ def main():
     app.add_handler(CommandHandler("wipeinvoicestoday", B.cmd_wipeinvoicestoday))
     app.add_handler(CommandHandler("analysis2025", cmd_analysis2025))
     app.add_handler(CommandHandler("analysisoff", cmd_analysisoff))
+    app.add_handler(CommandHandler("show2025", cmd_show2025))
     app.add_handler(CommandHandler("done", finalize_2025))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))
