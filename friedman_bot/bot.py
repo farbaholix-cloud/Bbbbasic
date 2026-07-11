@@ -900,6 +900,95 @@ def clients_for_context(limit: int = 40) -> str:
     return "\n".join(lines)
 
 
+def _valid_iban(v: str) -> bool:
+    return bool(re.match(r'^DE\d{20}$', (v or "").replace(" ", "").upper()))
+
+
+def _valid_bic(v: str) -> bool:
+    return bool(re.match(r'^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$', (v or "").replace(" ", "").upper()))
+
+
+def _mask_tail(v: str, keep: int = 4) -> str:
+    v = (v or "").strip()
+    return ("…" + v[-keep:]) if len(v) > keep else "***"
+
+
+def import_own_invoice_sync(path: str):
+    """Разобрать присланный документ: если это счёт, выставленный самим владельцем
+    (Viacheslav Balabaiev / FARBAHOLIX) — забрать ИЗ НЕГО его реквизиты (в settings,
+    только пустые поля, с валидацией) и клиента-получателя (в память клиентов).
+    Возвращает {'imported': bool, 'summary': str} либо None, если это не его счёт."""
+    prompt = (
+        f"Прочитай документ по пути {path} инструментом Read (это может быть PDF или фото "
+        "бумажного счёта — распознай текст, даже если снято под углом/с тенями). "
+        "Определи, является ли это ИСХОДЯЩИМ счётом (Rechnung), который выставил САМ "
+        "Viacheslav Balabaiev (бренд FARBAHOLIX, Graffiti Künstler) — то есть он отправитель/"
+        "получатель платежа, а не адресат счёта.\n"
+        "Верни СТРОГО JSON без иного текста:\n"
+        '{"is_own_invoice": true|false, '
+        '"sender": {"iban": "", "bic": "", "steuernummer": "", "ident_nr": ""}, '
+        '"client": {"recipient": "получатель счёта: название и адрес, каждая часть с новой строки \\n", '
+        '"salutation": "Frau/Herr … если есть", "customer_no": ""}}\n'
+        "Реквизиты отправителя (iban/bic/steuernummer/ident_nr) и данные получателя выписывай "
+        "ТОЧНО как в документе. Если это НЕ его исходящий счёт — верни is_own_invoice=false и "
+        "пустые sender/client."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"],
+            capture_output=True, text=True, timeout=200,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s < 0 or e <= s:
+            return None
+        data = jsonlib.loads(raw[s:e + 1])
+    except Exception as ex:
+        log.error(f"import_own_invoice: {ex}")
+        return None
+
+    if not data.get("is_own_invoice"):
+        return None
+
+    saved, skipped = [], []
+    snd = data.get("sender") or {}
+    # Реквизиты: пишем ТОЛЬКО в пустые поля (не затираем уже заданное), с валидацией.
+    def _try_save(field_key, value, label, validator=None):
+        value = (value or "").strip()
+        if not value:
+            return
+        if validator and not validator(value):
+            skipped.append(f"{label} (не прошло проверку формата)")
+            return
+        if (_settings_get(field_key) or "").strip():
+            skipped.append(f"{label} (уже задано)")
+            return
+        _settings_set(field_key, value)
+        saved.append(f"{label}: {_mask_tail(value)}")
+
+    _try_save("inv_iban", snd.get("iban"), "IBAN", _valid_iban)
+    _try_save("inv_bic", snd.get("bic"), "BIC", _valid_bic)
+    _try_save("inv_steuernummer", snd.get("steuernummer"), "Steuernummer")
+    _try_save("inv_ident_nr", snd.get("ident_nr"), "Steuer-ID")
+
+    cl = data.get("client") or {}
+    client_name = ""
+    if (cl.get("recipient") or "").strip():
+        upsert_client(cl["recipient"], cl.get("salutation", ""), cl.get("customer_no", ""))
+        client_name = cl["recipient"].split("\n")[0].strip()
+
+    parts = []
+    if client_name:
+        parts.append(f"🗂 клиент запомнен: *{client_name}*")
+    if saved:
+        parts.append("🔐 реквизиты сохранены: " + ", ".join(saved))
+    if skipped:
+        parts.append("⏭ пропущено: " + ", ".join(skipped))
+    if not parts:
+        return {"imported": False, "summary": ""}
+    return {"imported": bool(client_name or saved), "summary": "\n".join(parts)}
+
+
 def apply_actions(actions: list) -> list:
     results = []
     for a in actions:

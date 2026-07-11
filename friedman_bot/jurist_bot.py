@@ -87,6 +87,27 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     tg_file = await ctx.bot.get_file(fid)
     await tg_file.download_to_drive(tmp)
 
+    # Сначала пробуем авто-импорт: если это ИСХОДЯЩИЙ счёт самого владельца —
+    # забираем из него реквизиты (в настройки) и клиента (в память).
+    try:
+        imp = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: B.import_own_invoice_sync(tmp))
+    except Exception as e:
+        log.error(f"own-invoice import: {e}")
+        imp = None
+    if imp and imp.get("imported"):
+        await update.message.reply_text(
+            "⚖️ Разобрал твой счёт и запомнил данные:\n\n" + imp["summary"]
+            + "\n\nТеперь можно короче: _«инвойс "
+            + "<клиент> на <сумму>»_ — подставлю адрес сам.\n"
+            "Реквизиты неверны? Поменяй: `/setinvoicedata <поле> <значение>` секретарю.",
+            parse_mode="Markdown")
+        try:
+            os.unlink(tmp)
+        except Exception:
+            pass
+        return
+
     instruction = (
         f"Проанализируй документ по пути {tmp} (используй инструмент Read). "
         "Если это фото бумаги — оно может быть снято под углом, помято, со складками и тенями: "
