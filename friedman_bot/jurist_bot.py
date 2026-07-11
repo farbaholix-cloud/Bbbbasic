@@ -56,8 +56,10 @@ RESTART_LEGEND = (
     "⚖️ *Юрист перезапущен и снова на связи.*\n"
     "_{when}_\n\n"
     "Умею: счета (Rechnung PDF), анализ финансов и оборота, письма в ведомства, "
-    "напоминания о сроках, разбор присланных документов.\n"
-    "Самоперезапуск: пришли */restart* — подниму себя заново, не завися от секретаря."
+    "напоминания о сроках, разбор присланных документов.\n\n"
+    "Команды:\n"
+    "• */restart* — самоперезапуск (не завися от секретаря)\n"
+    "• */wipeinvoicestoday* — удалить все счета, созданные сегодня (архив + PDF)"
 )
 
 
@@ -209,6 +211,7 @@ def main():
     app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("restart", cmd_restart))
+    app.add_handler(CommandHandler("wipeinvoicestoday", B.cmd_wipeinvoicestoday))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))
     app.add_handler(MessageHandler(filters.PHOTO, on_file))
