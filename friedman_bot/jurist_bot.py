@@ -59,9 +59,9 @@ RESTART_LEGEND = (
     "Умею: счета (Rechnung PDF), анализ финансов и оборота, письма в ведомства, "
     "напоминания о сроках, разбор присланных документов.\n\n"
     "Команды:\n"
-    "• */analysis2025* — режим анализа 2025: пришли инвойсы за год, потом "
-    "«все инвойсы отправлены» — дам совокупные выводы\n"
-    "• */show2025* — выгрузить таблицу 2025 в .xls (в стиле инвойсов)\n"
+    "• */analysis* — режим анализа: пришли инвойсы (любые годы), потом "
+    "«все инвойсы отправлены» — дам совокупные выводы по годам\n"
+    "• */showinvoices* — выгрузить всю таблицу в .xls (в стиле инвойсов)\n"
     "• */restart* — самоперезапуск (не завися от секретаря)\n"
     "• */wipeinvoicestoday* — удалить все счета, созданные сегодня (архив + PDF)"
 )
@@ -111,28 +111,28 @@ async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Не смог перезапуститься сам: {e}")
 
 
-# ── Режим пакетного анализа 2025 ──────────────────────────────────────────────
+# ── Режим пакетного анализа инвойсов (по всем годам) ──────────────────────────
 def _analysis_mode() -> str:
     return B._settings_get("analysis_mode") or ""
 
 
-async def cmd_analysis2025(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Включить режим анализа 2025: собираем присланные PDF-инвойсы в таблицу."""
+async def cmd_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Включить режим анализа: собираем присланные PDF-инвойсы (любой год) в таблицу."""
     chat_id = update.effective_chat.id
     owner = B.get_chat_id()
     if owner and chat_id != owner:
         return
     B.save_chat_id(chat_id)
-    B._settings_set("analysis_mode", "2025_collect")
-    n = len(B.year_archive_rows(2025))
+    B._settings_set("analysis_mode", "collect")
+    n = len(B.all_archive_rows())
     await update.message.reply_text(
-        "📊 *Режим анализа 2025 включён.*\n\n"
-        "Кидай PDF-инвойсы по одному — я распознаю каждый и складываю в таблицу "
-        "(без разбора по отдельности, чтобы не жечь токены).\n"
+        "📊 *Режим анализа включён.*\n\n"
+        "Кидай PDF-инвойсы по одному (любые годы) — я распознаю каждый и складываю "
+        "в общую таблицу (без разбора по отдельности, чтобы не жечь токены).\n"
         "Когда пришлёшь все — напиши *«все инвойсы отправлены»* (или /done): дам "
-        "СОВОКУПНЫЙ анализ за год и выводы, дальше сможем спокойно обсуждать 2025 "
-        "по таблице, не перечитывая файлы.\n"
-        + (f"\n_Уже в архиве 2025: {n} шт._" if n else ""),
+        "СОВОКУПНЫЙ анализ по годам, дальше сможем спокойно обсуждать их по таблице, "
+        "не перечитывая файлы.\n"
+        + (f"\n_Уже в архиве: {n} шт._" if n else ""),
         parse_mode="Markdown")
 
 
@@ -143,74 +143,76 @@ async def cmd_analysisoff(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if owner and chat_id != owner:
         return
     B._settings_set("analysis_mode", "")
-    await update.message.reply_text("Режим анализа выключен. Таблица 2025 сохранена — можешь спрашивать о ней в любой момент.")
+    await update.message.reply_text("Режим анализа выключен. Таблица сохранена — можешь спрашивать о ней в любой момент.")
 
 
-async def cmd_show2025(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Показать таблицу 2025: собрать красивый .xls (в стиле инвойсов) и прислать файлом."""
+async def cmd_showinvoices(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Собрать красивый .xls (в стиле инвойсов) со ВСЕМИ инвойсами по всем годам."""
     chat_id = update.effective_chat.id
     owner = B.get_chat_id()
     if owner and chat_id != owner:
         return
-    rows = B.year_archive_rows(2025)
+    rows = B.all_archive_rows()
     if not rows:
         await update.message.reply_text(
-            "Таблица 2025 пока пуста. Включи режим — /analysis2025 — и пришли инвойсы.")
+            "Таблица пуста. Включи режим — /analysis — и пришли инвойсы.")
         return
     total = sum((r["gross"] or 0) for r in rows)
+    years = B.archive_years()
     try:
-        path = await asyncio.get_event_loop().run_in_executor(None, lambda: B.export_year_xls(2025))
+        path = await asyncio.get_event_loop().run_in_executor(None, B.export_invoices_xls)
     except Exception as e:
-        log.error(f"show2025 xls: {e}")
+        log.error(f"showinvoices xls: {e}")
         await update.message.reply_text(f"Не смог собрать файл 😔 {e}")
         return
+    yrs = ", ".join(str(y) for y in years) or "—"
     await update.message.reply_text(
-        f"📊 В таблице 2025: *{len(rows)}* инвойсов · оборот *{B._eur_de(total)} €*.",
+        f"📊 В таблице: *{len(rows)}* инвойсов ({yrs}) · оборот всего *{B._eur_de(total)} €*.",
         parse_mode="Markdown")
     try:
         with open(path, "rb") as doc:
-            await update.message.reply_document(doc, filename=f"Rechnungen_2025.xls")
+            await update.message.reply_document(doc, filename="Rechnungen_alle.xls")
     except Exception as e:
-        log.error(f"show2025 send: {e}")
+        log.error(f"showinvoices send: {e}")
 
 
-async def finalize_2025(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """«Все инвойсы отправлены» → совокупный анализ по таблице."""
-    n = len(B.year_archive_rows(2025))
+async def finalize_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """«Все инвойсы отправлены» → совокупный анализ по всем годам."""
+    n = len(B.all_archive_rows())
     if not n:
-        await update.message.reply_text("В таблице 2025 пока пусто — сначала пришли инвойсы.")
+        await update.message.reply_text("В таблице пока пусто — сначала пришли инвойсы.")
         return
-    await update.message.reply_text(f"📊 Собрано {n} инвойсов. Делаю совокупный анализ за 2025…")
-    reply = await asyncio.get_event_loop().run_in_executor(None, lambda: B.analyze_year_sync(2025))
-    B._settings_set("analysis_mode", "2025_ready")
+    await update.message.reply_text(f"📊 Собрано {n} инвойсов. Делаю совокупный анализ по годам…")
+    reply = await asyncio.get_event_loop().run_in_executor(None, B.analyze_all_sync)
+    B._settings_set("analysis_mode", "ready")
     if not reply:
         await update.message.reply_text("Не удалось собрать анализ 😔 Попробуй ещё раз или пришли файлы заново.")
         return
-    for chunk in B._split_msg("⚖️ *Анализ 2025:*\n\n" + reply, 3800):
+    for chunk in B._split_msg("⚖️ *Совокупный анализ инвойсов:*\n\n" + reply, 3800):
         try:
             await update.message.reply_text(chunk, parse_mode="Markdown")
         except Exception:
             await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
     await update.message.reply_text(
-        "Готово. Теперь просто спрашивай про 2025 — отвечаю по таблице, файлы не перечитываю. "
-        "Выйти из режима: /analysisoff")
+        "Готово. Теперь просто спрашивай про любой год — отвечаю по таблице, файлы не перечитываю. "
+        "Выгрузить всё в .xls: /showinvoices · выйти: /analysisoff")
 
 
 async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     txt = (update.message.text or "").strip()
     if not txt:
         return
-    # Фраза-включатель режима анализа 2025
-    if re.search(r"включ\w*\s+режим\s+анализ\w*\s+2025|режим\s+анализа?\s+2025", txt, re.I):
-        await cmd_analysis2025(update, ctx)
+    # Фраза-включатель режима анализа
+    if re.search(r"включ\w*\s+режим\s+анализ|режим\s+анализа", txt, re.I):
+        await cmd_analysis(update, ctx)
         return
-    # В режиме сбора 2025: либо «все инвойсы отправлены», либо напоминание
-    if _analysis_mode() == "2025_collect":
+    # В режиме сбора: либо «все инвойсы отправлены», либо напоминание
+    if _analysis_mode() == "collect":
         if re.search(r"(все|всё)\s+инвойс\w*\s+отправл|инвойсы\s+все|готово|закончил|это\s+все", txt, re.I):
-            await finalize_2025(update, ctx)
+            await finalize_analysis(update, ctx)
             return
         await update.message.reply_text(
-            "📥 Я в режиме сбора 2025 — кидай PDF-инвойсы. Когда закончишь, напиши "
+            "📥 Я в режиме сбора — кидай PDF-инвойсы (любые годы). Когда закончишь, напиши "
             "*«все инвойсы отправлены»* (или /done). Выйти без анализа: /analysisoff",
             parse_mode="Markdown")
         return
@@ -258,15 +260,15 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     tg_file = await ctx.bot.get_file(fid)
     await tg_file.download_to_drive(tmp)
 
-    # Режим сбора 2025: складываем инвойс в таблицу (без разбора по одному).
-    if _analysis_mode() == "2025_collect":
+    # Режим сбора: складываем инвойс в таблицу (без разбора по одному).
+    if _analysis_mode() == "collect":
         try:
             ack = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: B.store_archived_invoice(tmp))
         except Exception as e:
             log.error(f"archive ingest: {e}")
             ack = None
-        n = len(B.year_archive_rows(2025))
+        n = len(B.all_archive_rows())
         if ack:
             await update.message.reply_text(f"✅ В таблицу ({n}): {ack}")
         else:
@@ -336,10 +338,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("restart", cmd_restart))
     app.add_handler(CommandHandler("wipeinvoicestoday", B.cmd_wipeinvoicestoday))
-    app.add_handler(CommandHandler("analysis2025", cmd_analysis2025))
+    app.add_handler(CommandHandler(["analysis", "analysis2025"], cmd_analysis))
     app.add_handler(CommandHandler("analysisoff", cmd_analysisoff))
-    app.add_handler(CommandHandler("show2025", cmd_show2025))
-    app.add_handler(CommandHandler("done", finalize_2025))
+    app.add_handler(CommandHandler(["showinvoices", "show2025"], cmd_showinvoices))
+    app.add_handler(CommandHandler("done", finalize_analysis))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))
     app.add_handler(MessageHandler(filters.PHOTO, on_file))

@@ -689,9 +689,9 @@ def get_legal_context() -> str:
     if clients_block:
         lines.append("\n" + clients_block)
 
-    arch_2025 = year_archive_context(2025)
-    if arch_2025:
-        lines.append("\n" + arch_2025)
+    arch = archive_context()
+    if arch:
+        lines.append("\n" + arch)
 
     if fin_last:
         lines.append("\nПОСЛЕДНИЕ ФИНАНСОВЫЕ ОПЕРАЦИИ:")
@@ -1086,6 +1086,28 @@ def year_archive_rows(year: int):
         return []
 
 
+def all_archive_rows():
+    """Все инвойсы архива по всем годам, по возрастанию даты."""
+    try:
+        with db() as conn:
+            return conn.execute(
+                "SELECT number, inv_date, year, client_name, net, vat, gross, kleinunternehmer "
+                "FROM invoice_archive ORDER BY year, inv_date, number").fetchall()
+    except Exception:
+        return []
+
+
+def archive_years():
+    """Список годов, за которые есть инвойсы (по возрастанию)."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT year FROM invoice_archive WHERE year IS NOT NULL ORDER BY year").fetchall()
+        return [r["year"] for r in rows]
+    except Exception:
+        return []
+
+
 def year_archive_context(year: int = 2025) -> str:
     """Компактная сводка архива за год для контекста — БЕЗ перечитывания PDF."""
     rows = year_archive_rows(year)
@@ -1110,6 +1132,36 @@ def year_archive_context(year: int = 2025) -> str:
     return "\n".join(lines)
 
 
+def archive_context() -> str:
+    """Компактная сводка архива ПО ВСЕМ ГОДАМ для контекста — БЕЗ перечитывания PDF.
+    Оборот считается по годам (важно для годового порога Kleinunternehmer §19)."""
+    rows = all_archive_rows()
+    if not rows:
+        return ""
+    by_year = {}
+    for r in rows:
+        y = r["year"] or 0
+        d = by_year.setdefault(y, {"g": 0.0, "n": 0.0, "v": 0.0, "cnt": 0})
+        d["g"] += r["gross"] or 0
+        d["n"] += r["net"] or 0
+        d["v"] += r["vat"] or 0
+        d["cnt"] += 1
+    lines = [f"АРХИВ ИНВОЙСОВ ({len(rows)} шт по всем годам — это ФАКТЫ из присланных счетов, "
+             "файлы НЕ перечитывай):",
+             "ОБОРОТ ПО ГОДАМ (Umsatz, важно для годового порога Kleinunternehmer §19):"]
+    for y in sorted(by_year):
+        d = by_year[y]
+        lines.append(f"  {y}: {d['g']:.2f}€ brutto (netto {d['n']:.2f} · USt {d['v']:.2f}) · {d['cnt']} счетов")
+    lines.append("Счета:")
+    for r in rows:
+        lines.append(f"  №{r['number'] or '—'} {r['inv_date'] or ''} · {(r['client_name'] or '—')[:26]} · "
+                     f"{r['gross'] or 0:.0f}€{' §19' if r['kleinunternehmer'] else ''}")
+    saved = _settings_get("analysis_summary_all")
+    if saved:
+        lines.append(f"\nСВОДКА-ВЫВОДЫ (уже сделанный совокупный анализ):\n{saved}")
+    return "\n".join(lines)
+
+
 def _esc_x(v) -> str:
     import html as _html
     return _html.escape(str(v if v is not None else ""))
@@ -1121,46 +1173,64 @@ def _eur_de(n) -> str:
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
 
-def export_year_xls(year: int = 2025) -> str:
-    """Собрать .xls (HTML-таблица, без зависимостей) со всеми инвойсами года.
-    Оформление — в стиле инвойсов: серая шапка-блок, красный акцент, аккуратная
-    таблица с итогами. Возвращает путь к файлу."""
-    rows = year_archive_rows(year)
-    total_g = sum((r["gross"] or 0) for r in rows)
-    total_n = sum((r["net"] or 0) for r in rows)
-    total_v = sum((r["vat"] or 0) for r in rows)
+def export_invoices_xls() -> str:
+    """Собрать .xls (HTML-таблица, без зависимостей) со ВСЕМИ инвойсами архива
+    по всем годам: подытоги по каждому году + общий итог. Оформление — в стиле
+    инвойсов (шапка FARBAHOLIX, красный акцент, тёмная строка заголовков)."""
+    rows = all_archive_rows()
     stand = datetime.now().strftime("%d.%m.%Y")
+    g_all = sum((r["gross"] or 0) for r in rows)
+    n_all = sum((r["net"] or 0) for r in rows)
+    v_all = sum((r["vat"] or 0) for r in rows)
+    years = sorted({(r["year"] or 0) for r in rows})
 
-    body = []
-    for i, r in enumerate(rows, 1):
-        bg = "#ffffff" if i % 2 else "#f7f7f7"
-        klein = "§19" if r["kleinunternehmer"] else "USt"
+    def cell(v, extra=""):
+        return f"<td style='border:1px solid #cfcfcf;padding:6px 8px;{extra}'>{v}</td>"
+
+    body, idx = [], 0
+    for y in years:
+        yrows = [r for r in rows if (r["year"] or 0) == y]
+        yg = sum((r["gross"] or 0) for r in yrows)
+        yn = sum((r["net"] or 0) for r in yrows)
+        yv = sum((r["vat"] or 0) for r in yrows)
         body.append(
-            f"<tr>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{i}</td>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{_esc_x(r['number'])}</td>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{_esc_x(r['inv_date'])}</td>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px'>{_esc_x(r['client_name'])}</td>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:right'>{_eur_de(r['net'])}</td>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:right'>{_eur_de(r['vat'])}</td>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:right;font-weight:700'>{_eur_de(r['gross'])}</td>"
-            f"<td style='border:1px solid #cfcfcf;background:{bg};padding:6px 8px;text-align:center'>{klein}</td>"
-            f"</tr>")
-    th = ("background:#333333;color:#ffffff;font-weight:700;border:1px solid #222;"
-          "padding:8px 8px;text-align:left")
+            f"<tr><td colspan='8' style='background:#b23a3a;color:#fff;font-weight:700;"
+            f"padding:7px 8px'>{y or '—'}</td></tr>")
+        for r in yrows:
+            idx += 1
+            bg = "#ffffff" if idx % 2 else "#f7f7f7"
+            klein = "§19" if r["kleinunternehmer"] else "USt"
+            c = f"border:1px solid #cfcfcf;background:{bg};padding:6px 8px"
+            body.append(
+                f"<tr>"
+                f"<td style='{c}'>{idx}</td>"
+                f"<td style='{c}'>{_esc_x(r['number'])}</td>"
+                f"<td style='{c}'>{_esc_x(r['inv_date'])}</td>"
+                f"<td style='{c}'>{_esc_x(r['client_name'])}</td>"
+                f"<td style='{c};text-align:right'>{_eur_de(r['net'])}</td>"
+                f"<td style='{c};text-align:right'>{_eur_de(r['vat'])}</td>"
+                f"<td style='{c};text-align:right;font-weight:700'>{_eur_de(r['gross'])}</td>"
+                f"<td style='{c};text-align:center'>{klein}</td>"
+                f"</tr>")
+        sc = "border:1px solid #222;padding:7px 8px;font-weight:700;background:#efefef"
+        body.append(
+            f"<tr><td colspan='4' style='{sc}'>Summe {y or '—'}</td>"
+            f"<td style='{sc};text-align:right'>{_eur_de(yn)}</td>"
+            f"<td style='{sc};text-align:right'>{_eur_de(yv)}</td>"
+            f"<td style='{sc};text-align:right'>{_eur_de(yg)}</td>"
+            f"<td style='{sc}'></td></tr>")
+
+    th = "background:#333333;color:#ffffff;font-weight:700;border:1px solid #222;padding:8px 8px;text-align:left"
     thr = th + ";text-align:right"
+    gc = "border:2px solid #222;padding:9px 8px;font-weight:700;background:#dddddd;font-size:14px"
     html = f"""<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">
 <style>body{{font-family:'Helvetica Neue',Arial,sans-serif;color:#1a1a1a}}</style></head><body>
 <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:13px">
   <tr><td colspan="8" style="font-size:22px;font-weight:700;padding:6px 8px 0">FARBAHOLIX</td></tr>
-  <tr><td colspan="8" style="color:#b23a3a;font-size:14px;padding:0 8px 2px">Rechnungen {year} — Übersicht</td></tr>
+  <tr><td colspan="8" style="color:#b23a3a;font-size:14px;padding:0 8px 2px">Rechnungen — Gesamtübersicht</td></tr>
   <tr><td colspan="8" style="border-bottom:4px solid #b23a3a;height:4px;padding:0"></td></tr>
-  <tr><td colspan="8" style="padding:8px;color:#555">Stand: {stand} · Belege: {len(rows)}</td></tr>
-  <tr>
-    <td colspan="4" style="padding:4px 8px;font-weight:700">Umsatz gesamt (brutto): {_eur_de(total_g)} €</td>
-    <td colspan="4" style="padding:4px 8px;color:#555">netto {_eur_de(total_n)} € · USt {_eur_de(total_v)} €</td>
-  </tr>
-  <tr><td colspan="8" style="height:6px"></td></tr>
+  <tr><td colspan="8" style="padding:8px;color:#555">Stand: {stand} · Belege: {len(rows)} · Jahre: {', '.join(str(y) for y in years) or '—'}</td></tr>
+  <tr><td colspan="8" style="height:4px"></td></tr>
   <tr>
     <th style="{th}">#</th><th style="{th}">Rechnung Nr.</th><th style="{th}">Datum</th>
     <th style="{th}">Kunde</th><th style="{thr}">Netto (€)</th><th style="{thr}">USt (€)</th>
@@ -1168,39 +1238,43 @@ def export_year_xls(year: int = 2025) -> str:
   </tr>
   {''.join(body)}
   <tr>
-    <td colspan="4" style="border:1px solid #222;padding:8px;font-weight:700;background:#efefef">Summe {year}</td>
-    <td style="border:1px solid #222;padding:8px;text-align:right;font-weight:700;background:#efefef">{_eur_de(total_n)}</td>
-    <td style="border:1px solid #222;padding:8px;text-align:right;font-weight:700;background:#efefef">{_eur_de(total_v)}</td>
-    <td style="border:1px solid #222;padding:8px;text-align:right;font-weight:700;background:#efefef">{_eur_de(total_g)}</td>
-    <td style="border:1px solid #222;background:#efefef"></td>
+    <td colspan="4" style="{gc}">Gesamt (alle Jahre)</td>
+    <td style="{gc};text-align:right">{_eur_de(n_all)}</td>
+    <td style="{gc};text-align:right">{_eur_de(v_all)}</td>
+    <td style="{gc};text-align:right">{_eur_de(g_all)}</td>
+    <td style="{gc}"></td>
   </tr>
 </table></body></html>"""
-    out_path = os.path.join(tempfile.gettempdir(), f"Rechnungen_{year}.xls")
+    out_path = os.path.join(tempfile.gettempdir(), "Rechnungen_alle.xls")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
     return out_path
 
 
-def analyze_year_sync(year: int = 2025) -> str:
-    """Совокупный юр-анализ всех инвойсов года по таблице архива. Сохраняет сводку."""
-    rows = year_archive_rows(year)
+def analyze_all_sync() -> str:
+    """Совокупный юр-анализ ВСЕХ инвойсов архива по всем годам. Сохраняет сводку."""
+    rows = all_archive_rows()
     if not rows:
         return ""
-    table = year_archive_context(year)
+    table = archive_context()
+    years = archive_years()
+    yrs = ", ".join(str(y) for y in years) or "—"
     sys_prompt = (LAWYER_PROMPT
                   .replace("{kb}", LEGAL_KB_DIR)
                   .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
     prompt = (
         f"{get_legal_context()}\n\n"
-        f"ЗАДАЧА: сделай СОВОКУПНЫЙ налогово-правовой анализ ВСЕХ инвойсов за {year} год "
-        "(данные ниже — это уже распознанная таблица, файлы перечитывать НЕ нужно). "
-        "Не разбирай счета по одному — дай выводы по всей картине:\n"
-        "1) суммарный оборот (Umsatz) за год и как он соотносится с порогами Kleinunternehmer "
-        "(§19 UStG): порог текущего/следующего года, перешёл ли, последствия для НДС;\n"
-        "2) распределение по клиентам и по времени — риски (напр. переквалификация, зависимость);\n"
-        "3) что это значит для деклараций (ESt, Anlage EÜR/S, при необходимости USt);\n"
-        "4) конкретные рекомендации и следующие шаги (с оговоркой: финал — со Steuerberater).\n"
-        "Ответ дай по-русски, структурно. В reply — сам анализ; actions по необходимости.\n\n"
+        f"ЗАДАЧА: сделай СОВОКУПНЫЙ налогово-правовой анализ ВСЕХ инвойсов за годы {yrs} "
+        "(данные ниже — уже распознанная таблица, файлы перечитывать НЕ нужно). "
+        "Не разбирай счета по одному — дай выводы по всей картине, ОБЯЗАТЕЛЬНО в разрезе ПО ГОДАМ:\n"
+        "1) оборот (Umsatz) ПО КАЖДОМУ году и как он соотносится с порогом Kleinunternehmer "
+        "(§19 UStG) для этого года — в каком году порог превышен, с какого момента статус "
+        "Kleinunternehmer теряется и появляется обязанность по НДС (Regelbesteuerung);\n"
+        "2) динамика год к году, распределение по клиентам, риски (переквалификация Freiberufler→"
+        "Gewerbe, зависимость от одного заказчика);\n"
+        "3) что это значит для деклараций каждого года (ESt, Anlage EÜR/S, при необходимости USt);\n"
+        "4) конкретные рекомендации и следующие шаги (финал — со Steuerberater).\n"
+        "Ответ по-русски, структурно, по годам. В reply — сам анализ; actions по необходимости.\n\n"
         f"{table}"
     )
     try:
@@ -1220,10 +1294,10 @@ def analyze_year_sync(year: int = 2025) -> str:
         if not reply:
             reply = raw
         if reply:
-            _settings_set(f"analysis_summary_{year}", reply[:6000])
+            _settings_set("analysis_summary_all", reply[:6000])
         return reply
     except Exception as e:
-        log.error(f"analyze_year: {e}")
+        log.error(f"analyze_all: {e}")
         return ""
 
 
