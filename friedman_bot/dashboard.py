@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.27"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.28"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1858,17 +1858,17 @@ function setCalRange(r){
   renderCal();
 }
 function renderCal(){
-  const now=new Date();const dow=(now.getDay()+6)%7;
-  const mon=new Date(now);mon.setDate(now.getDate()-dow);mon.setHours(0,0,0,0);
+  const now=new Date();
+  const today0=new Date(now);today0.setHours(0,0,0,0);
   const todayISO=localISO(now);
-  // границы выбранного диапазона: неделя (пн–вс) / месяц / год
+  // границы диапазона: неделя = ближайшие 7 дней (сегодня…+7) / месяц / год
   let start,end;
   if(_calRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,1);}
   else if(_calRange==='year'){start=new Date(now.getFullYear(),0,1);end=new Date(now.getFullYear()+1,0,1);}
-  else {start=new Date(mon);end=new Date(mon);end.setDate(mon.getDate()+7);}
+  else {start=new Date(today0);end=new Date(today0);end.setDate(today0.getDate()+7);}
   const startISO=localISO(start),endISO=localISO(end);
   const dates=new Set();
-  if(_calRange==='week'){for(let i=0;i<7;i++){const dd=new Date(mon);dd.setDate(mon.getDate()+i);const ds=localISO(dd);if(ds>=todayISO)dates.add(ds);}}
+  if(_calRange==='week'){for(let i=0;i<7;i++){const dd=new Date(today0);dd.setDate(today0.getDate()+i);dates.add(localISO(dd));}}
   DATA.cards.forEach(c=>{if(c.date&&c.date>=startISO&&c.date<endISO)dates.add(c.date);});
   const sorted=[...dates].sort();
   let html='';
@@ -1880,8 +1880,7 @@ function renderCal(){
     // в режиме «год» — разделители по месяцам
     if(_calRange==='year'&&dd.getMonth()!==curMonth){curMonth=dd.getMonth();html+='<div class="cal-msep">'+MONTHS[curMonth]+'</div>';}
     const today=ds===todayISO;const past=ds<todayISO;
-    const inWeek=dd>=mon&&(dd-mon)<7*864e5;
-    const showMonth=_calRange!=='week'||!inWeek;
+    const showMonth=_calRange!=='week'||dd.getMonth()!==now.getMonth();
     const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(showMonth?' '+MONTHS[dd.getMonth()]:'')+(past?' ⚠️':'')+(today?' · сегодня':'');
     html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past?'past':'')+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
@@ -1901,7 +1900,7 @@ function renderCal(){
           tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
       }).join('')+'</div>';
   }
-  const emptyMsg={week:'на этой неделе пусто',month:'в этом месяце пусто',year:'в этом году пусто'}[_calRange];
+  const emptyMsg={week:'в ближайшие 7 дней пусто',month:'в этом месяце пусто',year:'в этом году пусто'}[_calRange];
   document.getElementById('cal').innerHTML=html||'<div class="empty">'+emptyMsg+'</div>';
 }
 
