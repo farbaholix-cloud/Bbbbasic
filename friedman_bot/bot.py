@@ -151,6 +151,14 @@ def init_db():
             text TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        -- Отдельная долгая память Юриста: полные реплики, не под общим лимитом 50
+        -- и не вытесняется болтовнёй с секретарём. Старое сжимается в сводку (settings).
+        CREATE TABLE IF NOT EXISTS lawyer_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role TEXT,
+            text TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS bridge (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             period TEXT,
@@ -621,8 +629,7 @@ def get_legal_context() -> str:
             "SELECT name, kind, total, paid, due_date, monthly FROM debts ORDER BY kind, due_date").fetchall()
         payments = conn.execute(
             "SELECT title, amount, kind, recur, day FROM payments WHERE active=1 ORDER BY kind, day").fetchall()
-        history = conn.execute(
-            "SELECT role, text FROM messages WHERE text LIKE '⚖%' OR role='lawyer' ORDER BY id DESC LIMIT 8").fetchall()
+    lawyer_summary, history = get_lawyer_memory()
 
     def _year_of(s):
         s = s or ""
@@ -667,11 +674,15 @@ def get_legal_context() -> str:
         for p in payments:
             lines.append(f"  {p['title']}: {p['amount']:.0f}€ ({p['recur']}, {p['day']}-го)")
 
+    if lawyer_summary:
+        lines.append("\nПАМЯТЬ ЮРИСТА (сводка прошлых консультаций — факты, решения, статусы, сроки):")
+        lines.append(lawyer_summary)
+
     if history:
-        lines.append("\nПОСЛЕДНИЙ ДИАЛОГ С ЮРИСТОМ:")
-        for h in reversed(history):
+        lines.append("\nПОСЛЕДНИЙ ДИАЛОГ С ЮРИСТОМ (свежие реплики, дословно):")
+        for h in history:
             who = "Человек" if h["role"] == "user" else "Юрист"
-            lines.append(f"{who}: {h['text'][:200]}")
+            lines.append(f"{who}: {h['text'][:LAWYER_MSG_MAXLEN]}")
 
     return "\n".join(lines)
 
@@ -711,7 +722,6 @@ def ask_lawyer_sync(user_text: str) -> dict:
 async def ai_lawyer(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_text: str):
     """Диалог с Юристом: налогово-правовой консультант с доступом к финансовой БД и базе знаний."""
     save_chat_id(update.effective_chat.id)
-    remember("user", "⚖️ " + user_text)
     wait = await update.message.reply_text("⚖️ Юрист изучает вопрос и сверяется с базой…")
 
     resp = await asyncio.get_event_loop().run_in_executor(None, lambda: ask_lawyer_sync(user_text))
@@ -719,7 +729,9 @@ async def ai_lawyer(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_text: s
     actions = resp.get("actions", [])
     applied = apply_actions(actions)
 
-    remember("lawyer", "⚖️ " + reply[:400])
+    # Полная долгая память Юриста (вопрос + ответ целиком, без обрезки)
+    remember_lawyer("user", user_text)
+    remember_lawyer("lawyer", reply)
 
     extras = []
     for kind, item_id, text, area, pri in applied:
@@ -754,6 +766,9 @@ async def ai_lawyer(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_text: s
                     await update.message.reply_document(doc, filename=path.split("/")[-1])
             except Exception as e:
                 log.error(f"lawyer invoice send: {e}")
+
+    # После ответа: свернуть выпавшие за окно реплики в сводку (в фоне, не задерживает диалог)
+    asyncio.get_event_loop().run_in_executor(None, maybe_update_lawyer_summary)
 
 
 def _split_msg(text: str, limit: int = 3800):
@@ -886,6 +901,84 @@ def remember(role: str, text: str):
     with db() as conn:
         conn.execute("INSERT INTO messages (role, text) VALUES (?,?)", (role, text))
         conn.execute("DELETE FROM messages WHERE id NOT IN (SELECT id FROM messages ORDER BY id DESC LIMIT 50)")
+
+
+# ── Долгая память Юриста ──────────────────────────────────────────────────────
+# Дословно в контекст идут последние LAWYER_WINDOW реплик; всё, что выходит за
+# окно, сжимается в постоянную сводку (settings['lawyer_summary']). Так Юрист
+# помнит практически весь диалог, не раздувая каждый запрос.
+LAWYER_WINDOW = 30          # сколько последних реплик показывать дословно
+LAWYER_MSG_MAXLEN = 1600    # макс. длина одной реплики в контексте
+LAWYER_STORE_CAP = 2000     # жёсткий потолок строк в lawyer_messages (старое уже в сводке)
+
+
+def remember_lawyer(role: str, text: str):
+    """Сохранить полную реплику диалога с Юристом в его отдельную долгую память."""
+    try:
+        with db() as conn:
+            conn.execute("INSERT INTO lawyer_messages (role, text) VALUES (?,?)", (role, text))
+            conn.execute("DELETE FROM lawyer_messages WHERE id NOT IN "
+                         "(SELECT id FROM lawyer_messages ORDER BY id DESC LIMIT ?)", (LAWYER_STORE_CAP,))
+    except Exception as e:
+        log.error(f"remember_lawyer: {e}")
+
+
+def get_lawyer_memory():
+    """(сводка, [последние реплики]) — постоянная память Юриста для контекста."""
+    summary = _settings_get("lawyer_summary") or ""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT id, role, text FROM lawyer_messages ORDER BY id DESC LIMIT ?",
+                (LAWYER_WINDOW,)).fetchall()
+        recent = list(reversed(rows))
+    except Exception as e:
+        log.error(f"get_lawyer_memory: {e}")
+        recent = []
+    return summary, recent
+
+
+def maybe_update_lawyer_summary():
+    """Свернуть в сводку реплики, выпавшие за окно последних LAWYER_WINDOW.
+    Вызывать ПОСЛЕ отправки ответа (в executor) — не задерживает ответ Юриста."""
+    try:
+        with db() as conn:
+            newest = conn.execute("SELECT COALESCE(MAX(id),0) FROM lawyer_messages").fetchone()[0]
+            if not newest:
+                return
+            # граница окна: всё с id <= cutoff уже вышло из дословного окна
+            cutoff = conn.execute(
+                "SELECT MIN(id) FROM (SELECT id FROM lawyer_messages ORDER BY id DESC LIMIT ?)",
+                (LAWYER_WINDOW,)).fetchone()[0]
+            upto = int(_settings_get("lawyer_summary_upto_id") or 0)
+            if cutoff is None or cutoff - 1 <= upto:
+                return  # нечего досворачивать
+            pending = conn.execute(
+                "SELECT role, text FROM lawyer_messages WHERE id > ? AND id < ? ORDER BY id",
+                (upto, cutoff)).fetchall()
+        if not pending:
+            return
+        prev = _settings_get("lawyer_summary") or "(пусто)"
+        block = "\n".join(
+            f"{'Человек' if r['role'] == 'user' else 'Юрист'}: {r['text']}" for r in pending)
+        prompt = (
+            "Ты ведёшь долгую память налогово-правового консультанта (Юриста) для одного клиента.\n"
+            "Обнови сводку памяти: аккуратно впиши в неё новые обмены, сохранив ВСЕ факты, "
+            "решения, статусы, суммы, сроки, обязательства и договорённости. Убирай воду, "
+            "не выдумывай, не теряй важное. Пиши по-русски, компактно, тезисами.\n\n"
+            f"ТЕКУЩАЯ СВОДКА:\n{prev}\n\nНОВЫЕ ОБМЕНЫ:\n{block}\n\n"
+            "Верни ТОЛЬКО обновлённый текст сводки, без пояснений.")
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""],
+            capture_output=True, text=True, timeout=90,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        new_summary = (result.stdout or "").strip()
+        if new_summary and not new_summary.startswith("Error:"):
+            _settings_set("lawyer_summary", new_summary[:8000])
+            _settings_set("lawyer_summary_upto_id", str(cutoff - 1))
+            log.info(f"lawyer summary updated up to id {cutoff - 1}")
+    except Exception as e:
+        log.error(f"maybe_update_lawyer_summary: {e}")
 
 
 async def ai_converse(update: Update, user_text: str, source: str = "text"):
