@@ -170,6 +170,23 @@ def init_db():
             customer_no TEXT,
             last_used TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        -- Архив распознанных инвойсов (для пакетного анализа года): структурные поля
+        -- каждого присланного счёта. dedup по (number, inv_date).
+        CREATE TABLE IF NOT EXISTS invoice_archive (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            number TEXT,
+            inv_date TEXT,
+            year INTEGER,
+            client_name TEXT,
+            items TEXT,
+            net REAL,
+            vat REAL,
+            gross REAL,
+            kleinunternehmer INTEGER,
+            raw_json TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(number, inv_date)
+        );
         CREATE TABLE IF NOT EXISTS bridge (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             period TEXT,
@@ -672,6 +689,10 @@ def get_legal_context() -> str:
     if clients_block:
         lines.append("\n" + clients_block)
 
+    arch_2025 = year_archive_context(2025)
+    if arch_2025:
+        lines.append("\n" + arch_2025)
+
     if fin_last:
         lines.append("\nПОСЛЕДНИЕ ФИНАНСОВЫЕ ОПЕРАЦИИ:")
         for f in fin_last:
@@ -987,6 +1008,152 @@ def import_own_invoice_sync(path: str):
     if not parts:
         return {"imported": False, "summary": ""}
     return {"imported": bool(client_name or saved), "summary": "\n".join(parts)}
+
+
+# ── Пакетный анализ года: извлечение инвойса в структурный архив ──────────────
+def extract_invoice_full_sync(path: str):
+    """Распознать инвойс и вернуть полные структурные поля (для архива/анализа)."""
+    prompt = (
+        f"Прочитай счёт (Rechnung) по пути {path} инструментом Read (PDF или фото — "
+        "распознай даже под углом/с тенями; немецкий формат сумм: 2.000,00 = 2000.00). "
+        "Верни СТРОГО JSON без иного текста:\n"
+        '{"is_invoice": true|false, "number": "", "date": "YYYY-MM-DD", '
+        '"client_name": "название клиента-получателя", '
+        '"items": [{"desc": "", "qty": 1, "price": 0.0}], '
+        '"net": 0.0, "vat": 0.0, "gross": 0.0, "kleinunternehmer": true|false, '
+        '"client_recipient": "получатель: название и адрес, каждая часть с новой строки \\n", '
+        '"salutation": "", "customer_no": ""}\n'
+        "net — сумма без НДС, vat — сумма НДС (0 если Kleinunternehmer §19), gross — итог. "
+        "kleinunternehmer=true если есть оговорка §19 UStG. Если это не счёт — is_invoice=false."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"],
+            capture_output=True, text=True, timeout=200,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s < 0 or e <= s:
+            return None
+        return jsonlib.loads(raw[s:e + 1])
+    except Exception as ex:
+        log.error(f"extract_invoice_full: {ex}")
+        return None
+
+
+def _year_of_iso(d: str):
+    m = re.search(r'(\d{4})', d or "")
+    return int(m.group(1)) if m else None
+
+
+def store_archived_invoice(path: str):
+    """Извлечь инвойс и сохранить в invoice_archive (+ клиент). Возвращает ack-строку или None."""
+    data = extract_invoice_full_sync(path)
+    if not data or not data.get("is_invoice"):
+        return None
+    number = (data.get("number") or "").strip()
+    inv_date = (data.get("date") or "").strip()
+    year = _year_of_iso(inv_date)
+    client = (data.get("client_name") or "").strip()
+    net = float(data.get("net") or 0)
+    vat = float(data.get("vat") or 0)
+    gross = float(data.get("gross") or 0) or (net + vat)
+    klein = 1 if data.get("kleinunternehmer") else 0
+    items = data.get("items") or []
+    try:
+        with db() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO invoice_archive "
+                "(number, inv_date, year, client_name, items, net, vat, gross, kleinunternehmer, raw_json) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (number, inv_date, year, client, jsonlib.dumps(items, ensure_ascii=False),
+                 net, vat, gross, klein, jsonlib.dumps(data, ensure_ascii=False)))
+    except Exception as e:
+        log.error(f"store_archived_invoice: {e}")
+        return None
+    if (data.get("client_recipient") or "").strip():
+        upsert_client(data["client_recipient"], data.get("salutation", ""), data.get("customer_no", ""))
+    return f"№{number or '—'} · {inv_date or '—'} · {client or '—'} · {gross:.0f}€"
+
+
+def year_archive_rows(year: int):
+    try:
+        with db() as conn:
+            return conn.execute(
+                "SELECT number, inv_date, client_name, net, vat, gross, kleinunternehmer "
+                "FROM invoice_archive WHERE year = ? ORDER BY inv_date, number", (year,)).fetchall()
+    except Exception:
+        return []
+
+
+def year_archive_context(year: int = 2025) -> str:
+    """Компактная сводка архива за год для контекста — БЕЗ перечитывания PDF."""
+    rows = year_archive_rows(year)
+    if not rows:
+        return ""
+    total = sum((r["gross"] or 0) for r in rows)
+    net_total = sum((r["net"] or 0) for r in rows)
+    vat_total = sum((r["vat"] or 0) for r in rows)
+    by_client = {}
+    for r in rows:
+        by_client[r["client_name"] or "—"] = by_client.get(r["client_name"] or "—", 0) + (r["gross"] or 0)
+    lines = [f"АРХИВ ИНВОЙСОВ {year} (из присланных счетов, {len(rows)} шт — используй как ФАКТЫ, файлы не перечитывай):",
+             f"  Итоговый оборот (brutto): {total:.2f}€ · netto {net_total:.2f}€ · USt {vat_total:.2f}€"]
+    lines.append("  По клиентам: " + "; ".join(f"{k}: {v:.0f}€" for k, v in sorted(by_client.items(), key=lambda x: -x[1])))
+    lines.append("  Счета:")
+    for r in rows:
+        lines.append(f"    №{r['number'] or '—'} {r['inv_date'] or ''} · {(r['client_name'] or '—')[:28]} · "
+                     f"{r['gross'] or 0:.0f}€{' §19' if r['kleinunternehmer'] else ''}")
+    saved = _settings_get(f"analysis_summary_{year}")
+    if saved:
+        lines.append(f"\nСВОДКА-ВЫВОДЫ ПО {year} (уже сделанный анализ):\n{saved}")
+    return "\n".join(lines)
+
+
+def analyze_year_sync(year: int = 2025) -> str:
+    """Совокупный юр-анализ всех инвойсов года по таблице архива. Сохраняет сводку."""
+    rows = year_archive_rows(year)
+    if not rows:
+        return ""
+    table = year_archive_context(year)
+    sys_prompt = (LAWYER_PROMPT
+                  .replace("{kb}", LEGAL_KB_DIR)
+                  .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    prompt = (
+        f"{get_legal_context()}\n\n"
+        f"ЗАДАЧА: сделай СОВОКУПНЫЙ налогово-правовой анализ ВСЕХ инвойсов за {year} год "
+        "(данные ниже — это уже распознанная таблица, файлы перечитывать НЕ нужно). "
+        "Не разбирай счета по одному — дай выводы по всей картине:\n"
+        "1) суммарный оборот (Umsatz) за год и как он соотносится с порогами Kleinunternehmer "
+        "(§19 UStG): порог текущего/следующего года, перешёл ли, последствия для НДС;\n"
+        "2) распределение по клиентам и по времени — риски (напр. переквалификация, зависимость);\n"
+        "3) что это значит для деклараций (ESt, Anlage EÜR/S, при необходимости USt);\n"
+        "4) конкретные рекомендации и следующие шаги (с оговоркой: финал — со Steuerberater).\n"
+        "Ответ дай по-русски, структурно. В reply — сам анализ; actions по необходимости.\n\n"
+        f"{table}"
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "10"],
+            capture_output=True, text=True, timeout=300,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        reply = ""
+        if s >= 0 and e > s:
+            try:
+                reply = (jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "")
+            except Exception:
+                reply = ""
+        if not reply:
+            reply = raw
+        if reply:
+            _settings_set(f"analysis_summary_{year}", reply[:6000])
+        return reply
+    except Exception as e:
+        log.error(f"analyze_year: {e}")
+        return ""
 
 
 def apply_actions(actions: list) -> list:
