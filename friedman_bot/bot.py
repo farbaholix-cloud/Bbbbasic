@@ -159,6 +159,17 @@ def init_db():
             text TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        -- Память клиентов: по короткому упоминанию («Sa'Sis») бот берёт ПОЛНЫЙ адрес
+        -- и обращение из прошлого счёта. key — нормализованное имя для матчинга.
+        CREATE TABLE IF NOT EXISTS clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE,
+            name TEXT,
+            recipient_full TEXT,
+            salutation TEXT,
+            customer_no TEXT,
+            last_used TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS bridge (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             period TEXT,
@@ -657,6 +668,10 @@ def get_legal_context() -> str:
             rec = (r["recipient"] or "").split(chr(10))[0][:40]
             lines.append(f"  №{r['number'] or '—'} {r['d'] or ''} · {rec} · {r['total'] or 0:.0f}€ · {(r['description'] or '')[:50]}")
 
+    clients_block = clients_for_context()
+    if clients_block:
+        lines.append("\n" + clients_block)
+
     if fin_last:
         lines.append("\nПОСЛЕДНИЕ ФИНАНСОВЫЕ ОПЕРАЦИИ:")
         for f in fin_last:
@@ -797,6 +812,94 @@ def next_invoice_number() -> str:
     return base if n == 0 else f"{base}-{n}"
 
 
+# ── Память клиентов ───────────────────────────────────────────────────────────
+_CYR2LAT = {
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'i',
+    'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+    'х':'h','ц':'c','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+    'і':'i','ї':'i','є':'e','ґ':'g',
+}
+
+
+def _client_norm(s: str) -> str:
+    """Нормализация имени для матчинга: строчные, только латиница/цифры.
+    Кириллица транслитерируется (САСИС→sasis), диакритика убирается (é→e)."""
+    import unicodedata
+    s = (s or "").lower()
+    s = "".join(_CYR2LAT.get(ch, ch) for ch in s)  # кириллица → латиница
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+    return re.sub(r'[^a-z0-9]', '', s)
+
+
+def upsert_client(recipient: str, salutation: str = "", customer_no: str = ""):
+    """Запомнить клиента целиком после счёта (полный адрес + обращение)."""
+    recipient = (recipient or "").strip()
+    if not recipient:
+        return
+    name = recipient.split("\n")[0].strip()
+    key = _client_norm(name)
+    if not key:
+        return
+    try:
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO clients(key,name,recipient_full,salutation,customer_no,last_used) "
+                "VALUES(?,?,?,?,?,CURRENT_TIMESTAMP) "
+                "ON CONFLICT(key) DO UPDATE SET name=excluded.name, "
+                "recipient_full=excluded.recipient_full, "
+                "salutation=CASE WHEN excluded.salutation!='' THEN excluded.salutation ELSE clients.salutation END, "
+                "customer_no=CASE WHEN excluded.customer_no!='' THEN excluded.customer_no ELSE clients.customer_no END, "
+                "last_used=CURRENT_TIMESTAMP",
+                (key, name, recipient, salutation or "", customer_no or ""))
+    except Exception as e:
+        log.error(f"upsert_client: {e}")
+
+
+def find_client(query: str):
+    """Найти клиента по короткому упоминанию. Возвращает Row или None."""
+    q = _client_norm(query)
+    if len(q) < 3:
+        return None
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT name, recipient_full, salutation, customer_no FROM clients "
+                "ORDER BY last_used DESC").fetchall()
+    except Exception as e:
+        log.error(f"find_client: {e}")
+        return None
+    # сначала точное вхождение имени, потом — по полному адресу
+    for r in rows:
+        nk = _client_norm(r["name"])
+        if nk and (q in nk or nk in q):
+            return r
+    for r in rows:
+        if q in _client_norm(r["recipient_full"]):
+            return r
+    return None
+
+
+def clients_for_context(limit: int = 40) -> str:
+    """Список известных клиентов для промпта — чтобы по короткому имени бот брал полный адрес."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT name, recipient_full, salutation, customer_no FROM clients "
+                "ORDER BY last_used DESC LIMIT ?", (limit,)).fetchall()
+    except Exception:
+        rows = []
+    if not rows:
+        return ""
+    lines = ["ИЗВЕСТНЫЕ КЛИЕНТЫ (если в просьбе клиент назван коротко — бери ПОЛНЫЙ recipient "
+             "и salutation отсюда дословно, адрес НЕ переспрашивай):"]
+    for r in rows:
+        one = (r["recipient_full"] or "").replace("\n", " | ")
+        extra = f" | обращение: {r['salutation']}" if r["salutation"] else ""
+        extra += f" | Kd-Nr: {r['customer_no']}" if r["customer_no"] else ""
+        lines.append(f"  • {r['name']} → {one}{extra}")
+    return "\n".join(lines)
+
+
 def apply_actions(actions: list) -> list:
     results = []
     for a in actions:
@@ -847,11 +950,20 @@ def apply_actions(actions: list) -> list:
                 from invoice import generate_invoice
                 recipient = a.get("recipient", "")
                 items = a.get("items", [])
+                salutation = a.get("salutation")
+                customer_no = a.get("customer_no", "")
+                # Клиент назван коротко (без адреса) — подтянуть полные данные из памяти
+                if recipient and "\n" not in recipient.strip():
+                    c = find_client(recipient)
+                    if c:
+                        recipient = c["recipient_full"]
+                        salutation = salutation or c["salutation"]
+                        customer_no = customer_no or c["customer_no"] or ""
                 if recipient and items:
                     path, total, number = generate_invoice(
                         recipient=recipient, items=items,
-                        salutation=a.get("salutation"),
-                        customer_no=a.get("customer_no", ""),
+                        salutation=salutation,
+                        customer_no=customer_no,
                         number=next_invoice_number(),
                         intro=a.get("intro") or None,
                         vat_rate=a.get("vat_rate") or None,
@@ -862,7 +974,8 @@ def apply_actions(actions: list) -> list:
                             "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
                             "VALUES (?,?,?,?,?,?, 'bot')",
                             (number, datetime.now().strftime("%d.%m.%Y"),
-                             recipient.split(chr(10))[0], a.get("customer_no", ""), desc, total))
+                             recipient.split(chr(10))[0], customer_no, desc, total))
+                    upsert_client(recipient, salutation or "", customer_no)  # запомнить клиента целиком
                     results.append(("invoice", 0, f"Rechnung {number} · {total:.2f}€", path, ""))
             elif a.get("type") == "project":
                 area = a.get("area") if a.get("area") in AREAS else "work"
@@ -1286,6 +1399,10 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def create_invoice_from_text(update: Update, text: str):
     await update.message.reply_text("🧾 Готовлю счёт...")
 
+    known = clients_for_context()
+    known_block = ("\n\n" + known + "\nЕсли получатель назван коротко и он есть в этом списке — "
+                   "верни его ПОЛНЫЙ recipient (с адресом) и salutation оттуда дословно.") if known else ""
+
     def extract():
         prompt = (
             "Из сообщения извлеки данные для немецкого счёта (Rechnung). Сообщение: «" + text + "».\n"
@@ -1296,7 +1413,8 @@ async def create_invoice_from_text(update: Update, text: str):
             "\"price\": 1200}], \"salutation\": \"Frau Müller или Herr Schmidt если известно, иначе пусто\", "
             "\"customer_no\": \"\", \"intro\": \"вводная фраза счёта по-немецки, если из сообщения ясен "
             "повод/проект (напр. Hiermit berechne ich Ihnen wie vorab besprochen für ... folgende "
-            "Vorauszahlung:), иначе пусто\"}. Если получатель или сумма не названы — верни {\"need\": \"чего не хватает\"}."
+            "Vorauszahlung:), иначе пусто\"}. Если сумма не названа — верни {\"need\": \"чего не хватает\"}."
+            + known_block
         )
         try:
             result = subprocess.run(
@@ -1314,7 +1432,18 @@ async def create_invoice_from_text(update: Update, text: str):
 
     data = await asyncio.get_event_loop().run_in_executor(None, extract)
 
-    if not data or data.get("need") or not data.get("recipient") or not data.get("items"):
+    recipient = (data or {}).get("recipient", "") or ""
+    salutation = (data or {}).get("salutation") or ""
+    customer_no = (data or {}).get("customer_no", "") or ""
+    # Клиент назван коротко/без адреса — подтянуть полные данные из памяти клиентов
+    if recipient and "\n" not in recipient.strip():
+        c = find_client(recipient)
+        if c:
+            recipient = c["recipient_full"]
+            salutation = salutation or c["salutation"]
+            customer_no = customer_no or c["customer_no"] or ""
+
+    if not data or data.get("need") or not recipient or not data.get("items"):
         miss = (data or {}).get("need", "получателя (название, адрес) и сумму")
         await update.message.reply_text(
             f"Чтобы выставить счёт, не хватает: {miss}.\nНапиши, например: "
@@ -1325,9 +1454,9 @@ async def create_invoice_from_text(update: Update, text: str):
     from invoice import generate_invoice
     try:
         path, total, number = generate_invoice(
-            recipient=data["recipient"], items=data["items"],
-            salutation=data.get("salutation") or None,
-            customer_no=data.get("customer_no", ""),
+            recipient=recipient, items=data["items"],
+            salutation=salutation or None,
+            customer_no=customer_no,
             number=next_invoice_number(),
             intro=data.get("intro") or None,
         )
@@ -1342,13 +1471,14 @@ async def create_invoice_from_text(update: Update, text: str):
             "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
             "VALUES (?,?,?,?,?,?, 'bot')",
             (number, datetime.now().strftime("%d.%m.%Y"),
-             data["recipient"].split(chr(10))[0], data.get("customer_no", ""), desc, total))
+             recipient.split(chr(10))[0], customer_no, desc, total))
+    upsert_client(recipient, salutation, customer_no)  # запомнить клиента целиком
 
     remember("user", "счёт: " + text)
     remember("assistant", f"выставлен счёт Rechnung {number} на {total:.2f}€")
 
     await update.message.reply_text(
-        f"🧾 Готово! *Rechnung {number}* на *{total:.2f}€*\nПолучатель: {data['recipient'].split(chr(10))[0]}",
+        f"🧾 Готово! *Rechnung {number}* на *{total:.2f}€*\nПолучатель: {recipient.split(chr(10))[0]}",
         parse_mode="Markdown")
     try:
         with open(path, "rb") as doc:
