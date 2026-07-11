@@ -1431,8 +1431,7 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
 
     # Явный счёт: «выстави счёт …», «сделай инвойс …», «Rechnung …»
-    if re.search(r"(выстав|сдела|выпиш|оформ|подготов)\w*\s+(сч[ёе]т|инвойс|rechnung)", text, re.IGNORECASE) \
-       or re.search(r"(сч[ёе]т|инвойс|rechnung)\b.{0,40}(на |для )", text, re.IGNORECASE):
+    if looks_like_invoice_request(text):
         await create_invoice_from_text(update, text)
         return
 
@@ -1483,6 +1482,16 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     # Всё остальное — живой разговор через Claude
     await ai_converse(update, text)
+
+
+def looks_like_invoice_request(text: str) -> bool:
+    """Просьба ВЫСТАВИТЬ счёт (не вопрос про счета) — тогда идём детерминированным путём."""
+    t = text or ""
+    return bool(
+        re.search(r"(выстав|сдела|выпиш|оформ|подготов|сгенер|создай|сформир)\w*\s+.{0,15}(сч[ёе]т|инвойс|invoice|rechnung)",
+                  t, re.IGNORECASE)
+        or re.search(r"(сч[ёе]т|инвойс|invoice|rechnung)\b.{0,40}(на |для )", t, re.IGNORECASE)
+    )
 
 
 async def create_invoice_from_text(update: Update, text: str):

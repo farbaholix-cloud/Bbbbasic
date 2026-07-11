@@ -53,6 +53,12 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     txt = (update.message.text or "").strip()
     if not txt:
         return
+    # Просьба выставить счёт — детерминированный путь (надёжно даёт PDF),
+    # а не через лоер-модель (она болтает «отправляю», но не выдаёт action).
+    if B.looks_like_invoice_request(txt):
+        B.save_chat_id(update.effective_chat.id)
+        await B.create_invoice_from_text(update, txt)
+        return
     await B.ai_lawyer(update, ctx, txt)
 
 
@@ -70,6 +76,10 @@ async def on_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         pass
     if not text:
         await update.message.reply_text("Не разобрал голос 😔 Напиши текстом.")
+        return
+    if B.looks_like_invoice_request(text):
+        B.save_chat_id(update.effective_chat.id)
+        await B.create_invoice_from_text(update, text)
         return
     await B.ai_lawyer(update, ctx, text)
 
