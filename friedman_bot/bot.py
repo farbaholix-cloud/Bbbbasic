@@ -3669,6 +3669,50 @@ async def cmd_setinvoicedata(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown")
 
 
+async def cmd_wipeinvoicestoday(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Удалить ВСЕ счета, созданные сегодня: из архива (таблица invoices) и их PDF-файлы.
+    Тестовые счета за день не должны висеть в контексте и завышать оборот. Только владелец."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    base = datetime.now().strftime("%d%m%y")          # номера сегодняшних счетов: ddmmyy[-N]
+    today_dmy = datetime.now().strftime("%d.%m.%Y")
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT number, recipient, total FROM invoices "
+            "WHERE number = ? OR number LIKE ? OR date = ?",
+            (base, base + "-%", today_dmy)).fetchall()
+    if not rows:
+        await ctx.bot.send_message(chat_id, "Сегодняшних счетов в архиве нет — чистить нечего.")
+        return
+    # удаляем PDF-файлы (лежат в /tmp как Rechnung_<номер>.pdf)
+    removed_files = 0
+    for r in rows:
+        num = r["number"] or ""
+        safe = "".join(c for c in str(num) if c.isalnum() or c in "-_")
+        for p in (os.path.join(tempfile.gettempdir(), f"Rechnung_{safe}.pdf"),):
+            try:
+                if safe and os.path.exists(p):
+                    os.remove(p)
+                    removed_files += 1
+            except Exception as e:
+                log.error(f"wipe invoice file {p}: {e}")
+    # удаляем записи из архива
+    with db() as conn:
+        cur = conn.execute(
+            "DELETE FROM invoices WHERE number = ? OR number LIKE ? OR date = ?",
+            (base, base + "-%", today_dmy))
+        deleted = cur.rowcount
+    listing = "\n".join(f"• {r['number']} · {(r['recipient'] or '')[:30]} · {r['total'] or 0:.0f}€" for r in rows)
+    await ctx.bot.send_message(
+        chat_id,
+        f"🗑 Удалено из архива: *{deleted}* счёт(ов), PDF-файлов: {removed_files}.\n\n{listing}\n\n"
+        "Оборот и контекст Юриста больше их не видят. Клиенты в памяти сохранены "
+        "(если нужно забыть и клиента — скажи).",
+        parse_mode="Markdown")
+
+
 async def cmd_juriststatus(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Диагностика Юрист-бота: токен, файлы, процесс, хвост лога. При простое — пробует поднять."""
     chat_id = update.effective_chat.id
@@ -4472,6 +4516,7 @@ def main():
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
     app.add_handler(CommandHandler("setinvoicedata", cmd_setinvoicedata))
+    app.add_handler(CommandHandler("wipeinvoicestoday", cmd_wipeinvoicestoday))
     app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
     app.add_handler(CommandHandler("juristrestart", cmd_juristrestart))
 
