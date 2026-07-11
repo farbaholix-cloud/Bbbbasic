@@ -3085,6 +3085,27 @@ def ensure_legal_kb():
         except Exception as e:
             log.error(f"legal_kb fetch {f}: {e}")
 
+    # Разовая ПРИНУДИТЕЛЬНАЯ замена шаблона счёта. Старый invoice.py мог уже лежать
+    # на диске (клался руками, до git), поэтому обычное «если нет — скачать» его не
+    # трогает и генерится старый дизайн. Один раз перетягиваем свежий шаблон с ветки,
+    # дальше файл в UPDATE_FILES и обновляется обычным деплоем.
+    try:
+        if not _settings_get("invoice_tpl_v2"):
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{BRANCH}/friedman_bot/invoice.py", headers=h)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = r.read()
+            if len(data) > 500:  # страховка от пустого/битого ответа CDN
+                with open(os.path.join(d, "invoice.py"), "wb") as out:
+                    out.write(data)
+                _settings_set("invoice_tpl_v2", "1")
+                log.info("invoice.py template force-refreshed (v2)")
+    except Exception as e:
+        log.error(f"invoice tpl refresh: {e}")
+
 
 def _self_restart(d: str):
     """Перезапускает bot.py через nohup-shell-скрипт в отдельной сессии.
