@@ -267,18 +267,43 @@ def generate_invoice(recipient, items, salutation=None, customer_no="",
     safe = "".join(c for c in str(number) if c.isalnum() or c in "-_")
     out_path = os.path.join(tempfile.gettempdir(), f"Rechnung_{safe or 'neu'}.pdf")
 
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(args=["--no-sandbox", "--disable-setuid-sandbox",
-                                            "--force-color-profile=srgb"])
-        page = browser.new_page()
-        page.set_content(html_text, wait_until="networkidle")
-        page.wait_for_timeout(150)
-        page.pdf(path=out_path, format="A4", print_background=True,
-                 margin={"top": "0", "bottom": "0", "left": "0", "right": "0"})
-        browser.close()
-
+    _render_pdf(html_text, out_path)
     return out_path, total, number
+
+
+def _render_pdf(html_text: str, out_path: str):
+    """HTML → PDF через синхронный Playwright.
+
+    ВАЖНО: sync Playwright нельзя вызывать из потока, где крутится asyncio-loop
+    (боты — async), иначе «Sync API inside the asyncio loop». Поэтому весь рендер
+    выполняем в ОТДЕЛЬНОМ потоке — там запущенного event loop нет, sync API работает.
+    """
+    import threading
+
+    box = {}
+
+    def _work():
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(args=["--no-sandbox", "--disable-setuid-sandbox",
+                                                    "--force-color-profile=srgb"])
+                page = browser.new_page()
+                page.set_content(html_text, wait_until="networkidle")
+                page.wait_for_timeout(150)
+                page.pdf(path=out_path, format="A4", print_background=True,
+                         margin={"top": "0", "bottom": "0", "left": "0", "right": "0"})
+                browser.close()
+        except Exception as e:  # пробрасываем в вызывающий поток
+            box["err"] = e
+
+    t = threading.Thread(target=_work, daemon=True)
+    t.start()
+    t.join(timeout=120)
+    if t.is_alive():
+        raise TimeoutError("рендер PDF не уложился в 120с")
+    if "err" in box:
+        raise box["err"]
 
 
 if __name__ == "__main__":

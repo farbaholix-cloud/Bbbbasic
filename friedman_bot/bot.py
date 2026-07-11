@@ -1560,7 +1560,9 @@ async def create_invoice_from_text(update: Update, text: str):
         )
     except Exception as ex:
         log.error(f"invoice gen: {ex}")
-        await update.message.reply_text("Не получилось собрать PDF 😔 Проверь данные и попробуй ещё раз.")
+        await update.message.reply_text(
+            "Не получилось собрать PDF 😔\n"
+            f"Причина: `{str(ex)[:250]}`", parse_mode="Markdown")
         return
 
     desc = "; ".join(it.get("desc", "") for it in data["items"])
