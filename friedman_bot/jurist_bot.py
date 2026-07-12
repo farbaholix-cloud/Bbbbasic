@@ -62,6 +62,8 @@ RESTART_LEGEND = (
     "• */analysis* — режим анализа: пришли инвойсы (любые годы), потом "
     "«все инвойсы отправлены» — дам совокупные выводы по годам\n"
     "• */showinvoices* — выгрузить всю таблицу в .xls (в стиле инвойсов)\n"
+    "• */strategy* — стратегический совет (финансист+маркетолог+арт-менеджер): "
+    "комплексный план выхода из кризиса по картине из инвойсов\n"
     "• */restart* — самоперезапуск (не завися от секретаря)\n"
     "• */wipeinvoicestoday* — удалить все счета, созданные сегодня (архив + PDF)"
 )
@@ -198,6 +200,31 @@ async def finalize_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "Выгрузить всё в .xls: /showinvoices · выйти: /analysisoff")
 
 
+async def cmd_strategy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Стратегический совет: комплексные антикризисные рекомендации по картине из
+    таблицы инвойсов (финансист + маркетолог + арт-менеджер + юр-контекст)."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    B.save_chat_id(chat_id)
+    n = len(B.all_archive_rows())
+    hint = "" if n else "\n_В таблице инвойсов пусто — рекомендации будут по финансам/долгам; " \
+                        "для полной картины включи /analysis и пришли инвойсы._"
+    await update.message.reply_text(
+        "🧭 Собираю стратегический совет (финансист + маркетолог + арт-менеджер) "
+        "по всей картине… это займёт до минуты." + hint, parse_mode="Markdown")
+    reply = await asyncio.get_event_loop().run_in_executor(None, B.strategy_council_sync)
+    if not reply:
+        await update.message.reply_text("Не удалось собрать рекомендации 😔 Попробуй ещё раз.")
+        return
+    for chunk in B._split_msg("🧭 *Стратегия выхода из кризиса:*\n\n" + reply, 3800):
+        try:
+            await update.message.reply_text(chunk, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
+
+
 async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     txt = (update.message.text or "").strip()
     if not txt:
@@ -205,6 +232,10 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     # Фраза-включатель режима анализа
     if re.search(r"включ\w*\s+режим\s+анализ|режим\s+анализа", txt, re.I):
         await cmd_analysis(update, ctx)
+        return
+    # Запрос стратегии / выхода из кризиса
+    if re.search(r"страте\w+|выход\w*\s+из\s+кризис|антикризис|что\s+делать\s+с\s+бизнес", txt, re.I):
+        await cmd_strategy(update, ctx)
         return
     # В режиме сбора: либо «все инвойсы отправлены», либо напоминание
     if _analysis_mode() == "collect":
@@ -331,6 +362,7 @@ def main():
         )
     try:
         B.ensure_legal_kb()  # база знаний должна быть на диске
+        B.ensure_strategy_kb()  # база знаний стратегического совета
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
 
@@ -341,6 +373,7 @@ def main():
     app.add_handler(CommandHandler(["analysis", "analysis2025"], cmd_analysis))
     app.add_handler(CommandHandler("analysisoff", cmd_analysisoff))
     app.add_handler(CommandHandler(["showinvoices", "show2025"], cmd_showinvoices))
+    app.add_handler(CommandHandler(["strategy", "strategie"], cmd_strategy))
     app.add_handler(CommandHandler("done", finalize_analysis))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))

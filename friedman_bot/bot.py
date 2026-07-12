@@ -609,6 +609,7 @@ def ask_claude_sync(user_text: str) -> dict:
 # ─── Юрист: налогово-правовой консультант (DE, Freiberufler/§24) ───────────────
 
 LEGAL_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "legal_kb")
+STRATEGY_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "strategy_kb")
 
 LAWYER_PROMPT = """Ты — «Юрист», личный налогово-правовой консультант Вячеслава (Slavik): украинец в Германии со статусом §24 AufenthG (временная защита), работает как художник-фрилансер (Freiberufler Künstler, бренд FARBAHOLIX), Kleinunternehmer §19 UStG, gesetzlich krankenversichert, в KSK пока не состоит.
 
@@ -1299,6 +1300,93 @@ def analyze_all_sync() -> str:
     except Exception as e:
         log.error(f"analyze_all: {e}")
         return ""
+
+
+# ── Стратегический совет: финансист + маркетолог + арт-менеджер (+ юр-контекст) ─
+STRATEGY_PROMPT = """Ты — модератор СТРАТЕГИЧЕСКОГО СОВЕТА для художника-фрилансера Вячеслава (Slavik), бренд FARBAHOLIX: граффити/мурал Künstler в Германии, украинец на §24 (временная защита), Kleinunternehmer §19 (оборот превысил порог — статус под вопросом), gesetzlich krankenversichert, в KSK не состоит, есть долги. Задача — дать КОМПЛЕКСНЫЕ антикризисные стратегические рекомендации.
+
+В совете три эксперта — прочитай их базы знаний инструментом Read ПЕРЕД ответом:
+- 💰 Финансист: {kb}/references/finance.md
+- 📣 Маркетолог: {kb}/references/marketing.md
+- 🎨 Арт-менеджер: {kb}/references/art-manager.md
+Карта совета и правила: {kb}/SKILL.md. Налогово-правовой контекст (Kleinunternehmer, KSK, §24, декларации) — из {legal_kb} (читай при необходимости).
+
+ГЛАВНОЕ: рекомендации строй ИЗ ДАННЫХ. Тебе дана реальная картина из таблицы инвойсов (оборот по годам, по клиентам, число счетов) и финансов (баланс, долги, платежи). Считай тренды год-к-году, средний чек, концентрацию по клиентам, сезонность, кэш против долгов. Не выдумывай цифры; если чего-то не хватает — скажи, что домерить. Для актуальных ставок/порогов/рыночных цен можешь сделать web_search.
+
+Ответ дай по-русски, структурно, приоритет — конкретные действия:
+1. КАРТИНА — диагноз по цифрам (оборот и тренд по годам, средний чек, топ-клиенты и концентрация/риск зависимости, сезонность, кэш vs долги).
+2. ТРИ ВЗГЛЯДА — по сжатому блоку от Финансиста, Маркетолога, Арт-менеджера: главный риск + главный рычаг у каждого.
+3. ЕДИНЫЙ ПЛАН ВЫХОДА ИЗ КРИЗИСА — интегрированный, приоритизированный: 30 дней (кэш, срочные долги) / 90 дней (поток заказов, цена, каналы) / 6–12 мес (позиционирование, диверсификация, статус §19/KSK). Каждый шаг — конкретный, измеримый, с ожидаемым эффектом.
+4. РИСКИ И РАЗВИЛКИ — включая налоговые (переход на Regelbesteuerung, KSK, Gewerbe) с пометкой, что финал по налогам подтверждает Steuerberater.
+
+Жёсткие правила: не заменяй Steuerberater (давай механику и пороги); не выдумывай данные; учитывай §24 (доход влияет на Bürgergeld/Jobcenter); без воды.
+
+Сегодня: {today}.
+
+Ответь строго в JSON: {"reply": "весь текст рекомендаций (можно с заголовками и списками)", "actions": []}. actions по желанию (remind/contact). Никакого текста вне JSON."""
+
+
+def strategy_council_sync() -> str:
+    """Комплексные антикризисные рекомендации на основе картины из таблицы инвойсов
+    и финансов. Синтез финансиста + маркетолога + арт-менеджера (+ юр-контекст)."""
+    sys_prompt = (STRATEGY_PROMPT
+                  .replace("{kb}", STRATEGY_KB_DIR)
+                  .replace("{legal_kb}", LEGAL_KB_DIR)
+                  .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    prompt = (
+        f"{get_legal_context()}\n\n"
+        "ЗАПРОС: собери СТРАТЕГИЧЕСКИЙ СОВЕТ и дай комплексные антикризисные "
+        "рекомендации по картине выше (таблица инвойсов по годам + финансы). "
+        "Сначала прочитай базы знаний экспертов (Read), потом отвечай по структуре "
+        "из системного промпта."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
+            capture_output=True, text=True, timeout=360,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        reply = ""
+        if s >= 0 and e > s:
+            try:
+                reply = (jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "")
+            except Exception:
+                reply = ""
+        if not reply:
+            reply = raw
+        if reply:
+            _settings_set("strategy_summary", reply[:6000])
+        return reply
+    except Exception as e:
+        log.error(f"strategy_council: {e}")
+        return ""
+
+
+def ensure_strategy_kb():
+    """Самолечение: подтянуть strategy_kb с ветки, если файлов нет на диске."""
+    import urllib.request
+    d = os.path.dirname(os.path.abspath(__file__))
+    need = [x for x in UPDATE_FILES if x.startswith("strategy_kb/")]
+    for f in need:
+        dest = os.path.join(d, f)
+        if os.path.exists(dest):
+            continue
+        try:
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{BRANCH}/friedman_bot/{f}", headers=h)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = r.read()
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "wb") as out:
+                out.write(data)
+            log.info(f"strategy_kb fetched: {f}")
+        except Exception as e:
+            log.error(f"strategy_kb fetch {f}: {e}")
 
 
 def apply_actions(actions: list) -> list:
@@ -3639,7 +3727,11 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "dashboard.py", "dashbo
                 "legal_kb/references/ihk-handwerk.md",
                 "legal_kb/references/sozialversicherung.md",
                 "legal_kb/references/letters.md",
-                "legal_kb/references/invoice.md"]
+                "legal_kb/references/invoice.md",
+                "strategy_kb/SKILL.md",
+                "strategy_kb/references/finance.md",
+                "strategy_kb/references/marketing.md",
+                "strategy_kb/references/art-manager.md"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -4816,6 +4908,10 @@ def main():
         ensure_legal_kb()  # подтянуть базу знаний Юриста, если её ещё нет на диске
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
+    try:
+        ensure_strategy_kb()  # база знаний стратегического совета
+    except Exception as e:
+        log.error(f"ensure_strategy_kb: {e}")
     app = Application.builder().token(TOKEN).post_init(_on_start).build()
 
     # Команды бота сведены к минимуму — только /ip, /brief, /update, /update_mac.
