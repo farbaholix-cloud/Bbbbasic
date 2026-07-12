@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.29"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.30"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -218,6 +218,12 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE projects ADD COLUMN income_date TEXT")
         if "income_status" not in pr_cols:
             conn.execute("ALTER TABLE projects ADD COLUMN income_status TEXT DEFAULT 'lead'")
+        if "position" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN position INTEGER DEFAULT 0")
+            # бэкфилл: сохранить текущий видимый порядок (created_at DESC, id DESC)
+            rows = conn.execute("SELECT id FROM projects ORDER BY created_at DESC, id DESC").fetchall()
+            for i, r in enumerate(rows):
+                conn.execute("UPDATE projects SET position=? WHERE id=?", (i, r[0]))
     if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
         conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
             ("Идеи","#5b9dff",0),("В работе","#ff9aa6",1),
@@ -335,7 +341,7 @@ def get_data():
             "SELECT * FROM chaos ORDER BY done, position ASC, created_at DESC, id DESC").fetchall()]
         _projs = {dict(p)["id"]: {**dict(p), "steps": []}
                   for p in conn.execute(
-                      "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY created_at DESC, id DESC").fetchall()}
+                      "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY COALESCE(position,0) ASC, created_at DESC, id DESC").fetchall()}
         _arch = {dict(p)["id"]: {**dict(p), "steps": []}
                  for p in conn.execute(
                      "SELECT * FROM projects WHERE COALESCE(archived,0)=1 ORDER BY archived_at DESC, id DESC").fetchall()}
@@ -537,6 +543,23 @@ def api_steps(path, payload):
                 conn.execute("INSERT INTO projects (name, area) VALUES (?, 'work')", (name,))
         elif path == "/api/proj_unarchive":
             conn.execute("UPDATE projects SET archived=0, archived_at=NULL WHERE id=?", (payload["id"],))
+        elif path == "/api/proj_move_lr":
+            # переместить проект влево/вправо: обмен position с соседом
+            rows = conn.execute(
+                "SELECT id, COALESCE(position,0) AS pos FROM projects WHERE COALESCE(archived,0)=0 "
+                "ORDER BY COALESCE(position,0) ASC, created_at DESC, id DESC").fetchall()
+            ids = [r["id"] for r in rows]
+            if payload["id"] in ids:
+                i = ids.index(payload["id"])
+                j = i - 1 if payload.get("dir", 0) < 0 else i + 1
+                if 0 <= j < len(ids):
+                    pi, pj = rows[i]["pos"], rows[j]["pos"]
+                    if pi == pj:  # позиции не различались — перенумеруем весь ряд
+                        for k, r in enumerate(rows):
+                            conn.execute("UPDATE projects SET position=? WHERE id=?", (k, r["id"]))
+                        pi, pj = i, j
+                    conn.execute("UPDATE projects SET position=? WHERE id=?", (pj, ids[i]))
+                    conn.execute("UPDATE projects SET position=? WHERE id=?", (pi, ids[j]))
     return {"ok": True}
 
 
@@ -962,7 +985,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
    rgba(255,255,255,.04)}
 .axis-v{position:absolute;left:50%;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.16);border-radius:2px}
 .axis-h{position:absolute;top:50%;left:8px;right:8px;height:2px;background:rgba(255,255,255,.16);border-radius:2px}
-.qc{position:absolute;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.3px;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.qc{position:absolute;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.3px;display:flex;flex-direction:column;gap:2px;cursor:pointer;pointer-events:auto;padding:3px;border-radius:8px}
+.qc:active{background:rgba(255,255,255,.08)}
+.q-list{max-height:52vh;overflow-y:auto;margin-top:6px;display:flex;flex-direction:column;gap:7px}
+.q-row{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:13px;background:var(--glass2);border:1px solid var(--rim);cursor:pointer}
+.q-row .q-tx{flex:1;font-size:13.5px;font-weight:600;line-height:1.3}
+.q-row .q-plan{font-size:9px;font-weight:800;color:#86b8ff;background:rgba(91,157,255,.16);padding:2px 7px;border-radius:8px;flex-shrink:0}
+.q-row .q-iu{font-size:11px;font-weight:800;color:var(--muted);flex-shrink:0}
 .qc .em{font-size:13px}
 .qc .s{font-size:8px;font-weight:600;color:var(--faint);text-transform:none;letter-spacing:0}
 .q1{top:11px;right:12px;text-align:right;color:#ff8b98}
@@ -1064,6 +1093,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .sh-comment{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:12px;color:#fff;font-size:13.5px;font-family:inherit;line-height:1.4;padding:10px 12px;resize:vertical;min-height:42px;outline:none}
 .sh-comment:focus{border-color:rgba(91,157,255,.5)}
 .cmt-dot{font-size:10px;opacity:.65;margin-left:4px;flex-shrink:0}
+.pm-move{display:flex;gap:8px;margin:12px 0 4px}
+.pm-move button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--rim);background:rgba(255,255,255,.06);color:var(--txt);font-size:13px;font-weight:800;cursor:pointer}
+.pm-move button:disabled{opacity:.35;cursor:default}
 .gact{display:flex;gap:7px;margin-top:10px}
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
 .gact button.danger{color:#ff9aa6}
@@ -1204,6 +1236,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 /* bottom sheet */
 #sheet-bg{position:fixed;inset:0;background:rgba(5,6,12,.55);backdrop-filter:blur(3px);z-index:40}
 #sheet{position:fixed;left:8px;right:8px;bottom:10px;z-index:41;padding:18px 18px calc(20px + env(safe-area-inset-bottom));border-radius:30px;max-width:544px;margin:0 auto;
+  max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   transform:translateY(40px);opacity:0;transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .25s}
 .grab{width:42px;height:5px;border-radius:3px;background:var(--rim2);margin:0 auto 16px}
 .stitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:3px}
@@ -1312,13 +1345,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kcard.arch-scard{padding:8px 11px;font-size:11.5px;opacity:.7;background:rgba(255,255,255,.05);cursor:default;margin-bottom:5px}
 .kcard.arch-scard.done{text-decoration:line-through;opacity:.42}
 .arch-empty{font-size:11px;color:var(--faint);font-weight:600;text-align:center;padding:12px 4px}
-/* Масштаб (обзор): узкие колонки, только шапка + прогресс, карточки скрыты */
-.kanban.zoomed{gap:8px}
-.kanban.zoomed .pcol{min-width:128px;max-width:128px;padding:9px;cursor:pointer}
-.kanban.zoomed .kol-head{font-size:11px;pointer-events:none}
-.kanban.zoomed .kh-name{white-space:normal;line-height:1.2}
-.kanban.zoomed .kh-more{display:none}
-.kanban.zoomed .kcard,.kanban.zoomed .kadd,.kanban.zoomed .pinc,.kanban.zoomed .arch-empty{display:none}
+/* первая задача проекта — видна только в обзоре */
+.pcol-first{display:none}
+.pcol-first .pf-none{color:var(--faint)}
+/* Масштаб (обзор): сетка 3 в ряд, полное имя + первая задача, кликабельно */
+.kanban.zoomed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;overflow-x:hidden;scroll-snap-type:none}
+.kanban.zoomed .pcol{min-width:0;max-width:none;padding:9px;cursor:pointer;scroll-snap-align:none}
+.kanban.zoomed .kol-head{font-size:11px;gap:5px;cursor:pointer}
+.kanban.zoomed .kh-name{white-space:normal;line-height:1.22;font-size:11px}
+.kanban.zoomed .kh-more,.kanban.zoomed .kh-dot{display:none}
+.kanban.zoomed .kcard,.kanban.zoomed .kadd,.kanban.zoomed .pinc,.kanban.zoomed .arch-empty,.kanban.zoomed .arch-scard{display:none}
+.kanban.zoomed .pcol-first{display:block;font-size:10px;color:var(--muted);line-height:1.3;margin-top:5px;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.kanban.zoomed .arch-col{grid-column:1/-1}
 .kanban.zoomed .arch-proj{padding:6px;margin-bottom:6px}
 .kanban.zoomed .arch-ph{margin-bottom:0;font-size:10px}
 .kanban.zoomed .arch-ph .arch-act{display:none}
@@ -1724,6 +1763,8 @@ function renderProjectBoard(d){
       '💡 '+esc(c.text)+'</div>').join('');
     const incM=(p.expected_income||0)>0&&p.income_status!=='paid'?(INCOME_META[p.income_status||'lead']||INCOME_META.lead):null;
     const incBadge=incM?'<div class="pinc" style="background:'+incM.bg+';color:'+incM.chip+'" onclick="event.stopPropagation();projIncome('+p.id+')">💰 '+eur(p.expected_income||0)+' · '+incM.label+'</div>':'';
+    const firstStep=steps.find(s=>!s.done)||steps[0];
+    const firstHtml='<div class="pcol-first" onclick="projMenu(event,'+p.id+')">'+(firstStep?esc(firstStep.text):'<span class="pf-none">нет задач</span>')+'</div>';
     return '<div class="kol pcol" data-proj-id="'+p.id+'">'+
       '<div class="kol-head" onclick="projMenu(event,'+p.id+')">'+
         '<div class="kh-dot" style="background:linear-gradient(135deg,var(--blue),var(--violet))"></div>'+
@@ -1732,6 +1773,7 @@ function renderProjectBoard(d){
         '<div class="kh-more">···</div>'+
       '</div>'+
       '<div class="pcol-bar"><div class="pcol-fill" style="width:'+pct+'%"></div></div>'+
+      firstHtml+
       incBadge+
       stepCards+ideaCards+
       '<button class="kadd" onclick="stepAdd('+p.id+')">＋ шаг</button>'+
@@ -1782,10 +1824,16 @@ async function addProject(){
   mutate(()=>{if(!DATA.projects)DATA.projects=[];DATA.projects.unshift({id:_tmpId(),name:t.trim(),area:'work',steps:[]});},
     '/api/proj_add',{name:t.trim()});
 }
+function projMoveLR(id,dir){
+  mutate(()=>{
+    const arr=DATA.projects||[];const i=arr.findIndex(x=>x.id===id);const j=i+(dir<0?-1:1);
+    if(i>=0&&j>=0&&j<arr.length){const t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  },'/api/proj_move_lr',{id,dir});
+}
 function projMenu(ev,id){
   ev.stopPropagation();
-  if(_projZoom){_zoomInto(id);return;}   // в обзоре тап по колонке — приблизить к ней
   const p=_proj(id);if(!p)return;
+  const arr=DATA.projects||[];const idx=arr.findIndex(x=>x.id===id);
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
@@ -1793,6 +1841,8 @@ function projMenu(ev,id){
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div><span class="title-edit-spacer"></span></div>'+
     '<div class="ssub">'+done+' из '+total+' шагов готово</div>'+
+    '<div class="pm-move"><button id="pm-left" '+(idx<=0?'disabled':'')+'>◀ левее</button>'+
+      '<button id="pm-right" '+(idx>=arr.length-1?'disabled':'')+'>правее ▶</button></div>'+
     '<div class="sh-actions" style="flex-direction:column;gap:8px">'+
     '<button class="sh-btn" id="pm-add">＋ Шаг</button>'+
     '<button class="sh-btn" id="pm-inc">💰 Ожидаемый профит</button>'+
@@ -1802,6 +1852,9 @@ function projMenu(ev,id){
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
+  const bl=sheet.querySelector('#pm-left'),br=sheet.querySelector('#pm-right');
+  if(bl)bl.onclick=()=>{closeSheet();projMoveLR(id,-1);};
+  if(br)br.onclick=()=>{closeSheet();projMoveLR(id,1);};
   sheet.querySelector('#pm-add').onclick=()=>{closeSheet();stepAdd(id);};
   sheet.querySelector('#pm-inc').onclick=()=>{closeSheet();projIncome(id);};
   sheet.querySelector('#pm-ren').onclick=()=>{closeSheet();projRename(id,p.name);};
@@ -1857,10 +1910,10 @@ function renderMatrix(open){
   const m=document.getElementById('matrix');
   const W=m.clientWidth||340,H=344,PAD=30;
   let html='<div class="axis-v"></div><div class="axis-h"></div>'+
-    '<div class="qc q1"><span class="em">🔴</span>Сейчас<span class="s">важно·срочно</span></div>'+
-    '<div class="qc q2"><span class="em">🟡</span>Планируй<span class="s">важно·не срочно</span></div>'+
-    '<div class="qc q3"><span class="em">🔵</span>Делегируй<span class="s">не важно·срочно</span></div>'+
-    '<div class="qc q4"><span class="em">⚪</span>Удали<span class="s">не важно·не срочно</span></div>'+
+    '<div class="qc q1" onclick="openQuadrant(\'r\')"><span class="em">🔴</span>Сейчас<span class="s">важно·срочно</span></div>'+
+    '<div class="qc q2" onclick="openQuadrant(\'a\')"><span class="em">🟡</span>Планируй<span class="s">важно·не срочно</span></div>'+
+    '<div class="qc q3" onclick="openQuadrant(\'b\')"><span class="em">🔵</span>Делегируй<span class="s">не важно·срочно</span></div>'+
+    '<div class="qc q4" onclick="openQuadrant(\'g\')"><span class="em">⚪</span>Удали<span class="s">не важно·не срочно</span></div>'+
     '<div class="axl" style="bottom:5px;left:50%;transform:translateX(-50%)">срочность →</div>'+
     '<div class="axl" style="left:4px;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:left">важность →</div>';
   const rated=open.filter(c=>c.importance||c.urgency);
@@ -1875,6 +1928,28 @@ function renderMatrix(open){
     html+='<div class="axl" style="left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;letter-spacing:0;color:var(--faint)">оцени задачи — точки появятся здесь</div>';
   }
   m.innerHTML=html;
+}
+// Клик по названию квадранта — список карточек СТРОГО этой четверти (границы
+// взаимоисключающие: каждая карточка попадает ровно в один квадрант через quadClass).
+const QUAD_META={r:['🔴','Сейчас — важно и срочно'],a:['🟡','Планируй — важно, не срочно'],
+  b:['🔵','Делегируй — не важно, срочно'],g:['⚪','Может, удалить — не важно и не срочно']};
+function openQuadrant(q){
+  const meta=QUAD_META[q]||['',''];
+  const cards=(DATA.chaos||[]).filter(c=>!c.done&&(c.importance||c.urgency)&&quadClass(c.importance||0,c.urgency||0)===q);
+  const planned=new Set((DATA.cards||[]).filter(c=>c.chaos_id).map(c=>c.chaos_id));
+  const rows=cards.length?cards.map(c=>{
+    const td=JSON.stringify({kind:'chaos',id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
+    const badge=planned.has(c.id)?'<span class="q-plan">в календаре</span>':'';
+    return '<div class="q-row" onclick=\'closeSheet();openTask('+td+')\'>'+
+      '<span class="q-tx">'+esc(c.text)+'</span>'+badge+
+      '<span class="q-iu">'+(c.importance||0)+'·'+(c.urgency||0)+'</span></div>';
+  }).join(''):'<div class="empty">в этой четверти пусто</div>';
+  const {sheet}=_openSheet('<div class="grab"></div>'+
+    '<div class="stitle">'+meta[0]+' '+esc(meta[1])+'</div>'+
+    '<div class="ssub2">'+cards.length+' карточек · нажми, чтобы открыть</div>'+
+    '<div class="q-list">'+rows+'</div>'+
+    '<div class="sh-actions" style="margin-top:12px"><button class="sh-btn" id="q-close">Закрыть</button></div>');
+  sheet.querySelector('#q-close').onclick=closeSheet;
 }
 
 let _calRange='week';
@@ -2601,10 +2676,14 @@ function _swipeDismiss(sheet,closeFn){
   const onStart=e=>{
     const tg=e.target;
     if(tg.closest('input,textarea,select,button,.sh-day,.tog'))return;
+    // свайп-закрытие только когда шторка прокручена в самый верх — иначе это
+    // обычная прокрутка длинного меню, а не жест закрытия
+    if(sheet.scrollTop>0)return;
     sy=e.touches[0].clientY;dragging=true;sheet.style.transition='none';
   };
   const onMove=e=>{
     if(!dragging)return;
+    if(sheet.scrollTop>0){dragging=false;sheet.style.transform='translateY(0)';return;}
     const dy=e.touches[0].clientY-sy;
     if(dy>0)sheet.style.transform='translateY('+dy+'px)';
   };
@@ -3828,7 +3907,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
                       "/api/step_rename", "/api/proj_rename", "/api/proj_delete",
                       "/api/proj_archive", "/api/step_reorder", "/api/step_move",
-                      "/api/proj_add", "/api/proj_unarchive"):
+                      "/api/proj_add", "/api/proj_unarchive", "/api/proj_move_lr"):
             result = api_steps(path, payload)
         else:
             result = {"ok": False}
