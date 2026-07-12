@@ -1311,7 +1311,7 @@ STRATEGY_PROMPT = """Ты — модератор СТРАТЕГИЧЕСКОГО 
 - 🎨 Арт-менеджер: {kb}/references/art-manager.md
 Карта совета и правила: {kb}/SKILL.md. Налогово-правовой контекст (Kleinunternehmer, KSK, §24, декларации) — из {legal_kb} (читай при необходимости).
 
-ГЛАВНОЕ: рекомендации строй ИЗ ДАННЫХ. Тебе дана реальная картина из таблицы инвойсов (оборот по годам, по клиентам, число счетов) и финансов (баланс, долги, платежи). Считай тренды год-к-году, средний чек, концентрацию по клиентам, сезонность, кэш против долгов. Не выдумывай цифры; если чего-то не хватает — скажи, что домерить. Для актуальных ставок/порогов/рыночных цен можешь сделать web_search.
+ГЛАВНОЕ: рекомендации строй ИЗ ДАННЫХ. Тебе дана реальная картина из таблицы инвойсов (оборот по годам, по клиентам, число счетов), финансов (баланс, долги, платежи) И ПЛАНОВ владельца из friedman_bot (проекты, шаги, цели, парковка задач, события). Считай тренды год-к-году, средний чек, концентрацию по клиентам, сезонность, кэш против долгов. ОБЯЗАТЕЛЬНО увязывай рекомендации с уже существующими проектами/целями/задачами владельца — что усилить, что притормозить, что добавить. Не выдумывай цифры; если чего-то не хватает — скажи, что домерить. Для актуальных ставок/порогов/рыночных цен можешь сделать web_search.
 
 Ответ дай по-русски, структурно, приоритет — конкретные действия:
 1. КАРТИНА — диагноз по цифрам (оборот и тренд по годам, средний чек, топ-клиенты и концентрация/риск зависимости, сезонность, кэш vs долги).
@@ -1326,6 +1326,49 @@ STRATEGY_PROMPT = """Ты — модератор СТРАТЕГИЧЕСКОГО 
 Ответь строго в JSON: {"reply": "весь текст рекомендаций (можно с заголовками и списками)", "actions": []}. actions по желанию (remind/contact). Никакого текста вне JSON."""
 
 
+def get_plans_context() -> str:
+    """Все планы владельца из friedman_bot: проекты+шаги, цели, парковка, события.
+    Для стратегического совета — чтобы рекомендации учитывали, что человек уже задумал."""
+    try:
+        with db() as conn:
+            projects = conn.execute("SELECT id, name, area FROM projects ORDER BY id DESC LIMIT 30").fetchall()
+            steps = conn.execute("SELECT project_id, text, done FROM steps").fetchall()
+            goals = conn.execute("SELECT text, area, period FROM goals WHERE done=0 ORDER BY id DESC LIMIT 30").fetchall()
+            chaos = conn.execute("SELECT text, area, priority FROM chaos WHERE done=0 ORDER BY id DESC LIMIT 40").fetchall()
+            today = datetime.now().strftime("%Y-%m-%d")
+            events = conn.execute("SELECT text, date, time FROM events WHERE date >= ? ORDER BY date LIMIT 20", (today,)).fetchall()
+    except Exception as e:
+        log.error(f"get_plans_context: {e}")
+        return ""
+    lines = []
+    if projects:
+        steps_by = {}
+        for s in steps:
+            steps_by.setdefault(s["project_id"], []).append(s)
+        lines.append("ПРОЕКТЫ (и шаги):")
+        for p in projects:
+            ps = steps_by.get(p["id"], [])
+            done = sum(1 for s in ps if s["done"])
+            lines.append(f"  • {p['name']} [{p['area']}] — шагов {done}/{len(ps)}")
+            for s in ps[:8]:
+                lines.append(f"      {'✓' if s['done'] else '·'} {(s['text'] or '')[:80]}")
+    if goals:
+        lines.append("ЦЕЛИ:")
+        for g in goals:
+            lines.append(f"  • [{g['period']}/{g['area']}] {(g['text'] or '')[:100]}")
+    if chaos:
+        lines.append("ПАРКОВКА (незакрытые задачи/идеи):")
+        for c in chaos:
+            lines.append(f"  • ({c['priority']}/{c['area']}) {(c['text'] or '')[:100]}")
+    if events:
+        lines.append("БЛИЖАЙШИЕ СОБЫТИЯ:")
+        for e in events:
+            lines.append(f"  • {e['date']} {e['time'] or ''} {(e['text'] or '')[:80]}")
+    if not lines:
+        return ""
+    return "ПЛАНЫ ВЛАДЕЛЬЦА (из friedman_bot — учитывай в стратегии, увязывай рекомендации с ними):\n" + "\n".join(lines)
+
+
 def strategy_council_sync() -> str:
     """Комплексные антикризисные рекомендации на основе картины из таблицы инвойсов
     и финансов. Синтез финансиста + маркетолога + арт-менеджера (+ юр-контекст)."""
@@ -1333,10 +1376,13 @@ def strategy_council_sync() -> str:
                   .replace("{kb}", STRATEGY_KB_DIR)
                   .replace("{legal_kb}", LEGAL_KB_DIR)
                   .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    plans = get_plans_context()
     prompt = (
         f"{get_legal_context()}\n\n"
-        "ЗАПРОС: собери СТРАТЕГИЧЕСКИЙ СОВЕТ и дай комплексные антикризисные "
-        "рекомендации по картине выше (таблица инвойсов по годам + финансы). "
+        + (plans + "\n\n" if plans else "")
+        + "ЗАПРОС: собери СТРАТЕГИЧЕСКИЙ СОВЕТ и дай комплексные антикризисные "
+        "рекомендации по картине выше (таблица инвойсов по годам + финансы + планы "
+        "владельца). Увяжи рекомендации с уже существующими проектами/целями/задачами. "
         "Сначала прочитай базы знаний экспертов (Read), потом отвечай по структуре "
         "из системного промпта."
     )

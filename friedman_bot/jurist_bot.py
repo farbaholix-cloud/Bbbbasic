@@ -59,11 +59,12 @@ RESTART_LEGEND = (
     "Умею: счета (Rechnung PDF), анализ финансов и оборота, письма в ведомства, "
     "напоминания о сроках, разбор присланных документов.\n\n"
     "Команды:\n"
-    "• */analysis* — режим анализа: пришли инвойсы (любые годы), потом "
-    "«все инвойсы отправлены» — дам совокупные выводы по годам\n"
+    "• */collect* — тумблер «собирать инфо»: ВКЛ — коплю присланные инвойсы в "
+    "таблицу без выводов; ВЫКЛ — открыты инструменты анализа\n"
+    "• */analyze* — совокупный анализ по годам (когда сбор выключен)\n"
     "• */showinvoices* — выгрузить всю таблицу в .xls (в стиле инвойсов)\n"
     "• */strategy* — стратегический совет (финансист+маркетолог+арт-менеджер): "
-    "комплексный план выхода из кризиса по картине из инвойсов\n"
+    "план выхода из кризиса по инвойсам, финансам и твоим планам\n"
     "• */restart* — самоперезапуск (не завися от секретаря)\n"
     "• */wipeinvoicestoday* — удалить все счета, созданные сегодня (архив + PDF)"
 )
@@ -113,39 +114,74 @@ async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Не смог перезапуститься сам: {e}")
 
 
-# ── Режим пакетного анализа инвойсов (по всем годам) ──────────────────────────
-def _analysis_mode() -> str:
-    return B._settings_get("analysis_mode") or ""
+# ── Режим «собирать инфо» (тумблер) ───────────────────────────────────────────
+# ВКЛ: копим инвойсы в таблицу, без выводов и анализа.
+# ВЫКЛ: открываются инструменты анализа (/strategy, /analyze, /showinvoices).
+def _collecting() -> bool:
+    return (B._settings_get("analysis_mode") or "") == "collect"
 
 
-async def cmd_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Включить режим анализа: собираем присланные PDF-инвойсы (любой год) в таблицу."""
+_TOOLS_HINT = ("Инструменты анализа доступны:\n"
+               "• /strategy — комплексная стратегия выхода из кризиса\n"
+               "• /analyze — совокупный анализ по годам\n"
+               "• /showinvoices — выгрузить всю таблицу в .xls")
+
+
+async def cmd_collect(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Тумблер «собирать инфо». ВКЛ — копим инвойсы, без выводов. ВЫКЛ — открыт анализ."""
     chat_id = update.effective_chat.id
     owner = B.get_chat_id()
     if owner and chat_id != owner:
         return
     B.save_chat_id(chat_id)
-    B._settings_set("analysis_mode", "collect")
+    n = len(B.all_archive_rows())
+    if _collecting():
+        B._settings_set("analysis_mode", "")
+        await update.message.reply_text(
+            f"🔴 *Сбор выключен.* В таблице: {n}.\n\n" + _TOOLS_HINT, parse_mode="Markdown")
+    else:
+        B._settings_set("analysis_mode", "collect")
+        await update.message.reply_text(
+            "🟢 *Сбор инфо включён.* Кидай инвойсы (любые годы) — коплю в таблицу, "
+            "БЕЗ выводов и анализа (пока сбор идёт, анализ недоступен).\n"
+            "Выключить: */collect* (или напиши «все инвойсы отправлены») — тогда откроются "
+            "инструменты анализа." + (f"\n\n_Сейчас в таблице: {n}._" if n else ""),
+            parse_mode="Markdown")
+
+
+async def stop_collecting(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """«Все инвойсы отправлены»/‎/done — выключить сбор, открыть инструменты анализа."""
+    B._settings_set("analysis_mode", "")
     n = len(B.all_archive_rows())
     await update.message.reply_text(
-        "📊 *Режим анализа включён.*\n\n"
-        "Кидай PDF-инвойсы по одному (любые годы) — я распознаю каждый и складываю "
-        "в общую таблицу (без разбора по отдельности, чтобы не жечь токены).\n"
-        "Когда пришлёшь все — напиши *«все инвойсы отправлены»* (или /done): дам "
-        "СОВОКУПНЫЙ анализ по годам, дальше сможем спокойно обсуждать их по таблице, "
-        "не перечитывая файлы.\n"
-        + (f"\n_Уже в архиве: {n} шт._" if n else ""),
-        parse_mode="Markdown")
+        f"🔴 *Сбор выключен.* Собрано в таблице: {n}.\n\n" + _TOOLS_HINT, parse_mode="Markdown")
 
 
-async def cmd_analysisoff(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Выключить режим анализа (данные в таблице остаются)."""
+async def cmd_analyze(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Совокупный анализ по годам (доступен, когда сбор выключен)."""
     chat_id = update.effective_chat.id
     owner = B.get_chat_id()
     if owner and chat_id != owner:
         return
-    B._settings_set("analysis_mode", "")
-    await update.message.reply_text("Режим анализа выключен. Таблица сохранена — можешь спрашивать о ней в любой момент.")
+    if _collecting():
+        await update.message.reply_text(
+            "📥 Сейчас идёт сбор инфо — выводы отключены. Выключи сбор (/collect или "
+            "«все инвойсы отправлены»), потом /analyze.")
+        return
+    n = len(B.all_archive_rows())
+    if not n:
+        await update.message.reply_text("Таблица пуста. Включи сбор — /collect — и пришли инвойсы.")
+        return
+    await update.message.reply_text(f"📊 Делаю совокупный анализ по годам ({n} инвойсов)…")
+    reply = await asyncio.get_event_loop().run_in_executor(None, B.analyze_all_sync)
+    if not reply:
+        await update.message.reply_text("Не удалось собрать анализ 😔 Попробуй ещё раз.")
+        return
+    for chunk in B._split_msg("⚖️ *Совокупный анализ инвойсов:*\n\n" + reply, 3800):
+        try:
+            await update.message.reply_text(chunk, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
 
 
 async def cmd_showinvoices(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -157,7 +193,7 @@ async def cmd_showinvoices(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     rows = B.all_archive_rows()
     if not rows:
         await update.message.reply_text(
-            "Таблица пуста. Включи режим — /analysis — и пришли инвойсы.")
+            "Таблица пуста. Включи сбор — /collect — и пришли инвойсы.")
         return
     total = sum((r["gross"] or 0) for r in rows)
     years = B.archive_years()
@@ -178,28 +214,6 @@ async def cmd_showinvoices(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         log.error(f"showinvoices send: {e}")
 
 
-async def finalize_analysis(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """«Все инвойсы отправлены» → совокупный анализ по всем годам."""
-    n = len(B.all_archive_rows())
-    if not n:
-        await update.message.reply_text("В таблице пока пусто — сначала пришли инвойсы.")
-        return
-    await update.message.reply_text(f"📊 Собрано {n} инвойсов. Делаю совокупный анализ по годам…")
-    reply = await asyncio.get_event_loop().run_in_executor(None, B.analyze_all_sync)
-    B._settings_set("analysis_mode", "ready")
-    if not reply:
-        await update.message.reply_text("Не удалось собрать анализ 😔 Попробуй ещё раз или пришли файлы заново.")
-        return
-    for chunk in B._split_msg("⚖️ *Совокупный анализ инвойсов:*\n\n" + reply, 3800):
-        try:
-            await update.message.reply_text(chunk, parse_mode="Markdown")
-        except Exception:
-            await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
-    await update.message.reply_text(
-        "Готово. Теперь просто спрашивай про любой год — отвечаю по таблице, файлы не перечитываю. "
-        "Выгрузить всё в .xls: /showinvoices · выйти: /analysisoff")
-
-
 async def cmd_strategy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Стратегический совет: комплексные антикризисные рекомендации по картине из
     таблицы инвойсов (финансист + маркетолог + арт-менеджер + юр-контекст)."""
@@ -207,10 +221,15 @@ async def cmd_strategy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     owner = B.get_chat_id()
     if owner and chat_id != owner:
         return
+    if _collecting():
+        await update.message.reply_text(
+            "📥 Сейчас идёт сбор инфо — стратегия отключена. Выключи сбор (/collect или "
+            "«все инвойсы отправлены»), потом /strategy.")
+        return
     B.save_chat_id(chat_id)
     n = len(B.all_archive_rows())
-    hint = "" if n else "\n_В таблице инвойсов пусто — рекомендации будут по финансам/долгам; " \
-                        "для полной картины включи /analysis и пришли инвойсы._"
+    hint = "" if n else "\n_В таблице инвойсов пусто — рекомендации будут по финансам/долгам/планам; " \
+                        "для полной картины включи /collect и пришли инвойсы._"
     await update.message.reply_text(
         "🧭 Собираю стратегический совет (финансист + маркетолог + арт-менеджер) "
         "по всей картине… это займёт до минуты." + hint, parse_mode="Markdown")
@@ -229,23 +248,27 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     txt = (update.message.text or "").strip()
     if not txt:
         return
-    # Фраза-включатель режима анализа
-    if re.search(r"включ\w*\s+режим\s+анализ|режим\s+анализа", txt, re.I):
-        await cmd_analysis(update, ctx)
+    # Фраза-тумблер сбора инфо
+    if re.search(r"(включ\w*|начни|старт\w*)\s+сбор|собира\w*\s+инфо|режим\s+сбора", txt, re.I):
+        if not _collecting():
+            await cmd_collect(update, ctx)
+        else:
+            await update.message.reply_text("Сбор уже включён. Кидай инвойсы. Выключить — /collect.")
+        return
+    # В режиме сбора: «все инвойсы отправлены»/выключи → выкл; иначе напоминание
+    if _collecting():
+        if re.search(r"(все|всё)\s+инвойс\w*\s+отправл|инвойсы\s+все|это\s+все|готово|закончил|"
+                     r"выключ\w*\s+сбор|стоп\s+сбор", txt, re.I):
+            await stop_collecting(update, ctx)
+            return
+        await update.message.reply_text(
+            "📥 Иду сбор инфо — кидай PDF-инвойсы (любые годы), выводов пока не делаю. "
+            "Когда закончишь — *«все инвойсы отправлены»* (или /collect): откроются инструменты анализа.",
+            parse_mode="Markdown")
         return
     # Запрос стратегии / выхода из кризиса
     if re.search(r"страте\w+|выход\w*\s+из\s+кризис|антикризис|что\s+делать\s+с\s+бизнес", txt, re.I):
         await cmd_strategy(update, ctx)
-        return
-    # В режиме сбора: либо «все инвойсы отправлены», либо напоминание
-    if _analysis_mode() == "collect":
-        if re.search(r"(все|всё)\s+инвойс\w*\s+отправл|инвойсы\s+все|готово|закончил|это\s+все", txt, re.I):
-            await finalize_analysis(update, ctx)
-            return
-        await update.message.reply_text(
-            "📥 Я в режиме сбора — кидай PDF-инвойсы (любые годы). Когда закончишь, напиши "
-            "*«все инвойсы отправлены»* (или /done). Выйти без анализа: /analysisoff",
-            parse_mode="Markdown")
         return
     # Просьба выставить счёт — детерминированный путь (надёжно даёт PDF),
     # а не через лоер-модель (она болтает «отправляю», но не выдаёт action).
@@ -292,7 +315,7 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await tg_file.download_to_drive(tmp)
 
     # Режим сбора: складываем инвойс в таблицу (без разбора по одному).
-    if _analysis_mode() == "collect":
+    if _collecting():
         try:
             ack = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: B.store_archived_invoice(tmp))
@@ -370,11 +393,11 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("restart", cmd_restart))
     app.add_handler(CommandHandler("wipeinvoicestoday", B.cmd_wipeinvoicestoday))
-    app.add_handler(CommandHandler(["analysis", "analysis2025"], cmd_analysis))
-    app.add_handler(CommandHandler("analysisoff", cmd_analysisoff))
+    app.add_handler(CommandHandler(["collect", "analysis", "analysis2025"], cmd_collect))
+    app.add_handler(CommandHandler("analyze", cmd_analyze))
+    app.add_handler(CommandHandler(["done", "analysisoff"], stop_collecting))
     app.add_handler(CommandHandler(["showinvoices", "show2025"], cmd_showinvoices))
     app.add_handler(CommandHandler(["strategy", "strategie"], cmd_strategy))
-    app.add_handler(CommandHandler("done", finalize_analysis))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))
     app.add_handler(MessageHandler(filters.PHOTO, on_file))
