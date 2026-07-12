@@ -59,8 +59,10 @@ RESTART_LEGEND = (
     "Умею: счета (Rechnung PDF), анализ финансов и оборота, письма в ведомства, "
     "напоминания о сроках, разбор присланных документов.\n\n"
     "Команды:\n"
-    "• */collect* — тумблер «собирать инфо»: ВКЛ — коплю присланные инвойсы в "
-    "таблицу без выводов; ВЫКЛ — открыты инструменты анализа\n"
+    "• */invoice* — создать счёт: спрошу кому/за что/сколько → PDF\n"
+    "• */contract* — создать договор: спрошу важные условия → PDF (дизайн как у счёта)\n"
+    "• */collect* — тумблер «собирать инфо»: ВКЛ — коплю присланные счета и "
+    "договора в таблицу без выводов; ВЫКЛ — открыты инструменты анализа\n"
     "• */analyze* — совокупный анализ по годам (когда сбор выключен)\n"
     "• */showinvoices* — выгрузить всю таблицу в .xls (в стиле инвойсов)\n"
     "• */strategy* — стратегический совет (финансист+маркетолог+арт-менеджер): "
@@ -244,39 +246,104 @@ async def cmd_strategy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
 
 
-async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    txt = (update.message.text or "").strip()
-    if not txt:
+async def cmd_invoice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Кнопка «создать invoice»: бот спрашивает данные, следующий текст/голос → счёт."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    B.save_chat_id(chat_id)
+    ctx.user_data["await_doc"] = "invoice"
+    await update.message.reply_text(
+        "🧾 *Создаём счёт.* Ответь одним сообщением (можно голосом):\n"
+        "• *Кому* — название и адрес (или короткое имя известного клиента)\n"
+        "• *За что* — работа/проект\n"
+        "• *Сумма* в €\n\n"
+        "_Пример: «Café Sa'Sis, роспись стены, 800€». Отмена: /cancel_",
+        parse_mode="Markdown")
+
+
+async def cmd_contract(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Кнопка «создать контракт»: бот спрашивает важные вопросы, следующий текст/голос → договор."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    B.save_chat_id(chat_id)
+    ctx.user_data["await_doc"] = "contract"
+    await update.message.reply_text(
+        "📄 *Создаём договор.* Ответь одним сообщением (удобно голосом), укажи важное:\n"
+        "• *Заказчик* — название и адрес\n"
+        "• *Что за работа* и *где* (объект, площадь/объём)\n"
+        "• *Сумма* и *порядок оплаты* (напр. 50% предоплата)\n"
+        "• *Сроки* выполнения\n"
+        "• *Права на фото/изображения* (обычно за художником)\n"
+        "• *Особые условия* (если есть)\n\n"
+        "_Я учту твои прошлые договоры и нюансы. Дизайн — как у нового счёта. Отмена: /cancel_",
+        parse_mode="Markdown")
+
+
+async def cmd_cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Отменить ожидание описания счёта/договора."""
+    if ctx.user_data.get("await_doc"):
+        ctx.user_data["await_doc"] = None
+        await update.message.reply_text("Ок, отменил. Можешь продолжать как обычно.")
+
+
+async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
+    """Единая маршрутизация текста/голоса Юриста."""
+    # Гайд-режим: бот ждёт описание для счёта/договора после кнопки
+    awaiting = ctx.user_data.get("await_doc")
+    if awaiting == "invoice":
+        ctx.user_data["await_doc"] = None
+        B.save_chat_id(update.effective_chat.id)
+        await B.create_invoice_from_text(update, txt)
+        return
+    if awaiting == "contract":
+        ctx.user_data["await_doc"] = None
+        B.save_chat_id(update.effective_chat.id)
+        await B.create_contract_from_text(update, txt)
         return
     # Фраза-тумблер сбора инфо
     if re.search(r"(включ\w*|начни|старт\w*)\s+сбор|собира\w*\s+инфо|режим\s+сбора", txt, re.I):
         if not _collecting():
             await cmd_collect(update, ctx)
         else:
-            await update.message.reply_text("Сбор уже включён. Кидай инвойсы. Выключить — /collect.")
+            await update.message.reply_text("Сбор уже включён. Кидай инвойсы/договора. Выключить — /collect.")
         return
-    # В режиме сбора: «все инвойсы отправлены»/выключи → выкл; иначе напоминание
+    # В режиме сбора: «все отправлены»/выключи → выкл; иначе напоминание
     if _collecting():
-        if re.search(r"(все|всё)\s+инвойс\w*\s+отправл|инвойсы\s+все|это\s+все|готово|закончил|"
+        if re.search(r"(все|всё)\s+(инвойс\w*|договор\w*|документ\w*)\s+отправл|это\s+все|готово|закончил|"
                      r"выключ\w*\s+сбор|стоп\s+сбор", txt, re.I):
             await stop_collecting(update, ctx)
             return
         await update.message.reply_text(
-            "📥 Иду сбор инфо — кидай PDF-инвойсы (любые годы), выводов пока не делаю. "
-            "Когда закончишь — *«все инвойсы отправлены»* (или /collect): откроются инструменты анализа.",
+            "📥 Иду сбор — кидай PDF счетов и договоров, выводов пока не делаю. "
+            "Когда закончишь — *«все отправлены»* (или /collect): откроются инструменты анализа.",
             parse_mode="Markdown")
         return
     # Запрос стратегии / выхода из кризиса
     if re.search(r"страте\w+|выход\w*\s+из\s+кризис|антикризис|что\s+делать\s+с\s+бизнес", txt, re.I):
         await cmd_strategy(update, ctx)
         return
-    # Просьба выставить счёт — детерминированный путь (надёжно даёт PDF),
-    # а не через лоер-модель (она болтает «отправляю», но не выдаёт action).
+    # Просьба составить договор (проверяем ДО инвойса — «договор» специфичнее)
+    if B.looks_like_contract_request(txt):
+        B.save_chat_id(update.effective_chat.id)
+        await B.create_contract_from_text(update, txt)
+        return
+    # Просьба выставить счёт — детерминированный путь (надёжно даёт PDF)
     if B.looks_like_invoice_request(txt):
         B.save_chat_id(update.effective_chat.id)
         await B.create_invoice_from_text(update, txt)
         return
     await B.ai_lawyer(update, ctx, txt)
+
+
+async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    txt = (update.message.text or "").strip()
+    if not txt:
+        return
+    await _route_text(update, ctx, txt)
 
 
 async def on_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -294,11 +361,7 @@ async def on_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not text:
         await update.message.reply_text("Не разобрал голос 😔 Напиши текстом.")
         return
-    if B.looks_like_invoice_request(text):
-        B.save_chat_id(update.effective_chat.id)
-        await B.create_invoice_from_text(update, text)
-        return
-    await B.ai_lawyer(update, ctx, text)
+    await _route_text(update, ctx, text)
 
 
 async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -314,21 +377,19 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     tg_file = await ctx.bot.get_file(fid)
     await tg_file.download_to_drive(tmp)
 
-    # Режим сбора: складываем инвойс в таблицу (без разбора по одному).
+    # Режим сбора: складываем счёт ИЛИ договор в таблицу (без разбора по одному).
     if _collecting():
         try:
-            ack = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: B.store_archived_invoice(tmp))
+            kind, ack = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: B.store_archived_document(tmp))
         except Exception as e:
             log.error(f"archive ingest: {e}")
-            ack = None
-        n = len(B.all_archive_rows())
+            kind, ack = None, None
         if ack:
-            await update.message.reply_text(f"✅ В таблицу ({n}): {ack}")
+            await update.message.reply_text(f"✅ {ack}")
         else:
             await update.message.reply_text(
-                "⚠️ Не смог распознать как счёт. Пришли почётче или пропусти. "
-                f"Сейчас в таблице: {n}.")
+                "⚠️ Не смог распознать как счёт/договор. Пришли почётче или пропусти.")
         try:
             os.unlink(tmp)
         except Exception:
@@ -398,6 +459,9 @@ def main():
     app.add_handler(CommandHandler(["done", "analysisoff"], stop_collecting))
     app.add_handler(CommandHandler(["showinvoices", "show2025"], cmd_showinvoices))
     app.add_handler(CommandHandler(["strategy", "strategie"], cmd_strategy))
+    app.add_handler(CommandHandler(["invoice", "rechnung", "schet"], cmd_invoice))
+    app.add_handler(CommandHandler(["contract", "vertrag", "dogovor"], cmd_contract))
+    app.add_handler(CommandHandler("cancel", cmd_cancel))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, on_file))
     app.add_handler(MessageHandler(filters.PHOTO, on_file))

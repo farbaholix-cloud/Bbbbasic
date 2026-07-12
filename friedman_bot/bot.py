@@ -187,6 +187,18 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(number, inv_date)
         );
+        -- Архив распознанных договоров (для сбора нюансов и составления новых).
+        CREATE TABLE IF NOT EXISTS contract_archive (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_name TEXT,
+            subject TEXT,
+            amount REAL,
+            start_date TEXT,
+            end_date TEXT,
+            terms TEXT,
+            raw_json TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS bridge (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             period TEXT,
@@ -1077,6 +1089,105 @@ def store_archived_invoice(path: str):
     return f"№{number or '—'} · {inv_date or '—'} · {client or '—'} · {gross:.0f}€"
 
 
+def store_archived_document(path: str):
+    """Классифицировать присланный документ (счёт или договор) и сохранить в нужную
+    таблицу. В режиме сбора: инвойсы → invoice_archive, договоры → contract_archive.
+    Возвращает ('invoice'|'contract'|None, ack-строка)."""
+    prompt = (
+        f"Прочитай документ по пути {path} инструментом Read (PDF или фото — распознай "
+        "даже под углом/с тенями; немецкий формат сумм 2.000,00 = 2000.00). Определи тип: "
+        "СЧЁТ (Rechnung) или ДОГОВОР (Vertrag). Верни СТРОГО JSON:\n"
+        '{"doc_type": "rechnung"|"vertrag"|"anderes", '
+        '"invoice": {"number":"","date":"YYYY-MM-DD","client_name":"","net":0,"vat":0,"gross":0,"kleinunternehmer":true,'
+        '"client_recipient":"получатель: название и адрес, каждая часть с \\n","salutation":"","customer_no":"","items":[]}, '
+        '"contract": {"client_name":"","client_recipient":"заказчик: название и адрес с \\n","subject":"предмет договора кратко",'
+        '"amount":0,"start_date":"YYYY-MM-DD","end_date":"","terms":"ключевые условия кратко: оплата, права на изображения/Urheberrecht, ответственность, расторжение, особое"}}\n'
+        "Заполни только релевантную секцию. Числа/даты точно как в документе."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"],
+            capture_output=True, text=True, timeout=200,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s < 0 or e <= s:
+            return None, None
+        data = jsonlib.loads(raw[s:e + 1])
+    except Exception as ex:
+        log.error(f"store_archived_document: {ex}")
+        return None, None
+
+    dt = data.get("doc_type")
+    if dt == "rechnung":
+        inv = data.get("invoice") or {}
+        inv["is_invoice"] = True
+        # переиспользуем логику инвойса через прямую запись
+        number = (inv.get("number") or "").strip()
+        inv_date = (inv.get("date") or "").strip()
+        year = _year_of_iso(inv_date)
+        client = (inv.get("client_name") or "").strip()
+        net = float(inv.get("net") or 0); vat = float(inv.get("vat") or 0)
+        gross = float(inv.get("gross") or 0) or (net + vat)
+        klein = 1 if inv.get("kleinunternehmer") else 0
+        try:
+            with db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO invoice_archive "
+                    "(number, inv_date, year, client_name, items, net, vat, gross, kleinunternehmer, raw_json) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (number, inv_date, year, client, jsonlib.dumps(inv.get("items") or [], ensure_ascii=False),
+                     net, vat, gross, klein, jsonlib.dumps(inv, ensure_ascii=False)))
+        except Exception as e:
+            log.error(f"archive invoice: {e}")
+            return None, None
+        if (inv.get("client_recipient") or "").strip():
+            upsert_client(inv["client_recipient"], inv.get("salutation", ""), inv.get("customer_no", ""))
+        return "invoice", f"🧾 счёт №{number or '—'} · {inv_date or '—'} · {client or '—'} · {gross:.0f}€"
+
+    if dt == "vertrag":
+        con = data.get("contract") or {}
+        client = (con.get("client_name") or "").strip()
+        try:
+            with db() as conn:
+                conn.execute(
+                    "INSERT INTO contract_archive (client_name, subject, amount, start_date, end_date, terms, raw_json) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (client, (con.get("subject") or "")[:400], float(con.get("amount") or 0),
+                     con.get("start_date") or "", con.get("end_date") or "",
+                     (con.get("terms") or "")[:1500], jsonlib.dumps(con, ensure_ascii=False)))
+        except Exception as e:
+            log.error(f"archive contract: {e}")
+            return None, None
+        if (con.get("client_recipient") or "").strip():
+            upsert_client(con["client_recipient"], "", "")
+        amt = float(con.get("amount") or 0)
+        return "contract", f"📄 договор · {client or '—'} · {(con.get('subject') or '')[:40]}" + (f" · {amt:.0f}€" if amt else "")
+
+    return None, None
+
+
+def contracts_context(limit: int = 20) -> str:
+    """Сводка прошлых договоров — чтобы новый договор учитывал типичные условия/нюансы."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT client_name, subject, amount, start_date, end_date, terms "
+                "FROM contract_archive ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    except Exception:
+        rows = []
+    if not rows:
+        return ""
+    lines = ["ПРОШЛЫЕ ДОГОВОРЫ (используй типичные условия/нюансы отсюда для нового договора; "
+             "дизайн старых НЕ копируй):"]
+    for r in rows:
+        amt = f" · {r['amount']:.0f}€" if r["amount"] else ""
+        lines.append(f"  • {r['client_name'] or '—'}: {(r['subject'] or '')[:60]}{amt}")
+        if r["terms"]:
+            lines.append(f"      условия: {(r['terms'] or '')[:300]}")
+    return "\n".join(lines)
+
+
 def year_archive_rows(year: int):
     try:
         with db() as conn:
@@ -1940,6 +2051,16 @@ def looks_like_invoice_request(text: str) -> bool:
     )
 
 
+def looks_like_contract_request(text: str) -> bool:
+    """Просьба СОСТАВИТЬ договор (не вопрос про договоры)."""
+    t = text or ""
+    return bool(
+        re.search(r"(состав|сдела|подготов|сгенер|создай|сформир|напиши|оформ)\w*\s+.{0,15}(договор|контракт|vertrag|werkvertrag)",
+                  t, re.IGNORECASE)
+        or re.search(r"(договор|контракт|vertrag)\b.{0,40}(с |на |для |между)", t, re.IGNORECASE)
+    )
+
+
 async def create_invoice_from_text(update: Update, text: str):
     await update.message.reply_text("🧾 Готовлю счёт...")
 
@@ -2031,6 +2152,82 @@ async def create_invoice_from_text(update: Update, text: str):
             await update.message.reply_document(doc, filename=path.split("/")[-1])
     except Exception as ex:
         log.error(f"invoice send: {ex}")
+
+
+async def create_contract_from_text(update: Update, text: str):
+    """Составить договор из описания (текст/голос) и выдать PDF в дизайне инвойса.
+    Учитывает контекст (Kleinunternehmer §19, §24) и нюансы прошлых договоров."""
+    await update.message.reply_text("📄 Готовлю договор…")
+
+    known = clients_for_context()
+    past = contracts_context()
+
+    def draft():
+        prompt = (
+            "Составь профессиональный НЕМЕЦКИЙ договор (Werkvertrag/Künstlervertrag) для художника-"
+            "фрилансера Viacheslav Balabaiev (бренд FARBAHOLIX, Graffiti/Mural Künstler, Kleinunternehmer "
+            "§19 UStG — без НДС, §24 в Германии) с заказчиком, по описанию ниже.\n"
+            "ОПИСАНИЕ ПРОЕКТА: «" + text + "»\n"
+            + (("\n" + known) if known else "")
+            + (("\n" + past) if past else "")
+            + "\nУчитывай нюансы прошлых договоров (типичные условия оплаты, права на изображения/"
+            "Urheberrecht, ответственность, расторжение). Формулировки — юридически аккуратные, "
+            "по-немецки. Разделы: Vertragsgegenstand, Leistungsbeschreibung, Vergütung (укажи сумму; "
+            "оговорка Kleinunternehmer §19), Zahlungsbedingungen, Termine, Nutzungsrechte/Urheberrecht, "
+            "Haftung/Gewährleistung, Kündigung, Schlussbestimmungen (по релевантности).\n"
+            "Ответь СТРОГО JSON без иного текста: {\"client_recipient\": \"заказчик: название и адрес, "
+            "каждая часть с новой строки \\n\", \"title\": \"напр. Werkvertrag — Wandgestaltung\", "
+            "\"intro\": \"Präambel одной-двумя фразами\", \"sections\": [{\"heading\": \"Vertragsgegenstand\", "
+            "\"body\": \"текст раздела на немецком\"}, ...], \"place\": \"город подписания если известен\"}. "
+            "Если не хватает заказчика или сути работы или суммы — верни {\"need\": \"чего не хватает\"}."
+        )
+        try:
+            result = subprocess.run(
+                [CLAUDE_BIN, "-p", prompt, "--model", "sonnet", "--tools", ""],
+                capture_output=True, text=True, timeout=180,
+                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+            raw = result.stdout.strip()
+            s, e = raw.find("{"), raw.rfind("}")
+            if s >= 0 and e > s:
+                return jsonlib.loads(raw[s:e + 1])
+        except Exception as ex:
+            log.error(f"contract draft: {ex}")
+        return None
+
+    data = await asyncio.get_event_loop().run_in_executor(None, draft)
+
+    if not data or data.get("need") or not data.get("sections") or not data.get("client_recipient"):
+        miss = (data or {}).get("need", "заказчика (название, адрес), суть работы и сумму")
+        await update.message.reply_text(
+            f"Чтобы составить договор, не хватает: {miss}.\nОпиши (можно голосом), например: "
+            "_«договор с Café Sa'Sis, роспись стены 18 м², 2400€, предоплата 50%, август, "
+            "права на фото за мной»_", parse_mode="Markdown")
+        return
+
+    from invoice import generate_contract
+    try:
+        path, ref = generate_contract(
+            client=data["client_recipient"], title=data.get("title"),
+            intro=data.get("intro"), sections=data["sections"], place=data.get("place"))
+    except Exception as ex:
+        log.error(f"contract gen: {ex}")
+        await update.message.reply_text(f"Не получилось собрать PDF договора 😔\nПричина: `{str(ex)[:250]}`",
+                                        parse_mode="Markdown")
+        return
+
+    client_line = data["client_recipient"].split(chr(10))[0]
+    upsert_client(data["client_recipient"], "", "")
+    remember("user", "договор: " + text)
+    remember("assistant", f"составлен договор для {client_line}")
+    await update.message.reply_text(
+        f"📄 Готово! Договор для *{client_line}*.\n"
+        "_Проверь текст перед подписанием; по налоговым нюансам финал — со Steuerberater._",
+        parse_mode="Markdown")
+    try:
+        with open(path, "rb") as doc:
+            await update.message.reply_document(doc, filename=path.split("/")[-1])
+    except Exception as ex:
+        log.error(f"contract send: {ex}")
 
 
 async def create_goal_project(update: Update, goal_text: str):

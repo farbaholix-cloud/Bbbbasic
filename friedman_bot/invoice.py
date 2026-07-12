@@ -271,6 +271,94 @@ def generate_invoice(recipient, items, salutation=None, customer_no="",
     return out_path, total, number
 
 
+def _build_contract_html(client, title, intro, sections, place, dt, sign_names):
+    """HTML договора в дизайне инвойса: шапка FARBAHOLIX + красный акцент,
+    стороны, нумерованные § с заголовком и текстом, блок подписей."""
+    snd = _sender()
+    sec_html = []
+    for i, s in enumerate(sections, 1):
+        heading = _esc(s.get("heading", ""))
+        body = _esc(s.get("body", "")).replace("\n", "<br>")
+        sec_html.append(
+            f"<div class='sec'><div class='sh'>§ {i} {heading}</div>"
+            f"<div class='sb'>{body}</div></div>")
+    an = _esc(sign_names.get("auftragnehmer") or snd["name"])
+    ag = _esc(sign_names.get("auftraggeber") or (client.split("\n")[0] if client else "Auftraggeber"))
+    return f"""<!doctype html><html><head><meta charset='utf-8'><style>
+@page {{ size: A4; margin: 0; }}
+* {{ box-sizing: border-box; }}
+body {{ font-family: 'Helvetica Neue', Arial, 'Segoe UI', sans-serif; color:#1a1a1a;
+  margin:0; padding:56px 62px 46px; font-size:13px; line-height:1.5;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact; }}
+.head {{ display:flex; justify-content:space-between; align-items:flex-start; }}
+.name {{ font-size:28px; font-weight:700; letter-spacing:.3px; }}
+.title2 {{ color:#b23a3a; font-size:14px; margin-top:3px; }}
+.meta {{ background:#efefef; padding:12px 16px; text-align:right; font-size:11.5px;
+  line-height:1.7; color:#333; max-width:46%; }}
+.meta .mail {{ color:#b23a3a; }}
+.accent {{ border-bottom:4px solid #b23a3a; margin:14px 0 0; }}
+h1 {{ font-size:20px; font-weight:700; margin:22px 0 4px; text-transform:uppercase; letter-spacing:.5px; }}
+.parties {{ margin-top:10px; font-size:13px; line-height:1.6; }}
+.parties b {{ font-weight:700; }}
+.intro {{ margin-top:14px; }}
+.sec {{ margin-top:14px; }}
+.sec .sh {{ font-weight:700; font-size:13.5px; margin-bottom:3px; }}
+.sec .sb {{ text-align:justify; }}
+.signs {{ display:flex; justify-content:space-between; margin-top:48px; gap:40px; }}
+.sig {{ flex:1; }}
+.sig .line {{ border-top:1px solid #333; margin-top:34px; padding-top:5px; font-size:11.5px; color:#333; }}
+.place {{ margin-top:30px; color:#555; }}
+</style></head><body>
+  <div class='head'>
+    <div><div class='name'>{_esc(snd['name'])}</div><div class='title2'>{_esc(snd['title'])}</div></div>
+    <div class='meta'>{_esc(snd['street'])}<br>{_esc(snd['phone'])}<br>
+      <span class='mail'>{_esc(snd['email'])}</span><br>
+      Steuernummer: {_esc(snd['steuernummer'])}</div>
+  </div>
+  <div class='accent'></div>
+  <h1>{_esc(title)}</h1>
+  <div class='parties'>
+    <b>zwischen</b><br>{_addr_html(snd['name'] + chr(10) + snd['street'])} — nachfolgend „Auftragnehmer“<br><br>
+    <b>und</b><br>{_addr_html(client)} — nachfolgend „Auftraggeber“
+  </div>
+  <p class='intro'>{_esc(intro)}</p>
+  {''.join(sec_html)}
+  <div class='place'>{_esc(place or snd['city'])}, den {_de_date(dt)}</div>
+  <div class='signs'>
+    <div class='sig'><div class='line'>Auftragnehmer — {an}</div></div>
+    <div class='sig'><div class='line'>Auftraggeber — {ag}</div></div>
+  </div>
+</body></html>"""
+
+
+def generate_contract(client, title=None, intro=None, sections=None,
+                      place=None, when=None, sign_names=None, ref=None):
+    """Собирает PDF договора в дизайне инвойса. Возвращает (path, ref).
+
+    client     — заказчик: название и адрес, каждая часть с новой строки (\\n).
+    title      — заголовок (напр. «Werkvertrag / Künstlervertrag»).
+    intro      — вводная фраза (Präambel).
+    sections   — [{"heading": "Vertragsgegenstand", "body": "..."}, ...] на немецком.
+    place/when — место и дата подписания.
+    sign_names — {"auftragnehmer": "...", "auftraggeber": "..."} (опц.).
+    ref        — номер/идентификатор договора для имени файла.
+    """
+    if not sections:
+        raise ValueError("нет разделов договора")
+    dt = when or datetime.now()
+    title = title or "Werkvertrag"
+    if not intro:
+        intro = "Die Parteien schließen den folgenden Vertrag über die nachstehend beschriebene Leistung:"
+    html_text = _build_contract_html(
+        client=client or "", title=title, intro=intro, sections=sections,
+        place=place, dt=dt, sign_names=sign_names or {})
+    ref = ref or dt.strftime("%d%m%y")
+    safe = "".join(c for c in str(ref) if c.isalnum() or c in "-_")
+    out_path = os.path.join(tempfile.gettempdir(), f"Vertrag_{safe or 'neu'}.pdf")
+    _render_pdf(html_text, out_path)
+    return out_path, ref
+
+
 def _render_pdf(html_text: str, out_path: str):
     """HTML → PDF через синхронный Playwright.
 
