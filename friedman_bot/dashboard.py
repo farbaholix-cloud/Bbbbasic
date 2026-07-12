@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.28"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.29"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1312,6 +1312,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .kcard.arch-scard{padding:8px 11px;font-size:11.5px;opacity:.7;background:rgba(255,255,255,.05);cursor:default;margin-bottom:5px}
 .kcard.arch-scard.done{text-decoration:line-through;opacity:.42}
 .arch-empty{font-size:11px;color:var(--faint);font-weight:600;text-align:center;padding:12px 4px}
+/* Масштаб (обзор): узкие колонки, только шапка + прогресс, карточки скрыты */
+.kanban.zoomed{gap:8px}
+.kanban.zoomed .pcol{min-width:128px;max-width:128px;padding:9px;cursor:pointer}
+.kanban.zoomed .kol-head{font-size:11px;pointer-events:none}
+.kanban.zoomed .kh-name{white-space:normal;line-height:1.2}
+.kanban.zoomed .kh-more{display:none}
+.kanban.zoomed .kcard,.kanban.zoomed .kadd,.kanban.zoomed .pinc,.kanban.zoomed .arch-empty{display:none}
+.kanban.zoomed .arch-proj{padding:6px;margin-bottom:6px}
+.kanban.zoomed .arch-ph{margin-bottom:0;font-size:10px}
+.kanban.zoomed .arch-ph .arch-act{display:none}
 .sgoal{cursor:pointer}
 .sg-target{font-size:11px;font-weight:700;color:var(--muted);background:var(--glass2);border:1px solid var(--rim);border-radius:9px;padding:2px 8px}
 .kdl{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;
@@ -1491,6 +1501,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="kanban-wrap">
       <div class="kanban-toolbar">
         <div class="cnt" id="goals-cnt" style="margin-right:auto"></div>
+        <div class="btn-sm glass-sm" id="zoom-btn" onclick="toggleProjZoom()" style="padding:6px 12px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">🔍 Масштаб</div>
         <div class="btn-sm glass-sm" onclick="addProject()" style="padding:6px 14px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800">＋ проект</div>
       </div>
       <div class="kanban" id="projboard"></div>
@@ -1747,6 +1758,20 @@ function renderProjectBoard(d){
       '<div class="kh-cnt">'+arch.length+'</div>'+
     '</div>'+archInner+'</div>';
   board.innerHTML=(projs.length?colsHtml:'')+archCol;
+  board.classList.toggle('zoomed',_projZoom);
+}
+// Масштаб (как в Trello): обзор всех проектов сразу; тап по колонке — вернуться и прокрутить к ней
+let _projZoom=false;
+function toggleProjZoom(){
+  _projZoom=!_projZoom;
+  const board=document.getElementById('projboard');if(board)board.classList.toggle('zoomed',_projZoom);
+  const btn=document.getElementById('zoom-btn');if(btn)btn.innerHTML=_projZoom?'🔎 Крупно':'🔍 Масштаб';
+}
+function _zoomInto(id){
+  _projZoom=false;
+  const board=document.getElementById('projboard');if(board)board.classList.remove('zoomed');
+  const btn=document.getElementById('zoom-btn');if(btn)btn.innerHTML='🔍 Масштаб';
+  requestAnimationFrame(()=>{const c=document.querySelector('.pcol[data-proj-id="'+id+'"]');if(c)c.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});});
 }
 function projUnarchive(id){mutate(()=>{const d=DATA;const ap=(d.archived_projects||[]).find(x=>x.id===id);if(ap){d.archived_projects=(d.archived_projects||[]).filter(x=>x.id!==id);if(!d.projects)d.projects=[];ap.archived=0;d.projects.unshift(ap);}},'/api/proj_unarchive',{id});}
 async function projDelArch(id,name){if(await uiConfirm('Удалить навсегда?',{sub:name,danger:true,ok:'Удалить'})){mutate(()=>{DATA.archived_projects=(DATA.archived_projects||[]).filter(x=>x.id!==id);},'/api/proj_delete',{id});}}
@@ -1759,6 +1784,7 @@ async function addProject(){
 }
 function projMenu(ev,id){
   ev.stopPropagation();
+  if(_projZoom){_zoomInto(id);return;}   // в обзоре тап по колонке — приблизить к ней
   const p=_proj(id);if(!p)return;
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
