@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.36 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.37 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -285,6 +285,11 @@ def ensure_schema(conn):
             conn.execute("ALTER TABLE projects ADD COLUMN income_date TEXT")
         if "income_status" not in pr_cols:
             conn.execute("ALTER TABLE projects ADD COLUMN income_status TEXT DEFAULT 'lead'")
+        if "position" not in pr_cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN position INTEGER DEFAULT 0")
+            rows = conn.execute("SELECT id FROM projects ORDER BY created_at DESC, id DESC").fetchall()
+            for i, r in enumerate(rows):
+                conn.execute("UPDATE projects SET position=? WHERE id=?", (i, r[0]))
     if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
         conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
             ("Вводные","#5b9dff",0),("В работе","#ff9aa6",1),
@@ -437,7 +442,7 @@ def get_data():
             "SELECT * FROM chaos ORDER BY done, position ASC, created_at DESC, id DESC").fetchall()]
         _projs = {dict(p)["id"]: {**dict(p), "steps": []}
                   for p in conn.execute(
-                      "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY created_at DESC, id DESC").fetchall()}
+                      "SELECT * FROM projects WHERE COALESCE(archived,0)=0 ORDER BY COALESCE(position,0) ASC, created_at DESC, id DESC").fetchall()}
         _arch = {dict(p)["id"]: {**dict(p), "steps": []}
                  for p in conn.execute(
                      "SELECT * FROM projects WHERE COALESCE(archived,0)=1 ORDER BY archived_at DESC, id DESC").fetchall()}
@@ -652,6 +657,22 @@ def api_steps(path, payload):
                          (payload["id"],))
         elif path == "/api/proj_unarchive":
             conn.execute("UPDATE projects SET archived=0, archived_at=NULL WHERE id=?", (payload["id"],))
+        elif path == "/api/proj_move_lr":
+            rows = conn.execute(
+                "SELECT id, COALESCE(position,0) AS pos FROM projects WHERE COALESCE(archived,0)=0 "
+                "ORDER BY COALESCE(position,0) ASC, created_at DESC, id DESC").fetchall()
+            ids = [r["id"] for r in rows]
+            if payload["id"] in ids:
+                i = ids.index(payload["id"])
+                j = i - 1 if payload.get("dir", 0) < 0 else i + 1
+                if 0 <= j < len(ids):
+                    pi, pj = rows[i]["pos"], rows[j]["pos"]
+                    if pi == pj:
+                        for k, r in enumerate(rows):
+                            conn.execute("UPDATE projects SET position=? WHERE id=?", (k, r["id"]))
+                        pi, pj = i, j
+                    conn.execute("UPDATE projects SET position=? WHERE id=?", (pj, ids[i]))
+                    conn.execute("UPDATE projects SET position=? WHERE id=?", (pi, ids[j]))
     return {"ok": True}
 
 
@@ -1056,7 +1077,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
    rgba(255,255,255,.04)}
 .axis-v{position:absolute;left:50%;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.16);border-radius:2px}
 .axis-h{position:absolute;top:50%;left:8px;right:8px;height:2px;background:rgba(255,255,255,.16);border-radius:2px}
-.qc{position:absolute;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.3px;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.qc{position:absolute;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.3px;display:flex;flex-direction:column;gap:2px;cursor:pointer;pointer-events:auto;padding:3px;border-radius:8px}
+.qc:hover{background:rgba(255,255,255,.08)}
+.pm-move{display:flex;gap:8px;margin:12px 0 4px}
+.pm-move button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--rim);background:rgba(255,255,255,.06);color:var(--txt);font-size:13px;font-weight:800;cursor:pointer}
+.pm-move button:disabled{opacity:.35;cursor:default}
+.q-list{max-height:56vh;overflow-y:auto;margin-top:6px;display:flex;flex-direction:column;gap:7px}
+.q-row{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:13px;background:var(--glass2);border:1px solid var(--rim);cursor:pointer}
+.q-row .q-tx{flex:1;font-size:13.5px;font-weight:600;line-height:1.3}
+.q-row .q-plan{font-size:9px;font-weight:800;color:#86b8ff;background:rgba(91,157,255,.16);padding:2px 7px;border-radius:8px;flex-shrink:0}
+.q-row .q-iu{font-size:11px;font-weight:800;color:var(--muted);flex-shrink:0}
 .qc .em{font-size:13px}
 .qc .s{font-size:8px;font-weight:600;color:var(--faint);text-transform:none;letter-spacing:0}
 .q1{top:11px;right:12px;text-align:right;color:#ff8b98}
@@ -2070,9 +2100,16 @@ async function stepDel(id){
   if(!await uiConfirm('Удалить шаг «'+s.text+'»?'))return;
   mutate(()=>{(DATA.projects||[]).forEach(p=>{if(p.steps)p.steps=p.steps.filter(x=>x.id!==id);});},'/api/step_delete',{id});
 }
+function projMoveLR(id,dir){
+  mutate(()=>{
+    const arr=DATA.projects||[];const i=arr.findIndex(x=>x.id===id);const j=i+(dir<0?-1:1);
+    if(i>=0&&j>=0&&j<arr.length){const t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  },'/api/proj_move_lr',{id,dir});
+}
 function projMenu(ev,id){
   ev.stopPropagation();
   const p=_proj(id);if(!p)return;
+  const arr=DATA.projects||[];const idx=arr.findIndex(x=>x.id===id);
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';sheet.classList.add('mac-top-left');
@@ -2080,6 +2117,8 @@ function projMenu(ev,id){
   sheet.innerHTML='<div class="grab"></div>'+
     '<div class="stitle">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div>'+
     '<div class="ssub">'+done+' из '+total+' шагов готово</div>'+
+    '<div class="pm-move"><button id="pm-left" '+(idx<=0?'disabled':'')+'>◀ левее</button>'+
+      '<button id="pm-right" '+(idx>=arr.length-1?'disabled':'')+'>правее ▶</button></div>'+
     '<div class="sh-actions">'+
     '<button class="sh-btn" id="pm-add">＋ Шаг</button>'+
     '<button class="sh-btn" id="pm-inc">💰 Ожидаемый профит</button>'+
@@ -2089,6 +2128,9 @@ function projMenu(ev,id){
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
+  const bl=sheet.querySelector('#pm-left'),br=sheet.querySelector('#pm-right');
+  if(bl)bl.onclick=()=>{closeSheet();projMoveLR(id,-1);};
+  if(br)br.onclick=()=>{closeSheet();projMoveLR(id,1);};
   sheet.querySelector('#pm-add').onclick=()=>{closeSheet();stepAdd(id);};
   sheet.querySelector('#pm-inc').onclick=()=>{closeSheet();projIncome(id);};
   sheet.querySelector('#pm-ren').onclick=()=>{closeSheet();projRename(id,p.name);};
@@ -2135,10 +2177,10 @@ function renderMatrix(open){
   const m=document.getElementById('matrix');
   const W=m.clientWidth||340,H=344,PAD=30;
   let html='<div class="axis-v"></div><div class="axis-h"></div>'+
-    '<div class="qc q1"><span class="em">🔴</span>Сейчас<span class="s">важно·срочно</span></div>'+
-    '<div class="qc q2"><span class="em">🟡</span>Планируй<span class="s">важно·не срочно</span></div>'+
-    '<div class="qc q3"><span class="em">🔵</span>Делегируй<span class="s">не важно·срочно</span></div>'+
-    '<div class="qc q4"><span class="em">⚪</span>Удали<span class="s">не важно·не срочно</span></div>'+
+    '<div class="qc q1" onclick="openQuadrant(\'r\')"><span class="em">🔴</span>Сейчас<span class="s">важно·срочно</span></div>'+
+    '<div class="qc q2" onclick="openQuadrant(\'a\')"><span class="em">🟡</span>Планируй<span class="s">важно·не срочно</span></div>'+
+    '<div class="qc q3" onclick="openQuadrant(\'b\')"><span class="em">🔵</span>Делегируй<span class="s">не важно·срочно</span></div>'+
+    '<div class="qc q4" onclick="openQuadrant(\'g\')"><span class="em">⚪</span>Удали<span class="s">не важно·не срочно</span></div>'+
     '<div class="axl" style="bottom:5px;left:50%;transform:translateX(-50%)">срочность →</div>'+
     '<div class="axl" style="left:4px;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:left">важность →</div>';
   const rated=open.filter(c=>c.importance||c.urgency);
@@ -2153,6 +2195,27 @@ function renderMatrix(open){
     html+='<div class="axl" style="left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;letter-spacing:0;color:var(--faint)">оцени задачи — точки появятся здесь</div>';
   }
   m.innerHTML=html;
+}
+// Клик по названию квадранта — список карточек СТРОГО этой четверти (взаимоисключающие границы через quadClass)
+const QUAD_META={r:['🔴','Сейчас — важно и срочно'],a:['🟡','Планируй — важно, не срочно'],
+  b:['🔵','Делегируй — не важно, срочно'],g:['⚪','Может, удалить — не важно и не срочно']};
+function openQuadrant(q){
+  const meta=QUAD_META[q]||['',''];
+  const cards=(DATA.chaos||[]).filter(c=>!c.done&&(c.importance||c.urgency)&&quadClass(c.importance||0,c.urgency||0)===q);
+  const planned=new Set((DATA.cards||[]).filter(c=>c.chaos_id).map(c=>c.chaos_id));
+  const rows=cards.length?cards.map(c=>{
+    const td=JSON.stringify({kind:'chaos',id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
+    const badge=planned.has(c.id)?'<span class="q-plan">в календаре</span>':'';
+    return '<div class="q-row" onclick=\'closeSheet();openTask('+td+')\'>'+
+      '<span class="q-tx">'+esc(c.text)+'</span>'+badge+
+      '<span class="q-iu">'+(c.importance||0)+'·'+(c.urgency||0)+'</span></div>';
+  }).join(''):'<div class="empty">в этой четверти пусто</div>';
+  const {sheet}=_openSheet('<div class="grab"></div>'+
+    '<div class="stitle">'+meta[0]+' '+esc(meta[1])+'</div>'+
+    '<div class="ssub">'+cards.length+' карточек · нажми, чтобы открыть</div>'+
+    '<div class="q-list">'+rows+'</div>'+
+    '<div class="sh-actions" style="margin-top:12px"><button class="sh-btn" id="q-close">Закрыть</button></div>');
+  sheet.querySelector('#q-close').onclick=closeSheet;
 }
 
 function renderCal(){
@@ -4404,7 +4467,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path in ("/api/step_toggle", "/api/step_delete", "/api/step_add",
                       "/api/step_rename", "/api/step_move", "/api/proj_add",
                       "/api/proj_rename", "/api/proj_delete", "/api/proj_archive",
-                      "/api/proj_unarchive"):
+                      "/api/proj_unarchive", "/api/proj_move_lr"):
             result = api_steps(path, payload)
         else:
             result = {"ok": False}
