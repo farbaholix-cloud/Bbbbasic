@@ -4028,7 +4028,8 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "dashboard.py", "dashbo
                 "strategy_kb/SKILL.md",
                 "strategy_kb/references/finance.md",
                 "strategy_kb/references/marketing.md",
-                "strategy_kb/references/art-manager.md"]
+                "strategy_kb/references/art-manager.md",
+                "invoices_seed.json"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 

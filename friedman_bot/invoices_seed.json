@@ -1,0 +1,392 @@
+[
+ {
+  "idx": 1,
+  "number": "260324",
+  "date": "2024-03-26",
+  "recipient": "HIG Höll Immo & Gastro GmbH",
+  "customer_no": "001",
+  "description": "Dienstleistungen für Künstler Rechnungsbetrag _ Das Rechnungs",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 2,
+  "number": "270524",
+  "date": "2024-05-27",
+  "recipient": "Folientechnik",
+  "customer_no": "002",
+  "description": "Dienstleistungen für Künstler Rechnungsbetrag _ Das Rechnungs",
+  "total": 300.0,
+  "source": "import"
+ },
+ {
+  "idx": 3,
+  "number": "250624",
+  "date": "2024-06-25",
+  "recipient": "Studio Fatal",
+  "customer_no": "003",
+  "description": "Event Assistenz Rechnungsbetrag _ Das Rechnungsdatum entspricht dem Leistungsdat",
+  "total": 100.0,
+  "source": "import"
+ },
+ {
+  "idx": 4,
+  "number": "020724",
+  "date": "2024-07-02",
+  "recipient": "Christine Breitinger-Braun",
+  "customer_no": "004",
+  "description": "Künstlerische Arbeiten Rechnungsbetrag _ Das Rechnungsdatum entspricht dem Leist",
+  "total": 200.0,
+  "source": "import"
+ },
+ {
+  "idx": 5,
+  "number": "110924",
+  "date": "2024-09-11",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Stadium Sude Tribune Art Farben Rechnungsbetrag _ Das Rechnungsdatum entspricht",
+  "total": 2250.0,
+  "source": "import"
+ },
+ {
+  "idx": 6,
+  "number": "111224",
+  "date": "2024-12-11",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Künstlerische Bemalung der Tribünen des Stadions PSD Bank Arena _ Angesichts der",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 7,
+  "number": "121224",
+  "date": "2024-12-12",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Graffiti im Stadion PSD Bank Arena _ Das Rechnungsdatum entspricht dem Leistungs",
+  "total": 2000.0,
+  "source": "import"
+ },
+ {
+  "idx": 8,
+  "number": "131224",
+  "date": "2024-12-13",
+  "recipient": "Falkenstein Grand",
+  "customer_no": "006",
+  "description": "Künstlerische Landschaftsmalerei (Surfbrett) _ Das Rechnungsdatum entspricht dem",
+  "total": 200.0,
+  "source": "import"
+ },
+ {
+  "idx": 9,
+  "number": "110225",
+  "date": "2025-02-11",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Graffiti im Konferenzbereich der PSD Bank Arena _ Das Rechnungsdatum entspricht",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 10,
+  "number": "260325",
+  "date": "2025-03-26",
+  "recipient": "Cansativa",
+  "customer_no": "006",
+  "description": "",
+  "total": 800.0,
+  "source": "import"
+ },
+ {
+  "idx": 11,
+  "number": "080525",
+  "date": "2025-05-08",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Künstlerische Bemalung der Tribünen des Stadions PSD Bank Arena",
+  "total": 500.0,
+  "source": "import"
+ },
+ {
+  "idx": 12,
+  "number": "060625",
+  "date": "2025-06-06",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Künstlerische Bemalung der Umkleideräume des Stadions PSD Bank Arena",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 13,
+  "number": "270625",
+  "date": "2025-06-27",
+  "recipient": "Cansativa",
+  "customer_no": "006",
+  "description": "",
+  "total": 4720.0,
+  "source": "import"
+ },
+ {
+  "idx": 14,
+  "number": "010725",
+  "date": "2025-07-01",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Künstlerische Bemalung der Tribünen des Stadions PSD Bank Arena",
+  "total": 450.0,
+  "source": "import"
+ },
+ {
+  "idx": 15,
+  "number": "210725",
+  "date": "2025-07-21",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "künstlerische Gestaltung der Umkleidekabinen des Stadions PSD Bank Arena",
+  "total": 1500.0,
+  "source": "import"
+ },
+ {
+  "idx": 16,
+  "number": "010825",
+  "date": "2025-08-01",
+  "recipient": "FSV",
+  "customer_no": "005",
+  "description": "Künstlerische Bemalung der Tribünen des Stadions PSD Bank Arena",
+  "total": 1500.0,
+  "source": "import"
+ },
+ {
+  "idx": 17,
+  "number": "060825",
+  "date": "2025-08-06",
+  "recipient": "Rechnung 17-Hanau",
+  "customer_no": "007",
+  "description": "Erstellung von mindestens einem Designkonzept für die künstlerische Gestaltung d",
+  "total": 500.0,
+  "source": "import"
+ },
+ {
+  "idx": 18,
+  "number": "200825",
+  "date": "2025-08-20",
+  "recipient": "Cansativa",
+  "customer_no": "006",
+  "description": "",
+  "total": 4617.0,
+  "source": "import"
+ },
+ {
+  "idx": 19,
+  "number": "270825",
+  "date": "2025-08-27",
+  "recipient": "SGP",
+  "customer_no": "007",
+  "description": "",
+  "total": 6450.0,
+  "source": "import"
+ },
+ {
+  "idx": 20,
+  "number": "010925",
+  "date": "2025-09-01",
+  "recipient": "IK",
+  "customer_no": "008",
+  "description": "",
+  "total": 2000.0,
+  "source": "import"
+ },
+ {
+  "idx": 21,
+  "number": "090925",
+  "date": "2025-09-09",
+  "recipient": "Darmstadt",
+  "customer_no": "009",
+  "description": "",
+  "total": 500.0,
+  "source": "import"
+ },
+ {
+  "idx": 22,
+  "number": "110925",
+  "date": "2025-09-11",
+  "recipient": "Zeleke",
+  "customer_no": "010",
+  "description": "",
+  "total": 500.0,
+  "source": "import"
+ },
+ {
+  "idx": 23,
+  "number": "110925/2",
+  "date": "2025-09-11",
+  "recipient": "Berliner Keller",
+  "customer_no": "011",
+  "description": "",
+  "total": 400.0,
+  "source": "import"
+ },
+ {
+  "idx": 24,
+  "number": "041025",
+  "date": "2025-10-04",
+  "recipient": "IK",
+  "customer_no": "008",
+  "description": "",
+  "total": 2000.0,
+  "source": "import"
+ },
+ {
+  "idx": 25,
+  "number": "061025",
+  "date": "2025-10-06",
+  "recipient": "FanProjekt",
+  "customer_no": "012",
+  "description": "",
+  "total": 1600.0,
+  "source": "import"
+ },
+ {
+  "idx": 26,
+  "number": "061025/2",
+  "date": "2025-10-06",
+  "recipient": "Zeleke",
+  "customer_no": "010",
+  "description": "",
+  "total": 500.0,
+  "source": "import"
+ },
+ {
+  "idx": 27,
+  "number": "091025",
+  "date": "2025-10-09",
+  "recipient": "Herz",
+  "customer_no": "013",
+  "description": "",
+  "total": 500.0,
+  "source": "import"
+ },
+ {
+  "idx": 28,
+  "number": "201125",
+  "date": "2025-11-20",
+  "recipient": "PapaEnj",
+  "customer_no": "014",
+  "description": "",
+  "total": 1350.0,
+  "source": "import"
+ },
+ {
+  "idx": 29,
+  "number": "161225",
+  "date": "2025-12-16",
+  "recipient": "SGP",
+  "customer_no": "007",
+  "description": "die künstlerische Gestaltung des Zauns an der Außenseite des Parks Sankt Georgen",
+  "total": 2000.0,
+  "source": "import"
+ },
+ {
+  "idx": 30,
+  "number": "070126",
+  "date": "2026-01-07",
+  "recipient": "HIG Höll Immo & Gastro GmbH",
+  "customer_no": "001",
+  "description": "künstlerische Gestaltung der Restaurantfassade Rechnungsbetra",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 31,
+  "number": "260126",
+  "date": "2026-01-26",
+  "recipient": "HIG Höll Immo & Gastro GmbH",
+  "customer_no": "001",
+  "description": "Künstlerische Gestaltung der Restaurantfassade - Oberteil",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 32,
+  "number": "270126",
+  "date": "2026-01-27",
+  "recipient": "HIG Höll Immo & Gastro GmbH",
+  "customer_no": "001",
+  "description": "Künstlerische Gestaltung des Tores Rechnungsbetrag",
+  "total": 500.0,
+  "source": "import"
+ },
+ {
+  "idx": 33,
+  "number": "190226",
+  "date": "2026-02-19",
+  "recipient": "Hairligt",
+  "customer_no": "015",
+  "description": "",
+  "total": 1500.0,
+  "source": "import"
+ },
+ {
+  "idx": 34,
+  "number": "230226",
+  "date": "2026-02-23",
+  "recipient": "Höll",
+  "customer_no": "001",
+  "description": "",
+  "total": 820.0,
+  "source": "import"
+ },
+ {
+  "idx": 35,
+  "number": "260326",
+  "date": "2026-03-26",
+  "recipient": "SGP",
+  "customer_no": "007",
+  "description": "Abschlagszahlung - die künstlerische Gestaltung des Zauns an der Außenseite des",
+  "total": 2000.0,
+  "source": "import"
+ },
+ {
+  "idx": 36,
+  "number": "090426",
+  "date": "2026-04-09",
+  "recipient": "PapaEnj",
+  "customer_no": "014",
+  "description": "",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 37,
+  "number": "270426",
+  "date": "2026-04-27",
+  "recipient": "SGP",
+  "customer_no": "007",
+  "description": "Schlusszahlung - die künstlerische Gestaltung des Zauns an der Außenseite des Pa",
+  "total": 3550.0,
+  "source": "import"
+ },
+ {
+  "idx": 38,
+  "number": "080526",
+  "date": "2026-05-08",
+  "recipient": "Cansativa",
+  "customer_no": "006",
+  "description": "",
+  "total": 1000.0,
+  "source": "import"
+ },
+ {
+  "idx": 39,
+  "number": "20260629-1",
+  "date": "2026-06-29",
+  "recipient": "Cosmopop",
+  "customer_no": "",
+  "description": "LFP26 Graffiti, Bühne 2 - Vorauszahlung",
+  "total": 2000.0,
+  "source": "import"
+ }
+]
