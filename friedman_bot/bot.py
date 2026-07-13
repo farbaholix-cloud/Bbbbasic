@@ -779,8 +779,7 @@ async def ai_lawyer(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_text: s
     actions = resp.get("actions", [])
     applied = apply_actions(actions)
 
-    # Полная долгая память Юриста (вопрос + ответ целиком, без обрезки)
-    remember_lawyer("user", user_text)
+    # Ответ Юриста — в долгую память (вопрос уже записан маршрутизатором _route_text).
     remember_lawyer("lawyer", reply)
 
     extras = []

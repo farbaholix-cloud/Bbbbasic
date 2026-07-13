@@ -292,17 +292,24 @@ async def cmd_cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
     """Единая маршрутизация текста/голоса Юриста."""
+    # Каждое сообщение — в долгую память Юриста (контекст последних ~30 реплик),
+    # чтобы он помнил разговор независимо от того, каким путём пошёл ответ.
+    B.remember_lawyer("user", txt)
+    # Досворачиваем старое в сводку (в фоне; дёшево, если окно не переполнено).
+    asyncio.get_event_loop().run_in_executor(None, B.maybe_update_lawyer_summary)
     # Гайд-режим: бот ждёт описание для счёта/договора после кнопки
     awaiting = ctx.user_data.get("await_doc")
     if awaiting == "invoice":
         ctx.user_data["await_doc"] = None
         B.save_chat_id(update.effective_chat.id)
         await B.create_invoice_from_text(update, txt)
+        B.remember_lawyer("assistant", "выставил счёт по описанию: " + txt[:150])
         return
     if awaiting == "contract":
         ctx.user_data["await_doc"] = None
         B.save_chat_id(update.effective_chat.id)
         await B.create_contract_from_text(update, txt)
+        B.remember_lawyer("assistant", "составил договор по описанию: " + txt[:150])
         return
     # Фраза-тумблер сбора инфо
     if re.search(r"(включ\w*|начни|старт\w*)\s+сбор|собира\w*\s+инфо|режим\s+сбора", txt, re.I):
@@ -325,16 +332,19 @@ async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
     # Запрос стратегии / выхода из кризиса
     if re.search(r"страте\w+|выход\w*\s+из\s+кризис|антикризис|что\s+делать\s+с\s+бизнес", txt, re.I):
         await cmd_strategy(update, ctx)
+        B.remember_lawyer("assistant", "дал стратегический совет (антикризис) по картине из таблицы")
         return
     # Просьба составить договор (проверяем ДО инвойса — «договор» специфичнее)
     if B.looks_like_contract_request(txt):
         B.save_chat_id(update.effective_chat.id)
         await B.create_contract_from_text(update, txt)
+        B.remember_lawyer("assistant", "составил договор: " + txt[:150])
         return
     # Просьба выставить счёт — детерминированный путь (надёжно даёт PDF)
     if B.looks_like_invoice_request(txt):
         B.save_chat_id(update.effective_chat.id)
         await B.create_invoice_from_text(update, txt)
+        B.remember_lawyer("assistant", "выставил счёт: " + txt[:150])
         return
     await B.ai_lawyer(update, ctx, txt)
 
@@ -376,6 +386,7 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     tmp = os.path.join(tempfile.gettempdir(), f"jur_{fid[:16]}{ext}")
     tg_file = await ctx.bot.get_file(fid)
     await tg_file.download_to_drive(tmp)
+    B.remember_lawyer("user", f"прислал документ: {name}")
 
     # Режим сбора: складываем счёт ИЛИ договор в таблицу (без разбора по одному).
     if _collecting():
@@ -387,6 +398,7 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             kind, ack = None, None
         if ack:
             await update.message.reply_text(f"✅ {ack}")
+            B.remember_lawyer("assistant", "в сбор: " + ack)
         else:
             await update.message.reply_text(
                 "⚠️ Не смог распознать как счёт/договор. Пришли почётче или пропусти.")
@@ -411,6 +423,7 @@ async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             + "<клиент> на <сумму>»_ — подставлю адрес сам.\n"
             "Реквизиты неверны? Поменяй: `/setinvoicedata <поле> <значение>` секретарю.",
             parse_mode="Markdown")
+        B.remember_lawyer("assistant", "импортировал из счёта: " + imp["summary"][:200])
         try:
             os.unlink(tmp)
         except Exception:
