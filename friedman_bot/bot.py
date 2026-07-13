@@ -1546,6 +1546,60 @@ def ensure_strategy_kb():
             log.error(f"strategy_kb fetch {f}: {e}")
 
 
+INVOICES_SEED_VERSION = "1"
+
+
+def ensure_invoices_seed():
+    """Однократно залить исторические счета из invoices_seed.json в архив аналитики
+    (invoice_archive). Идемпотентно: флаг версии + дедуп по (number, inv_date).
+    Файл: [{number, date(YYYY-MM-DD или ДД.ММ.ГГГГ), recipient, customer_no,
+    description, total, net?, vat?, kleinunternehmer?}]. Секретов там нет."""
+    d = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(d, "invoices_seed.json")
+    if not os.path.exists(path):
+        return
+    if _settings_get("invoices_seed_v") == INVOICES_SEED_VERSION:
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            rows = jsonlib.load(f)
+    except Exception as e:
+        log.error(f"invoices_seed load: {e}")
+        return
+
+    def _iso(dt):
+        s = (dt or "").strip()
+        m = re.match(r'(\d{2})\.(\d{2})\.(\d{4})', s)
+        if m:
+            return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+        return s
+
+    n = 0
+    try:
+        with db() as conn:
+            for r in rows:
+                inv_date = _iso(r.get("date"))
+                year = _year_of_iso(inv_date)
+                total = float(r.get("total") or 0)
+                net = float(r.get("net") if r.get("net") is not None else total)
+                vat = float(r.get("vat") or 0)
+                gross = float(r.get("gross") or total or (net + vat))
+                klein = 1 if r.get("kleinunternehmer", True) else 0
+                client = (r.get("recipient") or "").split(chr(10))[0].strip()
+                cur = conn.execute(
+                    "INSERT OR IGNORE INTO invoice_archive "
+                    "(number, inv_date, year, client_name, items, net, vat, gross, kleinunternehmer, raw_json) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    ((r.get("number") or "").strip(), inv_date, year, client, "[]",
+                     net, vat, gross, klein, jsonlib.dumps(r, ensure_ascii=False)))
+                n += cur.rowcount
+    except Exception as e:
+        log.error(f"invoices_seed insert: {e}")
+        return
+    _settings_set("invoices_seed_v", INVOICES_SEED_VERSION)
+    log.info(f"invoices_seed: залито {n} счетов в архив")
+
+
 def apply_actions(actions: list) -> list:
     results = []
     for a in actions:
@@ -4269,7 +4323,8 @@ async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 INVOICE_FIELDS = {
     "iban": "inv_iban", "bic": "inv_bic",
     "steuernummer": "inv_steuernummer", "stnr": "inv_steuernummer",
-    "ident_nr": "inv_ident_nr", "identnr": "inv_ident_nr", "ident": "inv_ident_nr",
+    "ident_nr": "inv_ident_nr", "identnr": "inv_ident_nr", "ident": "inv_ident_nr", "stid": "inv_ident_nr",
+    "ust": "inv_ust_mode",
     "name": "inv_name", "title": "inv_title", "street": "inv_street",
     "phone": "inv_phone", "email": "inv_email", "city": "inv_city", "bank": "inv_bank",
 }
@@ -4286,6 +4341,29 @@ async def cmd_setinvoicedata(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if owner and chat_id != owner:
         return
     args = (update.message.text or "").partition(" ")[2].strip()
+
+    # Пакетный формат: /setinvoicedata iban=DE.. bic=NASSDE55XXX steuernummer=.. stid=.. ust=kleinunternehmer
+    if "=" in args:
+        try:
+            await ctx.bot.delete_message(chat_id, update.message.message_id)  # могут быть секреты
+        except Exception:
+            pass
+        saved, unknown = [], []
+        for pair in re.findall(r'(\w+)\s*=\s*("[^"]*"|\S+(?:\s+\S+)*?)(?=\s+\w+\s*=|$)', args):
+            k = pair[0].lower().strip()
+            v = pair[1].strip().strip('"')
+            key = INVOICE_FIELDS.get(k)
+            if not key or not v:
+                unknown.append(k)
+                continue
+            _settings_set(key, v)
+            saved.append(k if key in _INVOICE_SECRET_KEYS else f"{k}=«{v}»")
+        msg = ("✅ Сохранено: " + ", ".join(saved) if saved else "Ничего не распознал.")
+        if unknown:
+            msg += f"\nНе распознаны: {', '.join(unknown)}."
+        await ctx.bot.send_message(chat_id, msg)
+        return
+
     field, _, value = args.partition(" ")
     field = field.lower().strip()
     value = value.strip()
@@ -5153,6 +5231,7 @@ def main():
         log.error(f"ensure_legal_kb: {e}")
     try:
         ensure_strategy_kb()  # база знаний стратегического совета
+        ensure_invoices_seed()  # однократно залить исторические счета в архив аналитики
     except Exception as e:
         log.error(f"ensure_strategy_kb: {e}")
     app = Application.builder().token(TOKEN).post_init(_on_start).build()
