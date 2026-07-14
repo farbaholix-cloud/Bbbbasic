@@ -706,6 +706,10 @@ def get_legal_context() -> str:
     if arch:
         lines.append("\n" + arch)
 
+    bank = bank_context()
+    if bank:
+        lines.append("\n" + bank)
+
     if fin_last:
         lines.append("\nПОСЛЕДНИЕ ФИНАНСОВЫЕ ОПЕРАЦИИ:")
         for f in fin_last:
@@ -1240,6 +1244,37 @@ def year_archive_context(year: int = 2025) -> str:
     saved = _settings_get(f"analysis_summary_{year}")
     if saved:
         lines.append(f"\nСВОДКА-ВЫВОДЫ ПО {year} (уже сделанный анализ):\n{saved}")
+    return "\n".join(lines)
+
+
+def bank_context() -> str:
+    """Сводка банковских выписок из bank_seed.json (Naspa, 12.2024–12.2025) для
+    контекста Юриста/стратега: помесячные потоки, категории, деловые операции.
+    Личные траты — только агрегатами. Файл собран из выписок офлайн, оригиналы удалены."""
+    d = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(d, "bank_seed.json")
+    if not os.path.exists(path):
+        return ""
+    try:
+        seed = jsonlib.load(open(path, encoding="utf-8"))
+    except Exception as e:
+        log.error(f"bank_seed: {e}")
+        return ""
+    lines = [f"БАНКОВСКИЕ ВЫПИСКИ ({seed['meta']['period']}, {seed['meta']['transactions_parsed']} операций — ФАКТЫ, файлы не читать):",
+             "Помесячно (приход/расход):"]
+    for m, v in seed.get("monthly", {}).items():
+        lines.append(f"  {m}: +{v['in']:.0f} / {v['out']:.0f}")
+    lines.append("Категории за период:")
+    for c, v in seed.get("categories", {}).items():
+        lines.append(f"  {c}: {v['total']:.0f}€ ({v['count']})")
+    biz = seed.get("business_transactions", [])
+    if biz:
+        lines.append(f"Деловые операции ({len(biz)} — доходы от клиентов, материалы, субподряд-художники и т.п.):")
+        for t in biz:
+            lines.append(f"  {t['date']} {t['amount']:+.0f}€ [{t['cat']}] {t['party']}")
+    lines.append("ВАЖНО для Юриста: subcontractor_artists — выплаты другим художникам "
+                 "(релевантно Künstlersozialabgabe); client_income по банку сверяй с инвойсами "
+                 "(расхождение = наличные/неоплаченные счета).")
     return "\n".join(lines)
 
 
@@ -4028,7 +4063,8 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "dashboard.py", "dashbo
                 "strategy_kb/references/finance.md",
                 "strategy_kb/references/marketing.md",
                 "strategy_kb/references/art-manager.md",
-                "invoices_seed.json"]
+                "invoices_seed.json",
+                "bank_seed.json"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
