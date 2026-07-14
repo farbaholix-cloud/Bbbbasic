@@ -4126,7 +4126,10 @@ def ensure_legal_kb():
     запуск новой версии до того, как авто-деплой подтянет подпапку/файл) — тянем с ветки."""
     import urllib.request
     d = os.path.dirname(os.path.abspath(__file__))
-    need = ["jurist_bot.py", "invoice.py"] + [x for x in UPDATE_FILES if x.startswith("legal_kb/")]
+    # + seed-файлы: при первом деплое /update качает по СТАРОМУ списку UPDATE_FILES,
+    # поэтому новые файлы доезжают только самолечением
+    need = (["jurist_bot.py", "invoice.py", "invoices_seed.json", "bank_seed.json"]
+            + [x for x in UPDATE_FILES if x.startswith("legal_kb/")])
     for f in need:
         dest = os.path.join(d, f)
         if os.path.exists(dest):
