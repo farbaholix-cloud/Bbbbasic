@@ -187,6 +187,18 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(number, inv_date)
         );
+        -- Бюрократические «дела» (права, §24, паспорт, KSK…): статус, следующий шаг,
+        -- срок. Юрист обновляет через action "case"; раз в неделю бот шлёт сводку.
+        CREATE TABLE IF NOT EXISTS bureau_cases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic TEXT UNIQUE,
+            title TEXT,
+            status TEXT DEFAULT 'open',
+            next_step TEXT,
+            due_date TEXT,
+            note TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         -- Архив распознанных договоров (для сбора нюансов и составления новых).
         CREATE TABLE IF NOT EXISTS contract_archive (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -635,6 +647,7 @@ LAWYER_PROMPT = """Ты — «Юрист», личный налогово-пра
 2. Сроки: напоминай о подаче деклараций (ESt + Anlage EÜR + Anlage S, обычно к 31 июля) и ежегодных обновлениях. Если просят — поставь напоминание (action remind).
 3. Инвойсы (СЧЕТА): когда просят выставить/сделать счёт или PDF-Rechnung — твоя ЕДИНСТВЕННАЯ задача вернуть action invoice с данными (recipient — получатель: название + адрес, каждая часть с новой строки \\n; items — позиции, desc на немецком профессионально с умляутами, price числом; salutation — обращение если известно; intro — вводная фраза на немецком если ясен повод). PDF собирает САМ БОТ по фиксированному шаблону. Ты НЕ рисуешь и НЕ меняешь дизайн счёта, НЕ редактируешь файлы, НЕ пишешь и НЕ запускаешь код, НЕ просишь никаких разрешений/«Allow», НЕ утверждай, что ты обновил дизайн или отредактировал invoice.py — у тебя нет такой возможности и это не нужно. Просто верни action invoice и короткий reply вроде «Готовлю счёт для … на …€». Если не хватает получателя или суммы — спроси одним вопросом. ВАЖНО по НДС: ВСЕГДА по умолчанию — оговорка Kleinunternehmer §19 UStG (без НДС), vat_rate НЕ ставь. Даже если оборот прошлого года превысил порог — НЕ переключай на 19% USt сам: решение отложено до Steuerberater. "vat_rate": 19 только если пользователь прямо скажет, что Steuerberater подтвердил переход.
 4. Письма/заявления: по reference letters.md составь готовый текст письма на немецком (Finanzamt, KSK, Krankenkasse, Handwerkskammer, Jobcenter) прямо в reply.
+4б. ДОКУМЕНТЫ/БЮРОКРАТИЯ (права Führerschein-Umtausch, §24, паспорт, термины в ведомства): по reference buerokratie.md. В контексте тебе даны открытые «дела» (БЮРОКРАТИЧЕСКИЕ ДЕЛА) — когда пользователь сообщает новость по делу («записался на термин 15.08», «подал заявление», «получил права»), ОБНОВИ дело через action case: {"type":"case","topic":"fuehrerschein","status":"open|waiting|done","next_step":"...","due":"YYYY-MM-DD","note":"..."} (topic из списка в контексте; новую тему заводи с коротким латинским topic). Для актуальных процедур/правил делай web_search.
 5. ELSTER: помоги понять, какие формы (Anlage S, Anlage EÜR), как заполнять, какие поля — пошагово.
 6. Статус: рекомендуй изменения (вступление в KSK ради экономии ~50% на страховке, переход на Regelbesteuerung, регистрация Gewerbe/GmbH) — но как ОРИЕНТИР; финальное решение и расчёт — со Steuerberater.
 
@@ -650,6 +663,7 @@ LAWYER_PROMPT = """Ты — «Юрист», личный налогово-пра
 {"reply": "ответ человеку (может содержать текст письма на немецком)", "actions": [
  {"type": "remind", "when": "2026-07-20 09:00", "text": "подать Einkommensteuererklärung"},
  {"type": "invoice", "recipient": "Galerie X\\nStraße 1\\n60311 Frankfurt", "items": [{"desc": "Künstlerische Wandgestaltung", "price": 1200}], "salutation": "", "customer_no": "", "intro": "", "vat_rate": null},
+ {"type": "case", "topic": "fuehrerschein", "status": "waiting", "next_step": "термин в Führerscheinstelle 15.08", "due": "2026-08-15", "note": ""},
  {"type": "contact", "name": "Steuerberater Müller", "note": "ведёт ESt 2025"}
 ]}
 actions может быть пустым []. Никакого текста вне JSON."""
@@ -709,6 +723,10 @@ def get_legal_context() -> str:
     bank = bank_context()
     if bank:
         lines.append("\n" + bank)
+
+    bureau = bureau_context()
+    if bureau:
+        lines.append("\n" + bureau)
 
     if fin_last:
         lines.append("\nПОСЛЕДНИЕ ФИНАНСОВЫЕ ОПЕРАЦИИ:")
@@ -796,6 +814,8 @@ async def ai_lawyer(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_text: s
             extras.append(f"👤 _{text}_")
         elif kind == "finance":
             extras.append(f"💰 _{text}_")
+        elif kind == "case":
+            extras.append(f"🗂 дело обновлено: _{text}_")
 
     msg = "⚖️ *Юрист:*\n\n" + reply
     if extras:
@@ -1245,6 +1265,123 @@ def year_archive_context(year: int = 2025) -> str:
     if saved:
         lines.append(f"\nСВОДКА-ВЫВОДЫ ПО {year} (уже сделанный анализ):\n{saved}")
     return "\n".join(lines)
+
+
+# ── Бюрократические дела (права, §24, паспорт, KSK…) ─────────────────────────
+def upsert_bureau_case(topic, title=None, status=None, next_step=None, due_date=None, note=None):
+    """Создать/обновить дело по теме. Пустые поля не затирают существующие."""
+    topic = (topic or "").strip().lower()
+    if not topic:
+        return
+    try:
+        with db() as conn:
+            row = conn.execute("SELECT id FROM bureau_cases WHERE topic=?", (topic,)).fetchone()
+            if row:
+                sets, vals = [], []
+                for col, v in [("title", title), ("status", status), ("next_step", next_step),
+                               ("due_date", due_date), ("note", note)]:
+                    if v is not None and str(v).strip() != "":
+                        sets.append(f"{col}=?"); vals.append(str(v).strip())
+                if sets:
+                    sets.append("updated_at=CURRENT_TIMESTAMP")
+                    conn.execute(f"UPDATE bureau_cases SET {', '.join(sets)} WHERE topic=?", (*vals, topic))
+            else:
+                conn.execute(
+                    "INSERT INTO bureau_cases(topic,title,status,next_step,due_date,note) VALUES(?,?,?,?,?,?)",
+                    (topic, title or topic, status or "open", next_step or "", due_date or "", note or ""))
+    except Exception as e:
+        log.error(f"upsert_bureau_case: {e}")
+
+
+def ensure_bureau_seed():
+    """Стартовые бюрократические треки владельца (однократно, только если пусто)."""
+    try:
+        with db() as conn:
+            n = conn.execute("SELECT COUNT(*) FROM bureau_cases").fetchone()[0]
+        if n:
+            return
+    except Exception:
+        return
+    upsert_bureau_case("fuehrerschein", "Обмен украинских прав на немецкие (Umtausch)",
+                       "open", "Записаться в Führerscheinstelle Frankfurt (frankfurt.de) и уточнить пакет: перевод прав, Sehtest, фото", "",
+                       "По §24 ездить можно с украинскими; обмен — подстраховка до конца защиты. См. legal_kb/references/buerokratie.md")
+    upsert_bureau_case("aufenthalt24", "Aufenthalt §24 — срок действия/продление",
+                       "open", "Проверить срок действия карты §24 и правила продления (Ausländerbehörde Frankfurt)", "",
+                       "Держать копии; следить за анонсами о продлении временной защиты")
+    upsert_bureau_case("ua-pass", "Украинский загранпаспорт — срок действия",
+                       "open", "Проверить срок действия; при <12 мес — записаться в консульство/паспортный сервис", "", "")
+    upsert_bureau_case("ksk", "KSK — вступление (экономия ~50% на страховке)",
+                       "open", "Собрать доказательства художественной деятельности (счета есть) и подать Antrag", "",
+                       "См. legal_kb/references/ksk.md")
+    upsert_bureau_case("est2025", "Steuererklärung 2025 (ESt + EÜR + Anlage S)",
+                       "open", "Подготовить EÜR по инвойсам и банковской картине; подать до 31.07.2026", "2026-07-31",
+                       "Данные готовы: инвойсы + bank_seed. Финал — со Steuerberater")
+    log.info("bureau_cases: стартовые треки созданы")
+
+
+def bureau_context() -> str:
+    """Открытые бюрократические дела для контекста Юриста."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT topic,title,status,next_step,due_date,note FROM bureau_cases "
+                "WHERE status != 'done' ORDER BY CASE WHEN due_date='' THEN 1 ELSE 0 END, due_date").fetchall()
+    except Exception:
+        return ""
+    if not rows:
+        return ""
+    lines = ["БЮРОКРАТИЧЕСКИЕ ДЕЛА (открытые треки; обновляй через action case при новостях от пользователя):"]
+    for r in rows:
+        due = f" · срок {r['due_date']}" if r["due_date"] else ""
+        lines.append(f"  • [{r['topic']}] {r['title']} — {r['status']}{due}\n    следующий шаг: {r['next_step'] or '—'}")
+    return "\n".join(lines)
+
+
+def bureau_digest_text() -> str:
+    """Текст еженедельной сводки по открытым делам (детерминированный, без LLM)."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT topic,title,status,next_step,due_date FROM bureau_cases "
+                "WHERE status != 'done' ORDER BY CASE WHEN due_date='' THEN 1 ELSE 0 END, due_date").fetchall()
+    except Exception:
+        rows = []
+    if not rows:
+        return ""
+    today = datetime.now(BERLIN).date() if BERLIN else date.today()
+    lines = ["🗂 *Еженедельная сводка: документы и бюрократия*\n"]
+    for r in rows:
+        flag = "🟡"
+        due = ""
+        if r["due_date"]:
+            try:
+                d = datetime.strptime(r["due_date"], "%Y-%m-%d").date()
+                days = (d - today).days
+                due = f" · срок {d.strftime('%d.%m.%Y')} ({'просрочен' if days < 0 else f'через {days} дн.'})"
+                flag = "🔴" if days < 14 else "🟡"
+            except Exception:
+                due = f" · срок {r['due_date']}"
+        lines.append(f"{flag} *{r['title']}*{due}\n   → {r['next_step'] or 'следующий шаг не задан'}")
+    lines.append("\n_Обновить: просто расскажи Юристу новость («записался на термин 15.08») — он изменит статус. Полный список: /docs_")
+    return "\n".join(lines)
+
+
+async def bureau_digest_check(ctx: ContextTypes.DEFAULT_TYPE):
+    """Еженедельная сводка (шлётся из jurist_bot по понедельникам)."""
+    chat_id = get_chat_id()
+    if not chat_id:
+        return
+    key = f"bureau_digest:{(datetime.now(BERLIN) if BERLIN else datetime.now()).strftime('%G-%V')}"
+    if _settings_get(key):
+        return  # уже слали на этой ISO-неделе
+    text = bureau_digest_text()
+    if not text:
+        return
+    _settings_set(key, "1")
+    try:
+        await ctx.bot.send_message(chat_id, text, parse_mode="Markdown")
+    except Exception as e:
+        log.error(f"bureau digest send: {e}")
 
 
 def bank_context() -> str:
@@ -1711,6 +1848,11 @@ def apply_actions(actions: list) -> list:
                              recipient.split(chr(10))[0], customer_no, desc, total))
                     upsert_client(recipient, salutation or "", customer_no)  # запомнить клиента целиком
                     results.append(("invoice", 0, f"Rechnung {number} · {total:.2f}€", path, ""))
+            elif a.get("type") == "case":
+                upsert_bureau_case(a.get("topic"), a.get("title"), a.get("status"),
+                                   a.get("next_step"), a.get("due"), a.get("note"))
+                results.append(("case", 0, f"{a.get('topic')}: {a.get('status') or 'обновлено'}"
+                                + (f" → {a.get('next_step')}" if a.get("next_step") else ""), "", ""))
             elif a.get("type") == "project":
                 area = a.get("area") if a.get("area") in AREAS else "work"
                 with db() as conn:
@@ -4059,6 +4201,7 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "dashboard.py", "dashbo
                 "legal_kb/references/sozialversicherung.md",
                 "legal_kb/references/letters.md",
                 "legal_kb/references/invoice.md",
+                "legal_kb/references/buerokratie.md",
                 "strategy_kb/SKILL.md",
                 "strategy_kb/references/finance.md",
                 "strategy_kb/references/marketing.md",

@@ -59,6 +59,8 @@ RESTART_LEGEND = (
     "Умею: счета (Rechnung PDF), анализ финансов и оборота, письма в ведомства, "
     "напоминания о сроках, разбор присланных документов.\n\n"
     "Команды:\n"
+    "• */docs* — сводка по документам/бюрократии (права, §24, паспорт, KSK, "
+    "декларация); авто-сводка каждый понедельник 09:05\n"
     "• */invoice* — создать счёт: спрошу кому/за что/сколько → PDF\n"
     "• */contract* — создать договор: спрошу важные условия → PDF (дизайн как у счёта)\n"
     "• */collect* — тумблер «собирать инфо»: ВКЛ — коплю присланные счета и "
@@ -244,6 +246,23 @@ async def cmd_strategy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(chunk, parse_mode="Markdown")
         except Exception:
             await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
+
+
+async def cmd_docs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Сводка по документам/бюрократии: открытые дела, шаги, сроки."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    B.save_chat_id(chat_id)
+    text = B.bureau_digest_text()
+    if not text:
+        await update.message.reply_text("Открытых бюрократических дел нет 🎉")
+        return
+    try:
+        await update.message.reply_text(text, parse_mode="Markdown")
+    except Exception:
+        await update.message.reply_text(text.replace("*", "").replace("_", ""))
 
 
 async def cmd_invoice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -460,11 +479,13 @@ def main():
     try:
         B.ensure_legal_kb()  # база знаний должна быть на диске
         B.ensure_strategy_kb()  # база знаний стратегического совета
+        B.ensure_bureau_seed()  # стартовые бюрократические треки (права, §24, паспорт…)
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
 
     app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler(["docs", "dokumente"], cmd_docs))
     app.add_handler(CommandHandler("restart", cmd_restart))
     app.add_handler(CommandHandler("wipeinvoicestoday", B.cmd_wipeinvoicestoday))
     app.add_handler(CommandHandler(["collect", "analysis", "analysis2025"], cmd_collect))
@@ -483,6 +504,10 @@ def main():
     jq = app.job_queue
     legal_t = time(9, 0, tzinfo=B.BERLIN) if B.BERLIN else time(9, 0)
     jq.run_daily(B.legal_deadlines_check, time=legal_t)  # напоминания о сроках/отчётах
+    # Еженедельная сводка по документам/бюрократии — понедельник 09:05 Berlin
+    # (дедуп по ISO-неделе внутри bureau_digest_check — рестарты не дублируют)
+    docs_t = time(9, 5, tzinfo=B.BERLIN) if B.BERLIN else time(9, 5)
+    jq.run_daily(B.bureau_digest_check, time=docs_t, days=(1,))
 
     log.info("Юрист-бот запущен ⚖️")
     app.run_polling(drop_pending_updates=False)
