@@ -634,6 +634,7 @@ def ask_claude_sync(user_text: str) -> dict:
 
 LEGAL_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "legal_kb")
 STRATEGY_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "strategy_kb")
+SALES_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sales_kb")
 
 LAWYER_PROMPT = """Ты — «Юрист», личный налогово-правовой консультант Вячеслава (Slavik): украинец в Германии со статусом §24 AufenthG (временная защита), работает как художник-фрилансер (Freiberufler Künstler, бренд FARBAHOLIX), Kleinunternehmer §19 UStG, gesetzlich krankenversichert, в KSK пока не состоит.
 
@@ -1721,6 +1722,125 @@ def ensure_strategy_kb():
             log.info(f"strategy_kb fetched: {f}")
         except Exception as e:
             log.error(f"strategy_kb fetch {f}: {e}")
+
+
+# ── Продавец: закрытие сделок (воронка лид → согласовано → счёт → оплачено) ────
+SALES_PROMPT = """Ты — «Продавец», закрывающий сделки для художника-фрилансера Вячеслава (Slavik), бренд FARBAHOLIX: граффити/мурал Künstler в Германии, украинец на §24, Kleinunternehmer §19 (оборот у порога), есть долги и регулярные платежи. Твоя цель — превращать интерес в ОПЛАЧЕННЫЕ заказы и закрывать кассовые разрывы.
+
+ТВОЯ БАЗА ЗНАНИЙ — прочитай инструментом Read ПЕРЕД ответом:
+- Карта роли и правила: {kb}/SKILL.md
+- Что умеет приложение (воронка, прогноз потока, карта поступлений): {kb}/references/product.md
+Маркетинговый контекст (верх воронки) при необходимости: {strategy_kb}/references/marketing.md. Механика счетов/налогов — у Юриста: {legal_kb} (читай при необходимости, финал по налогам — Steuerberater).
+
+ГЛАВНОЕ: работай ИЗ ДАННЫХ. Тебе дана воронка сделок (проекты со стадиями лид/согласовано/счёт/оплачено, ожидаемые суммы и даты), финансы (баланс, долги, регулярные платежи), таблица инвойсов (оборот, клиенты, средний чек) и планы владельца. Считай взвешенный прогноз (лид ×0.5, согласовано ×0.8, счёт ×0.95), сравнивай с потребностями ближайших 30/60 дней, называй КОНКРЕТНО: какой проект, до какой даты и на какую сумму дожать, чтобы не было разрыва. Не выдумывай цифры; чего не хватает — скажи, что домерить. Письма клиентам — по-немецки (если не просили иначе), коротко, с чётким следующим шагом.
+
+Жёсткие правила: не заменяй Юриста/Steuerberater; не демпингуй; предоплата — нормальная часть переговоров; с пользователем — по-русски.
+
+Сегодня: {today}.
+
+Ответь строго в JSON: {"reply": "весь текст (можно с заголовками, списками, текстами писем)", "actions": []}. actions по желанию (remind/contact). Никакого текста вне JSON."""
+
+
+def get_funnel_context() -> str:
+    """Воронка сделок из проектов дашборда: стадия, ожидаемая сумма, дата оплаты.
+    Рабочая доска Продавца — что дожимать, чтобы закрыть кассовый разрыв."""
+    stage_label = {"lead": "🔵 лид", "agreed": "🟡 согласовано",
+                   "invoiced": "🟠 счёт выставлен", "paid": "✅ оплачено"}
+    stage_w = {"lead": 0.5, "agreed": 0.8, "invoiced": 0.95}
+    try:
+        with db() as conn:
+            cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
+            if "expected_income" not in cols:
+                return ""
+            rows = conn.execute(
+                "SELECT name, area, expected_income, income_date, income_status FROM projects "
+                "WHERE COALESCE(expected_income,0)>0 AND COALESCE(income_status,'lead')!='paid' "
+                "ORDER BY CASE COALESCE(income_status,'lead') WHEN 'invoiced' THEN 0 "
+                "WHEN 'agreed' THEN 1 ELSE 2 END, expected_income DESC").fetchall()
+    except Exception as e:
+        log.error(f"get_funnel_context: {e}")
+        return ""
+    if not rows:
+        return ""
+    total = sum(r["expected_income"] or 0 for r in rows)
+    weighted = sum((r["expected_income"] or 0) * stage_w.get(r["income_status"] or "lead", 0.5) for r in rows)
+    lines = ["ВОРОНКА СДЕЛОК (открытые, отсортированы «ближе к деньгам» сверху):"]
+    for r in rows:
+        st = stage_label.get(r["income_status"] or "lead", r["income_status"] or "лид")
+        lines.append(f"  • {r['name']} [{r['area']}] — {r['expected_income']:.0f}€ · {st}"
+                     + (f" · оплата ~{r['income_date']}" if r["income_date"] else ""))
+    lines.append(f"Итого ожидаемо: {total:.0f}€ · взвешенно (лид×0.5/согл×0.8/счёт×0.95): {weighted:.0f}€")
+    return "\n".join(lines)
+
+
+def sales_agent_sync(user_text: str = "") -> str:
+    """Продавец: разбор воронки и дожатие сделок до оплаты по реальной картине
+    (воронка + финансы + таблица инвойсов + планы владельца)."""
+    sys_prompt = (SALES_PROMPT
+                  .replace("{kb}", SALES_KB_DIR)
+                  .replace("{strategy_kb}", STRATEGY_KB_DIR)
+                  .replace("{legal_kb}", LEGAL_KB_DIR)
+                  .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    funnel = get_funnel_context()
+    plans = get_plans_context()
+    ask = user_text.strip() or (
+        "разбери воронку: что дожимать в первую очередь и до каких дат, чтобы прогноз "
+        "потока стал зелёным; по каждой сделке — конкретный следующий шаг (и текст письма, где уместно)")
+    prompt = (
+        f"{get_legal_context()}\n\n"
+        + (funnel + "\n\n" if funnel else "")
+        + (plans + "\n\n" if plans else "")
+        + "ЗАПРОС К ПРОДАВЦУ: " + ask + "\n"
+        "Сначала прочитай базу знаний (Read: SKILL.md и references/product.md), "
+        "потом отвечай по данным выше."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
+            capture_output=True, text=True, timeout=360,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        reply = ""
+        if s >= 0 and e > s:
+            try:
+                reply = (jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "")
+            except Exception:
+                reply = ""
+        if not reply:
+            reply = raw
+        if reply:
+            _settings_set("sales_summary", reply[:6000])
+        return reply
+    except Exception as e:
+        log.error(f"sales_agent: {e}")
+        return ""
+
+
+def ensure_sales_kb():
+    """Самолечение: подтянуть sales_kb с ветки, если файлов нет на диске."""
+    import urllib.request
+    d = os.path.dirname(os.path.abspath(__file__))
+    need = [x for x in UPDATE_FILES if x.startswith("sales_kb/")]
+    for f in need:
+        dest = os.path.join(d, f)
+        if os.path.exists(dest):
+            continue
+        try:
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{BRANCH}/friedman_bot/{f}", headers=h)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = r.read()
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "wb") as out:
+                out.write(data)
+            log.info(f"sales_kb fetched: {f}")
+        except Exception as e:
+            log.error(f"sales_kb fetch {f}: {e}")
 
 
 INVOICES_SEED_VERSION = "1"
@@ -4212,6 +4332,8 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "finance_report.py", "d
                 "strategy_kb/references/finance.md",
                 "strategy_kb/references/marketing.md",
                 "strategy_kb/references/art-manager.md",
+                "sales_kb/SKILL.md",
+                "sales_kb/references/product.md",
                 "invoices_seed.json",
                 "bank_seed.json"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
@@ -5419,6 +5541,7 @@ def main():
         log.error(f"ensure_legal_kb: {e}")
     try:
         ensure_strategy_kb()  # база знаний стратегического совета
+        ensure_sales_kb()  # база знаний Продавца (закрытие сделок)
         ensure_invoices_seed()  # однократно залить исторические счета в архив аналитики
     except Exception as e:
         log.error(f"ensure_strategy_kb: {e}")

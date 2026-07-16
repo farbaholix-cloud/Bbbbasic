@@ -71,6 +71,9 @@ RESTART_LEGEND = (
     "• */showinvoices* — выгрузить всю таблицу в .xls (в стиле инвойсов)\n"
     "• */strategy* — стратегический совет (финансист+маркетолог+арт-менеджер): "
     "план выхода из кризиса по инвойсам, финансам и твоим планам\n"
+    "• */sales* — Продавец (закрытие сделок): разбор воронки лид→счёт→оплата, "
+    "что дожимать первым и тексты писем клиентам; можно с вопросом: "
+    "_/sales как дожать Café Sa'Sis_\n"
     "• */restart* — самоперезапуск (не завися от секретаря)\n"
     "• */wipeinvoicestoday* — удалить все счета, созданные сегодня (архив + PDF)"
 )
@@ -278,6 +281,31 @@ async def cmd_charts(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         log.error(f"charts send: {e}")
 
 
+async def cmd_sales(update: Update, ctx: ContextTypes.DEFAULT_TYPE, ask: str = None):
+    """Продавец: разбор воронки сделок и дожатие до оплаты (по данным приложения:
+    воронка проектов + финансы + таблица инвойсов). /sales <вопрос> — точечный запрос."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    B.save_chat_id(chat_id)
+    if ask is None:
+        ask = " ".join(ctx.args or []).strip()
+    await update.message.reply_text(
+        "💼 Зову Продавца — разбираю воронку и финансы… это займёт до минуты.",
+        parse_mode="Markdown")
+    reply = await asyncio.get_event_loop().run_in_executor(None, lambda: B.sales_agent_sync(ask))
+    if not reply:
+        await update.message.reply_text("Не удалось получить разбор 😔 Попробуй ещё раз.")
+        return
+    B.remember_lawyer("assistant", "Продавец: разбор воронки/дожатие" + (f" по запросу: {ask[:120]}" if ask else ""))
+    for chunk in B._split_msg("💼 *Продавец:*\n\n" + reply, 3800):
+        try:
+            await update.message.reply_text(chunk, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
+
+
 async def cmd_docs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Сводка по документам/бюрократии: открытые дела, шаги, сроки."""
     chat_id = update.effective_chat.id
@@ -386,6 +414,10 @@ async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
     if re.search(r"страте\w+|выход\w*\s+из\s+кризис|антикризис|что\s+делать\s+с\s+бизнес", txt, re.I):
         await cmd_strategy(update, ctx)
         B.remember_lawyer("assistant", "дал стратегический совет (антикризис) по картине из таблицы")
+        return
+    # Запрос Продавца: дожать сделку / разобрать воронку / что закрывать первым
+    if re.search(r"продав\w+|воронк\w+|дожа(ть|м|ми|тие)|закрыть\s+сделк|что\s+закрыва\w+\s+(перв|срочн)", txt, re.I):
+        await cmd_sales(update, ctx, ask=txt)
         return
     # Просьба составить договор (проверяем ДО инвойса — «договор» специфичнее)
     if B.looks_like_contract_request(txt):
@@ -513,6 +545,7 @@ def main():
     try:
         B.ensure_legal_kb()  # база знаний должна быть на диске
         B.ensure_strategy_kb()  # база знаний стратегического совета
+        B.ensure_sales_kb()  # база знаний Продавца (закрытие сделок)
         B.ensure_bureau_seed()  # стартовые бюрократические треки (права, §24, паспорт…)
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
@@ -528,6 +561,7 @@ def main():
     app.add_handler(CommandHandler(["done", "analysisoff"], stop_collecting))
     app.add_handler(CommandHandler(["showinvoices", "show2025"], cmd_showinvoices))
     app.add_handler(CommandHandler(["strategy", "strategie"], cmd_strategy))
+    app.add_handler(CommandHandler(["sales", "seller", "prodavez"], cmd_sales))
     app.add_handler(CommandHandler(["invoice", "rechnung", "schet"], cmd_invoice))
     app.add_handler(CommandHandler(["contract", "vertrag", "dogovor"], cmd_contract))
     app.add_handler(CommandHandler("cancel", cmd_cancel))
