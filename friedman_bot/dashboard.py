@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.30"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.31"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -948,12 +948,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 #ptr .i{display:block;transition:transform .05s linear}
 #ptr.spin .i{animation:ptrspin .8s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
-.hdr{display:flex;align-items:center;gap:11px;margin:8px 0 14px}
+.hdr{display:flex;align-items:center;gap:11px;margin:6px 0 10px}
 .anchor{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,rgba(91,157,255,.95),rgba(177,139,255,.95));
   display:flex;align-items:center;justify-content:center;font-size:23px;box-shadow:0 8px 20px rgba(91,157,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
 .hdr h1{font-size:20px;font-weight:800;letter-spacing:-.4px}
 .hdr .date{font-size:12px;color:var(--muted);margin-top:1px;font-weight:500}
-.seg{display:flex;gap:4px;padding:4px;border-radius:18px;margin-bottom:14px}
+.seg{display:flex;gap:4px;padding:4px;border-radius:18px;margin-bottom:10px}
 .seg .s{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 2px;border-radius:13px;font-size:10.5px;font-weight:700;color:var(--muted);cursor:pointer;line-height:1;letter-spacing:-.1px;transition:color .2s,background .2s}
 .seg .s .e{font-size:19px;line-height:1;filter:grayscale(.35) opacity(.7);transition:filter .2s}
 .seg .s.on{color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.24),rgba(255,255,255,.1));box-shadow:0 5px 15px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.42)}
@@ -1099,8 +1099,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gact{display:flex;gap:7px;margin-top:10px}
 .gact button{flex:1;background:var(--glass2);border:1px solid var(--rim);border-radius:10px;color:var(--txt);padding:8px;font-size:11px;font-weight:700;cursor:pointer}
 .gact button.danger{color:#ff9aa6}
-.fin-cards{display:flex;gap:10px;margin-bottom:14px}
-.fc{flex:1;padding:15px 13px;border-radius:19px;position:relative;overflow:hidden;text-align:center;cursor:pointer}
+.fin-cards{display:flex;gap:10px;margin-bottom:12px}
+.fc{flex:1;padding:12px 12px 13px;border-radius:19px;position:relative;overflow:hidden;text-align:center;cursor:pointer}
 .fc:active{transform:scale(.97);transition:transform .1s}
 /* Шторка изменения баланса (клик по фрейму) */
 .bal-acc{display:flex;gap:8px;margin-top:14px}
@@ -1114,9 +1114,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .bal-hint{font-size:11.5px;color:var(--muted);font-weight:700;text-align:center;margin-top:11px}
 .fc .glow{position:absolute;width:80px;height:80px;border-radius:50%;filter:blur(26px);opacity:.55;right:-12px;top:-18px}
 .fc.cash .glow{background:var(--green)} .fc.card .glow{background:var(--blue)} .fc.total .glow{background:var(--amber)}
-.fc .ic{font-size:22px;margin-bottom:8px;display:block}
+.fc .ic{font-size:20px;margin-bottom:4px;display:block}
 .fc .l{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.6px;font-weight:800}
-.fc .v{font-size:20px;font-weight:900;letter-spacing:-.6px;margin-top:3px}
+.fc .v{font-size:20px;font-weight:900;letter-spacing:-.6px;margin-top:2px}
 .daysum{display:flex;gap:11px;margin-bottom:14px}
 .daysum .ds{flex:1;padding:15px 16px;border-radius:18px}
 .daysum .ds .l{font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.6px;font-weight:800}
