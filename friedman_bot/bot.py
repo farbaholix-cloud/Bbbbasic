@@ -4191,7 +4191,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "dashboard.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -4271,7 +4271,7 @@ def ensure_legal_kb():
     d = os.path.dirname(os.path.abspath(__file__))
     # + seed-файлы: при первом деплое /update качает по СТАРОМУ списку UPDATE_FILES,
     # поэтому новые файлы доезжают только самолечением
-    need = (["jurist_bot.py", "invoice.py", "invoices_seed.json", "bank_seed.json"]
+    need = (["jurist_bot.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json"]
             + [x for x in UPDATE_FILES if x.startswith("legal_kb/")])
     for f in need:
         dest = os.path.join(d, f)

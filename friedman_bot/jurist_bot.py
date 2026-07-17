@@ -59,6 +59,8 @@ RESTART_LEGEND = (
     "Умею: счета (Rechnung PDF), анализ финансов и оборота, письма в ведомства, "
     "напоминания о сроках, разбор присланных документов.\n\n"
     "Команды:\n"
+    "• */charts* (или напиши «графики и анализ») — JPEG-отчёт: все финансовые "
+    "графики + прогнозы с комментариями финансиста\n"
     "• */docs* — сводка по документам/бюрократии (права, §24, паспорт, KSK, "
     "декларация); авто-сводка каждый понедельник 09:05\n"
     "• */invoice* — создать счёт: спрошу кому/за что/сколько → PDF\n"
@@ -248,6 +250,34 @@ async def cmd_strategy(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
 
 
+async def cmd_charts(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """«Графики и анализ»: книжный JPEG-отчёт со всеми финансовыми графиками,
+    прогнозами и комментариями финансиста под каждым."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    B.save_chat_id(chat_id)
+    await update.message.reply_text(
+        "📊 Собираю финансовую картину: инвойсы, банк, долги, прогнозы… ~20 сек.")
+    try:
+        import finance_report
+        path = await asyncio.get_event_loop().run_in_executor(
+            None, finance_report.generate_finance_report)
+    except Exception as e:
+        log.error(f"charts: {e}")
+        await update.message.reply_text(f"Не собрался отчёт 😔 Причина: {str(e)[:200]}")
+        return
+    try:
+        with open(path, "rb") as f:
+            await update.message.reply_document(
+                f, filename="FARBAHOLIX_Analyse.jpg",
+                caption="📊 Финансовая картина + прогнозы. Комментарий финансиста — под каждым графиком.")
+        B.remember_lawyer("assistant", "прислал отчёт «графики и анализ» (JPEG)")
+    except Exception as e:
+        log.error(f"charts send: {e}")
+
+
 async def cmd_docs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Сводка по документам/бюрократии: открытые дела, шаги, сроки."""
     chat_id = update.effective_chat.id
@@ -347,6 +377,10 @@ async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
             "📥 Иду сбор — кидай PDF счетов и договоров, выводов пока не делаю. "
             "Когда закончишь — *«все отправлены»* (или /collect): откроются инструменты анализа.",
             parse_mode="Markdown")
+        return
+    # Тэг «графики и анализ» → JPEG-отчёт с графиками и прогнозами
+    if re.search(r"график\w*\s+и\s+анализ|графики|финансов\w*\s+картин", txt, re.I):
+        await cmd_charts(update, ctx)
         return
     # Запрос стратегии / выхода из кризиса
     if re.search(r"страте\w+|выход\w*\s+из\s+кризис|антикризис|что\s+делать\s+с\s+бизнес", txt, re.I):
@@ -486,6 +520,7 @@ def main():
     app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler(["docs", "dokumente"], cmd_docs))
+    app.add_handler(CommandHandler(["charts", "grafiki"], cmd_charts))
     app.add_handler(CommandHandler("restart", cmd_restart))
     app.add_handler(CommandHandler("wipeinvoicestoday", B.cmd_wipeinvoicestoday))
     app.add_handler(CommandHandler(["collect", "analysis", "analysis2025"], cmd_collect))
