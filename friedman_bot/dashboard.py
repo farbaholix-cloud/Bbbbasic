@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.31"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.32"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1694,6 +1694,10 @@ function priLabel(c){
 
 function render(){
   const d=DATA;
+  // iOS Safari при перестройке innerHTML доски проектов (scroll-snap + reflow) сбрасывает
+  // вертикальную прокрутку в самый низ. Сохраняем позицию до ре-рендера и возвращаем после
+  // (сразу и на следующем кадре — джамп на iOS случается уже после раскладки).
+  const _scrollY=window.scrollY;
   document.getElementById('updated').textContent='Обновлено '+new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('wisdom').textContent=d.wisdom||'';
   // balance read-only strip
@@ -1737,6 +1741,9 @@ function render(){
   renderProjectBoard(d);
   renderFinance();
   renderHappiness(d);
+  // вернуть прокрутку, если reflow её сбросил (см. комментарий в начале render)
+  if(window.scrollY!==_scrollY){window.scrollTo(0,_scrollY);}
+  requestAnimationFrame(()=>{if(window.scrollY!==_scrollY)window.scrollTo(0,_scrollY);});
 }
 
 // ─── Проекты как Trello-доска: каждый проект — колонка, шаги — карточки ───
@@ -2776,7 +2783,7 @@ function uiPrompt(title,value='',opts={}){
       `<button class="sh-btn" id="ui-cancel">Отмена</button>`+
       `<button class="sh-btn prime" id="ui-ok">${esc(opts.ok||'Готово')}</button></div>`);
     const inp=sheet.querySelector('#ui-inp');
-    setTimeout(()=>{try{inp.focus();}catch(_){}}, 140);
+    setTimeout(()=>{try{inp.focus({preventScroll:true});}catch(_){try{inp.focus();}catch(__){}}}, 140);
     const done=v=>{closeSheet();resolve(v);};
     bg.onclick=()=>done(null);
     sheet.querySelector('#ui-cancel').onclick=()=>done(null);
