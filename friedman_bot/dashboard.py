@@ -12,7 +12,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.33"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.34"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -3599,9 +3599,12 @@ function drawFlowChart(phase){
   ctx.beginPath();
   rows.forEach((r,i)=>{const x=X(i),y=Y(r.total);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
   ctx.stroke();
-  // подписи месяцев: первый, середина, последний
-  ctx.fillStyle='rgba(235,240,250,.35)';ctx.font=`${Math.max(9,w/42)}px -apple-system,sans-serif`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
-  [...new Set([0,Math.floor((n-1)/2),n-1])].forEach(i=>ctx.fillText(_ymLabel(rows[i].ym),X(i),h-8));
+  // подписи месяцев: первый (у левого края), середина, последний (у правого) — без обрезки
+  ctx.fillStyle='rgba(235,240,250,.35)';ctx.font=`${Math.max(9,w/42)}px -apple-system,sans-serif`;ctx.textBaseline='alphabetic';
+  const midI=Math.floor((n-1)/2);
+  ctx.textAlign='left';ctx.fillText(_ymLabel(rows[0].ym),padL,h-8);
+  ctx.textAlign='right';ctx.fillText(_ymLabel(rows[n-1].ym),w-padR,h-8);
+  if(midI!==0&&midI!==n-1){ctx.textAlign='center';ctx.fillText(_ymLabel(rows[midI].ym),X(midI),h-8);}
   // точки: чем выше сумма — тем крупнее и ярче пульсирующее свечение
   const maxIdx=rows.reduce((mi,r,i)=>r.total>rows[mi].total?i:mi,0);
   rows.forEach((r,i)=>{
@@ -3621,9 +3624,13 @@ function drawFlowChart(phase){
       ctx.beginPath();ctx.arc(x,y,rad+5+4*pulse,0,Math.PI*2);ctx.stroke();
     }
   });
-  // сумма рекордного месяца над точкой
+  // сумма рекордного месяца над точкой (не выходя за края холста)
   ctx.fillStyle='rgba(255,213,128,.95)';ctx.font=`bold ${Math.max(10,w/36)}px -apple-system,sans-serif`;ctx.textAlign='center';
-  ctx.fillText(Math.round(rows[maxIdx].total).toLocaleString('ru')+' €',X(maxIdx),Y(rows[maxIdx].total)-16-6*(_flowAnim?0:0));
+  const rlabel=Math.round(rows[maxIdx].total).toLocaleString('ru')+' €';
+  const hw=ctx.measureText(rlabel).width/2+2;
+  const rlx=Math.min(Math.max(X(maxIdx),padL+hw),w-padR-hw);
+  const rly=Math.max(Y(rows[maxIdx].total)-16,padT+14);
+  ctx.fillText(rlabel,rlx,rly);
 }
 function _flowLoop(ts){
   _flowRAF=null;

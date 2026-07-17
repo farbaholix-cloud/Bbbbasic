@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.37 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.38 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -290,6 +290,15 @@ def ensure_schema(conn):
             rows = conn.execute("SELECT id FROM projects ORDER BY created_at DESC, id DESC").fetchall()
             for i, r in enumerate(rows):
                 conn.execute("UPDATE projects SET position=? WHERE id=?", (i, r[0]))
+    # invoice_archive: наполняется ботом Юриста (общая БД). Гарантия схемы + флаг paid.
+    conn.execute("""CREATE TABLE IF NOT EXISTS invoice_archive (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, number TEXT, inv_date TEXT, year INTEGER,
+        client_name TEXT, items TEXT, net REAL, vat REAL, gross REAL,
+        kleinunternehmer INTEGER, raw_json TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(number, inv_date))""")
+    ia_cols = [r[1] for r in conn.execute("PRAGMA table_info(invoice_archive)").fetchall()]
+    if "paid" not in ia_cols:
+        conn.execute("ALTER TABLE invoice_archive ADD COLUMN paid INTEGER DEFAULT 1")
     if not conn.execute("SELECT 1 FROM kanban_columns LIMIT 1").fetchone():
         conn.executemany("INSERT INTO kanban_columns(name,color,position) VALUES(?,?,?)", [
             ("Вводные","#5b9dff",0),("В работе","#ff9aa6",1),
@@ -503,8 +512,17 @@ def get_data():
             "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY id DESC LIMIT 365").fetchall()]
         sgoals = [dict(r) for r in conn.execute(
             "SELECT * FROM goals WHERE period='strategic' AND done=0 ORDER BY id").fetchall()]
+        # Поток дохода: месячные суммы оплаченных инвойсов из архива Юриста (общая БД).
+        try:
+            income_flow = [dict(r) for r in conn.execute(
+                "SELECT substr(inv_date,1,7) AS ym, "
+                "SUM(CASE WHEN COALESCE(gross,0)>0 THEN gross ELSE COALESCE(net,0)+COALESCE(vat,0) END) AS total "
+                "FROM invoice_archive WHERE COALESCE(paid,1)=1 AND inv_date LIKE '____-__%' "
+                "GROUP BY ym ORDER BY ym").fetchall()]
+        except sqlite3.OperationalError:
+            income_flow = []
         rev = _read_rev(conn)
-    return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals,
+    return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals, "income_flow": income_flow,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -1467,6 +1485,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 .hper-btn{padding:4px 9px;border-radius:9px;font-size:11px;font-weight:700;border:1px solid var(--rim);background:var(--glass2);color:var(--muted);cursor:pointer;-webkit-appearance:none}
 .hper-btn.on{background:rgba(91,157,255,.22);border-color:rgba(91,157,255,.45);color:#86b8ff}
+/* Поток дохода на Мостике */
+.flow-per{display:flex;gap:5px;justify-content:center;margin-top:10px}
+#flowchart{width:100%;display:block}
+.tog.mini{width:44px;height:24px;flex-shrink:0}
+.tog.mini .tog-k{width:18px;height:18px}
+.tog.mini.on .tog-k{left:22px}
 .hchart-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;justify-content:center}
 .hcl{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);font-weight:600}
 .hcl .hcld{width:18px;height:3px;border-radius:2px}
@@ -1516,12 +1540,12 @@ body{max-width:none!important;padding:0!important;margin:0!important;display:fle
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* ─── Мостик: 3 колонки ─── */
-/* balstrip=child1, wisdom=child2, Вводные=child3, Визуал=child4, plan-rcol=child5 */
+/* flow-block=child1, balstrip=child2, wisdom=child3, Вводные=child4, Визуал=child5, plan-rcol=child6 */
 #page-plan.on{display:grid;grid-template-columns:1fr 1.2fr 1.1fr;gap:18px;align-items:start}
-#page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
-#page-plan.on>.block:nth-child(3){grid-column:1;grid-row:3}
-#page-plan.on>.block:nth-child(4){grid-column:2;grid-row:3}
-#page-plan.on>.plan-rcol{grid-column:3;grid-row:3;display:flex;flex-direction:column;gap:18px}
+#page-plan.on>.flow-block,#page-plan.on>.balstrip,#page-plan.on>.wisdom{grid-column:1/-1}
+#page-plan.on>.block:nth-child(4){grid-column:1;grid-row:4}
+#page-plan.on>.block:nth-child(5){grid-column:2;grid-row:4}
+#page-plan.on>.plan-rcol{grid-column:3;grid-row:4;display:flex;flex-direction:column;gap:18px}
 
 /* ─── Финансы: 2 колонки ─── */
 /* fin-cards=child1 daysum=child2 fin-add=child3 block1=child4 fin-log=child5 block2=child6 block3=child7 */
@@ -1652,6 +1676,23 @@ select,textarea,.idea-txt{font-size:14px}
   </div>
 
   <div class="page on" id="page-plan">
+    <div class="block glass flow-block">
+      <div class="bh" style="margin-bottom:6px">
+        <div class="t">⚡ Поток дохода <span class="sm">инвойсы · оплачено</span></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="cnt" id="flow-total"></span>
+          <div class="tog mini" id="flow-anim" title="пульсация энергии"><div class="tog-k"></div></div>
+        </div>
+      </div>
+      <canvas id="flowchart" height="150"></canvas>
+      <div class="flow-per">
+        <button class="hper-btn" data-fp="3">3м</button>
+        <button class="hper-btn" data-fp="6">6м</button>
+        <button class="hper-btn" data-fp="12">12м</button>
+        <button class="hper-btn" data-fp="24">24м</button>
+        <button class="hper-btn on" data-fp="all">всё</button>
+      </div>
+    </div>
     <div class="balstrip glass-sm" id="balstrip"></div>
     <div class="wisdom glass-sm"><span class="q">“</span><span id="wisdom"></span></div>
     <div class="block glass">
@@ -1911,6 +1952,7 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   ['plan','fin','proj','hap'].forEach(n=>document.getElementById('page-'+n).classList.toggle('on',p===n));
   window.scrollTo(0,0);
   if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
+  if(p==='plan')requestAnimationFrame(()=>_flowStart());else _flowStop();
 });
 
 // ─── Mac sidebar init ───
@@ -2019,6 +2061,7 @@ function render(){
   renderFinance();
   renderHappiness(d);
   renderCalPage();
+  _flowStart();   // поток дохода на Мостике (сам проверяет видимость вкладки)
 }
 
 // ─── Проекты как Trello-доска: каждый проект — колонка, шаги — карточки ───
@@ -3771,12 +3814,131 @@ function drawHChart(history){
 
 document.addEventListener('click',e=>{
   const btn=e.target.closest('.hper-btn');
-  if(!btn)return;
-  document.querySelectorAll('.hper-btn').forEach(b=>b.classList.remove('on'));
+  if(!btn||btn.dataset.fp)return;   // кнопки потока дохода обрабатываются отдельно
+  document.querySelectorAll('.hper-btn:not([data-fp])').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   hPeriod=btn.dataset.p;
   drawHChart(_hapHistory);
 });
+
+// ─── Поток дохода на Мостике: месячные суммы оплаченных инвойсов из архива Юриста ───
+let _flowPeriod=localStorage.getItem('flowPer')||'all';
+let _flowAnim=localStorage.getItem('flowAnim')!=='0';   // пульсация по умолчанию включена
+let _flowRAF=null;
+const _YMM=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+function _ymNext(ym){let[y,m]=ym.split('-').map(Number);m++;if(m>12){m=1;y++;}return y+'-'+String(m).padStart(2,'0');}
+function _ymLabel(ym){const[y,m]=ym.split('-');return _YMM[+m-1]+' '+y.slice(2);}
+function _flowFilled(){
+  let rows=((DATA&&DATA.income_flow)||[]).filter(r=>r.ym&&(r.total||0)>0);
+  if(_flowPeriod!=='all'){
+    const nP=+_flowPeriod;const now=new Date();
+    const cut=new Date(now.getFullYear(),now.getMonth()-nP+1,1);
+    const cutYm=cut.getFullYear()+'-'+String(cut.getMonth()+1).padStart(2,'0');
+    rows=rows.filter(r=>r.ym>=cutYm);
+  }
+  if(!rows.length)return [];
+  // заполнить пропущенные месяцы нулями — линия непрерывна во времени
+  const map={};rows.forEach(r=>{map[r.ym]=r.total;});
+  const out=[];let cur=rows[0].ym;const last=rows[rows.length-1].ym;let guard=0;
+  while(cur<=last&&guard++<400){out.push({ym:cur,total:map[cur]||0});cur=_ymNext(cur);}
+  return out;
+}
+function drawFlowChart(phase){
+  const canvas=document.getElementById('flowchart');if(!canvas)return;
+  const realW=canvas.offsetWidth;
+  if(!realW){requestAnimationFrame(()=>drawFlowChart(phase));return;}
+  canvas.width=realW*2;canvas.height=260;
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width,h=canvas.height,padL=14,padR=30,padT=34,padB=32;
+  ctx.clearRect(0,0,w,h);
+  const rows=_flowFilled();
+  const tot=rows.reduce((s,r)=>s+r.total,0);
+  const te=document.getElementById('flow-total');if(te)te.textContent=rows.length?eur(tot):'';
+  if(!rows.length){
+    ctx.fillStyle='rgba(235,240,250,.22)';ctx.font=`bold ${w/28}px -apple-system,sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('нет данных — пришли Юристу инвойсы в архив',w/2,h/2);return;
+  }
+  const max=Math.max(...rows.map(r=>r.total),1);
+  const n=rows.length;
+  const X=i=>padL+(w-padL-padR)*(n===1?0.5:i/(n-1));
+  const Y=v=>padT+(h-padT-padB)*(1-v/max);
+  // сетка
+  ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
+  for(let i=1;i<=4;i++){const y=padT+(h-padT-padB)*(1-i/4);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(w-padR,y);ctx.stroke();}
+  // заливка под линией
+  const grad=ctx.createLinearGradient(0,padT,0,h-padB);
+  grad.addColorStop(0,'rgba(82,224,138,.26)');grad.addColorStop(1,'rgba(91,157,255,.02)');
+  ctx.beginPath();
+  rows.forEach((r,i)=>{const x=X(i),y=Y(r.total);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.lineTo(X(n-1),h-padB);ctx.lineTo(X(0),h-padB);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  // линия
+  const lg=ctx.createLinearGradient(padL,0,w-padR,0);
+  lg.addColorStop(0,'#5b9dff');lg.addColorStop(1,'#52e08a');
+  ctx.strokeStyle=lg;ctx.lineWidth=3.5;ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.beginPath();
+  rows.forEach((r,i)=>{const x=X(i),y=Y(r.total);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.stroke();
+  // подписи месяцев: первый (у левого края), середина, последний (у правого) — без обрезки
+  ctx.fillStyle='rgba(235,240,250,.35)';ctx.font=`${Math.max(9,w/42)}px -apple-system,sans-serif`;ctx.textBaseline='alphabetic';
+  const midI=Math.floor((n-1)/2);
+  ctx.textAlign='left';ctx.fillText(_ymLabel(rows[0].ym),padL,h-8);
+  ctx.textAlign='right';ctx.fillText(_ymLabel(rows[n-1].ym),w-padR,h-8);
+  if(midI!==0&&midI!==n-1){ctx.textAlign='center';ctx.fillText(_ymLabel(rows[midI].ym),X(midI),h-8);}
+  // точки: чем выше сумма — тем крупнее и ярче пульсирующее свечение
+  const maxIdx=rows.reduce((mi,r,i)=>r.total>rows[mi].total?i:mi,0);
+  rows.forEach((r,i)=>{
+    if(r.total<=0)return;   // нулевые месяцы — без точек
+    const x=X(i),y=Y(r.total),k=r.total/max;
+    const pulse=_flowAnim?(0.7+0.3*Math.sin(phase*2.2+i*0.9)):1;
+    const rad=3.5+7*k;
+    const glowR=(rad+8+26*k)*pulse;
+    const col=i===maxIdx?'255,198,87':(k>0.55?'82,224,138':'91,157,255');
+    const g=ctx.createRadialGradient(x,y,0,x,y,glowR);
+    g.addColorStop(0,`rgba(${col},${0.25+0.5*pulse*k})`);g.addColorStop(1,`rgba(${col},0)`);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,glowR,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=`rgb(${col})`;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(x,y,Math.max(1.5,rad*0.36),0,Math.PI*2);ctx.fill();
+    if(i===maxIdx){   // рекордный месяц — пульсирующее золотое кольцо
+      ctx.strokeStyle=`rgba(255,198,87,${0.55*pulse})`;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(x,y,rad+5+4*pulse,0,Math.PI*2);ctx.stroke();
+    }
+  });
+  // сумма рекордного месяца над точкой (не выходя за края холста)
+  ctx.fillStyle='rgba(255,213,128,.95)';ctx.font=`bold ${Math.max(10,w/36)}px -apple-system,sans-serif`;ctx.textAlign='center';
+  const rlabel=Math.round(rows[maxIdx].total).toLocaleString('ru')+' €';
+  const hw=ctx.measureText(rlabel).width/2+2;
+  const rlx=Math.min(Math.max(X(maxIdx),padL+hw),w-padR-hw);
+  const rly=Math.max(Y(rows[maxIdx].total)-16,padT+14);
+  ctx.fillText(rlabel,rlx,rly);
+}
+function _flowLoop(ts){
+  _flowRAF=null;
+  if(document.hidden){_flowRAF=requestAnimationFrame(_flowLoop);return;}
+  drawFlowChart((ts||0)/1000);
+  if(_flowAnim)_flowRAF=requestAnimationFrame(_flowLoop);
+}
+function _flowStop(){if(_flowRAF){cancelAnimationFrame(_flowRAF);_flowRAF=null;}}
+function _flowStart(){
+  _flowStop();
+  const pg=document.getElementById('page-plan');
+  if(!pg||!pg.classList.contains('on'))return;   // рисуем только на Мостике
+  if(_flowAnim)_flowRAF=requestAnimationFrame(_flowLoop);
+  else drawFlowChart(1.2);
+}
+(function(){
+  const tg=document.getElementById('flow-anim');
+  if(tg){
+    tg.classList.toggle('on',_flowAnim);
+    tg.onclick=()=>{_flowAnim=!_flowAnim;localStorage.setItem('flowAnim',_flowAnim?'1':'0');tg.classList.toggle('on',_flowAnim);_flowStart();};
+  }
+  document.querySelectorAll('.flow-per .hper-btn').forEach(b=>{
+    b.classList.toggle('on',b.dataset.fp===_flowPeriod);
+    b.onclick=()=>{_flowPeriod=b.dataset.fp;localStorage.setItem('flowPer',_flowPeriod);
+      document.querySelectorAll('.flow-per .hper-btn').forEach(x=>x.classList.toggle('on',x===b));_flowStart();};
+  });
+})();
 
 function showDrumPicker(label,color,current,cb){
   const ex=document.getElementById('drum-sheet');if(ex)ex.remove();
