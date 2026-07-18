@@ -4,7 +4,7 @@
   "account": "DE50…9122",
   "period": "2024-12 … 2026-06",
   "transactions_parsed": 1016,
-  "note": "личные расходы — только агрегаты; полный список — деловые операции"
+  "note": "полный список всех операций в transactions; business_transactions — деловое подмножество"
  },
  "monthly": {
   "2024-12": {
@@ -86,60 +86,60 @@
  },
  "categories": {
   "other_expense": {
-   "total": -11617.82,
-   "count": 414
+   "total": -11253.27,
+   "count": 409
   },
   "cash": {
    "total": -10550.9,
    "count": 36
   },
-  "subcontractor_artists": {
-   "total": -5984.23,
-   "count": 15
-  },
-  "groceries": {
-   "total": -7469.1,
-   "count": 290
-  },
   "rent_utilities": {
    "total": -8825.52,
    "count": 12
   },
-  "art_supplies": {
-   "total": -2173.33,
-   "count": 49
+  "groceries": {
+   "total": -7421.5,
+   "count": 290
   },
-  "health": {
-   "total": -1594.67,
-   "count": 18
+  "subcontractor_artists": {
+   "total": -4109.73,
+   "count": 12
+  },
+  "art_supplies": {
+   "total": -2568.68,
+   "count": 56
   },
   "klarna": {
-   "total": -1647.67,
-   "count": 28
-  },
-  "phone_internet": {
-   "total": -1172.3,
+   "total": -1986.31,
    "count": 30
-  },
-  "transport": {
-   "total": -295.67,
-   "count": 39
   },
   "refund": {
    "total": -1370.0,
    "count": 3
   },
-  "other_income": {
-   "total": 7417.47,
-   "count": 37
+  "transport": {
+   "total": -1207.5,
+   "count": 48
   },
-  "client_income": {
-   "total": 45279.6,
-   "count": 43
+  "phone_internet": {
+   "total": -1170.67,
+   "count": 31
+  },
+  "health": {
+   "total": -331.25,
+   "count": 6
   },
   "paypal": {
    "total": -16.54,
    "count": 2
+  },
+  "other_income": {
+   "total": 7417.49,
+   "count": 39
+  },
+  "client_income": {
+   "total": 43373.7,
+   "count": 42
   }
  },
  "business_transactions": [
@@ -148,6 +148,12 @@
    "amount": -15.0,
    "cat": "phone_internet",
    "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "06.12.2024",
+   "amount": -84.05,
+   "cat": "transport",
+   "party": "Tierarztliche Gemeinschaftspraxis// FRANKFURT/DE"
   },
   {
    "date": "10.12.2024",
@@ -180,18 +186,6 @@
    "party": "FSV Frankfurt 1899 Fusball GmbH RG: 6,7"
   },
   {
-   "date": "20.12.2024",
-   "amount": 0.01,
-   "cat": "client_income",
-   "party": "PAYONE GmbH Wir erwarten Ihren Geldeingang zur Forderung 140"
-  },
-  {
-   "date": "20.12.2024",
-   "amount": 0.01,
-   "cat": "client_income",
-   "party": "PAYONE GmbH Offene Forderung 140,67 EUR aus Kar tenzahlung v"
-  },
-  {
    "date": "23.12.2024",
    "amount": -650.0,
    "cat": "subcontractor_artists",
@@ -208,6 +202,12 @@
    "amount": -56.6,
    "cat": "art_supplies",
    "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "02.01.2025",
+   "amount": -13.2,
+   "cat": "art_supplies",
+   "party": "SumUp .Montana Store/Berliner Stras se 37/Frankfurt/DE/0"
   },
   {
    "date": "06.01.2025",
@@ -230,7 +230,7 @@
   {
    "date": "13.01.2025",
    "amount": 1.63,
-   "cat": "client_income",
+   "cat": "phone_internet",
    "party": "Telekom Deutschland GmbH Landgrabenweg 151 Mobilfunk Kundenk"
   },
   {
@@ -330,6 +330,12 @@
    "party": "Vira Overchuk Prostotak DATUM 28.04.2025, 22.53 UHR"
   },
   {
+   "date": "29.04.2025",
+   "amount": -109.32,
+   "cat": "transport",
+   "party": "SumUp .tierarzt-ffm.d/Schlosserstr. 21/Frankfurt/DE/0"
+  },
+  {
    "date": "02.05.2025",
    "amount": -1.59,
    "cat": "transport",
@@ -426,6 +432,12 @@
    "party": "TEDi Fil. 5524//Frankfurt/DE"
   },
   {
+   "date": "12.06.2025",
+   "amount": -17.6,
+   "cat": "art_supplies",
+   "party": "SumUp .Montana Store/Berliner Stras se 37/Frankfurt/DE/0"
+  },
+  {
    "date": "13.06.2025",
    "amount": -57.1,
    "cat": "phone_internet",
@@ -456,12 +468,6 @@
    "party": "Bohdan Chernyshov Rechnung Nr. 001 DATUM 30.06.2025, 23.59 U"
   },
   {
-   "date": "01.07.2025",
-   "amount": 29.75,
-   "cat": "client_income",
-   "party": "WOOLWORTH GMBH GUTSCHRIFT VOM 30.06. 14.12 6174636 4 1907 08"
-  },
-  {
    "date": "03.07.2025",
    "amount": -9.74,
    "cat": "transport",
@@ -488,7 +494,7 @@
   {
    "date": "09.07.2025",
    "amount": -807.0,
-   "cat": "subcontractor_artists",
+   "cat": "client_income",
    "party": "Maik Füller Gerüste für Cansativa Projekt DATUM 09.07.2025, "
   },
   {
@@ -606,6 +612,12 @@
    "party": "DB Vertrieb GmbH/Caroline-Michaelis -Str. 5-11/Berlin/DE/0"
   },
   {
+   "date": "21.08.2025",
+   "amount": -28.11,
+   "cat": "transport",
+   "party": "tierarzt-ffm.de sagt D/Schlosserstr . 21/Frankfurt/IE"
+  },
+  {
    "date": "26.08.2025",
    "amount": -75.76,
    "cat": "art_supplies",
@@ -630,6 +642,12 @@
    "party": "Vira Overchuk Prostotak mit Love DATUM 28.08.2025, 13.51 UHR"
   },
   {
+   "date": "29.08.2025",
+   "amount": -30.6,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/IE"
+  },
+  {
    "date": "02.09.2025",
    "amount": 6450.0,
    "cat": "client_income",
@@ -644,8 +662,14 @@
   {
    "date": "04.09.2025",
    "amount": -667.5,
-   "cat": "subcontractor_artists",
+   "cat": "client_income",
    "party": "Maik Füller Cansativa - Rechnung 2025-0005 DATUM 04.09.2025,"
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -46.2,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/IE"
   },
   {
    "date": "05.09.2025",
@@ -691,9 +715,39 @@
   },
   {
    "date": "12.09.2025",
+   "amount": -233.71,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "12.09.2025",
    "amount": 500.0,
    "cat": "client_income",
    "party": "Studio 41 GmbH Rechnung Nr. 110925"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -8.5,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -243.6,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -4.2,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -122.86,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
   },
   {
    "date": "18.09.2025",
@@ -704,7 +758,7 @@
   {
    "date": "18.09.2025",
    "amount": -400.0,
-   "cat": "subcontractor_artists",
+   "cat": "client_income",
    "party": "Maik Füller Cansativa Projekt DATUM 18.09.2025, 09.01 UHR"
   },
   {
@@ -744,6 +798,12 @@
    "party": "Tizita Feyera Megersa ReNr 110925/2, KdNr 011"
   },
   {
+   "date": "24.09.2025",
+   "amount": -60.23,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
    "date": "29.09.2025",
    "amount": -1500.0,
    "cat": "client_income",
@@ -760,6 +820,18 @@
    "amount": -92.48,
    "cat": "art_supplies",
    "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "01.10.2025",
+   "amount": -100.42,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "02.10.2025",
+   "amount": -35.65,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
   },
   {
    "date": "06.10.2025",
@@ -796,6 +868,12 @@
    "amount": 1600.0,
    "cat": "client_income",
    "party": "FRANKFURTER FANPROJEKT RE 061025 v. 06.10.2025 KD 012"
+  },
+  {
+   "date": "17.10.2025",
+   "amount": -168.93,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
   },
   {
    "date": "17.10.2025",
@@ -1198,6 +1276,6104 @@
    "amount": -4.11,
    "cat": "transport",
    "party": "ESSO TANKSTELLE/Frankfurter Str. 21 /Koenigstein/DE"
+  }
+ ],
+ "transactions": [
+  {
+   "date": "02.12.2024",
+   "amount": 800.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "02.12.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "03.12.2024",
+   "amount": -99.98,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 111 34 Stockholm SE in-akustik"
+  },
+  {
+   "date": "05.12.2024",
+   "amount": -10.27,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
+  {
+   "date": "05.12.2024",
+   "amount": -21.39,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 111 34 Stockholm SE wolt.com/de"
+  },
+  {
+   "date": "05.12.2024",
+   "amount": -10.7,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM//FRANKFURT/DE"
+  },
+  {
+   "date": "06.12.2024",
+   "amount": -129.0,
+   "cat": "other_expense",
+   "party": "S044-MEDIAMARKTSATU//FRANKFURT AM M AIN/DE"
+  },
+  {
+   "date": "06.12.2024",
+   "amount": -84.05,
+   "cat": "transport",
+   "party": "Tierarztliche Gemeinschaftspraxis// FRANKFURT/DE"
+  },
+  {
+   "date": "09.12.2024",
+   "amount": -18.09,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
+  {
+   "date": "09.12.2024",
+   "amount": -29.8,
+   "cat": "other_expense",
+   "party": "ROSH + ORCA GMBH +//FRANKFURT AM MA IN/DE"
+  },
+  {
+   "date": "09.12.2024",
+   "amount": -3.63,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "09.12.2024",
+   "amount": -16.46,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "09.12.2024",
+   "amount": -54.08,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "09.12.2024",
+   "amount": -60.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DATUM 09.12.2024, 17.53 UHR -930261290-"
+  },
+  {
+   "date": "10.12.2024",
+   "amount": -5.35,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "10.12.2024",
+   "amount": -3.65,
+   "cat": "other_expense",
+   "party": "VGF FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "10.12.2024",
+   "amount": -4.05,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Hanauer Lds tr. 517-543/Frankfurt am"
+  },
+  {
+   "date": "10.12.2024",
+   "amount": 9.99,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Klarna Refund RTE-77731379"
+  },
+  {
+   "date": "10.12.2024",
+   "amount": 11.77,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Klarna Refund RTE-77731378"
+  },
+  {
+   "date": "12.12.2024",
+   "amount": -9.99,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAIOLY26XB DATUM 11.12.2024, 22.54 UHR"
+  },
+  {
+   "date": "12.12.2024",
+   "amount": -21.4,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "12.12.2024",
+   "amount": -10.95,
+   "cat": "groceries",
+   "party": "DM Drogerie/Große Friedberger Straß e 7-11/Frankfurt am Main"
+  },
+  {
+   "date": "12.12.2024",
+   "amount": -9.7,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "12.12.2024",
+   "amount": 22.25,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Klarna Refund RTE-77554839"
+  },
+  {
+   "date": "13.12.2024",
+   "amount": -3.03,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
+  {
+   "date": "13.12.2024",
+   "amount": -120.0,
+   "cat": "health",
+   "party": "Saykin Zahnmedizin//Frankfurt am Ma in/DE"
+  },
+  {
+   "date": "16.12.2024",
+   "amount": -23.59,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 111 34 Stockholm SE wolt.com/de"
+  },
+  {
+   "date": "16.12.2024",
+   "amount": -1.5,
+   "cat": "art_supplies",
+   "party": "berechtigte Ablehnung Rechnung RÜCKGABE LASTSCHRIFT EINR: HO"
+  },
+  {
+   "date": "18.12.2024",
+   "amount": 519.0,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "18.12.2024",
+   "amount": 25.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "19.12.2024",
+   "amount": -519.0,
+   "cat": "art_supplies",
+   "party": "HORNBACH BAUMARKT A//FRANKFURT/DE"
+  },
+  {
+   "date": "19.12.2024",
+   "amount": 3000.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RG: 6,7"
+  },
+  {
+   "date": "19.12.2024",
+   "amount": -26.66,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAIORBORXB DATUM 19.12.2024, 14.57 UHR"
+  },
+  {
+   "date": "20.12.2024",
+   "amount": 0.01,
+   "cat": "other_income",
+   "party": "PAYONE GmbH Wir erwarten Ihren Geldeingang zur Forderung 140"
+  },
+  {
+   "date": "20.12.2024",
+   "amount": 0.01,
+   "cat": "other_income",
+   "party": "PAYONE GmbH Offene Forderung 140,67 EUR aus Kar tenzahlung v"
+  },
+  {
+   "date": "20.12.2024",
+   "amount": -890.0,
+   "cat": "cash",
+   "party": "GA NR00002985 BLZ51050015 0 20.12/12.35UHR FFM.-ZEIL"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -650.0,
+   "cat": "subcontractor_artists",
+   "party": "Maik Füller Hilfsarbeiten Projekt FSV Stadion. Rechnungsnumm"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -199.56,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 20KLARNA5"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -20.9,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 111 34 Stockholm SE wolt.com/de"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -43.4,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -44.32,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -27.0,
+   "cat": "other_expense",
+   "party": "TEDOX KG//OFFENBACH/DE"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -119.85,
+   "cat": "art_supplies",
+   "party": "HORNBACH BAUMARKT A//FRANKFURT/DE"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -21.52,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400119//Frankfur t Oberrad/DE"
+  },
+  {
+   "date": "23.12.2024",
+   "amount": -7.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "27.12.2024",
+   "amount": -86.67,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "30.12.2024",
+   "amount": -22.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DATUM 28.12.2024, 04.21 UHR 505167196-"
+  },
+  {
+   "date": "30.12.2024",
+   "amount": -56.6,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "30.12.2024",
+   "amount": 400.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "30.12.2024",
+   "amount": -21.0,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "02.01.2025",
+   "amount": -3.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "02.01.2025",
+   "amount": -209.02,
+   "cat": "groceries",
+   "party": "Kaufland Frankfurt am Main//Frankfu rt am Main/DE"
+  },
+  {
+   "date": "02.01.2025",
+   "amount": -13.2,
+   "cat": "art_supplies",
+   "party": "SumUp .Montana Store/Berliner Stras se 37/Frankfurt/DE/0"
+  },
+  {
+   "date": "02.01.2025",
+   "amount": -72.68,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "06.01.2025",
+   "amount": -44.15,
+   "cat": "art_supplies",
+   "party": "HORNBACH BAUMARKT A//FRANKFURT/DE"
+  },
+  {
+   "date": "07.01.2025",
+   "amount": -55.0,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "07.01.2025",
+   "amount": -7.1,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM//FRANKFURT/DE"
+  },
+  {
+   "date": "07.01.2025",
+   "amount": -5.0,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM//FRANKFURT/DE"
+  },
+  {
+   "date": "08.01.2025",
+   "amount": -16.4,
+   "cat": "groceries",
+   "party": "Kaeptn Kiosk Konstablerwache//Frank furt/DE"
+  },
+  {
+   "date": "09.01.2025",
+   "amount": -24.89,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 eBay"
+  },
+  {
+   "date": "09.01.2025",
+   "amount": -43.5,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "09.01.2025",
+   "amount": -11.5,
+   "cat": "other_expense",
+   "party": "Hayati, Alamdin/Schfflestr. 3/Frank furt am Main/DE"
+  },
+  {
+   "date": "09.01.2025",
+   "amount": -10.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "09.01.2025",
+   "amount": 200.0,
+   "cat": "client_income",
+   "party": "Broermann Health + Heritage Hotels GmbH 131224 152-250108T14"
+  },
+  {
+   "date": "13.01.2025",
+   "amount": -1.95,
+   "cat": "groceries",
+   "party": "DM Drogerie/Riedbergplatz 2/Frankfu rt am Main/DE"
+  },
+  {
+   "date": "13.01.2025",
+   "amount": -0.25,
+   "cat": "groceries",
+   "party": "DM Drogerie/Riedbergplatz 2/Frankfu rt am Main/DE"
+  },
+  {
+   "date": "13.01.2025",
+   "amount": -92.28,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "13.01.2025",
+   "amount": -5.18,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400055//Frankfur t Riedbe/DE"
+  },
+  {
+   "date": "13.01.2025",
+   "amount": -13.29,
+   "cat": "other_expense",
+   "party": "Burger King//FRANKFURT/DE"
+  },
+  {
+   "date": "13.01.2025",
+   "amount": 1.63,
+   "cat": "phone_internet",
+   "party": "Telekom Deutschland GmbH Landgrabenweg 151 Mobilfunk Kundenk"
+  },
+  {
+   "date": "14.01.2025",
+   "amount": -12.06,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 111 34 Stockholm SE wolt.com/de"
+  },
+  {
+   "date": "14.01.2025",
+   "amount": -5.8,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "15.01.2025",
+   "amount": -41.6,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "17.01.2025",
+   "amount": -215.41,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DATUM 17.01.2025, 07.06 UHR -314596177-"
+  },
+  {
+   "date": "20.01.2025",
+   "amount": -100.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DATUM 18.01.2025, 13.53 UHR -"
+  },
+  {
+   "date": "21.01.2025",
+   "amount": -52.0,
+   "cat": "other_expense",
+   "party": "Arthur Schmidt DATUM 21.01.2025, 12.44 UHR -973452245-"
+  },
+  {
+   "date": "21.01.2025",
+   "amount": -190.0,
+   "cat": "cash",
+   "party": "F-ZEIL 4//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "22.01.2025",
+   "amount": -14.5,
+   "cat": "other_expense",
+   "party": "Hayati, Alamdin/Schfflestr. 3/Frank furt am Main/DE"
+  },
+  {
+   "date": "22.01.2025",
+   "amount": -4.2,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "23.01.2025",
+   "amount": -141.59,
+   "cat": "art_supplies",
+   "party": "PAYONE GmbH KAUF am 12.12.24 bei Hornbach Bauma rkt FIL.524 "
+  },
+  {
+   "date": "23.01.2025",
+   "amount": -30.26,
+   "cat": "other_expense",
+   "party": "Citywatt Hofheim-3//Hofheim am Taun us/DE"
+  },
+  {
+   "date": "24.01.2025",
+   "amount": -24.0,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM//FRANKFURT/DE"
+  },
+  {
+   "date": "27.01.2025",
+   "amount": -3.42,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt am Main /DE"
+  },
+  {
+   "date": "27.01.2025",
+   "amount": -34.95,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563067//Frankf urt-Bornheim/DE"
+  },
+  {
+   "date": "05.02.2025",
+   "amount": 100.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "07.02.2025",
+   "amount": -59.25,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "07.02.2025",
+   "amount": -20.0,
+   "cat": "cash",
+   "party": "F-PREUNGC1//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "07.02.2025",
+   "amount": 200.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "07.02.2025",
+   "amount": -1.8,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302253//Frankfu rt Preunges/DE"
+  },
+  {
+   "date": "10.02.2025",
+   "amount": -5.48,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "10.02.2025",
+   "amount": -163.42,
+   "cat": "groceries",
+   "party": "Kaufland Frankfurt am Main//Frankfu rt am Main/DE"
+  },
+  {
+   "date": "11.02.2025",
+   "amount": -7.2,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Hanauer Lds tr. 517-543/Frankfurt am"
+  },
+  {
+   "date": "11.02.2025",
+   "amount": 90.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "12.02.2025",
+   "amount": -43.15,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "12.02.2025",
+   "amount": -15.88,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "13.02.2025",
+   "amount": -31.65,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "13.02.2025",
+   "amount": -25.63,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "13.02.2025",
+   "amount": -3.7,
+   "cat": "art_supplies",
+   "party": "Fil. Frankfurt Hornbach/Hanauer Lan dstrase 477/Frankfurt am"
+  },
+  {
+   "date": "13.02.2025",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH Rechnung 110225"
+  },
+  {
+   "date": "13.02.2025",
+   "amount": -200.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DATUM 13.02.2025, 16.16 UHR 171269582-"
+  },
+  {
+   "date": "14.02.2025",
+   "amount": -7.01,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
+  {
+   "date": "14.02.2025",
+   "amount": -10.52,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "14.02.2025",
+   "amount": -6.47,
+   "cat": "health",
+   "party": "APFEL APOTHEKE//Frankfurt am Main/D E"
+  },
+  {
+   "date": "14.02.2025",
+   "amount": -2.89,
+   "cat": "other_expense",
+   "party": "00297 MCDONALDS//FRANKFURT/DE"
+  },
+  {
+   "date": "17.02.2025",
+   "amount": -200.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk my card problem DATUM 15.02.2025, 03.23 UHR 47"
+  },
+  {
+   "date": "17.02.2025",
+   "amount": -10.0,
+   "cat": "groceries",
+   "party": "SumUp .Jordan Kiosk/Lorscher Strass e 9/Frankfurt am/DE/0"
+  },
+  {
+   "date": "18.02.2025",
+   "amount": -381.03,
+   "cat": "other_expense",
+   "party": "Vira Overchuk waiting for another card DATUM 18.02.2025, 12."
+  },
+  {
+   "date": "24.02.2025",
+   "amount": -10.0,
+   "cat": "other_expense",
+   "party": "Rechnung NASSAUISCHE SPARKASSE Entg. KartenpreisDebitkarte 2"
+  },
+  {
+   "date": "24.02.2025",
+   "amount": -50.0,
+   "cat": "cash",
+   "party": "F-ZEIL 5//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "26.02.2025",
+   "amount": -5.25,
+   "cat": "groceries",
+   "party": "DM Drogerie/Odenwaldring 70/Offenba ch am Main/DE"
+  },
+  {
+   "date": "26.02.2025",
+   "amount": -1.6,
+   "cat": "groceries",
+   "party": "DM Drogerie/Odenwaldring 70/Offenba ch am Main/DE"
+  },
+  {
+   "date": "26.02.2025",
+   "amount": -40.26,
+   "cat": "other_expense",
+   "party": "Mix Markt 36 oHG//OFFENBACH/DE"
+  },
+  {
+   "date": "26.02.2025",
+   "amount": -7.72,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "27.02.2025",
+   "amount": -9.05,
+   "cat": "groceries",
+   "party": "Kaeptan Kiosk//Frankfurt am Main/DE"
+  },
+  {
+   "date": "03.03.2025",
+   "amount": 350.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "03.03.2025",
+   "amount": -7.26,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "03.03.2025",
+   "amount": -14.67,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "03.03.2025",
+   "amount": -3.0,
+   "cat": "other_expense",
+   "party": "MCDONALD S DEUTSCHLAND LLC//MUENCHE N/DE"
+  },
+  {
+   "date": "04.03.2025",
+   "amount": -58.0,
+   "cat": "other_expense",
+   "party": "VGF VERKEHRSGESELLSCHAFT F//FRANKFU RT/DE"
+  },
+  {
+   "date": "04.03.2025",
+   "amount": -14.19,
+   "cat": "other_expense",
+   "party": "Burger King//FRANKFURT/DE"
+  },
+  {
+   "date": "05.03.2025",
+   "amount": -57.28,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens TEGUT SAGT DANKE"
+  },
+  {
+   "date": "05.03.2025",
+   "amount": -13.05,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "05.03.2025",
+   "amount": -4.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Hanauer Lds tr. 517-543/Frankfurt am"
+  },
+  {
+   "date": "06.03.2025",
+   "amount": -7.04,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "06.03.2025",
+   "amount": -65.81,
+   "cat": "other_expense",
+   "party": "Bioscientia Healthcare GmbH Rechnungsnummer: TH10213652 DATU"
+  },
+  {
+   "date": "06.03.2025",
+   "amount": -33.35,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "07.03.2025",
+   "amount": -9.45,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "10.03.2025",
+   "amount": -38.9,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "11.03.2025",
+   "amount": -17.63,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "11.03.2025",
+   "amount": -19.5,
+   "cat": "other_expense",
+   "party": "PAPIER-KRAEMER GMBH + CO K//FRANKFU RT A/DE"
+  },
+  {
+   "date": "12.03.2025",
+   "amount": -27.72,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "12.03.2025",
+   "amount": 3.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "13.03.2025",
+   "amount": -34.98,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "27.03.2025",
+   "amount": -2.42,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "31.03.2025",
+   "amount": 405.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "01.04.2025",
+   "amount": -22.0,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "01.04.2025",
+   "amount": -200.0,
+   "cat": "cash",
+   "party": "F-ZEIL 4//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "01.04.2025",
+   "amount": -5.2,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "01.04.2025",
+   "amount": -154.85,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "07.04.2025",
+   "amount": -12.95,
+   "cat": "groceries",
+   "party": "SumUp .Zeil Apotheke/Grosse Friedbe rger 8/Frankfurt/DE/0"
+  },
+  {
+   "date": "08.04.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "11.04.2025",
+   "amount": -1.5,
+   "cat": "phone_internet",
+   "party": "berechtigte Ablehnung Rechnung RÜCKGABE LASTSCHRIFT EINR: Te"
+  },
+  {
+   "date": "14.04.2025",
+   "amount": 30.0,
+   "cat": "refund",
+   "party": "Maik Füller rückzahlung"
+  },
+  {
+   "date": "28.04.2025",
+   "amount": 200.0,
+   "cat": "other_income",
+   "party": "Maik Füller"
+  },
+  {
+   "date": "28.04.2025",
+   "amount": -62.26,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "28.04.2025",
+   "amount": -50.0,
+   "cat": "cash",
+   "party": "F-ZEIL 3//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "28.04.2025",
+   "amount": 800.0,
+   "cat": "client_income",
+   "party": "Cansativa GmbH RNr. 260325 RDat. 26.03.2025 KNr. 0 06"
+  },
+  {
+   "date": "28.04.2025",
+   "amount": -14.81,
+   "cat": "other_expense",
+   "party": "ZOO-MAI E. KFM.//FRANKFURT AM MAIN/ DE"
+  },
+  {
+   "date": "28.04.2025",
+   "amount": -400.0,
+   "cat": "subcontractor_artists",
+   "party": "Maik Füller Erstellung von Entwürfen Projekt Ca nsativa DATU"
+  },
+  {
+   "date": "28.04.2025",
+   "amount": -200.0,
+   "cat": "other_expense",
+   "party": "Maik Füller ruckzahlüng DATUM 28.04.2025, 19.26 UHR -1720287"
+  },
+  {
+   "date": "29.04.2025",
+   "amount": -50.0,
+   "cat": "subcontractor_artists",
+   "party": "Vira Overchuk Prostotak DATUM 28.04.2025, 22.53 UHR"
+  },
+  {
+   "date": "29.04.2025",
+   "amount": -31.25,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "29.04.2025",
+   "amount": -7.43,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44401509//Frankfur t Norden/DE"
+  },
+  {
+   "date": "29.04.2025",
+   "amount": -46.5,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "29.04.2025",
+   "amount": -11.1,
+   "cat": "groceries",
+   "party": "SumUp .Trinkhalle/Johanna-Tesch-Pla tz.4/Frankfurt/DE/0"
+  },
+  {
+   "date": "29.04.2025",
+   "amount": -109.32,
+   "cat": "transport",
+   "party": "SumUp .tierarzt-ffm.d/Schlosserstr. 21/Frankfurt/DE/0"
+  },
+  {
+   "date": "30.04.2025",
+   "amount": 200.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "02.05.2025",
+   "amount": -1.59,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE//Frankfurt/DE"
+  },
+  {
+   "date": "02.05.2025",
+   "amount": -4.39,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE//Frankfurt/DE"
+  },
+  {
+   "date": "05.05.2025",
+   "amount": -23.76,
+   "cat": "groceries",
+   "party": "Kaufland Frankfurt am Main//Frankfu rt am Main/DE"
+  },
+  {
+   "date": "05.05.2025",
+   "amount": -33.02,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "05.05.2025",
+   "amount": -26.96,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "06.05.2025",
+   "amount": -14.32,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG/GLAUBURGSTR. 49/FR ANKFURT/DE"
+  },
+  {
+   "date": "06.05.2025",
+   "amount": -4.9,
+   "cat": "other_expense",
+   "party": "S-DOGAN GMBH UND CO/ELISABETH-TRESK OW-PLATZ 1/KOELN/DE"
+  },
+  {
+   "date": "06.05.2025",
+   "amount": -13.08,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "09.05.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "13.05.2025",
+   "amount": -24.91,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "14.05.2025",
+   "amount": -52.43,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "19.05.2025",
+   "amount": 500.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RNr. 080525 RDat. 08.05.2025"
+  },
+  {
+   "date": "19.05.2025",
+   "amount": -100.0,
+   "cat": "other_expense",
+   "party": "Maik Füller Privat Kredit DATUM 19.05.2025, 13.49 UHR -42751"
+  },
+  {
+   "date": "19.05.2025",
+   "amount": -50.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk mit love DATUM 19.05.2025, 16.29 UHR -59356071"
+  },
+  {
+   "date": "20.05.2025",
+   "amount": -12.59,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Wolt"
+  },
+  {
+   "date": "20.05.2025",
+   "amount": -25.68,
+   "cat": "other_expense",
+   "party": "ZOOHAUS HAINDL//Frankfurt am Main/D E"
+  },
+  {
+   "date": "20.05.2025",
+   "amount": -2.4,
+   "cat": "other_expense",
+   "party": "Backerei Kamps/Limescorso 8/Frankfu rt am Main/DE"
+  },
+  {
+   "date": "20.05.2025",
+   "amount": -2.74,
+   "cat": "transport",
+   "party": "SHELL 0308// Frankfurt /DE"
+  },
+  {
+   "date": "20.05.2025",
+   "amount": -127.63,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "20.05.2025",
+   "amount": -4.68,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "21.05.2025",
+   "amount": -30.7,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "21.05.2025",
+   "amount": -20.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DATUM 21.05.2025, 18.18 UHR"
+  },
+  {
+   "date": "22.05.2025",
+   "amount": -10.3,
+   "cat": "groceries",
+   "party": "SumUp .Trinkhalle/Johanna-Tesch-Pla tz.4/Frankfurt/DE/0"
+  },
+  {
+   "date": "22.05.2025",
+   "amount": -5.28,
+   "cat": "other_expense",
+   "party": "Burger King Oberursel//OBERURSEL/DE"
+  },
+  {
+   "date": "22.05.2025",
+   "amount": -14.55,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "23.05.2025",
+   "amount": -12.91,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "23.05.2025",
+   "amount": -15.3,
+   "cat": "groceries",
+   "party": "SumUp .Trinkhalle/Johanna-Tesch-Pla tz.4/Frankfurt/DE/0"
+  },
+  {
+   "date": "26.05.2025",
+   "amount": -3.95,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "26.05.2025",
+   "amount": -2.4,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE//Frankfurt/DE"
+  },
+  {
+   "date": "26.05.2025",
+   "amount": -50.0,
+   "cat": "cash",
+   "party": "F-ROEDELH1//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "26.05.2025",
+   "amount": 100.0,
+   "cat": "refund",
+   "party": "Maik Füller rückzahlung privat kredit"
+  },
+  {
+   "date": "27.05.2025",
+   "amount": -5.17,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652484//Frankfur t Sachse/DE"
+  },
+  {
+   "date": "27.05.2025",
+   "amount": -27.42,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "27.05.2025",
+   "amount": -15.5,
+   "cat": "other_expense",
+   "party": "Hayati, Alamdin/Schfflestr. 3/Frank furt am Main/DE"
+  },
+  {
+   "date": "28.05.2025",
+   "amount": -50.0,
+   "cat": "cash",
+   "party": "F-ROEDELH3//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "28.05.2025",
+   "amount": -14.29,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "28.05.2025",
+   "amount": 100.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "30.05.2025",
+   "amount": -53.37,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563474//Frankf urt-Roedelhe/DE"
+  },
+  {
+   "date": "30.05.2025",
+   "amount": 100.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk Bürgergeld"
+  },
+  {
+   "date": "30.05.2025",
+   "amount": -12.06,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "02.06.2025",
+   "amount": -13.4,
+   "cat": "groceries",
+   "party": "MittwochsKiosk GIR 69213711//FRANKF URT/DE"
+  },
+  {
+   "date": "02.06.2025",
+   "amount": 200.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "02.06.2025",
+   "amount": -10.7,
+   "cat": "other_expense",
+   "party": "KIYMET EINZELHANDEL GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "02.06.2025",
+   "amount": -8.75,
+   "cat": "groceries",
+   "party": "SumUp .Das STEHCAFE/Schaffle Strass e 1/FRANKFURT/DE/0"
+  },
+  {
+   "date": "02.06.2025",
+   "amount": -26.73,
+   "cat": "other_expense",
+   "party": "0PS1V Cafe Sugar Mama/Su.urlandsbra ut/Berlin/DE/0"
+  },
+  {
+   "date": "03.06.2025",
+   "amount": -35.3,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "03.06.2025",
+   "amount": -69.19,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 tierztffm"
+  },
+  {
+   "date": "03.06.2025",
+   "amount": -17.99,
+   "cat": "other_expense",
+   "party": "eBay O.12-13148-81024/BOULEVARD ROY AL 22-24/INTERNET/LU/1"
+  },
+  {
+   "date": "04.06.2025",
+   "amount": -9.55,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "04.06.2025",
+   "amount": -0.29,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "04.06.2025",
+   "amount": -35.07,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "04.06.2025",
+   "amount": -4.04,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "05.06.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "05.06.2025",
+   "amount": -16.79,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "06.06.2025",
+   "amount": -16.16,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652467//Frankfur t Gallus/DE"
+  },
+  {
+   "date": "06.06.2025",
+   "amount": -20.0,
+   "cat": "cash",
+   "party": "F-WESTEND3//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": -6.54,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": -1.5,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1584//Frankfurt /DE"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": -13.85,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RNr. 060625 RDat. 06.06.2025"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": -17.6,
+   "cat": "other_expense",
+   "party": "ZOOHAUS HAINDL//Frankfurt am Main/D E"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": -200.0,
+   "cat": "subcontractor_artists",
+   "party": "Vira Overchuk Prostotak DATUM 10.06.2025, 06.39 UHR -"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": -2.84,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "10.06.2025",
+   "amount": -300.0,
+   "cat": "cash",
+   "party": "F-ZEIL E//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "11.06.2025",
+   "amount": -15.55,
+   "cat": "art_supplies",
+   "party": "TEDi Fil. 5524//Frankfurt/DE"
+  },
+  {
+   "date": "11.06.2025",
+   "amount": -95.0,
+   "cat": "cash",
+   "party": "F-ZEIL E//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "12.06.2025",
+   "amount": -10.63,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 eBay"
+  },
+  {
+   "date": "12.06.2025",
+   "amount": -17.6,
+   "cat": "art_supplies",
+   "party": "SumUp .Montana Store/Berliner Stras se 37/Frankfurt/DE/0"
+  },
+  {
+   "date": "13.06.2025",
+   "amount": -57.1,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "13.06.2025",
+   "amount": -43.47,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "16.06.2025",
+   "amount": -60.0,
+   "cat": "other_expense",
+   "party": "Gulmammad Aghayev Zimmer Alt Heidenberg DATUM 15.06.2025, 01"
+  },
+  {
+   "date": "16.06.2025",
+   "amount": -3.7,
+   "cat": "other_expense",
+   "party": "Hau Tran/Ostendstr. 49/Frankfurt/DE"
+  },
+  {
+   "date": "16.06.2025",
+   "amount": -45.9,
+   "cat": "cash",
+   "party": "R-BANKF-SA/Hauptbahnhof/Frankfurt a m Main/DE"
+  },
+  {
+   "date": "16.06.2025",
+   "amount": -4.7,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "16.06.2025",
+   "amount": -42.56,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "17.06.2025",
+   "amount": -3.5,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1795//Frankfurt /DE"
+  },
+  {
+   "date": "18.06.2025",
+   "amount": -25.0,
+   "cat": "cash",
+   "party": "F-DUE.STR7//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "18.06.2025",
+   "amount": -7.2,
+   "cat": "groceries",
+   "party": "Kaeptn Kiosk Konstablerwache//Frank furt/DE"
+  },
+  {
+   "date": "18.06.2025",
+   "amount": -30.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk zuruck DATUM 18.06.2025, 12.33 UHR -"
+  },
+  {
+   "date": "18.06.2025",
+   "amount": -2.37,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "20.06.2025",
+   "amount": -6.1,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Berger Str. 298/Frankfurt am Main/DE"
+  },
+  {
+   "date": "23.06.2025",
+   "amount": 50.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "23.06.2025",
+   "amount": -6.58,
+   "cat": "transport",
+   "party": "SHELL 0308// Frankfurt /DE"
+  },
+  {
+   "date": "23.06.2025",
+   "amount": -29.86,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb erg 204/Frankfurt Preung"
+  },
+  {
+   "date": "24.06.2025",
+   "amount": -15.0,
+   "cat": "other_expense",
+   "party": "Istanbul Restaurant/Radilostrasse/F rankfurt am/DE/0"
+  },
+  {
+   "date": "24.06.2025",
+   "amount": -4.0,
+   "cat": "groceries",
+   "party": "SumUp .Kiosk Sven Vog/Neuhofstrasse 40/Frankfurt am/DE/0"
+  },
+  {
+   "date": "25.06.2025",
+   "amount": -6.17,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb erg 204/Frankfurt Preung"
+  },
+  {
+   "date": "25.06.2025",
+   "amount": -19.0,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "25.06.2025",
+   "amount": 29.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "26.06.2025",
+   "amount": -23.1,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "26.06.2025",
+   "amount": 150.0,
+   "cat": "other_income",
+   "party": "Maik Füller privat kredit 26.6.2025"
+  },
+  {
+   "date": "27.06.2025",
+   "amount": -65.0,
+   "cat": "cash",
+   "party": "F-DUE.STR7//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "27.06.2025",
+   "amount": -7.5,
+   "cat": "other_expense",
+   "party": "ASIA MARKT YUAN FA//FRANKFURT AM MA IN/DE"
+  },
+  {
+   "date": "27.06.2025",
+   "amount": -8.6,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "30.06.2025",
+   "amount": -4.85,
+   "cat": "other_expense",
+   "party": "Wiener Feinbackerei Heberer Gm/Baru ch-Baschwitz-P/Frankfurt"
+  },
+  {
+   "date": "30.06.2025",
+   "amount": -11.7,
+   "cat": "groceries",
+   "party": "MittwochsKiosk GIR 69213711//FRANKF URT/DE"
+  },
+  {
+   "date": "30.06.2025",
+   "amount": -4.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Im H auptbahnhof/Frankfurt am"
+  },
+  {
+   "date": "30.06.2025",
+   "amount": -7.5,
+   "cat": "groceries",
+   "party": "SumUp .Das STEHCAFE/Schaffle Strass e 1/FRANKFURT/DE/0"
+  },
+  {
+   "date": "30.06.2025",
+   "amount": 400.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "01.07.2025",
+   "amount": -21.0,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "01.07.2025",
+   "amount": -270.0,
+   "cat": "subcontractor_artists",
+   "party": "Bohdan Chernyshov Rechnung Nr. 001 DATUM 30.06.2025, 23.59 U"
+  },
+  {
+   "date": "01.07.2025",
+   "amount": 29.75,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH GUTSCHRIFT VOM 30.06. 14.12 6174636 4 1907 08"
+  },
+  {
+   "date": "01.07.2025",
+   "amount": -16.25,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1795//Frankfurt /DE"
+  },
+  {
+   "date": "01.07.2025",
+   "amount": -9.0,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": -28.25,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": -4.5,
+   "cat": "other_expense",
+   "party": "CITY SHOP//Moerfelden-Walldorf/DE"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": -11.96,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG/OKRIFTELER STR. 1 6/MOERFELDEN-WALLDOR/DE"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": -4.0,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": -8.82,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400138//Moerfeld en-Walldor/DE"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": -58.3,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": 30.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "02.07.2025",
+   "amount": 20.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "03.07.2025",
+   "amount": -69.19,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Tierarzte im Holzhausenviertel -"
+  },
+  {
+   "date": "03.07.2025",
+   "amount": -9.74,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE//Bad Soden/DE"
+  },
+  {
+   "date": "03.07.2025",
+   "amount": -3.5,
+   "cat": "other_expense",
+   "party": "Blumen Meister -Blumen/46 Grosse bo ckenheimer str/Frankfurt"
+  },
+  {
+   "date": "03.07.2025",
+   "amount": 450.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RNr. 005 RDat. 30.06.2025"
+  },
+  {
+   "date": "03.07.2025",
+   "amount": 4720.0,
+   "cat": "client_income",
+   "party": "Cansativa GmbH RNr. 270625 RDat. 27.06.2025 KNr. 0 06"
+  },
+  {
+   "date": "03.07.2025",
+   "amount": -150.0,
+   "cat": "other_expense",
+   "party": "Maik Füller rückzahlüng (danke) DATUM 03.07.2025, 12.56 UHR "
+  },
+  {
+   "date": "03.07.2025",
+   "amount": -400.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk MFG DATUM 03.07.2025, 12.58 UHR"
+  },
+  {
+   "date": "03.07.2025",
+   "amount": -995.0,
+   "cat": "cash",
+   "party": "F-ZEIL CR2//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "04.07.2025",
+   "amount": -55.79,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "04.07.2025",
+   "amount": -31.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "04.07.2025",
+   "amount": -16.56,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "04.07.2025",
+   "amount": -0.29,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "04.07.2025",
+   "amount": -28.43,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "07.07.2025",
+   "amount": -24.89,
+   "cat": "other_expense",
+   "party": "JJM GmbH / Betterrun Shop 443453 DATUM 06.07.2025, 10.52 UHR"
+  },
+  {
+   "date": "07.07.2025",
+   "amount": -51.83,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 eBay 0197d"
+  },
+  {
+   "date": "07.07.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "07.07.2025",
+   "amount": -269.45,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Tierarzte im Holzhausenviertel -"
+  },
+  {
+   "date": "07.07.2025",
+   "amount": -19.92,
+   "cat": "health",
+   "party": "Stadt-Apotheke/Thudichumstraße 2/Fr ankfurt/DE"
+  },
+  {
+   "date": "07.07.2025",
+   "amount": -7.93,
+   "cat": "groceries",
+   "party": "REWE TO GO SAGT DANKE.//Frankfurt a . M./DE"
+  },
+  {
+   "date": "07.07.2025",
+   "amount": -10.45,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400183//Frankfur t Gutleu/DE"
+  },
+  {
+   "date": "08.07.2025",
+   "amount": -45.75,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 028-4003850-2001917 AMZN Mktp "
+  },
+  {
+   "date": "08.07.2025",
+   "amount": -25.59,
+   "cat": "other_expense",
+   "party": "FRESSNAPF FRANKFURT 1415"
+  },
+  {
+   "date": "08.07.2025",
+   "amount": -46.97,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens TEGUT SAGT DANKE"
+  },
+  {
+   "date": "08.07.2025",
+   "amount": -11.5,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1795//Frankfurt /DE"
+  },
+  {
+   "date": "08.07.2025",
+   "amount": -19.98,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "09.07.2025",
+   "amount": -127.46,
+   "cat": "other_expense",
+   "party": "Kickz.com GmbH/Landwehrstrasse 60/M unchen/DE/0"
+  },
+  {
+   "date": "09.07.2025",
+   "amount": -807.0,
+   "cat": "client_income",
+   "party": "Maik Füller Gerüste für Cansativa Projekt DATUM 09.07.2025, "
+  },
+  {
+   "date": "10.07.2025",
+   "amount": -144.1,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "10.07.2025",
+   "amount": -12.5,
+   "cat": "other_expense",
+   "party": "Maydonoz Doener/Am Hauptbahnhof 8/F rankfurt/DE/0"
+  },
+  {
+   "date": "10.07.2025",
+   "amount": -8.45,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "10.07.2025",
+   "amount": -50.0,
+   "cat": "other_expense",
+   "party": "Maik Füller gerüste + DATUM 10.07.2025, 13.51 UHR"
+  },
+  {
+   "date": "11.07.2025",
+   "amount": -56.96,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "11.07.2025",
+   "amount": -89.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "11.07.2025",
+   "amount": -8.86,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt am Main /DE"
+  },
+  {
+   "date": "14.07.2025",
+   "amount": -111.12,
+   "cat": "art_supplies",
+   "party": "HORNBACH BAUMARKT A/HANAUER LANDSTR . 477/FRANKFURT/DE"
+  },
+  {
+   "date": "14.07.2025",
+   "amount": -8.2,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "14.07.2025",
+   "amount": -2.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "14.07.2025",
+   "amount": -350.0,
+   "cat": "subcontractor_artists",
+   "party": "Maik Füller Rechnung 2025-0003 DATUM 14.07.2025, 17.35 UHR"
+  },
+  {
+   "date": "15.07.2025",
+   "amount": -14.95,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "16.07.2025",
+   "amount": -118.03,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "16.07.2025",
+   "amount": -6.0,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "17.07.2025",
+   "amount": -17.0,
+   "cat": "groceries",
+   "party": "SumUp .Mama Imbiss/Hessenring 10/Mo rfelden-Wal/DE/0"
+  },
+  {
+   "date": "17.07.2025",
+   "amount": -4.55,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "18.07.2025",
+   "amount": -10.15,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "18.07.2025",
+   "amount": -4.58,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "21.07.2025",
+   "amount": -20.0,
+   "cat": "other_expense",
+   "party": "MANGAL ET KEBAPHAUS//Frankfurt/DE"
+  },
+  {
+   "date": "21.07.2025",
+   "amount": -4.74,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "21.07.2025",
+   "amount": -25.47,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "21.07.2025",
+   "amount": -10.0,
+   "cat": "transport",
+   "party": "SHELL 0310// Frankfurt /DE"
+  },
+  {
+   "date": "21.07.2025",
+   "amount": -2.2,
+   "cat": "other_expense",
+   "party": "NYX.SpaetiBros/Alte Bergstrasse/See heimJugenh/DE/0"
+  },
+  {
+   "date": "22.07.2025",
+   "amount": -45.83,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480//Frankfur t/DE"
+  },
+  {
+   "date": "22.07.2025",
+   "amount": -16.9,
+   "cat": "other_expense",
+   "party": "UZR.Goldys Fill In GbR/Eckenheimer Landstr. 117/Frankfurt am"
+  },
+  {
+   "date": "22.07.2025",
+   "amount": -15.65,
+   "cat": "other_expense",
+   "party": "NABI GUL MOHAMMAD//Heusenstamm/DE"
+  },
+  {
+   "date": "22.07.2025",
+   "amount": -94.33,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563698//Langen /DE"
+  },
+  {
+   "date": "22.07.2025",
+   "amount": -8.0,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "23.07.2025",
+   "amount": -26.79,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44401509//Frankfur t Norden/DE"
+  },
+  {
+   "date": "23.07.2025",
+   "amount": -85.62,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "23.07.2025",
+   "amount": -6.9,
+   "cat": "groceries",
+   "party": "SumUp .Station Point/Europaplatz 5/ Langen/DE/0"
+  },
+  {
+   "date": "24.07.2025",
+   "amount": -10.3,
+   "cat": "other_expense",
+   "party": "SCHAEFER DEIN BAECKER SCHAEFER DEIN BAECKER"
+  },
+  {
+   "date": "24.07.2025",
+   "amount": -100.0,
+   "cat": "cash",
+   "party": "F-ZEIL CR2//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "24.07.2025",
+   "amount": -17.7,
+   "cat": "other_expense",
+   "party": "PASAM DOENER UND EISCAFE GIR 692410 42//FRANKFURT/DE"
+  },
+  {
+   "date": "24.07.2025",
+   "amount": 1500.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RNr. 210725 RDat. 21.07.2025"
+  },
+  {
+   "date": "25.07.2025",
+   "amount": -500.0,
+   "cat": "cash",
+   "party": "F-ZEIL 1//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "25.07.2025",
+   "amount": -42.6,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "25.07.2025",
+   "amount": -18.3,
+   "cat": "groceries",
+   "party": "SumUp .Station Point/Europaplatz 5/ Langen/DE/0"
+  },
+  {
+   "date": "28.07.2025",
+   "amount": -566.44,
+   "cat": "client_income",
+   "party": "Main Werbetechnik Rechnung RE"
+  },
+  {
+   "date": "28.07.2025",
+   "amount": -4.55,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "28.07.2025",
+   "amount": -5.45,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "28.07.2025",
+   "amount": -7.75,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Im H auptbahnhof/Frankfurt am"
+  },
+  {
+   "date": "28.07.2025",
+   "amount": -1.3,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "29.07.2025",
+   "amount": -22.63,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens TEGUT SAGT DANKE"
+  },
+  {
+   "date": "29.07.2025",
+   "amount": -51.94,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "29.07.2025",
+   "amount": -22.0,
+   "cat": "groceries",
+   "party": "SumUp .Station Point/Europaplatz 5/ Langen/DE/0"
+  },
+  {
+   "date": "29.07.2025",
+   "amount": -328.68,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563698//Langen /DE"
+  },
+  {
+   "date": "30.07.2025",
+   "amount": -9.4,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400065//Frankfur t Roedel/DE"
+  },
+  {
+   "date": "30.07.2025",
+   "amount": -4.19,
+   "cat": "other_expense",
+   "party": "NKD Deutschland GmbH//Frankfurt/DE"
+  },
+  {
+   "date": "30.07.2025",
+   "amount": -149.87,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563067//Frankf urt-Bornheim/DE"
+  },
+  {
+   "date": "31.07.2025",
+   "amount": -22.53,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480//Frankfur t/DE"
+  },
+  {
+   "date": "31.07.2025",
+   "amount": -4.35,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "01.08.2025",
+   "amount": -4.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Im H auptbahnhof/Frankfurt am"
+  },
+  {
+   "date": "04.08.2025",
+   "amount": -15.21,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652391//Frankfur t Nieder/DE"
+  },
+  {
+   "date": "04.08.2025",
+   "amount": -4.6,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Im H auptbahnhof/Frankfurt am"
+  },
+  {
+   "date": "04.08.2025",
+   "amount": -5.1,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Morfelder L andstr. 50/Frankfurt am "
+  },
+  {
+   "date": "04.08.2025",
+   "amount": -20.5,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "05.08.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "05.08.2025",
+   "amount": -3.5,
+   "cat": "transport",
+   "party": "SHELL 0286// Langen /DE"
+  },
+  {
+   "date": "05.08.2025",
+   "amount": -82.41,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563698/Amperes tr./Langen /DE"
+  },
+  {
+   "date": "05.08.2025",
+   "amount": -9.94,
+   "cat": "other_expense",
+   "party": "WELLER VERTRIEBS GMBH CO 14 GIR 799 63182//LANGEN/DE"
+  },
+  {
+   "date": "07.08.2025",
+   "amount": 500.0,
+   "cat": "client_income",
+   "party": "Förderverein Hanau 93 e.V. Skizze Hanau FC 1893 für Fassade"
+  },
+  {
+   "date": "08.08.2025",
+   "amount": -73.09,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "08.08.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "08.08.2025",
+   "amount": -12.13,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563698/Amperes tr./Langen /DE"
+  },
+  {
+   "date": "11.08.2025",
+   "amount": -12.9,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 028-2382070-6989142 AMZN Mktp "
+  },
+  {
+   "date": "11.08.2025",
+   "amount": -7.29,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400064/Tizianpla t/Moerfelden-Walldor /DE"
+  },
+  {
+   "date": "11.08.2025",
+   "amount": -8.67,
+   "cat": "other_expense",
+   "party": "MCDONALD S DEUTSCHLAND LLC//MUENCHE N/DE"
+  },
+  {
+   "date": "11.08.2025",
+   "amount": -77.92,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563474/Guerick est/Frankfurt-Roedelhe /"
+  },
+  {
+   "date": "11.08.2025",
+   "amount": -2.9,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "11.08.2025",
+   "amount": -1.9,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "12.08.2025",
+   "amount": -18.45,
+   "cat": "transport",
+   "party": "SHELL 0286// Langen /DE"
+  },
+  {
+   "date": "12.08.2025",
+   "amount": -13.9,
+   "cat": "groceries",
+   "party": "SumUp .Pizzeria Super/Kastanienalle e 75/Hanau/DE/0"
+  },
+  {
+   "date": "12.08.2025",
+   "amount": -2.8,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "12.08.2025",
+   "amount": -4.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "13.08.2025",
+   "amount": -56.96,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "13.08.2025",
+   "amount": -5.55,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "14.08.2025",
+   "amount": 1500.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RNr. 010825 RDat. 01.08.2025"
+  },
+  {
+   "date": "14.08.2025",
+   "amount": -259.73,
+   "cat": "subcontractor_artists",
+   "party": "Vira Overchuk Prostotak mit Love DATUM 14.08.2025, 12.40 UHR"
+  },
+  {
+   "date": "15.08.2025",
+   "amount": -26.85,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "15.08.2025",
+   "amount": -38.12,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "15.08.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "15.08.2025",
+   "amount": -57.69,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "15.08.2025",
+   "amount": -21.5,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "15.08.2025",
+   "amount": -29.0,
+   "cat": "other_expense",
+   "party": "CARHARTT WIP STORE FFM GIR 69086945 //FRANKFURT/DE"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -117.78,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at Klarna 0198a9a7e99f7"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -190.0,
+   "cat": "cash",
+   "party": "F-ZEIL 2//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -26.24,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -30.74,
+   "cat": "other_expense",
+   "party": "MINDLY EUROPE OU/Harju maakond Kesk linna linnaosa, Ahtri /T"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -30.47,
+   "cat": "transport",
+   "party": "FLIXBUS.COM/Karl-Liebknechtstr 29/B erlin/DE/0"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -3.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -2.5,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -38.97,
+   "cat": "other_expense",
+   "party": "NORDSEE GmbH - 1165/Hasengasse 23/F rankfurt/DE/0"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -53.49,
+   "cat": "transport",
+   "party": "DB Vertrieb GmbH/Caroline-Michaelis -Str. 5-11/Berlin/DE/0"
+  },
+  {
+   "date": "18.08.2025",
+   "amount": -64.7,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "19.08.2025",
+   "amount": -2.43,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302364/Eckenhei me/Frankfurt Eckenheim /"
+  },
+  {
+   "date": "19.08.2025",
+   "amount": -3.65,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "20.08.2025",
+   "amount": -10.4,
+   "cat": "groceries",
+   "party": "SumUp .Station Point/Europaplatz.5/ Langen/DE/0"
+  },
+  {
+   "date": "20.08.2025",
+   "amount": -10.0,
+   "cat": "other_expense",
+   "party": "Willi Weber GmbH + Co. KG//DIEBURG/ DE"
+  },
+  {
+   "date": "21.08.2025",
+   "amount": -2.99,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 42402744/Europapla t/Berlin Mitte /DE"
+  },
+  {
+   "date": "21.08.2025",
+   "amount": -28.11,
+   "cat": "transport",
+   "party": "tierarzt-ffm.de sagt D/Schlosserstr . 21/Frankfurt/IE"
+  },
+  {
+   "date": "22.08.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "22.08.2025",
+   "amount": -31.0,
+   "cat": "other_expense",
+   "party": "DB Fernverkehr AG/Europa-Allee 78-8 4/Frankfurt/DE/0"
+  },
+  {
+   "date": "22.08.2025",
+   "amount": -2.59,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "22.08.2025",
+   "amount": -12.13,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563474/Guerick est/Frankfurt-Roedelhe /"
+  },
+  {
+   "date": "25.08.2025",
+   "amount": -240.55,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "25.08.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "25.08.2025",
+   "amount": -150.0,
+   "cat": "cash",
+   "party": "F-ZEIL 4//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "26.08.2025",
+   "amount": -25.0,
+   "cat": "other_expense",
+   "party": "APPLE.COM.BILL/Hollyhill Estate/ITU NES.COM/IE/1"
+  },
+  {
+   "date": "26.08.2025",
+   "amount": -75.76,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "27.08.2025",
+   "amount": -5.61,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302428/Hanauer La/Frankfurt /DE"
+  },
+  {
+   "date": "27.08.2025",
+   "amount": 4617.0,
+   "cat": "client_income",
+   "party": "Cansativa GmbH RNr. 200825 RDat. 20.08.2025 KNr. 0 06"
+  },
+  {
+   "date": "27.08.2025",
+   "amount": -10.0,
+   "cat": "other_expense",
+   "party": "Raucherdienst Schemel//RIEDSTADT/DE"
+  },
+  {
+   "date": "28.08.2025",
+   "amount": -11.3,
+   "cat": "other_expense",
+   "party": "HINNERBAECKER FIL. 63//Frankfurt am Main/DE"
+  },
+  {
+   "date": "28.08.2025",
+   "amount": -15.8,
+   "cat": "other_expense",
+   "party": "Home Ramen//Frankfurt/DE"
+  },
+  {
+   "date": "28.08.2025",
+   "amount": -19.85,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE"
+  },
+  {
+   "date": "28.08.2025",
+   "amount": -178.5,
+   "cat": "client_income",
+   "party": "MW-Folientechnik Lena Sponsel- Wipp linger Rechnung Re0209 -"
+  },
+  {
+   "date": "28.08.2025",
+   "amount": -384.0,
+   "cat": "subcontractor_artists",
+   "party": "Vira Overchuk Prostotak mit Love DATUM 28.08.2025, 13.51 UHR"
+  },
+  {
+   "date": "29.08.2025",
+   "amount": -28.0,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "29.08.2025",
+   "amount": -700.0,
+   "cat": "cash",
+   "party": "F-DUE.STR7//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "29.08.2025",
+   "amount": -98.0,
+   "cat": "other_expense",
+   "party": "Mol.Eco Kart GmbH/August-Schanz-Str . 31 a/"
+  },
+  {
+   "date": "29.08.2025",
+   "amount": -5.0,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "29.08.2025",
+   "amount": -30.6,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/IE"
+  },
+  {
+   "date": "29.08.2025",
+   "amount": -600.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Roland Vermieter DATUM 29.08.2025, 19.05 UHR"
+  },
+  {
+   "date": "01.09.2025",
+   "amount": -5.0,
+   "cat": "other_expense",
+   "party": "ECO KART GIR 69028143//FRANKFURT AM MAIN/DE"
+  },
+  {
+   "date": "01.09.2025",
+   "amount": -109.29,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400374/Bahnhofst r/Neu-Isenburg /DE"
+  },
+  {
+   "date": "01.09.2025",
+   "amount": -8.58,
+   "cat": "other_expense",
+   "party": "00297 MCDONALDS//FRANKFURT/DE"
+  },
+  {
+   "date": "01.09.2025",
+   "amount": -670.0,
+   "cat": "cash",
+   "party": "GA NR00002070 BLZ"
+  },
+  {
+   "date": "01.09.2025",
+   "amount": -1.8,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "01.09.2025",
+   "amount": -3.3,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "02.09.2025",
+   "amount": -3.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "02.09.2025",
+   "amount": -31.42,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "02.09.2025",
+   "amount": 6450.0,
+   "cat": "client_income",
+   "party": "PtH Sankt Georgen 27.08.25 270825 6.450,00 OLPAYMENTTAN.1.18"
+  },
+  {
+   "date": "03.09.2025",
+   "amount": -321.31,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at eBay 01990a42f1a67a9"
+  },
+  {
+   "date": "03.09.2025",
+   "amount": -48.09,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG/GLAUBURGSTR. 49/FR ANKFURT/DE"
+  },
+  {
+   "date": "03.09.2025",
+   "amount": -8.4,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652470/Eckenheim e/Frankfurt Norden /DE"
+  },
+  {
+   "date": "03.09.2025",
+   "amount": -1.44,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -10.85,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -667.5,
+   "cat": "client_income",
+   "party": "Maik Füller Cansativa - Rechnung 2025-0005 DATUM 04.09.2025,"
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -46.2,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/IE"
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -99.9,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -51.98,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -24.19,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "04.09.2025",
+   "amount": -4.18,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -770.0,
+   "cat": "cash",
+   "party": "GA NR00002058 BLZ51050015 0 04.09/21.05UHR NORDEND"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -500.0,
+   "cat": "subcontractor_artists",
+   "party": "Vira Overchuk Prostotak mit Love DATUM 04.09.2025, 22.15 UHR"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -65.99,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG/GLAUBURGSTR. 49/FR ANKFURT/DE"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -7.25,
+   "cat": "other_expense",
+   "party": "Wiener Feinbackerei Heberer Gm/Dies terwegplatz 51/Frankfurt"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -9.99,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652442/Wittelsba c/Frankfurt Ostend /DE"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -10.2,
+   "cat": "other_expense",
+   "party": "Snipes DE//Frankfurt/DE"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -342.1,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -2.48,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -7.06,
+   "cat": "other_expense",
+   "party": "LIME.2 RIDES IRHW/Westendstrae 28/F RANKFURT/DE/0"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -3.6,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "05.09.2025",
+   "amount": -13.97,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -110.25,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -5.8,
+   "cat": "other_expense",
+   "party": "Wiener Feinbackerei Heberer Gm/Zeil 116/Frankfurt am Main/DE"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -8.75,
+   "cat": "other_expense",
+   "party": "BACKHAUS SCHROEER GMBH 13 GIR 79965 398//WIESBADEN/DE"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -59.55,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 6680//Frankfurt/DE"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -3.31,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -5.92,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "08.09.2025",
+   "amount": -3.3,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "09.09.2025",
+   "amount": -119.31,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "09.09.2025",
+   "amount": -5.63,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "09.09.2025",
+   "amount": -31.47,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "09.09.2025",
+   "amount": -16.01,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "10.09.2025",
+   "amount": -45.04,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-1924453-1603568 AMZN Mktp "
+  },
+  {
+   "date": "10.09.2025",
+   "amount": -38.95,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-0245759-5148373 AMZN Mktp "
+  },
+  {
+   "date": "10.09.2025",
+   "amount": -205.85,
+   "cat": "other_expense",
+   "party": "WWW EVENTIM DE/CONTRESCARPE 75A/BRE MEN/DE/0"
+  },
+  {
+   "date": "10.09.2025",
+   "amount": -2.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "11.09.2025",
+   "amount": -44.91,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-8542108-4214765 AMZN Mktp "
+  },
+  {
+   "date": "11.09.2025",
+   "amount": -56.96,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "11.09.2025",
+   "amount": 500.0,
+   "cat": "client_income",
+   "party": "Jüdische Gemeinde Darmstadt"
+  },
+  {
+   "date": "11.09.2025",
+   "amount": -2.95,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "11.09.2025",
+   "amount": -3.31,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "11.09.2025",
+   "amount": -216.92,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "11.09.2025",
+   "amount": -17.74,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE"
+  },
+  {
+   "date": "11.09.2025",
+   "amount": -590.0,
+   "cat": "cash",
+   "party": "GA NR00002070 BLZ51050015 0 11.09/17.26UHR FFM.-ZEIL"
+  },
+  {
+   "date": "12.09.2025",
+   "amount": -233.71,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "12.09.2025",
+   "amount": 500.0,
+   "cat": "client_income",
+   "party": "Studio 41 GmbH Rechnung Nr. 110925"
+  },
+  {
+   "date": "12.09.2025",
+   "amount": -3.6,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "12.09.2025",
+   "amount": -102.8,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "12.09.2025",
+   "amount": -24.99,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "12.09.2025",
+   "amount": -29.99,
+   "cat": "other_expense",
+   "party": "NEW YORKER23001//FRANKFURT/DE"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -22.29,
+   "cat": "other_expense",
+   "party": "MEDIAMARKTSATURN SAGT DANKE MEDIAMARKTSATURN SAGT DANKE 1109"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -31.76,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -29.3,
+   "cat": "other_expense",
+   "party": "NOODLES BAR/FRANKFURT AM MAIN/DE"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -8.5,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -4.7,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -3.8,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -8.82,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -20.5,
+   "cat": "other_expense",
+   "party": "eBay O.19-13559-93843/BOULEVARD ROY AL 22-24/INTERNET/LU/1"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -34.95,
+   "cat": "other_expense",
+   "party": "eBay O.19-13559-93841/BOULEVARD ROY AL 22-24/INTERNET/LU/1"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -56.19,
+   "cat": "other_expense",
+   "party": "eBay O.19-13559-93842/BOULEVARD ROY AL 22-24/INTERNET/LU/1"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -1.8,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "15.09.2025",
+   "amount": -8.75,
+   "cat": "other_expense",
+   "party": "LIME.3 RIDES IRHW/Westendstrae 28/F RANKFURT/DE/0"
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -22.83,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-1697838-0178761 AMZN Mktp "
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -118.08,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-1697838-0178761 AMZN Mktp "
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -16.24,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-2476538-1637102 AMZN Mktp "
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -24.99,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-4083582-7476329 AMZN Mktp "
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -4.79,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-4260194-9495537 AMZN Mktp "
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -59.9,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at J. Wagner GmbH 01994"
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -119.9,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at J. Wagner GmbH 01994"
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -243.6,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -65.24,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -55.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "16.09.2025",
+   "amount": -26.02,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -3.95,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-7253893-7324353 AMZN Mktp "
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -4.2,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -122.86,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -71.01,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480/Zeil 106- 1/Frankfurt /DE"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -1.37,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -89.81,
+   "cat": "other_expense",
+   "party": "MANOMANO/52 rue bayen/PARIS/FR/1"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -1.15,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -23.87,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -46.06,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "17.09.2025",
+   "amount": -96.96,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "18.09.2025",
+   "amount": -10.32,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-1697838-0178761 AMZN Mktp "
+  },
+  {
+   "date": "18.09.2025",
+   "amount": -143.4,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 303-1697838-0178761 AMZN Mktp "
+  },
+  {
+   "date": "18.09.2025",
+   "amount": 3.3,
+   "cat": "phone_internet",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. DE 303-1697838-0178761 AMZN Mk"
+  },
+  {
+   "date": "18.09.2025",
+   "amount": 0.85,
+   "cat": "other_income",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. DE 303-1697838-0178761 AMZN Mk"
+  },
+  {
+   "date": "18.09.2025",
+   "amount": 0.42,
+   "cat": "other_income",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. DE 303-1697838-0178761 AMZN Mk"
+  },
+  {
+   "date": "18.09.2025",
+   "amount": 0.42,
+   "cat": "other_income",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. DE 303-1697838-0178761 AMZN Mk"
+  },
+  {
+   "date": "18.09.2025",
+   "amount": -400.0,
+   "cat": "client_income",
+   "party": "Maik Füller Cansativa Projekt DATUM 18.09.2025, 09.01 UHR"
+  },
+  {
+   "date": "18.09.2025",
+   "amount": -6.48,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "19.09.2025",
+   "amount": -4.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Tegu t Kurt-Schumac/Frankfurt"
+  },
+  {
+   "date": "19.09.2025",
+   "amount": -2.72,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "22.09.2025",
+   "amount": -19.3,
+   "cat": "art_supplies",
+   "party": "TEDi Fil. 5524//Frankfurt/DE"
+  },
+  {
+   "date": "22.09.2025",
+   "amount": -3.1,
+   "cat": "art_supplies",
+   "party": "TEDi Fil. 5524//Frankfurt/DE"
+  },
+  {
+   "date": "22.09.2025",
+   "amount": -34.72,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "22.09.2025",
+   "amount": -192.73,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "22.09.2025",
+   "amount": -4.53,
+   "cat": "other_expense",
+   "party": "LIME.2 RIDES IRHW/Westendstrae 28/F RANKFURT/DE/0"
+  },
+  {
+   "date": "22.09.2025",
+   "amount": -24.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "22.09.2025",
+   "amount": 2000.0,
+   "cat": "client_income",
+   "party": "Ev. Verein fur Jugendsozial- arbeit in Frankfurt am Main e.V"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": -3.99,
+   "cat": "other_expense",
+   "party": "Dott pass/Van Diemenstraat/Amsterda m/NL/1"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": -1.73,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": -5.05,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": -2.44,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": -1.57,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": 400.0,
+   "cat": "client_income",
+   "party": "Tizita Feyera Megersa ReNr 110925/2, KdNr 011"
+  },
+  {
+   "date": "23.09.2025",
+   "amount": -488.94,
+   "cat": "other_expense",
+   "party": "OTTO Payments CAQ-CTP-FYC-BGZ DATUM 23.09.2025, 19.52 UHR -"
+  },
+  {
+   "date": "24.09.2025",
+   "amount": -6.99,
+   "cat": "groceries",
+   "party": "ROSSMANN 1378 FRANKFURT ROSSMANN 1378 FRANKFURT"
+  },
+  {
+   "date": "24.09.2025",
+   "amount": -60.23,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "24.09.2025",
+   "amount": -29.0,
+   "cat": "other_expense",
+   "party": "MASTERTHEHANDPAN/29 rue de Bellevil le/TOULOUSE/FR/1"
+  },
+  {
+   "date": "24.09.2025",
+   "amount": -4.93,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "25.09.2025",
+   "amount": -11.5,
+   "cat": "groceries",
+   "party": "King Kiosk/Sigmund-Freud-Strasse 50 /Frankfurt am /DEU"
+  },
+  {
+   "date": "25.09.2025",
+   "amount": -18.09,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -49.22,
+   "cat": "other_expense",
+   "party": "Centrum Apo a.d. Hauptwache GIR 690 76987//FRANKFURT/DE"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -7.08,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -4.63,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -2.61,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -89.4,
+   "cat": "other_expense",
+   "party": "Mol.TipTopCarbon GmbH/Im Lindental 48/Hagen/DE/0"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -155.93,
+   "cat": "health",
+   "party": "Saykin Zahnmedizin//Frankfurt am Ma in/DE"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -48.32,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302364/Eckenhei me/Frankfurt Eckenheim /"
+  },
+  {
+   "date": "26.09.2025",
+   "amount": -101.13,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563067/Friedbe rge/Frankfurt-Bornheim /"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": -1500.0,
+   "cat": "client_income",
+   "party": "Michael Spangenberg Deepend Frankfurt Re 11 (SGP) DATUM 27.0"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": -41.56,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": 19.0,
+   "cat": "client_income",
+   "party": "OTTO Payments GmbH Werner-Otto-Str. 1-7 Deine Rueckzahlung z"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": 28.52,
+   "cat": "other_income",
+   "party": "2029-12 / DMC-Karte-4019+ARN"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": -1.86,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": -2.15,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": -3.02,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": -48.95,
+   "cat": "other_expense",
+   "party": "kleinanzeigen.de/Albert-Einstein-Ri ng 26/Kleinmachnow/DE/0"
+  },
+  {
+   "date": "29.09.2025",
+   "amount": -17.48,
+   "cat": "groceries",
+   "party": "SumUp .Tele am Zoo/Pfingstweidstr 1 4/Frankfurt/DE/0"
+  },
+  {
+   "date": "30.09.2025",
+   "amount": -2.15,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "30.09.2025",
+   "amount": -2.15,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "30.09.2025",
+   "amount": -39.98,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "30.09.2025",
+   "amount": -55.61,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "30.09.2025",
+   "amount": -6.79,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "30.09.2025",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Für Vermieter Roland Jordan DATUM 30.09.2025, "
+  },
+  {
+   "date": "01.10.2025",
+   "amount": -22.0,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "01.10.2025",
+   "amount": -92.48,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "01.10.2025",
+   "amount": -100.42,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "01.10.2025",
+   "amount": -200.0,
+   "cat": "cash",
+   "party": "GA NR00002984 BLZ51050015 0 01.10/18.12UHR FFM.-ZEIL"
+  },
+  {
+   "date": "02.10.2025",
+   "amount": -8.0,
+   "cat": "other_expense",
+   "party": "Hayati, Alamdin/Schfflestr. 3/Frank furt am Main/DE"
+  },
+  {
+   "date": "02.10.2025",
+   "amount": -35.65,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
+  },
+  {
+   "date": "06.10.2025",
+   "amount": -1.15,
+   "cat": "groceries",
+   "party": "DM Drogerie/Zeil 123/Frankfurt am M ain/DE"
+  },
+  {
+   "date": "06.10.2025",
+   "amount": -16.02,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480/Zeil 106- 1/Frankfurt /DE"
+  },
+  {
+   "date": "06.10.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "06.10.2025",
+   "amount": -40.0,
+   "cat": "cash",
+   "party": "F-ZEIL 2//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "06.10.2025",
+   "amount": -9.99,
+   "cat": "other_expense",
+   "party": "Canvero 211314//Frankfurt am Main/D E"
+  },
+  {
+   "date": "06.10.2025",
+   "amount": -2.3,
+   "cat": "other_expense",
+   "party": "LIME.2 RIDES IRHW/Westendstrae 28/F RANKFURT/DE/0"
+  },
+  {
+   "date": "07.10.2025",
+   "amount": -3.72,
+   "cat": "groceries",
+   "party": "ROSSMANN//Frankfurt/DE"
+  },
+  {
+   "date": "07.10.2025",
+   "amount": -6.99,
+   "cat": "groceries",
+   "party": "ROSSMANN//Frankfurt/DE"
+  },
+  {
+   "date": "07.10.2025",
+   "amount": -9.85,
+   "cat": "groceries",
+   "party": "DM Drogerie/Zeil 47-49/Frankfurt am Main/DE"
+  },
+  {
+   "date": "07.10.2025",
+   "amount": -13.5,
+   "cat": "other_expense",
+   "party": "Hayati, Alamdin/Schfflestr. 3/Frank furt am Main/DE"
+  },
+  {
+   "date": "07.10.2025",
+   "amount": -18.99,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/A m Postbahnhof/Berlin/DE"
+  },
+  {
+   "date": "08.10.2025",
+   "amount": -83.8,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "08.10.2025",
+   "amount": 100.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "09.10.2025",
+   "amount": -22.05,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at Wolt 0199bfc37f9e70b"
+  },
+  {
+   "date": "09.10.2025",
+   "amount": -2.4,
+   "cat": "other_expense",
+   "party": "Backwerk 289//Frankfurt/DE"
+  },
+  {
+   "date": "10.10.2025",
+   "amount": -10.53,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt-Sachsenh ausen/DE"
+  },
+  {
+   "date": "10.10.2025",
+   "amount": -15.26,
+   "cat": "groceries",
+   "party": "NAHKAUF PISHANIDAR/Huegelstra/Frank furt Dornbu /DE"
+  },
+  {
+   "date": "10.10.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "10.10.2025",
+   "amount": -17.98,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "10.10.2025",
+   "amount": 50.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "13.10.2025",
+   "amount": -17.9,
+   "cat": "groceries",
+   "party": "Princessa Kiosk/Offenbacher Landstr asse 130/Frankfurt am /D"
+  },
+  {
+   "date": "13.10.2025",
+   "amount": -7.03,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "13.10.2025",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "13.10.2025",
+   "amount": -1.15,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "14.10.2025",
+   "amount": -57.35,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "14.10.2025",
+   "amount": -4.35,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "14.10.2025",
+   "amount": -2.89,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "14.10.2025",
+   "amount": -2.07,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "14.10.2025",
+   "amount": -1.5,
+   "cat": "groceries",
+   "party": "Platin Einkaufskiosk/Frankensteiner Platz24 Neben Eingan/Fra"
+  },
+  {
+   "date": "15.10.2025",
+   "amount": 1600.0,
+   "cat": "client_income",
+   "party": "FRANKFURTER FANPROJEKT RE 061025 v. 06.10.2025 KD 012"
+  },
+  {
+   "date": "15.10.2025",
+   "amount": -214.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk Rück DATUM 15.10.2025, 11.37 UHR"
+  },
+  {
+   "date": "16.10.2025",
+   "amount": -400.0,
+   "cat": "cash",
+   "party": "F-AFFENT.4//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "16.10.2025",
+   "amount": -10.1,
+   "cat": "other_expense",
+   "party": "Ingrida Skiparyte/Wittelsbacheralle e 25/Frankfurt/DE"
+  },
+  {
+   "date": "16.10.2025",
+   "amount": -51.0,
+   "cat": "other_expense",
+   "party": "ECO KART GIR 69028143//FRANKFURT AM MAIN/DE"
+  },
+  {
+   "date": "16.10.2025",
+   "amount": -1.86,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "16.10.2025",
+   "amount": -1.05,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "16.10.2025",
+   "amount": -0.75,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "16.10.2025",
+   "amount": -3.31,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "17.10.2025",
+   "amount": -168.93,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "17.10.2025",
+   "amount": -21.24,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "17.10.2025",
+   "amount": 500.0,
+   "cat": "client_income",
+   "party": "Das Herz von Frankfurt GmbH Rechnung Nr. 091025 CCB.290.EE.P"
+  },
+  {
+   "date": "20.10.2025",
+   "amount": -49.52,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "21.10.2025",
+   "amount": -5.05,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Neue Krame 28/Frankfurt am Main/DE"
+  },
+  {
+   "date": "21.10.2025",
+   "amount": -31.97,
+   "cat": "other_expense",
+   "party": "Canvero 211314//Frankfurt am Main/D E"
+  },
+  {
+   "date": "21.10.2025",
+   "amount": -9.99,
+   "cat": "other_expense",
+   "party": "Canvero 211314//Frankfurt am Main/D E"
+  },
+  {
+   "date": "21.10.2025",
+   "amount": -11.73,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "21.10.2025",
+   "amount": -2.54,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "22.10.2025",
+   "amount": -48.6,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "22.10.2025",
+   "amount": -60.0,
+   "cat": "other_expense",
+   "party": "Foot Locker Germany GmbH Co. KG/Zei l 83/FRANKFURT/DE"
+  },
+  {
+   "date": "22.10.2025",
+   "amount": 2000.0,
+   "cat": "client_income",
+   "party": "Ev. Verein fur Jugendsozial- arbeit in Frankfurt am Main e.V"
+  },
+  {
+   "date": "22.10.2025",
+   "amount": -700.0,
+   "cat": "subcontractor_artists",
+   "party": "Maik Füller Rechnung 2025-0007 DATUM 22.10.2025, 12.46 UHR"
+  },
+  {
+   "date": "22.10.2025",
+   "amount": -196.0,
+   "cat": "subcontractor_artists",
+   "party": "Vira Overchuk Prostotak mit Love DATUM 22.10.2025, 12.47 UHR"
+  },
+  {
+   "date": "22.10.2025",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 22.10.2025, 14.00 UHR"
+  },
+  {
+   "date": "23.10.2025",
+   "amount": -168.87,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at eBay 019a0b5df1797d3"
+  },
+  {
+   "date": "23.10.2025",
+   "amount": -58.81,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "24.10.2025",
+   "amount": -1.05,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "24.10.2025",
+   "amount": -2.44,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "24.10.2025",
+   "amount": -2.15,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -43.45,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG/GLAUBURGSTR. 49/FR ANKFURT/DE"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -15.65,
+   "cat": "other_expense",
+   "party": "U-Backstation/Konstablerwache B-Ebe ne/Frankfurt am Main/DE"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -13.05,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -4.49,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -125.84,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -2.22,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -1.3,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -1.8,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "27.10.2025",
+   "amount": -1.38,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "28.10.2025",
+   "amount": -2.23,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "28.10.2025",
+   "amount": -4.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "29.10.2025",
+   "amount": -32.78,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302253/Homburge r /Frankfurt Preunges /D"
+  },
+  {
+   "date": "30.10.2025",
+   "amount": -1.84,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "30.10.2025",
+   "amount": -4.65,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "31.10.2025",
+   "amount": -5.33,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE"
+  },
+  {
+   "date": "03.11.2025",
+   "amount": -63.62,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652484/Walther-v o/Frankfurt Sachse /DE"
+  },
+  {
+   "date": "03.11.2025",
+   "amount": -31.06,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE"
+  },
+  {
+   "date": "03.11.2025",
+   "amount": -2.73,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat 292/none/NL/1"
+  },
+  {
+   "date": "03.11.2025",
+   "amount": -8.9,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "03.11.2025",
+   "amount": -3.89,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "04.11.2025",
+   "amount": -14.9,
+   "cat": "other_expense",
+   "party": "Philosophisch-Theologische Hochschu //FRANKFURT/DE"
+  },
+  {
+   "date": "05.11.2025",
+   "amount": -13.3,
+   "cat": "other_expense",
+   "party": "Goekhan Usluoglu//Frankfurt am Main /DE"
+  },
+  {
+   "date": "05.11.2025",
+   "amount": -17.88,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302364/Eckenhei me/Frankfurt Eckenheim /"
+  },
+  {
+   "date": "06.11.2025",
+   "amount": -13.5,
+   "cat": "other_expense",
+   "party": "AN Restaurant Authenti GIR 69309571 //FRANKFURT AM MAIN/DE"
+  },
+  {
+   "date": "06.11.2025",
+   "amount": -103.24,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "06.11.2025",
+   "amount": -4.6,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Tegu t Kurt-Schumac/Frankfurt"
+  },
+  {
+   "date": "07.11.2025",
+   "amount": -6.29,
+   "cat": "other_expense",
+   "party": "00297 MCDONALDS//FRANKFURT/DE"
+  },
+  {
+   "date": "07.11.2025",
+   "amount": -14.8,
+   "cat": "other_expense",
+   "party": "Philosophisch-Theologische Hochschu //FRANKFURT/DE"
+  },
+  {
+   "date": "07.11.2025",
+   "amount": -55.08,
+   "cat": "other_expense",
+   "party": "Rundfunk ARD, ZDF, DRadio RF13X474669768 DATUM 07.11.2025, 1"
+  },
+  {
+   "date": "10.11.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "10.11.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/Isarstr 3/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "11.11.2025",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "12.11.2025",
+   "amount": -38.97,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652635/Dreieichs t/Frankfurt Sachse /DE"
+  },
+  {
+   "date": "13.11.2025",
+   "amount": -56.96,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "13.11.2025",
+   "amount": -1.37,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "13.11.2025",
+   "amount": -12.63,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "13.11.2025",
+   "amount": -5.45,
+   "cat": "other_expense",
+   "party": "BACKHAUS SCHROEER GMBH 13 GIR 79965 398//WIESBADEN/DE"
+  },
+  {
+   "date": "14.11.2025",
+   "amount": -14.29,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt-Sachsenh ausen/DE"
+  },
+  {
+   "date": "14.11.2025",
+   "amount": -6.22,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "14.11.2025",
+   "amount": -18.78,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "17.11.2025",
+   "amount": -9.49,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480/Zeil 106- 1/Frankfurt /DE"
+  },
+  {
+   "date": "17.11.2025",
+   "amount": -4.2,
+   "cat": "other_expense",
+   "party": "Wiener Feinbackerei Heberer Gm/Schi llerstr.2/Frankfurt am M"
+  },
+  {
+   "date": "17.11.2025",
+   "amount": -5.5,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1355//Kassel/DE"
+  },
+  {
+   "date": "17.11.2025",
+   "amount": -2.99,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "17.11.2025",
+   "amount": -2.5,
+   "cat": "other_expense",
+   "party": "00297 MCDONALDS//FRANKFURT/DE"
+  },
+  {
+   "date": "18.11.2025",
+   "amount": -2.25,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "18.11.2025",
+   "amount": -17.0,
+   "cat": "other_expense",
+   "party": "Kurt Grillhaus/Willhemshoher Allee 283/Kassel/DEU"
+  },
+  {
+   "date": "19.11.2025",
+   "amount": -52.67,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG/GROSSE FRIEDBERGE R STR. 23-2/FRANKFURT/DE"
+  },
+  {
+   "date": "19.11.2025",
+   "amount": -33.0,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "20.11.2025",
+   "amount": -17.98,
+   "cat": "health",
+   "party": "APFEL APOTHEKE//Frankfurt am Main/D E"
+  },
+  {
+   "date": "20.11.2025",
+   "amount": -13.5,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1795//Frankfurt /DE"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": 1350.0,
+   "cat": "client_income",
+   "party": "Opernplatz 12 GmbH RG 201125"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 24.11.2025, 08.50 UHR"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": -5.47,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": -2.73,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": -1.86,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": -2.07,
+   "cat": "other_expense",
+   "party": "LIME.2 RIDES IRHW/Westendstrae 28/F RANKFURT/DE/0"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": -4.5,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Willy-Brand t-Platz 1/Frankfurt am M"
+  },
+  {
+   "date": "24.11.2025",
+   "amount": -4.35,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Im H auptbahnhof/Frankfurt am"
+  },
+  {
+   "date": "25.11.2025",
+   "amount": -2.6,
+   "cat": "other_expense",
+   "party": "SCHAEFER DEIN BAECKER//Frankfurt am Main/DE"
+  },
+  {
+   "date": "25.11.2025",
+   "amount": -11.79,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "25.11.2025",
+   "amount": -2.99,
+   "cat": "transport",
+   "party": "BOLT.EU.P."
+  },
+  {
+   "date": "25.11.2025",
+   "amount": -10.68,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE"
+  },
+  {
+   "date": "25.11.2025",
+   "amount": -150.0,
+   "cat": "subcontractor_artists",
+   "party": "Maik Füller Rechnung 2025-0008 DATUM 25.11.2025, 11.29 UHR"
+  },
+  {
+   "date": "26.11.2025",
+   "amount": -38.82,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "26.11.2025",
+   "amount": -2.0,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "27.11.2025",
+   "amount": -6.5,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "27.11.2025",
+   "amount": -4.75,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "28.11.2025",
+   "amount": -150.0,
+   "cat": "cash",
+   "party": "F-ZEIL 5//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "28.11.2025",
+   "amount": -1.81,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "28.11.2025",
+   "amount": -8.03,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400918/Mittelweg /Frankfurt Nordend- /DE"
+  },
+  {
+   "date": "28.11.2025",
+   "amount": -24.22,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "01.12.2025",
+   "amount": -10.7,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Im H auptbahnhof/Frankfurt am"
+  },
+  {
+   "date": "01.12.2025",
+   "amount": -2.69,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "01.12.2025",
+   "amount": -8.34,
+   "cat": "other_expense",
+   "party": "MONODirectFJ1/Head Office/KYIV/UA/2"
+  },
+  {
+   "date": "02.12.2025",
+   "amount": -1.96,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "08.12.2025",
+   "amount": -29.0,
+   "cat": "phone_internet",
+   "party": "Stadtwerke Verkehrsgesellschaft Fra nkfurt am Main mbH Abo 3"
+  },
+  {
+   "date": "09.12.2025",
+   "amount": 50.0,
+   "cat": "other_income",
+   "party": "Maik Füller Privat Kredit"
+  },
+  {
+   "date": "10.12.2025",
+   "amount": -1.05,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "11.12.2025",
+   "amount": -1.5,
+   "cat": "phone_internet",
+   "party": "berechtigte Ablehnung Rechnung RÜCKGABE LASTSCHRIFT EINR: Te"
+  },
+  {
+   "date": "11.12.2025",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "15.12.2025",
+   "amount": -9.76,
+   "cat": "groceries",
+   "party": "NAHKAUF PISHANIDAR/Huegelstra/Frank furt Dornbu /DE"
+  },
+  {
+   "date": "15.12.2025",
+   "amount": -14.72,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652442/Wittelsba c/Frankfurt Ostend /DE"
+  },
+  {
+   "date": "15.12.2025",
+   "amount": -4.28,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "18.12.2025",
+   "amount": -10.0,
+   "cat": "groceries",
+   "party": "King Kiosk Frankfurt/Sigmund-Freud- Strasse 115/Frankfurt Am"
+  },
+  {
+   "date": "22.12.2025",
+   "amount": -1.38,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "22.12.2025",
+   "amount": -0.6,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "22.12.2025",
+   "amount": 2000.0,
+   "cat": "client_income",
+   "party": "PtH Sankt Georgen 16.12.25 161225 2.000,00 OLPAYMENTTAN.1.27"
+  },
+  {
+   "date": "22.12.2025",
+   "amount": -50.0,
+   "cat": "other_expense",
+   "party": "Maik Füller Züruck DATUM 22.12.2025, 19.41 UHR"
+  },
+  {
+   "date": "23.12.2025",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 22.12.2025, 20.27 UHR"
+  },
+  {
+   "date": "23.12.2025",
+   "amount": -100.79,
+   "cat": "client_income",
+   "party": "Main Werbetechnik SGP DATUM 22.12.2025, 20.30 UHR"
+  },
+  {
+   "date": "23.12.2025",
+   "amount": -200.0,
+   "cat": "cash",
+   "party": "GA NR00002147 BLZ51050015 0 22.12/21.47UHR NORDEND"
+  },
+  {
+   "date": "23.12.2025",
+   "amount": -45.53,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652470/Eckenheim e/Frankfurt Norden /DE"
+  },
+  {
+   "date": "23.12.2025",
+   "amount": -1.0,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652470/Eckenheim e/Frankfurt Norden /DE"
+  },
+  {
+   "date": "23.12.2025",
+   "amount": -8.65,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": 70.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -4.55,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -56.4,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -13.98,
+   "cat": "other_expense",
+   "party": "KIK"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -113.81,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -57.35,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -9.32,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -4.6,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -65.2,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -33.27,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "29.12.2025",
+   "amount": -45.6,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "30.12.2025",
+   "amount": -20.75,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480/Zeil 106- 1/Frankfurt /DE"
+  },
+  {
+   "date": "30.12.2025",
+   "amount": -5.95,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "30.12.2025",
+   "amount": -23.0,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "02.01.2026",
+   "amount": -3.9,
+   "cat": "other_expense",
+   "party": "Wiener Feinbackerei Heberer Gm/Zeil 116/Frankfurt am Main/DE"
+  },
+  {
+   "date": "02.01.2026",
+   "amount": -63.11,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "02.01.2026",
+   "amount": -6.2,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE"
+  },
+  {
+   "date": "02.01.2026",
+   "amount": -4.7,
+   "cat": "other_expense",
+   "party": "BackWerk Ruesselsheim Bhf//Ruessels heim/DE"
+  },
+  {
+   "date": "05.01.2026",
+   "amount": -63.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk Deutschladticket DATUM 04.01.2026, 21.13 UHR"
+  },
+  {
+   "date": "05.01.2026",
+   "amount": -43.7,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "05.01.2026",
+   "amount": -1.1,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "05.01.2026",
+   "amount": -1.0,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "06.01.2026",
+   "amount": -10.95,
+   "cat": "health",
+   "party": "Apotheke im Hauptbahnhof GIR 692203 94//FRANKFURT AM MAIN/DE"
+  },
+  {
+   "date": "06.01.2026",
+   "amount": -45.79,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "07.01.2026",
+   "amount": -6.35,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "08.01.2026",
+   "amount": -25.5,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "12.01.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "HIG Höll Immo und Gastro GmbH Kunde 001"
+  },
+  {
+   "date": "12.01.2026",
+   "amount": -10.5,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1795//Frankfurt /DE"
+  },
+  {
+   "date": "12.01.2026",
+   "amount": -14.93,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE"
+  },
+  {
+   "date": "12.01.2026",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "12.01.2026",
+   "amount": -10.1,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "13.01.2026",
+   "amount": -290.0,
+   "cat": "cash",
+   "party": "RUE-EUROP1//KREISSPARKASSE GROSS-GE RAU/DE"
+  },
+  {
+   "date": "13.01.2026",
+   "amount": -47.87,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "13.01.2026",
+   "amount": -130.43,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "14.01.2026",
+   "amount": -35.39,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302364/Eckenhei me/Frankfurt Eckenheim /"
+  },
+  {
+   "date": "15.01.2026",
+   "amount": -62.84,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "15.01.2026",
+   "amount": -67.2,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
+  },
+  {
+   "date": "16.01.2026",
+   "amount": -3.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "16.01.2026",
+   "amount": -9.99,
+   "cat": "other_expense",
+   "party": "Canvero 211314//Frankfurt am Main/D E"
+  },
+  {
+   "date": "16.01.2026",
+   "amount": -11.0,
+   "cat": "other_expense",
+   "party": "HAUS DES DOENERS GIR 79909523//RUSS ELSHEIM/DE"
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -6.32,
+   "cat": "other_expense",
+   "party": "NORMA SAGT DANKE//R.sselsheim/DE"
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -14.65,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -25.0,
+   "cat": "other_expense",
+   "party": "APPLE STORE R352/Groe Bockenheimer Strae 30/FRANKFURT/DE/0"
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -62.0,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -7.1,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -5.35,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Morfelder L andstr. 50/Frankfurt am "
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -37.87,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "20.01.2026",
+   "amount": -6.95,
+   "cat": "other_expense",
+   "party": "SCHAEFER DEIN BAECKER//R.sselsheim/ DE"
+  },
+  {
+   "date": "20.01.2026",
+   "amount": -10.55,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "21.01.2026",
+   "amount": -10.0,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "21.01.2026",
+   "amount": -5.03,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652425/Am Stadtz e/Raunheim /DE"
+  },
+  {
+   "date": "22.01.2026",
+   "amount": -6.55,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "22.01.2026",
+   "amount": -10.0,
+   "cat": "other_expense",
+   "party": "Raucherdienst Schemel//RIEDSTADT/DE"
+  },
+  {
+   "date": "23.01.2026",
+   "amount": -30.83,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "23.01.2026",
+   "amount": -14.46,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "23.01.2026",
+   "amount": -5.3,
+   "cat": "other_expense",
+   "party": "Backwerk 076//Frankfurt/DE"
+  },
+  {
+   "date": "26.01.2026",
+   "amount": -8.0,
+   "cat": "other_expense",
+   "party": "Albert Jahdauti//Ruesselsheim am Ma in/DE"
+  },
+  {
+   "date": "26.01.2026",
+   "amount": -6.96,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "26.01.2026",
+   "amount": -3.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "27.01.2026",
+   "amount": -37.73,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "28.01.2026",
+   "amount": -6.48,
+   "cat": "groceries",
+   "party": "OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE"
+  },
+  {
+   "date": "28.01.2026",
+   "amount": -31.0,
+   "cat": "other_expense",
+   "party": "NOVA POST DE GMBH/Sonnemannstrase 5 /Frankfurt am/DE/0"
+  },
+  {
+   "date": "28.01.2026",
+   "amount": 50.0,
+   "cat": "other_income",
+   "party": "Maik Füller Privatdarlehen Slavik"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": -40.0,
+   "cat": "cash",
+   "party": "F-ZEIL 2//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": 500.0,
+   "cat": "client_income",
+   "party": "HIG Holl Immo und Gastro GmbH ReNr 270126, KdNr 001 Gestaltu"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "HIG Holl Immo und Gastro GmbH ReNr 260126, KdNr 001 Gestaltu"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": -124.95,
+   "cat": "client_income",
+   "party": "Main Werbetechnik Höll DATUM 29.01.2026, 12.46 UHR"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 29.01.2026, 12.54 UHR"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": -50.0,
+   "cat": "other_expense",
+   "party": "Maik Füller Zurück mit Danken DATUM 29.01.2026, 12.58 UHR"
+  },
+  {
+   "date": "30.01.2026",
+   "amount": -49.43,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG/GLAUBURGSTR. 49/FR ANKFURT/DE"
+  },
+  {
+   "date": "30.01.2026",
+   "amount": -3.75,
+   "cat": "other_expense",
+   "party": "NORMA SAGT DANKE//R.sselsheim/DE"
+  },
+  {
+   "date": "30.01.2026",
+   "amount": -190.0,
+   "cat": "cash",
+   "party": "RUE-EUROP1//KREISSPARKASSE GROSS-GE RAU/DE"
+  },
+  {
+   "date": "30.01.2026",
+   "amount": -6.97,
+   "cat": "other_expense",
+   "party": "APPLE.COM.BILL/Hollyhill Estate/COR K/IE/1"
+  },
+  {
+   "date": "30.01.2026",
+   "amount": -63.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DTicket DATUM 30.01.2026, 12.53 UHR"
+  },
+  {
+   "date": "02.02.2026",
+   "amount": -25.97,
+   "cat": "other_expense",
+   "party": "KIK"
+  },
+  {
+   "date": "02.02.2026",
+   "amount": -75.27,
+   "cat": "groceries",
+   "party": "Kaufland Frankfurt am Main//Frankfu rt am Main/DE"
+  },
+  {
+   "date": "02.02.2026",
+   "amount": -8.0,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1795//Frankfurt /DE"
+  },
+  {
+   "date": "02.02.2026",
+   "amount": -6.86,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "02.02.2026",
+   "amount": -2.4,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "06.02.2026",
+   "amount": -8.85,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "09.02.2026",
+   "amount": -4.32,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE"
+  },
+  {
+   "date": "09.02.2026",
+   "amount": 120.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "10.02.2026",
+   "amount": -39.17,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "10.02.2026",
+   "amount": -4.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "11.02.2026",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "12.02.2026",
+   "amount": -57.16,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "16.02.2026",
+   "amount": -12.95,
+   "cat": "other_expense",
+   "party": "Vira Overchuk Faktu Lindt DATUM 14.02.2026, 15.32 UHR"
+  },
+  {
+   "date": "23.02.2026",
+   "amount": 820.0,
+   "cat": "client_income",
+   "party": "Christian Höll RN. 270126"
+  },
+  {
+   "date": "23.02.2026",
+   "amount": -240.0,
+   "cat": "cash",
+   "party": "GA NR00002171 BLZ"
+  },
+  {
+   "date": "24.02.2026",
+   "amount": -16.0,
+   "cat": "other_expense",
+   "party": "DA.ner sechs3//Frankfurt am/DE"
+  },
+  {
+   "date": "25.02.2026",
+   "amount": -16.8,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "25.02.2026",
+   "amount": -39.01,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "26.02.2026",
+   "amount": -3.14,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE"
+  },
+  {
+   "date": "26.02.2026",
+   "amount": -23.75,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "27.02.2026",
+   "amount": -9.7,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "27.02.2026",
+   "amount": -31.74,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563067/Friedbe rge/Frankfurt-Bornheim /"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -110.55,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -72.52,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG/HOMBURGER LANDSTR . 268/FRANKFURT/DE"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -6.9,
+   "cat": "other_expense",
+   "party": "TRANSDEV VERTRIEB GMBH//Kelsterbach /DE"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -6.64,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -10.59,
+   "cat": "transport",
+   "party": "UBR. PENDING.UBER.COM/Mr Treublaan 7/AMSTERDAM/NL/1"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -7.99,
+   "cat": "other_expense",
+   "party": "APPLE.COM.BILL/HOLLYHILL INDUSTRIAL ESTATE/CORK/IE/1"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -62.7,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "Christian Höll RN. 270127"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 02.03.2026, 19.09 UHR"
+  },
+  {
+   "date": "03.03.2026",
+   "amount": -63.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk DTicket DATUM 02.03.2026, 22.16 UHR"
+  },
+  {
+   "date": "03.03.2026",
+   "amount": -6.9,
+   "cat": "other_expense",
+   "party": "VGF FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "03.03.2026",
+   "amount": -19.54,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480/Zeil 106- 1/Frankfurt /DE"
+  },
+  {
+   "date": "03.03.2026",
+   "amount": -6.9,
+   "cat": "other_expense",
+   "party": "TRANSDEV VERTRIEB GMBH//R.sselsheim /DE"
+  },
+  {
+   "date": "03.03.2026",
+   "amount": -46.02,
+   "cat": "other_expense",
+   "party": "SPAETH KNOLL GMBH F/IM TIEFEN SEE 6 9-73/DARMSTADT/DE"
+  },
+  {
+   "date": "04.03.2026",
+   "amount": -3.8,
+   "cat": "other_expense",
+   "party": "VGF FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "04.03.2026",
+   "amount": -5.5,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "04.03.2026",
+   "amount": -6.9,
+   "cat": "other_expense",
+   "party": "TRANSDEV VERTRIEB GMBH//Frankfurt a m Main/DE"
+  },
+  {
+   "date": "05.03.2026",
+   "amount": -26.25,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "05.03.2026",
+   "amount": -25.4,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "05.03.2026",
+   "amount": -32.92,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "05.03.2026",
+   "amount": -5.4,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Kelsterbach/DE"
+  },
+  {
+   "date": "05.03.2026",
+   "amount": -6.9,
+   "cat": "other_expense",
+   "party": "TRANSDEV VERTRIEB GMBH//R.sselsheim /DE"
+  },
+  {
+   "date": "06.03.2026",
+   "amount": -8.8,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "06.03.2026",
+   "amount": -2.76,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "09.03.2026",
+   "amount": -3.8,
+   "cat": "other_expense",
+   "party": "VGF FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "09.03.2026",
+   "amount": -6.9,
+   "cat": "other_expense",
+   "party": "VGF FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "12.03.2026",
+   "amount": -1.5,
+   "cat": "phone_internet",
+   "party": "berechtigte Ablehnung Rechnung RÜCKGABE LASTSCHRIFT EINR: Te"
+  },
+  {
+   "date": "18.03.2026",
+   "amount": 5.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "19.03.2026",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "01.04.2026",
+   "amount": -21.0,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "07.04.2026",
+   "amount": 2000.0,
+   "cat": "client_income",
+   "party": "PtH Sankt Georgen 24.03.26 260326 2.000,00 OLPAYMENTTAN.1.32"
+  },
+  {
+   "date": "07.04.2026",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 07.04.2026, 13.19 UHR"
+  },
+  {
+   "date": "08.04.2026",
+   "amount": -54.77,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at eBay 019d67ac50777b2"
+  },
+  {
+   "date": "08.04.2026",
+   "amount": -1000.0,
+   "cat": "cash",
+   "party": "F-ZEIL 2//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "13.04.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "Opernplatz 12 GmbH KD 014 RG 090426"
+  },
+  {
+   "date": "13.04.2026",
+   "amount": -4.55,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -52.84,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at Rex Technologies (on"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -64.63,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480/Zeil 106- 1/Frankfurt /DE"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -9.99,
+   "cat": "other_expense",
+   "party": "NKD Deutschland GmbH//Frankfurt/DE"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -7.2,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -2.09,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -2.85,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -4.48,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -63.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk D-Ticket DATUM 14.04.2026, 10.29 UHR"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -4.33,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "15.04.2026",
+   "amount": -53.0,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "15.04.2026",
+   "amount": -127.11,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "16.04.2026",
+   "amount": -5.89,
+   "cat": "other_expense",
+   "party": "00916 MCDONALDS//OFFENBACH/DE"
+  },
+  {
+   "date": "16.04.2026",
+   "amount": -11.5,
+   "cat": "other_expense",
+   "party": "DOENER TIME GIR 79983586//FRANKFURT /DE"
+  },
+  {
+   "date": "17.04.2026",
+   "amount": -64.6,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "17.04.2026",
+   "amount": -7.6,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Offenbacher Landstr. 311/Frankfurt a"
+  },
+  {
+   "date": "17.04.2026",
+   "amount": -295.0,
+   "cat": "cash",
+   "party": "F-AFFENT.4//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -5.84,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -39.7,
+   "cat": "groceries",
+   "party": "SumUp/Block 8, Harcourt Centre, Cha rlotte Way/Dublin/IE"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -17.28,
+   "cat": "other_expense",
+   "party": "Wolt Enterprises Deutschland GmbH/S tralauer allee/Berlin/DE"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -5.99,
+   "cat": "other_expense",
+   "party": "NKD Deutschland GmbH//Frankfurt/DE"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -2.75,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Radi lostr. 10/Frankfurt am M"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -5.4,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Radi lostr. 10/Frankfurt am M"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -2.99,
+   "cat": "other_expense",
+   "party": "LIME.2 RIDES IRHW/Westendstrae 28/F RANKFURT/DE/0"
+  },
+  {
+   "date": "20.04.2026",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "21.04.2026",
+   "amount": -6.26,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652635/Dreieichs t/Frankfurt Sachse /DE"
+  },
+  {
+   "date": "22.04.2026",
+   "amount": -108.64,
+   "cat": "rent_utilities",
+   "party": "Mainova AG Kundennummer 2036 0515 218 DATUM 22.04.2026, 12.2"
+  },
+  {
+   "date": "23.04.2026",
+   "amount": -38.23,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480/Zeil 106- 1/Frankfurt /DE"
+  },
+  {
+   "date": "23.04.2026",
+   "amount": -5.9,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "27.04.2026",
+   "amount": -3.45,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "29.04.2026",
+   "amount": 50.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "29.04.2026",
+   "amount": -20.0,
+   "cat": "cash",
+   "party": "F-SCHW.PC2//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "30.04.2026",
+   "amount": -3.3,
+   "cat": "groceries",
+   "party": "Kaeptan Kiosk//Frankfurt am Main/DE"
+  },
+  {
+   "date": "30.04.2026",
+   "amount": -3.3,
+   "cat": "groceries",
+   "party": "Kaeptan Kiosk//Frankfurt am Main/DE"
+  },
+  {
+   "date": "30.04.2026",
+   "amount": -7.99,
+   "cat": "other_expense",
+   "party": "APPLE.COM.BILL/Hollyhill Estate/COR K/IE/1"
+  },
+  {
+   "date": "04.05.2026",
+   "amount": -5.3,
+   "cat": "other_expense",
+   "party": "CAFE KLING//Frankfurt am Main/DE"
+  },
+  {
+   "date": "04.05.2026",
+   "amount": -1.54,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "04.05.2026",
+   "amount": -5.5,
+   "cat": "groceries",
+   "party": "EINKAUFSKIOSK FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "05.05.2026",
+   "amount": -3.2,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "05.05.2026",
+   "amount": 20.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "06.05.2026",
+   "amount": -20.12,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at Wolt 019df4b4be3974e"
+  },
+  {
+   "date": "06.05.2026",
+   "amount": 3550.0,
+   "cat": "client_income",
+   "party": "PtH Sankt Georgen 29.04.26 270426 3.550,00 OLPAYMENTTAN.1.35"
+  },
+  {
+   "date": "06.05.2026",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 06.05.2026, 11.43 UHR"
+  },
+  {
+   "date": "07.05.2026",
+   "amount": -5.4,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//K.ln-M.ngersdorf/D E"
+  },
+  {
+   "date": "07.05.2026",
+   "amount": -1.54,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "07.05.2026",
+   "amount": -770.0,
+   "cat": "cash",
+   "party": "ANKUNFT//SPARKASSE KOELNBONN/DE"
+  },
+  {
+   "date": "07.05.2026",
+   "amount": -31.0,
+   "cat": "other_expense",
+   "party": "KARIN ANTHES FRISUREN BAD SODEN//BA D SODEN/DE"
+  },
+  {
+   "date": "08.05.2026",
+   "amount": -12.98,
+   "cat": "other_expense",
+   "party": "Filx SE/Karl-Liebknechtstr 29/Berli n/DE/0"
+  },
+  {
+   "date": "08.05.2026",
+   "amount": -12.98,
+   "cat": "other_expense",
+   "party": "Filx SE/Karl-Liebknechtstr 29/Berli n/DE/0"
+  },
+  {
+   "date": "08.05.2026",
+   "amount": -13.48,
+   "cat": "transport",
+   "party": "FLIX/Friedenheimer Br cke 16/M nche n/DE/0"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -1200.0,
+   "cat": "client_income",
+   "party": "Maik Füller Sankt Georgen Park (Rechnung 2026-0 001) DATUM 0"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -63.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk D Ticket DATUM 09.05.2026, 17.03 UHR"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -57.12,
+   "cat": "client_income",
+   "party": "Main Werbetechnik Cansativa Projekt DATUM 11.05.2026, 11.08 "
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -106.88,
+   "cat": "rent_utilities",
+   "party": "Mainova AG Kundennummer 2036 0515 218 DATUM 11.05.2026, 11.2"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -83.93,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -1.74,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -2.5,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -9.99,
+   "cat": "paypal",
+   "party": ""
+  },
+  {
+   "date": "12.05.2026",
+   "amount": -52.84,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Purchase at Rex Technologies (on"
+  },
+  {
+   "date": "12.05.2026",
+   "amount": -32.68,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "12.05.2026",
+   "amount": -2.25,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "13.05.2026",
+   "amount": -57.35,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "13.05.2026",
+   "amount": -13.26,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG/GLAUBURGSTR. 49/FR ANKFURT/DE"
+  },
+  {
+   "date": "13.05.2026",
+   "amount": -16.99,
+   "cat": "other_expense",
+   "party": "APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1"
+  },
+  {
+   "date": "13.05.2026",
+   "amount": -74.3,
+   "cat": "other_expense",
+   "party": "PRIMARK FRANKFURT ZEIL/ZEIL 94/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "15.05.2026",
+   "amount": -4.25,
+   "cat": "groceries",
+   "party": "DM Drogerie/Königsteiner Straße 76/ Bad Soden am Taunus/DE"
+  },
+  {
+   "date": "15.05.2026",
+   "amount": -2.9,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "15.05.2026",
+   "amount": -1.99,
+   "cat": "other_expense",
+   "party": "Ryde Germany GmbH/Eichberg 59, c.o Padelon Rahlstedt GmbH/Ha"
+  },
+  {
+   "date": "18.05.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "Cansativa GmbH RNr. 080526 RDat. 08.05.2026 KNr. 0 06"
+  },
+  {
+   "date": "18.05.2026",
+   "amount": -1.42,
+   "cat": "other_expense",
+   "party": "Ryde Germany GmbH/Eichberg 59, c.o Padelon Rahlstedt GmbH/Ha"
+  },
+  {
+   "date": "18.05.2026",
+   "amount": -1.5,
+   "cat": "other_expense",
+   "party": "WWW.RIDEMOVI.COM/Feringastr. 6,/UNT ERFOHRING,/DE/0"
+  },
+  {
+   "date": "18.05.2026",
+   "amount": -8.4,
+   "cat": "phone_internet",
+   "party": "BOLT.EUO"
+  },
+  {
+   "date": "18.05.2026",
+   "amount": -2.75,
+   "cat": "other_expense",
+   "party": "Ryde Germany GmbH/Eichberg 59, c.o Padelon Rahlstedt GmbH/Ha"
+  },
+  {
+   "date": "19.05.2026",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "19.05.2026",
+   "amount": -8.49,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "19.05.2026",
+   "amount": -46.84,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "19.05.2026",
+   "amount": -50.7,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "19.05.2026",
+   "amount": 1500.0,
+   "cat": "other_income",
+   "party": "Klügling Cafe + Konditorei - Betrie bs GmbH Sa.Sis"
+  },
+  {
+   "date": "20.05.2026",
+   "amount": -80.84,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "20.05.2026",
+   "amount": 1500.0,
+   "cat": "other_income",
+   "party": "Klugling Cafe + Konditorei - Betrie bs GmbH Re 130526 K 017"
+  },
+  {
+   "date": "20.05.2026",
+   "amount": -1500.0,
+   "cat": "refund",
+   "party": "Kluegling Cafe und Konditorei - Bet riebs GmbH Rückerstattun"
+  },
+  {
+   "date": "21.05.2026",
+   "amount": -37.79,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG/HOMBURGER LANDSTR . 268/FRANKFURT/DE"
+  },
+  {
+   "date": "21.05.2026",
+   "amount": -36.4,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "22.05.2026",
+   "amount": -2.66,
+   "cat": "other_expense",
+   "party": "VOI DE/Kaufingerstr 24/MUNCHEN/DE/0"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -890.0,
+   "cat": "rent_utilities",
+   "party": "Vira Overchuk Vermieter Roland DATUM 22.05.2026, 20.16 UHR"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -8.95,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -28.26,
+   "cat": "other_expense",
+   "party": "REX FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -17.8,
+   "cat": "other_expense",
+   "party": "Deepend/Danziger Platz 2-4/Frankfur t am/DE/0"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -9.76,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -11.82,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -40.61,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -15.0,
+   "cat": "other_expense",
+   "party": "BERGER KEBAB//Frankfurt am Main/DE"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -60.95,
+   "cat": "other_expense",
+   "party": "eBay O.22-14663-11236/BOULEVARD ROY AL 22-24/INTERNET/LU/1"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -5.28,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "27.05.2026",
+   "amount": -7.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Kalbacher G asse 8/Frankfurt am Main"
+  },
+  {
+   "date": "27.05.2026",
+   "amount": -9.05,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "27.05.2026",
+   "amount": -6.55,
+   "cat": "other_expense",
+   "party": "Ryde Germany GmbH/Eichberg 59, c.o Padelon Rahlstedt GmbH/Ha"
+  },
+  {
+   "date": "27.05.2026",
+   "amount": -4.08,
+   "cat": "other_expense",
+   "party": "Ryde Germany GmbH/Eichberg 59, c.o Padelon Rahlstedt GmbH/Ha"
+  },
+  {
+   "date": "27.05.2026",
+   "amount": -1.04,
+   "cat": "other_expense",
+   "party": "Ryde Germany GmbH/Eichberg 59, c.o Padelon Rahlstedt GmbH/Ha"
+  },
+  {
+   "date": "27.05.2026",
+   "amount": -0.85,
+   "cat": "other_expense",
+   "party": "Ryde Germany GmbH/Eichberg 59, c.o Padelon Rahlstedt GmbH/Ha"
+  },
+  {
+   "date": "27.05.2026",
+   "amount": -15.89,
+   "cat": "other_expense",
+   "party": "SCHLOSS BURGER GMBH - 1417//FRANKFU RT M/DE"
+  },
+  {
+   "date": "28.05.2026",
+   "amount": -33.55,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "28.05.2026",
+   "amount": -1.74,
+   "cat": "other_expense",
+   "party": "HIT 4072 Frankfurt//Frankfurt/DE"
+  },
+  {
+   "date": "28.05.2026",
+   "amount": -11.66,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44401509/Eckenheim e/Frankfurt Norden /DE"
+  },
+  {
+   "date": "29.05.2026",
+   "amount": -9.99,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE//Koenigstein/DE"
+  },
+  {
+   "date": "29.05.2026",
+   "amount": -21.33,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE"
+  },
+  {
+   "date": "29.05.2026",
+   "amount": -106.99,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "01.06.2026",
+   "amount": -29.74,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "01.06.2026",
+   "amount": -7.99,
+   "cat": "other_expense",
+   "party": "APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1"
+  },
+  {
+   "date": "01.06.2026",
+   "amount": -0.78,
+   "cat": "other_expense",
+   "party": "EASYPAY.LIFECELL/82A, MEZHYHIRSKA S TR/KYIV/UA/2"
+  },
+  {
+   "date": "01.06.2026",
+   "amount": -22.39,
+   "cat": "other_expense",
+   "party": "SHOP.SILPO.UA 9/13, KALACHEVSKA STR ./KYIV/UA/2"
+  },
+  {
+   "date": "01.06.2026",
+   "amount": -63.0,
+   "cat": "other_expense",
+   "party": "Vira Overchuk Deutschlandticket DATUM 01.06.2026, 16.13 UHR"
+  },
+  {
+   "date": "02.06.2026",
+   "amount": -42.05,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400257/Textorstr ./Frankfurt Sachsenh /DE"
+  },
+  {
+   "date": "02.06.2026",
+   "amount": -1.11,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "03.06.2026",
+   "amount": -2.93,
+   "cat": "transport",
+   "party": "BOLT.EU.R."
+  },
+  {
+   "date": "05.06.2026",
+   "amount": -184.09,
+   "cat": "other_expense",
+   "party": "TOOM BM SAGT DANKE 13563634/An den dre/Oberursel /DE"
+  },
+  {
+   "date": "05.06.2026",
+   "amount": -5.95,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "05.06.2026",
+   "amount": -5.51,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "05.06.2026",
+   "amount": -10.26,
+   "cat": "other_expense",
+   "party": "MIDJOURNEY INC./611 Gateway Blvd Su ite 120/SOUTH SAN FRA/US"
+  },
+  {
+   "date": "05.06.2026",
+   "amount": -2.1,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "05.06.2026",
+   "amount": -5.49,
+   "cat": "other_expense",
+   "party": "2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "08.06.2026",
+   "amount": 10.26,
+   "cat": "other_income",
+   "party": "USD 1 Euro . 1.159400 USD / DMC-Karte-4019+ARN"
+  },
+  {
+   "date": "08.06.2026",
+   "amount": -1.38,
+   "cat": "other_expense",
+   "party": "LIME.RIDE IRHW/Westendstrae 28/FRAN KFURT/DE/0"
+  },
+  {
+   "date": "08.06.2026",
+   "amount": -3.4,
+   "cat": "other_expense",
+   "party": "Backwerk 076//Frankfurt/DE"
+  },
+  {
+   "date": "09.06.2026",
+   "amount": -21.82,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG/HOMBURGER LANDSTR . 268/FRANKFURT/DE"
+  },
+  {
+   "date": "09.06.2026",
+   "amount": -9.56,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "09.06.2026",
+   "amount": -40.53,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "10.06.2026",
+   "amount": -6.2,
+   "cat": "groceries",
+   "party": "Kiosk am Zoo/Holderlin St/Frankfurt /DE/0"
+  },
+  {
+   "date": "11.06.2026",
+   "amount": -9.95,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "11.06.2026",
+   "amount": -22.0,
+   "cat": "other_expense",
+   "party": "APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1"
+  },
+  {
+   "date": "11.06.2026",
+   "amount": -2.9,
+   "cat": "other_expense",
+   "party": "Dott scooter ride/Van Diemenstraat/ Amsterdam/NL/1"
+  },
+  {
+   "date": "12.06.2026",
+   "amount": -56.96,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "12.06.2026",
+   "amount": -5.13,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652324/Rheinalle e/Mainz Neustadt /DE"
+  },
+  {
+   "date": "12.06.2026",
+   "amount": -33.9,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "15.06.2026",
+   "amount": -6.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/D"
+  },
+  {
+   "date": "15.06.2026",
+   "amount": -4.75,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "15.06.2026",
+   "amount": -4.18,
+   "cat": "groceries",
+   "party": "EDEKA GRAF//FRANKFURT/DE"
+  },
+  {
+   "date": "15.06.2026",
+   "amount": -21.35,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "15.06.2026",
+   "amount": -19.5,
+   "cat": "other_expense",
+   "party": "NOVA POST DE GMBH/Sonnemannstrase 5 /Frankfurt am/DE/0"
+  },
+  {
+   "date": "16.06.2026",
+   "amount": -60.85,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "16.06.2026",
+   "amount": -6.55,
+   "cat": "paypal",
+   "party": "PayPal Europe S.a.r.l. et Cie S.C.A"
+  },
+  {
+   "date": "16.06.2026",
+   "amount": -7.9,
+   "cat": "other_expense",
+   "party": "Wiener Feinbackerei Heberer Gm/Zeil 116/Frankfurt am Main/DE"
+  },
+  {
+   "date": "17.06.2026",
+   "amount": -39.29,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE"
+  },
+  {
+   "date": "18.06.2026",
+   "amount": -15.35,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH/August-Schanz-Strasse 12/Frankfurt am Main/DE"
+  },
+  {
+   "date": "18.06.2026",
+   "amount": -2.99,
+   "cat": "transport",
+   "party": "BOLT.EU.P."
+  },
+  {
+   "date": "19.06.2026",
+   "amount": -4.11,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE/Frankfurter Str. 21 /Koenigstein/DE"
+  },
+  {
+   "date": "22.06.2026",
+   "amount": -5.7,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt a"
+  },
+  {
+   "date": "22.06.2026",
+   "amount": -3.5,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "22.06.2026",
+   "amount": -3.5,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "22.06.2026",
+   "amount": -4.99,
+   "cat": "other_expense",
+   "party": ""
+  },
+  {
+   "date": "23.06.2026",
+   "amount": -116.54,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Purchase at Rex 019ee61911d27f208c8f040075cd1"
+  },
+  {
+   "date": "23.06.2026",
+   "amount": -5.2,
+   "cat": "other_expense",
+   "party": "HINNERBAECKER FIL. 62/Eschersheimer Landstr. 47/Frankfurt am"
+  },
+  {
+   "date": "29.06.2026",
+   "amount": -1.14,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE"
+  },
+  {
+   "date": "30.06.2026",
+   "amount": -1.5,
+   "cat": "klarna",
+   "party": "berechtigte Ablehnung Rechnung RÜCKGABE LASTSCHRIFT EINR: Kl"
+  },
+  {
+   "date": "30.06.2026",
+   "amount": -3.5,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "30.06.2026",
+   "amount": -2.2,
+   "cat": "groceries",
+   "party": "Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0"
+  },
+  {
+   "date": "30.06.2026",
+   "amount": 10.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
   }
  ]
 }
