@@ -4237,6 +4237,220 @@ def get_jurist_token() -> str:
     return "".join(raw.split())
 
 
+# ── Продавец: отдельный бот (sales_bot.py) ───────────────────────────────────
+SELLER_WINDOW = 30      # последних реплик диалога дословно в контекст
+SELLER_STORE_CAP = 400  # реплик хранить в БД максимум
+
+
+def get_sales_token() -> str:
+    """Токен Продавец-бота: окружение → настройка в БД (не в git). Пробелы чистим —
+    автокоррекция Telegram иногда вставляет пробел внутрь токена."""
+    raw = os.environ.get("SALES_BOT_TOKEN") or _settings_get("sales_bot_token") or ""
+    return "".join(raw.split())
+
+
+def _seller_table(conn):
+    conn.execute("CREATE TABLE IF NOT EXISTS seller_messages ("
+                 "id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, text TEXT, "
+                 "ts TEXT DEFAULT (datetime('now')))")
+
+
+def remember_seller(role: str, text: str):
+    """Реплика диалога с Продавцом — в его отдельную память (по образцу Юриста)."""
+    try:
+        with db() as conn:
+            _seller_table(conn)
+            conn.execute("INSERT INTO seller_messages (role, text) VALUES (?,?)", (role, text))
+            conn.execute("DELETE FROM seller_messages WHERE id NOT IN "
+                         "(SELECT id FROM seller_messages ORDER BY id DESC LIMIT ?)",
+                         (SELLER_STORE_CAP,))
+    except Exception as e:
+        log.error(f"remember_seller: {e}")
+
+
+def get_seller_memory():
+    """Последние реплики диалога с Продавцом (старые → новые)."""
+    try:
+        with db() as conn:
+            _seller_table(conn)
+            rows = conn.execute("SELECT role, text FROM seller_messages ORDER BY id DESC LIMIT ?",
+                                (SELLER_WINDOW,)).fetchall()
+        return list(reversed(rows))
+    except Exception as e:
+        log.error(f"get_seller_memory: {e}")
+        return []
+
+
+def sales_dialog_sync(user_text: str) -> str:
+    """Диалоговый Продавец для отдельного бота: как sales_agent_sync, но помнит
+    переписку (окно последних реплик) и отвечает в живом диалоговом ритме."""
+    sys_prompt = (SALES_PROMPT
+                  .replace("{kb}", SALES_KB_DIR)
+                  .replace("{strategy_kb}", STRATEGY_KB_DIR)
+                  .replace("{legal_kb}", LEGAL_KB_DIR)
+                  .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    funnel = get_funnel_context()
+    plans = get_plans_context()
+    hist = "\n".join(
+        f"{'Владелец' if r['role'] == 'user' else 'Продавец'}: {r['text']}"
+        for r in get_seller_memory())
+    prompt = (
+        f"{get_legal_context()}\n\n"
+        + (funnel + "\n\n" if funnel else "")
+        + (plans + "\n\n" if plans else "")
+        + (f"ПОСЛЕДНИЕ РЕПЛИКИ ДИАЛОГА (помни их, не повторяйся):\n{hist}\n\n" if hist else "")
+        + "НОВОЕ СООБЩЕНИЕ ВЛАДЕЛЬЦА: " + user_text.strip() + "\n"
+        "Сначала прочитай базу знаний (Read: SKILL.md; по теме — references/leadgen.md, "
+        "references/tools.md, references/product.md), потом отвечай по данным выше. "
+        "Это живой диалог: отвечай по делу, без повторения уже сказанного, длина — по ситуации."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
+            capture_output=True, text=True, timeout=360,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        reply = ""
+        if s >= 0 and e > s:
+            try:
+                reply = (jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "")
+            except Exception:
+                reply = ""
+        return reply or raw
+    except Exception as e:
+        log.error(f"sales_dialog: {e}")
+        return ""
+
+
+def _sales_digest_history():
+    """(последние 60 тем, ВСЕ использованные цитаты) — для антиповтора дайджеста."""
+    topics, quotes = [], []
+    try:
+        with db() as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS sales_digest_log ("
+                         "id INTEGER PRIMARY KEY AUTOINCREMENT, d TEXT, topic TEXT, "
+                         "quotes TEXT, created_at TEXT DEFAULT (datetime('now')))")
+            topics = [r["topic"] for r in conn.execute(
+                "SELECT topic FROM sales_digest_log ORDER BY id DESC LIMIT 60") if r["topic"]]
+            for r in conn.execute("SELECT quotes FROM sales_digest_log"):
+                try:
+                    quotes += jsonlib.loads(r["quotes"] or "[]")
+                except Exception:
+                    pass
+    except Exception as e:
+        log.error(f"sales_digest_history: {e}")
+    return topics, quotes
+
+
+def sales_digest_sync():
+    """Утренний дайджест продаж (~7 минут чтения): тема + теория + цитаты + применение
+    к реальной воронке + микро-задание. Антиповтор тем/цитат — по логу в БД.
+    Возвращает (topic, text, quotes) или ("", "", [])."""
+    topics, used_quotes = _sales_digest_history()
+    protocol = os.path.join(SALES_KB_DIR, "references", "daily_digest.md")
+    funnel = get_funnel_context()
+    sys_prompt = (
+        "Ты — Продавец, наставник по продажам художника FARBAHOLIX (Франкфурт, муралы/граффити). "
+        f"Сгенерируй утренний дайджест СТРОГО по протоколу из файла {protocol} — прочитай его "
+        "через Read ПЕРВЫМ действием и следуй структуре/объёму/тону из него. "
+        "Сделай СЕГОДНЯ один WebSearch по свежим материалам о продажах и вплети находки, если ценные. "
+        "Верни ТОЛЬКО JSON без чего-либо ещё: "
+        '{"topic": "тема дня, коротко", "quotes": ["цитата — Книга, Автор", ...], '
+        '"text": "полный текст дайджеста в Telegram Markdown (жирный *одной звёздочкой*)"}')
+    prompt = (
+        f"Сегодня {datetime.now().strftime('%Y-%m-%d, %A')}.\n\n"
+        + (funnel + "\n\n" if funnel else "ВОРОНКА ПУСТА — сделай темой дня наполнение воронки.\n\n")
+        + ("ЗАПРЕЩЁННЫЕ ТЕМЫ (уже были, не повторяй и близко):\n- "
+           + "\n- ".join(topics) + "\n\n" if topics else "")
+        + ("ЗАПРЕЩЁННЫЕ ЦИТАТЫ (уже использованы, НИКОГДА не повторяй):\n- "
+           + "\n- ".join(used_quotes[-200:]) + "\n\n" if used_quotes else "")
+        + "Составь дайджест на сегодня.")
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "16"],
+            capture_output=True, text=True, timeout=420,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+    except Exception as e:
+        log.error(f"sales_digest run: {e}")
+        return "", "", []
+    topic, text, quotes = "", "", []
+    s, e = raw.find("{"), raw.rfind("}")
+    if s >= 0 and e > s:
+        try:
+            data = jsonlib.loads(raw[s:e + 1]) or {}
+            topic = (data.get("topic") or "").strip()
+            text = (data.get("text") or "").strip()
+            quotes = [q for q in (data.get("quotes") or []) if isinstance(q, str)]
+        except Exception:
+            pass
+    if not text:
+        text = raw  # деградация: шлём как есть, лишь бы утро не пропало
+    if text:
+        try:
+            with db() as conn:
+                conn.execute("INSERT INTO sales_digest_log (d, topic, quotes) VALUES (?,?,?)",
+                             (datetime.now().strftime("%Y-%m-%d"), topic,
+                              jsonlib.dumps(quotes, ensure_ascii=False)))
+        except Exception as ex:
+            log.error(f"sales_digest log: {ex}")
+    return topic, text, quotes
+
+
+def render_sales_card(topic: str, quote: str, when: str):
+    """Карточка дня к дайджесту: тема + цитата на тёмном градиенте (Pillow, офлайн).
+    Возвращает путь к JPEG или None — ошибка рендера не блокирует текст."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import textwrap
+        import tempfile as _tf
+        W, H = 1080, 1080
+        img = Image.new("RGB", (W, H))
+        drw = ImageDraw.Draw(img)
+        top_c, bot_c = (16, 22, 42), (74, 38, 94)  # тёмно-синий → фиолет
+        for y in range(H):
+            t = y / H
+            drw.line([(0, y), (W, y)],
+                     fill=tuple(int(top_c[i] + (bot_c[i] - top_c[i]) * t) for i in range(3)))
+
+        def _font(size, bold=False):
+            for p in ("/System/Library/Fonts/Helvetica.ttc",
+                      "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+                      "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else
+                      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
+                try:
+                    return ImageFont.truetype(p, size)
+                except Exception:
+                    continue
+            return ImageFont.load_default()
+
+        y = 130
+        drw.text((80, y), "УТРО ПРОДАЖ", font=_font(34), fill=(255, 208, 122))
+        y += 90
+        for line in textwrap.wrap(topic or "Продажи сегодня", width=24)[:4]:
+            drw.text((80, y), line, font=_font(72, bold=True), fill=(255, 255, 255))
+            y += 88
+        if quote:
+            y += 60
+            drw.line([(80, y), (200, y)], fill=(255, 208, 122), width=4)
+            y += 40
+            for line in textwrap.wrap("«" + quote.strip("«»\" ") + "»", width=38)[:8]:
+                drw.text((80, y), line, font=_font(40), fill=(214, 220, 235))
+                y += 56
+        drw.text((80, H - 110), f"FARBAHOLIX · SALES · {when}",
+                 font=_font(28), fill=(150, 158, 180))
+        out = _tf.NamedTemporaryFile(suffix=".jpg", delete=False).name
+        img.save(out, "JPEG", quality=90)
+        return out
+    except Exception as e:
+        log.error(f"render_sales_card: {e}")
+        return None
+
+
 async def legal_deadlines_check(ctx: ContextTypes.DEFAULT_TYPE):
     """Раз в день: если до немецкого срока осталось ровно N дней — напомнить (без дублей)."""
     chat_id = get_chat_id()
@@ -4317,7 +4531,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -4402,7 +4616,7 @@ def ensure_legal_kb():
     d = os.path.dirname(os.path.abspath(__file__))
     # + seed-файлы: при первом деплое /update качает по СТАРОМУ списку UPDATE_FILES,
     # поэтому новые файлы доезжают только самолечением
-    need = (["jurist_bot.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json"]
+    need = (["jurist_bot.py", "sales_bot.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json"]
             + [x for x in UPDATE_FILES if x.startswith("legal_kb/")])
     for f in need:
         dest = os.path.join(d, f)
@@ -4488,6 +4702,20 @@ def _restart_jurist(d):
     subprocess.Popen([sys.executable, "jurist_bot.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
     log.info("Юрист-бот запущен (supervised)")
+
+
+def _restart_sales(d):
+    """Поднять/перезапустить отдельного Продавец-бота (sales_bot.py) — тот же
+    паттерн, что _restart_jurist: только при наличии токена, старый процесс гасим."""
+    import sys
+    if not get_sales_token():
+        log.info("Токен Продавец-бота не задан — Продавец-бот не запускаю")
+        return
+    subprocess.run("pkill -9 -f sales_bot.py; true", shell=True)
+    logf = open("/tmp/sales.log", "ab")
+    subprocess.Popen([sys.executable, "sales_bot.py"], cwd=d,
+                     stdout=logf, stderr=logf, start_new_session=True)
+    log.info("Продавец-бот запущен (supervised)")
 
 
 def _restart_dashboard_mac(d):
@@ -4628,6 +4856,40 @@ async def cmd_setjuristtoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await ctx.bot.send_message(
         chat_id, "✅ Токен Юрист-бота сохранён, запускаю отдельного бота.\n"
                  "Открой нового бота в Telegram и нажми *Start* — он на связи.",
+        parse_mode="Markdown")
+
+
+async def cmd_setsalestoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Принять токен Продавец-бота, сохранить в БД (не в git) и поднять бота.
+    Сообщение с токеном сразу удаляем из чата ради безопасности."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    token = (update.message.text or "").partition(" ")[2]
+    token = "".join(token.split())
+    try:
+        await ctx.bot.delete_message(chat_id, update.message.message_id)
+    except Exception:
+        pass
+    if not re.match(r'^\d{6,}:[A-Za-z0-9_-]{30,}$', token):
+        await ctx.bot.send_message(
+            chat_id, "Это не похоже на токен. Пришли так: `/setsalestoken 123456789:AA...`",
+            parse_mode="Markdown")
+        return
+    _settings_set("sales_bot_token", token)
+    save_chat_id(chat_id)
+    d = os.path.dirname(os.path.abspath(__file__))
+    try:
+        _restart_sales(d)
+    except Exception as e:
+        log.error(f"setsalestoken restart: {e}")
+        await ctx.bot.send_message(chat_id, f"Токен сохранён, но запуск дал сбой: {e}")
+        return
+    await ctx.bot.send_message(
+        chat_id, "✅ Токен Продавец-бота сохранён, запускаю отдельного бота.\n"
+                 "Открой нового бота в Telegram и нажми *Start* — Продавец на связи. "
+                 "Утренний дайджест продаж будет приходить туда в 07:00.",
         parse_mode="Markdown")
 
 
@@ -5559,6 +5821,7 @@ def main():
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
+    app.add_handler(CommandHandler("setsalestoken", cmd_setsalestoken))
     app.add_handler(CommandHandler("setinvoicedata", cmd_setinvoicedata))
     app.add_handler(CommandHandler("wipeinvoicestoday", cmd_wipeinvoicestoday))
     app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
@@ -5586,6 +5849,12 @@ def main():
         _restart_jurist(os.path.dirname(os.path.abspath(__file__)))
     except Exception as e:
         log.error(f"start jurist: {e}")
+
+    # Продавец — отдельный бот (sales_bot.py); поднимаем его, если задан токен
+    try:
+        _restart_sales(os.path.dirname(os.path.abspath(__file__)))
+    except Exception as e:
+        log.error(f"start sales: {e}")
 
     log.info("Секретарь запущен 🗂")
     app.run_polling(drop_pending_updates=False)
