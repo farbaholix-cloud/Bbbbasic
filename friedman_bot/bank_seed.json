@@ -2,11 +2,47 @@
  "meta": {
   "source": "Naspa Kontoauszüge",
   "account": "DE50…9122",
-  "period": "2024-12 … 2026-06",
-  "transactions_parsed": 1016,
+  "period": "2024-03 … 2026-06",
+  "transactions_parsed": 1178,
   "note": "полный список всех операций в transactions; business_transactions — деловое подмножество"
  },
  "monthly": {
+  "2024-03": {
+   "in": 30.0,
+   "out": -322.21
+  },
+  "2024-04": {
+   "in": 1450.0,
+   "out": -1266.45
+  },
+  "2024-05": {
+   "in": 950.0,
+   "out": -757.99
+  },
+  "2024-06": {
+   "in": 388.0,
+   "out": -758.42
+  },
+  "2024-07": {
+   "in": 100.0,
+   "out": -102.03
+  },
+  "2024-08": {
+   "in": 13.0,
+   "out": 0.0
+  },
+  "2024-09": {
+   "in": 2375.0,
+   "out": -28.79
+  },
+  "2024-10": {
+   "in": 440.0,
+   "out": -2761.84
+  },
+  "2024-11": {
+   "in": 679.49,
+   "out": -683.94
+  },
   "2024-12": {
    "in": 4788.03,
    "out": -3521.99
@@ -86,63 +122,219 @@
  },
  "categories": {
   "other_expense": {
-   "total": -11253.27,
-   "count": 409
+   "total": -13229.37,
+   "count": 442
   },
   "cash": {
-   "total": -10550.9,
-   "count": 36
+   "total": -11680.9,
+   "count": 43
+  },
+  "groceries": {
+   "total": -9093.04,
+   "count": 362
   },
   "rent_utilities": {
    "total": -8825.52,
    "count": 12
-  },
-  "groceries": {
-   "total": -7421.5,
-   "count": 290
   },
   "subcontractor_artists": {
    "total": -4109.73,
    "count": 12
   },
   "art_supplies": {
-   "total": -2568.68,
-   "count": 56
+   "total": -3864.72,
+   "count": 68
   },
   "klarna": {
-   "total": -1986.31,
-   "count": 30
+   "total": -2378.01,
+   "count": 41
   },
   "refund": {
    "total": -1370.0,
    "count": 3
   },
+  "phone_internet": {
+   "total": -1335.67,
+   "count": 42
+  },
   "transport": {
    "total": -1207.5,
    "count": 48
   },
-  "phone_internet": {
-   "total": -1170.67,
-   "count": 31
-  },
   "health": {
-   "total": -331.25,
-   "count": 6
+   "total": -353.05,
+   "count": 7
   },
   "paypal": {
    "total": -16.54,
    "count": 2
   },
   "other_income": {
-   "total": 7417.49,
-   "count": 39
+   "total": 10263.49,
+   "count": 51
   },
   "client_income": {
-   "total": 43373.7,
-   "count": 42
+   "total": 46923.7,
+   "count": 45
   }
  },
  "business_transactions": [
+  {
+   "date": "18.03.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 396148"
+  },
+  {
+   "date": "18.03.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 918634"
+  },
+  {
+   "date": "03.04.2024",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "HIG Höll Immo und Gastro GmbH re 26.0324. kdn 001"
+  },
+  {
+   "date": "10.04.2024",
+   "amount": -100.3,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "17.04.2024",
+   "amount": -33.75,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "19.04.2024",
+   "amount": -14.15,
+   "cat": "art_supplies",
+   "party": "BAUHAUS FRANKFURT - DANKE"
+  },
+  {
+   "date": "29.04.2024",
+   "amount": -23.0,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "02.05.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 031166"
+  },
+  {
+   "date": "03.05.2024",
+   "amount": -13.5,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "28.05.2024",
+   "amount": 300.0,
+   "cat": "client_income",
+   "party": "LENA STEFANIE SPONSEL-WIPPLINGER 140524 27.05.2024 MW-Folien"
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -20.0,
+   "cat": "art_supplies",
+   "party": "TEDi Fil. 5524//Frankfurt/DE"
+  },
+  {
+   "date": "17.06.2024",
+   "amount": -9.0,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 6119//Frankfurt/DE"
+  },
+  {
+   "date": "17.06.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 590323"
+  },
+  {
+   "date": "20.09.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "25.09.2024",
+   "amount": 2250.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RG: 5"
+  },
+  {
+   "date": "01.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "10.10.2024",
+   "amount": -169.6,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "17.10.2024",
+   "amount": -192.59,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "22.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "23.10.2024",
+   "amount": -119.55,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "24.10.2024",
+   "amount": -562.2,
+   "cat": "art_supplies",
+   "party": "HORNBACH BAUMARKT A//FRANKFURT/DE"
+  },
+  {
+   "date": "28.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "28.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "13.11.2024",
+   "amount": -38.4,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "21.11.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "25.11.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
   {
    "date": "02.12.2024",
    "amount": -15.0,
@@ -1279,6 +1471,978 @@
   }
  ],
  "transactions": [
+  {
+   "date": "04.03.2024",
+   "amount": -48.81,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "04.03.2024",
+   "amount": -4.42,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400631//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "05.03.2024",
+   "amount": -0.79,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "08.03.2024",
+   "amount": -150.0,
+   "cat": "cash",
+   "party": "F-ZEIL 2//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "08.03.2024",
+   "amount": -10.52,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "08.03.2024",
+   "amount": -4.28,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400003//Frankfur t/DE"
+  },
+  {
+   "date": "11.03.2024",
+   "amount": -3.49,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652470//Frankfur t Norden/DE"
+  },
+  {
+   "date": "11.03.2024",
+   "amount": -18.15,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "11.03.2024",
+   "amount": -1.75,
+   "cat": "groceries",
+   "party": "DM FIL.1274 H:65317//FRANKFURT AM M AIN/DE"
+  },
+  {
+   "date": "12.03.2024",
+   "amount": -50.0,
+   "cat": "cash",
+   "party": "F-RIEDB.C2//FRANKFURTER SPARKASSE/D E"
+  },
+  {
+   "date": "18.03.2024",
+   "amount": 30.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "18.03.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 396148"
+  },
+  {
+   "date": "18.03.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 918634"
+  },
+  {
+   "date": "02.04.2024",
+   "amount": -22.01,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "02.04.2024",
+   "amount": 300.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "03.04.2024",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "HIG Höll Immo und Gastro GmbH re 26.0324. kdn 001"
+  },
+  {
+   "date": "04.04.2024",
+   "amount": -7.1,
+   "cat": "other_expense",
+   "party": "VGF FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "04.04.2024",
+   "amount": -9.35,
+   "cat": "groceries",
+   "party": "DM FIL.0927 H:65151//FRANKFURT AM M AIN/DE"
+  },
+  {
+   "date": "05.04.2024",
+   "amount": -8.33,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "08.04.2024",
+   "amount": -19.74,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480//Frankfur t/DE"
+  },
+  {
+   "date": "08.04.2024",
+   "amount": -2.5,
+   "cat": "other_expense",
+   "party": "Backwerk FFM Suedbahnhof//Frankfurt /DE"
+  },
+  {
+   "date": "08.04.2024",
+   "amount": -2.5,
+   "cat": "other_expense",
+   "party": "Lagard re Travel Retail//Frankfurt/ DE"
+  },
+  {
+   "date": "09.04.2024",
+   "amount": -95.45,
+   "cat": "other_expense",
+   "party": "TEDOX KG SAGT DANKE"
+  },
+  {
+   "date": "09.04.2024",
+   "amount": -38.29,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAIK2NBJXB DATUM 09.04.2024, 17.19 UHR"
+  },
+  {
+   "date": "10.04.2024",
+   "amount": -100.3,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "10.04.2024",
+   "amount": -20.21,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "10.04.2024",
+   "amount": -38.46,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "12.04.2024",
+   "amount": -3.89,
+   "cat": "other_expense",
+   "party": "MCDONALD S DEUTSCHLAND LLC//MUENCHE N/DE"
+  },
+  {
+   "date": "15.04.2024",
+   "amount": -477.5,
+   "cat": "other_expense",
+   "party": "SPANGENBERG.FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "15.04.2024",
+   "amount": -10.98,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "15.04.2024",
+   "amount": -34.47,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "16.04.2024",
+   "amount": -6.12,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "16.04.2024",
+   "amount": -8.15,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "17.04.2024",
+   "amount": -33.75,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "18.04.2024",
+   "amount": -100.0,
+   "cat": "cash",
+   "party": "ROSSMARKT//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "18.04.2024",
+   "amount": -21.8,
+   "cat": "health",
+   "party": "Apotheke im Hauptbahnhof//Frankfurt /DE"
+  },
+  {
+   "date": "18.04.2024",
+   "amount": -3.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "18.04.2024",
+   "amount": -4.25,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "19.04.2024",
+   "amount": -14.15,
+   "cat": "art_supplies",
+   "party": "BAUHAUS FRANKFURT - DANKE"
+  },
+  {
+   "date": "19.04.2024",
+   "amount": -7.27,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400067//Frankfur t am Main/DE"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": 150.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -9.97,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAIK9NJBXB DATUM 21.04.2024, 21.43 UHR"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -18.4,
+   "cat": "other_expense",
+   "party": "SPANGENBERG.FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -9.03,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -10.04,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -6.73,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -10.0,
+   "cat": "groceries",
+   "party": "Kiosk//Frankfurt am Main/DE"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -4.5,
+   "cat": "groceries",
+   "party": "Woolworth GmbH Fil. 1795//Frankfurt /DE"
+  },
+  {
+   "date": "22.04.2024",
+   "amount": -3.85,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "23.04.2024",
+   "amount": -31.29,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "23.04.2024",
+   "amount": -5.8,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "26.04.2024",
+   "amount": -26.14,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "26.04.2024",
+   "amount": -5.48,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302324//Ruessel sheim/DE"
+  },
+  {
+   "date": "29.04.2024",
+   "amount": -2.6,
+   "cat": "other_expense",
+   "party": "NORMA SAGT DANKE//Ruesselsheim/DE"
+  },
+  {
+   "date": "29.04.2024",
+   "amount": -9.2,
+   "cat": "other_expense",
+   "party": "SPANGENBERG.FRANKFURT//Frankfurt am Main/DE"
+  },
+  {
+   "date": "29.04.2024",
+   "amount": -23.0,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "02.05.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 031166"
+  },
+  {
+   "date": "03.05.2024",
+   "amount": -10.1,
+   "cat": "other_expense",
+   "party": "Mehmet Balik//Russelsheim/DE"
+  },
+  {
+   "date": "03.05.2024",
+   "amount": -27.72,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480//Frankfur t/DE"
+  },
+  {
+   "date": "03.05.2024",
+   "amount": -13.5,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "03.05.2024",
+   "amount": -3.7,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "06.05.2024",
+   "amount": 150.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "07.05.2024",
+   "amount": -11.5,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "07.05.2024",
+   "amount": -10.45,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "13.05.2024",
+   "amount": -2.68,
+   "cat": "other_expense",
+   "party": "ORIENT MASTER GMBH//FRANKFURT/DE"
+  },
+  {
+   "date": "13.05.2024",
+   "amount": -16.76,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "13.05.2024",
+   "amount": -3.48,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652442//Frankfur t Ostend/DE"
+  },
+  {
+   "date": "13.05.2024",
+   "amount": -5.2,
+   "cat": "other_expense",
+   "party": "Wiener Feinbackerei Heberer GmbH//F rankfurt am Main/DE"
+  },
+  {
+   "date": "13.05.2024",
+   "amount": -1.54,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "13.05.2024",
+   "amount": -39.81,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "13.05.2024",
+   "amount": -19.5,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44401030//Frankfur t (NWZ)/DE"
+  },
+  {
+   "date": "17.05.2024",
+   "amount": -147.02,
+   "cat": "other_expense",
+   "party": "Felmo GmbH RE304047 DATUM 16.05.2024, 21.17 UHR 931615276-"
+  },
+  {
+   "date": "28.05.2024",
+   "amount": 300.0,
+   "cat": "client_income",
+   "party": "LENA STEFANIE SPONSEL-WIPPLINGER 140524 27.05.2024 MW-Folien"
+  },
+  {
+   "date": "28.05.2024",
+   "amount": -200.0,
+   "cat": "other_expense",
+   "party": "Maik Füller Wand Gestalltung Fassade DATUM 28.05.2024, 13.27"
+  },
+  {
+   "date": "29.05.2024",
+   "amount": -44.36,
+   "cat": "groceries",
+   "party": "ALDI SE U. CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "31.05.2024",
+   "amount": -3.97,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "31.05.2024",
+   "amount": 500.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "31.05.2024",
+   "amount": -181.7,
+   "cat": "other_expense",
+   "party": "Jorge Alejandro Labrana Alarcon Farbe Halbmaske DATUM 31.05."
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -43.47,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480//Frankfur t/DE"
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -200.0,
+   "cat": "cash",
+   "party": "ROSSMARKT//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -20.0,
+   "cat": "art_supplies",
+   "party": "TEDi Fil. 5524//Frankfurt/DE"
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -33.64,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400003//Frankfur t/DE"
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -3.92,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400003//Frankfur t/DE"
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -11.5,
+   "cat": "other_expense",
+   "party": "ozdemir Gastro GmbH//Frankfurt am M ain/DE"
+  },
+  {
+   "date": "03.06.2024",
+   "amount": -4.9,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "04.06.2024",
+   "amount": -4.24,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "10.06.2024",
+   "amount": 388.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "11.06.2024",
+   "amount": -150.0,
+   "cat": "cash",
+   "party": "F-ZEIL 1//FRANKFURTER SPARKASSE/DE"
+  },
+  {
+   "date": "11.06.2024",
+   "amount": -84.01,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44401509//Frankfur t Norden/DE"
+  },
+  {
+   "date": "11.06.2024",
+   "amount": -50.28,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44401509//Frankfur t Norden/DE"
+  },
+  {
+   "date": "17.06.2024",
+   "amount": -19.0,
+   "cat": "other_expense",
+   "party": "Superhero Flea Market Superhero Flea Market 16.06 DATUM 15.0"
+  },
+  {
+   "date": "17.06.2024",
+   "amount": -4.62,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "17.06.2024",
+   "amount": -9.0,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 6119//Frankfurt/DE"
+  },
+  {
+   "date": "17.06.2024",
+   "amount": -12.36,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "17.06.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden TAN 590323"
+  },
+  {
+   "date": "19.06.2024",
+   "amount": -6.94,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "19.06.2024",
+   "amount": -29.64,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400257//Frankfur t Sachsenh/DE"
+  },
+  {
+   "date": "20.06.2024",
+   "amount": -6.67,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "20.06.2024",
+   "amount": -7.44,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400142//Frankfur t Eckenhei/DE"
+  },
+  {
+   "date": "21.06.2024",
+   "amount": -32.8,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652480//Frankfur t/DE"
+  },
+  {
+   "date": "24.06.2024",
+   "amount": -2.95,
+   "cat": "other_expense",
+   "party": "Der Baecker Eifler GmbH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "25.06.2024",
+   "amount": -4.5,
+   "cat": "other_expense",
+   "party": "Too Good To Go/Landskronagade/Copen hagen/DK"
+  },
+  {
+   "date": "27.06.2024",
+   "amount": -1.54,
+   "cat": "groceries",
+   "party": "TEGUT SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "01.07.2024",
+   "amount": -22.03,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "01.07.2024",
+   "amount": 100.0,
+   "cat": "other_income",
+   "party": "Jorge Alejandro Labrana Alarcon NOTPROVIDED"
+  },
+  {
+   "date": "01.07.2024",
+   "amount": -80.0,
+   "cat": "cash",
+   "party": "GA NR00002533 BLZ51050015 0 01.07/08.59UHR NORDEND"
+  },
+  {
+   "date": "13.08.2024",
+   "amount": 10.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "29.08.2024",
+   "amount": 3.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "16.09.2024",
+   "amount": 125.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "19.09.2024",
+   "amount": -3.98,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400003//Frankfur t/DE"
+  },
+  {
+   "date": "20.09.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "25.09.2024",
+   "amount": 2250.0,
+   "cat": "client_income",
+   "party": "FSV Frankfurt 1899 Fusball GmbH RG: 5"
+  },
+  {
+   "date": "30.09.2024",
+   "amount": -9.81,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens TEGUT SAGT DANKE"
+  },
+  {
+   "date": "01.10.2024",
+   "amount": -22.0,
+   "cat": "other_expense",
+   "party": "siehe Anlage Nr. 1"
+  },
+  {
+   "date": "01.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "04.10.2024",
+   "amount": -63.9,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "07.10.2024",
+   "amount": -36.77,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt-Preunges heim/DE"
+  },
+  {
+   "date": "07.10.2024",
+   "amount": -26.78,
+   "cat": "other_expense",
+   "party": "KFC 319//FRANKFURT/DE"
+  },
+  {
+   "date": "08.10.2024",
+   "amount": -121.71,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "10.10.2024",
+   "amount": -169.6,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "11.10.2024",
+   "amount": -22.22,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens TEGUT SAGT DANKE"
+  },
+  {
+   "date": "14.10.2024",
+   "amount": -11.68,
+   "cat": "groceries",
+   "party": "LIDL SAGT DANKE//Frankfurt/DE"
+  },
+  {
+   "date": "14.10.2024",
+   "amount": -44.12,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "14.10.2024",
+   "amount": -46.05,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "14.10.2024",
+   "amount": -47.0,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400031//Frankfur t Preunges/DE"
+  },
+  {
+   "date": "15.10.2024",
+   "amount": -4.64,
+   "cat": "other_expense",
+   "party": "AMAZON PAYMENTS EUROPE S.C.A. 302-0037285-6121905 AMZN Mktp "
+  },
+  {
+   "date": "15.10.2024",
+   "amount": -88.52,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652442//Frankfur t Ostend/DE"
+  },
+  {
+   "date": "15.10.2024",
+   "amount": -300.0,
+   "cat": "other_expense",
+   "party": "VIRA OVERCHUK DATUM 15.10.2024, 16.15 UHR -"
+  },
+  {
+   "date": "16.10.2024",
+   "amount": -400.0,
+   "cat": "cash",
+   "party": "GA NR00002147 BLZ51050015 0 15.10/20.48UHR NORDEND"
+  },
+  {
+   "date": "16.10.2024",
+   "amount": -11.95,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652470//Frankfur t Norden/DE"
+  },
+  {
+   "date": "16.10.2024",
+   "amount": 440.0,
+   "cat": "other_income",
+   "party": "VIRA OVERCHUK"
+  },
+  {
+   "date": "16.10.2024",
+   "amount": -16.89,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAINGKTVXB DATUM 16.10.2024, 09.40 UHR"
+  },
+  {
+   "date": "17.10.2024",
+   "amount": -192.59,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "18.10.2024",
+   "amount": -178.5,
+   "cat": "other_expense",
+   "party": "Sebastian Robl Beratungsleistung 04.24-09.24 DATUM 18.10.202"
+  },
+  {
+   "date": "21.10.2024",
+   "amount": -170.0,
+   "cat": "other_expense",
+   "party": "Maik Füller Reinigung der Fassade der PSD Bank Arena DATUM 1"
+  },
+  {
+   "date": "21.10.2024",
+   "amount": -19.9,
+   "cat": "groceries",
+   "party": "WOOLWORTH GMBH"
+  },
+  {
+   "date": "21.10.2024",
+   "amount": -9.02,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44652442//Frankfur t Ostend/DE"
+  },
+  {
+   "date": "21.10.2024",
+   "amount": -7.98,
+   "cat": "groceries",
+   "party": "REWE SAGT DANKE. 44400460//Frankfur t Bornheim/DE"
+  },
+  {
+   "date": "22.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "23.10.2024",
+   "amount": -119.55,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "23.10.2024",
+   "amount": -8.27,
+   "cat": "groceries",
+   "party": "PENNY SAGT DANKE. 63302103//Frankfu rt Nordend-/DE"
+  },
+  {
+   "date": "24.10.2024",
+   "amount": -562.2,
+   "cat": "art_supplies",
+   "party": "HORNBACH BAUMARKT A//FRANKFURT/DE"
+  },
+  {
+   "date": "28.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "28.10.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "01.11.2024",
+   "amount": 650.0,
+   "cat": "other_income",
+   "party": "Vira Overchuk"
+  },
+  {
+   "date": "01.11.2024",
+   "amount": -29.49,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAINRY2IXB DATUM 01.11.2024, 09.43 UHR"
+  },
+  {
+   "date": "01.11.2024",
+   "amount": -29.49,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAINSD5AXB DATUM 01.11.2024, 17.48 UHR"
+  },
+  {
+   "date": "04.11.2024",
+   "amount": -189.7,
+   "cat": "groceries",
+   "party": "Kaufland Frankfurt am Main//Frankfu rt am Main/DE"
+  },
+  {
+   "date": "05.11.2024",
+   "amount": -6.86,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 111 34 Stockholm SE wolt.com/de"
+  },
+  {
+   "date": "11.11.2024",
+   "amount": -7.9,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAINYUIGXB DATUM 11.11.2024, 01.01 UHR"
+  },
+  {
+   "date": "11.11.2024",
+   "amount": 29.49,
+   "cat": "klarna",
+   "party": "Klarna Bank AB Sveavagen 46 Klarna Refund RTE-73188056"
+  },
+  {
+   "date": "12.11.2024",
+   "amount": -11.9,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
+  {
+   "date": "12.11.2024",
+   "amount": -22.58,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 111 34 Stockholm SE wolt.com/de"
+  },
+  {
+   "date": "13.11.2024",
+   "amount": -38.4,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT"
+  },
+  {
+   "date": "14.11.2024",
+   "amount": -252.73,
+   "cat": "klarna",
+   "party": "Klarna Bank AB 13KLARNA11"
+  },
+  {
+   "date": "14.11.2024",
+   "amount": -6.99,
+   "cat": "klarna",
+   "party": "Klarna Bank AB XAIO19U4XB DATUM 14.11.2024, 08.16 UHR"
+  },
+  {
+   "date": "15.11.2024",
+   "amount": -4.32,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
+  {
+   "date": "21.11.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "25.11.2024",
+   "amount": -11.62,
+   "cat": "groceries",
+   "party": "ALDI SE + CO. KG//FRANKFURT/DE"
+  },
+  {
+   "date": "25.11.2024",
+   "amount": -15.0,
+   "cat": "phone_internet",
+   "party": "HB-Handy-Laden PUSHTAN/DE"
+  },
+  {
+   "date": "28.11.2024",
+   "amount": -35.68,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
+  {
+   "date": "29.11.2024",
+   "amount": -6.28,
+   "cat": "groceries",
+   "party": "tegut... gute Lebens"
+  },
   {
    "date": "02.12.2024",
    "amount": 800.0,
