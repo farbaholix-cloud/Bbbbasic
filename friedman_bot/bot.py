@@ -4334,6 +4334,9 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "invoice.py", "finance_report.py", "d
                 "strategy_kb/references/art-manager.md",
                 "sales_kb/SKILL.md",
                 "sales_kb/references/product.md",
+                "sales_kb/references/leadgen.md",
+                "sales_kb/references/daily_digest.md",
+                "sales_kb/references/tools.md",
                 "invoices_seed.json",
                 "bank_seed.json"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
