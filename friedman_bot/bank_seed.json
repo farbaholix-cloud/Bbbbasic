@@ -2,8 +2,8 @@
  "meta": {
   "source": "Naspa Kontoauszüge",
   "account": "DE50…9122",
-  "period": "2024-12 … 2025-12",
-  "transactions_parsed": 742,
+  "period": "2024-12 … 2026-06",
+  "transactions_parsed": 1016,
   "note": "личные расходы — только агрегаты; полный список — деловые операции"
  },
  "monthly": {
@@ -58,60 +58,88 @@
   "2025-12": {
    "in": 2120.0,
    "out": -1850.72
+  },
+  "2026-01": {
+   "in": 2550.0,
+   "out": -2743.27
+  },
+  "2026-02": {
+   "in": 940.0,
+   "out": -630.93
+  },
+  "2026-03": {
+   "in": 1005.0,
+   "out": -1452.07
+  },
+  "2026-04": {
+   "in": 3050.0,
+   "out": -3028.44
+  },
+  "2026-05": {
+   "in": 7570.0,
+   "out": -6658.19
+  },
+  "2026-06": {
+   "in": 20.26,
+   "out": -937.96
   }
  },
  "categories": {
   "other_expense": {
-   "total": -9746.97,
-   "count": 293
+   "total": -11617.82,
+   "count": 414
   },
   "cash": {
-   "total": -7705.9,
-   "count": 28
+   "total": -10550.9,
+   "count": 36
   },
   "subcontractor_artists": {
    "total": -5984.23,
    "count": 15
   },
   "groceries": {
-   "total": -5498.21,
-   "count": 213
+   "total": -7469.1,
+   "count": 290
   },
   "rent_utilities": {
-   "total": -4160.0,
-   "count": 5
+   "total": -8825.52,
+   "count": 12
   },
   "art_supplies": {
-   "total": -1738.79,
-   "count": 39
+   "total": -2173.33,
+   "count": 49
   },
   "health": {
-   "total": -1583.72,
-   "count": 17
+   "total": -1594.67,
+   "count": 18
   },
   "klarna": {
-   "total": -1349.06,
-   "count": 22
-  },
-  "phone_internet": {
-   "total": -800.98,
-   "count": 23
-  },
-  "transport": {
-   "total": -211.1,
-   "count": 26
-  },
-  "refund": {
-   "total": 130.0,
-   "count": 2
-  },
-  "other_income": {
-   "total": 4152.21,
+   "total": -1647.67,
    "count": 28
   },
+  "phone_internet": {
+   "total": -1172.3,
+   "count": 30
+  },
+  "transport": {
+   "total": -295.67,
+   "count": 39
+  },
+  "refund": {
+   "total": -1370.0,
+   "count": 3
+  },
+  "other_income": {
+   "total": 7417.47,
+   "count": 37
+  },
   "client_income": {
-   "total": 34791.67,
-   "count": 31
+   "total": 45279.6,
+   "count": 43
+  },
+  "paypal": {
+   "total": -16.54,
+   "count": 2
   }
  },
  "business_transactions": [
@@ -918,6 +946,258 @@
    "amount": -4.6,
    "cat": "transport",
    "party": "BOLT.EUR"
+  },
+  {
+   "date": "05.01.2026",
+   "amount": -1.1,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "12.01.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "HIG Höll Immo und Gastro GmbH Kunde 001"
+  },
+  {
+   "date": "15.01.2026",
+   "amount": -62.84,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "15.01.2026",
+   "amount": -67.2,
+   "cat": "art_supplies",
+   "party": "Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU"
+  },
+  {
+   "date": "19.01.2026",
+   "amount": -14.65,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "21.01.2026",
+   "amount": -10.0,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "22.01.2026",
+   "amount": -6.55,
+   "cat": "art_supplies",
+   "party": "TEDI Fil. 5860//Ruesselsheim/DE"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": 500.0,
+   "cat": "client_income",
+   "party": "HIG Holl Immo und Gastro GmbH ReNr 270126, KdNr 001 Gestaltu"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "HIG Holl Immo und Gastro GmbH ReNr 260126, KdNr 001 Gestaltu"
+  },
+  {
+   "date": "29.01.2026",
+   "amount": -124.95,
+   "cat": "client_income",
+   "party": "Main Werbetechnik Höll DATUM 29.01.2026, 12.46 UHR"
+  },
+  {
+   "date": "06.02.2026",
+   "amount": -8.85,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "12.02.2026",
+   "amount": -57.16,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "23.02.2026",
+   "amount": 820.0,
+   "cat": "client_income",
+   "party": "Christian Höll RN. 270126"
+  },
+  {
+   "date": "25.02.2026",
+   "amount": -16.8,
+   "cat": "transport",
+   "party": "TIERARZTPRAXIS DR. MAIKE H.CH//Fran kfurt am Main/DE"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -110.55,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH//Frankfurt am Main/DE"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": -10.59,
+   "cat": "transport",
+   "party": "UBR. PENDING.UBER.COM/Mr Treublaan 7/AMSTERDAM/NL/1"
+  },
+  {
+   "date": "02.03.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "Christian Höll RN. 270127"
+  },
+  {
+   "date": "12.03.2026",
+   "amount": -1.5,
+   "cat": "phone_internet",
+   "party": "berechtigte Ablehnung Rechnung RÜCKGABE LASTSCHRIFT EINR: Te"
+  },
+  {
+   "date": "07.04.2026",
+   "amount": 2000.0,
+   "cat": "client_income",
+   "party": "PtH Sankt Georgen 24.03.26 260326 2.000,00 OLPAYMENTTAN.1.32"
+  },
+  {
+   "date": "13.04.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "Opernplatz 12 GmbH KD 014 RG 090426"
+  },
+  {
+   "date": "14.04.2026",
+   "amount": -4.33,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "15.04.2026",
+   "amount": -127.11,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "06.05.2026",
+   "amount": 3550.0,
+   "cat": "client_income",
+   "party": "PtH Sankt Georgen 29.04.26 270426 3.550,00 OLPAYMENTTAN.1.35"
+  },
+  {
+   "date": "08.05.2026",
+   "amount": -13.48,
+   "cat": "transport",
+   "party": "FLIX/Friedenheimer Br cke 16/M nche n/DE/0"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -1200.0,
+   "cat": "client_income",
+   "party": "Maik Füller Sankt Georgen Park (Rechnung 2026-0 001) DATUM 0"
+  },
+  {
+   "date": "11.05.2026",
+   "amount": -57.12,
+   "cat": "client_income",
+   "party": "Main Werbetechnik Cansativa Projekt DATUM 11.05.2026, 11.08 "
+  },
+  {
+   "date": "13.05.2026",
+   "amount": -57.35,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "18.05.2026",
+   "amount": 1000.0,
+   "cat": "client_income",
+   "party": "Cansativa GmbH RNr. 080526 RDat. 08.05.2026 KNr. 0 06"
+  },
+  {
+   "date": "18.05.2026",
+   "amount": -8.4,
+   "cat": "phone_internet",
+   "party": "BOLT.EUO"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -9.76,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "26.05.2026",
+   "amount": -5.28,
+   "cat": "transport",
+   "party": "ARAL Frankfurt Ratsweg 12//Frankfur t/DE"
+  },
+  {
+   "date": "28.05.2026",
+   "amount": -33.55,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "29.05.2026",
+   "amount": -9.99,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE//Koenigstein/DE"
+  },
+  {
+   "date": "29.05.2026",
+   "amount": -106.99,
+   "cat": "art_supplies",
+   "party": "OBI SAGT DANKE/OBI Heimwerkermarkt GmbH Co/Frankfurt-Sachsen"
+  },
+  {
+   "date": "02.06.2026",
+   "amount": -1.11,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "03.06.2026",
+   "amount": -2.93,
+   "cat": "transport",
+   "party": "BOLT.EU.R."
+  },
+  {
+   "date": "05.06.2026",
+   "amount": -2.1,
+   "cat": "transport",
+   "party": "BOLT.EUR"
+  },
+  {
+   "date": "12.06.2026",
+   "amount": -56.96,
+   "cat": "phone_internet",
+   "party": "Telefonica Germany GmbH + Co. OHG Kd-Nr.:"
+  },
+  {
+   "date": "16.06.2026",
+   "amount": -60.85,
+   "cat": "art_supplies",
+   "party": "HORNBACH FRANKFURT HORNBACH FRANKFURT"
+  },
+  {
+   "date": "18.06.2026",
+   "amount": -15.35,
+   "cat": "art_supplies",
+   "party": "BOESNER GMBH/August-Schanz-Strasse 12/Frankfurt am Main/DE"
+  },
+  {
+   "date": "18.06.2026",
+   "amount": -2.99,
+   "cat": "transport",
+   "party": "BOLT.EU.P."
+  },
+  {
+   "date": "19.06.2026",
+   "amount": -4.11,
+   "cat": "transport",
+   "party": "ESSO TANKSTELLE/Frankfurter Str. 21 /Koenigstein/DE"
   }
  ]
 }
