@@ -1773,15 +1773,43 @@ def get_funnel_context() -> str:
     return "\n".join(lines)
 
 
+def get_leads_context() -> str:
+    """Доска лидов бизнес-пульта (dashboard_biz.py): стадии, касания, просрочки."""
+    st = {"new": "📥 новый", "contacted": "📞 контакт",
+          "qualified": "✅ квалифицирован", "offer": "📄 оферта"}
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT name, channel, budget_est, stage, next_action, next_action_date, touches "
+                "FROM leads WHERE stage IN ('new','contacted','qualified','offer') "
+                "ORDER BY CASE WHEN next_action_date IS NULL THEN 1 ELSE 0 END, "
+                "next_action_date").fetchall()
+    except Exception:
+        return ""
+    if not rows:
+        return ""
+    today = datetime.now().strftime("%Y-%m-%d")
+    lines = ["ДОСКА ЛИДОВ (до воронки денег; правило: у живого лида всегда следующее касание):"]
+    for r in rows:
+        over = " ⚠ПРОСРОЧЕНО" if r["next_action_date"] and r["next_action_date"] < today else ""
+        na = (f" · след: {r['next_action']} до {r['next_action_date']}{over}"
+              if r["next_action"] else " · ⚠нет следующего шага")
+        b = f" · ~{r['budget_est']:.0f}€" if r["budget_est"] else ""
+        lines.append(f"  • {r['name']} [{st.get(r['stage'], r['stage'])}]{b}"
+                     f" · касаний {r['touches'] or 0}{na}")
+    return "\n".join(lines)
+
+
 def sales_agent_sync(user_text: str = "") -> str:
     """Продавец: разбор воронки и дожатие сделок до оплаты по реальной картине
-    (воронка + финансы + таблица инвойсов + планы владельца)."""
+    (воронка + лиды + финансы + таблица инвойсов + планы владельца)."""
     sys_prompt = (SALES_PROMPT
                   .replace("{kb}", SALES_KB_DIR)
                   .replace("{strategy_kb}", STRATEGY_KB_DIR)
                   .replace("{legal_kb}", LEGAL_KB_DIR)
                   .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
     funnel = get_funnel_context()
+    leads = get_leads_context()
     plans = get_plans_context()
     ask = user_text.strip() or (
         "разбери воронку: что дожимать в первую очередь и до каких дат, чтобы прогноз "
@@ -1789,6 +1817,7 @@ def sales_agent_sync(user_text: str = "") -> str:
     prompt = (
         f"{get_legal_context()}\n\n"
         + (funnel + "\n\n" if funnel else "")
+        + (leads + "\n\n" if leads else "")
         + (plans + "\n\n" if plans else "")
         + "ЗАПРОС К ПРОДАВЦУ: " + ask + "\n"
         "Сначала прочитай базу знаний (Read: SKILL.md и references/product.md), "
@@ -4290,6 +4319,7 @@ def sales_dialog_sync(user_text: str) -> str:
                   .replace("{legal_kb}", LEGAL_KB_DIR)
                   .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
     funnel = get_funnel_context()
+    leads = get_leads_context()
     plans = get_plans_context()
     hist = "\n".join(
         f"{'Владелец' if r['role'] == 'user' else 'Продавец'}: {r['text']}"
@@ -4297,6 +4327,7 @@ def sales_dialog_sync(user_text: str) -> str:
     prompt = (
         f"{get_legal_context()}\n\n"
         + (funnel + "\n\n" if funnel else "")
+        + (leads + "\n\n" if leads else "")
         + (plans + "\n\n" if plans else "")
         + (f"ПОСЛЕДНИЕ РЕПЛИКИ ДИАЛОГА (помни их, не повторяйся):\n{hist}\n\n" if hist else "")
         + "НОВОЕ СООБЩЕНИЕ ВЛАДЕЛЬЦА: " + user_text.strip() + "\n"
@@ -4351,6 +4382,7 @@ def sales_digest_sync():
     topics, used_quotes = _sales_digest_history()
     protocol = os.path.join(SALES_KB_DIR, "references", "daily_digest.md")
     funnel = get_funnel_context()
+    leads = get_leads_context()
     sys_prompt = (
         "Ты — Продавец, наставник по продажам художника FARBAHOLIX (Франкфурт, муралы/граффити). "
         f"Сгенерируй утренний дайджест СТРОГО по протоколу из файла {protocol} — прочитай его "
@@ -4362,6 +4394,7 @@ def sales_digest_sync():
     prompt = (
         f"Сегодня {datetime.now().strftime('%Y-%m-%d, %A')}.\n\n"
         + (funnel + "\n\n" if funnel else "ВОРОНКА ПУСТА — сделай темой дня наполнение воронки.\n\n")
+        + (leads + "\n\n" if leads else "")
         + ("ЗАПРЕЩЁННЫЕ ТЕМЫ (уже были, не повторяй и близко):\n- "
            + "\n- ".join(topics) + "\n\n" if topics else "")
         + ("ЗАПРЕЩЁННЫЕ ЦИТАТЫ (уже использованы, НИКОГДА не повторяй):\n- "
@@ -4531,7 +4564,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_biz.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -4616,7 +4649,7 @@ def ensure_legal_kb():
     d = os.path.dirname(os.path.abspath(__file__))
     # + seed-файлы: при первом деплое /update качает по СТАРОМУ списку UPDATE_FILES,
     # поэтому новые файлы доезжают только самолечением
-    need = (["jurist_bot.py", "sales_bot.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json"]
+    need = (["jurist_bot.py", "sales_bot.py", "dashboard_biz.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json"]
             + [x for x in UPDATE_FILES if x.startswith("legal_kb/")])
     for f in need:
         dest = os.path.join(d, f)
@@ -4680,13 +4713,24 @@ def _self_restart(d: str):
 
 
 def _restart_dashboard(d):
-    """Перезапуск дашборда — освобождаем порт 8765 и поднимаем свежий процесс."""
+    """Перезапуск дашборда — освобождаем порт 8765 и поднимаем свежий процесс.
+    Заодно поднимаем бизнес-пульт FARBAHOLIX (dashboard_biz.py, :8770) — он
+    живёт и умирает вместе с основным дашбордом во всех точках рестарта."""
     import sys
     subprocess.run("pkill -9 -f dashboard.py; fuser -k 8765/tcp 2>/dev/null; true",
                    shell=True)
     logf = open("/tmp/dash.log", "ab")
     subprocess.Popen([sys.executable, "dashboard.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
+    try:
+        subprocess.run("pkill -9 -f dashboard_biz.py; fuser -k 8770/tcp 2>/dev/null; true",
+                       shell=True)
+        if os.path.exists(os.path.join(d, "dashboard_biz.py")):
+            logb = open("/tmp/dash_biz.log", "ab")
+            subprocess.Popen([sys.executable, "dashboard_biz.py"], cwd=d,
+                             stdout=logb, stderr=logb, start_new_session=True)
+    except Exception as e:
+        log.error(f"restart dashboard_biz: {e}")
 
 
 def _restart_jurist(d):
@@ -5112,8 +5156,9 @@ async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         with urllib.request.urlopen("https://api.ipify.org", timeout=8) as r:
             ip = r.read().decode().strip()
         await update.message.reply_text(
-            f"🌐 Дашборд:\nhttp://{ip}:8765\n\nСохрани как PWA в Safari:\n"
-            f"Поделиться → На экран «Домой»")
+            f"🌐 Дашборд (жизнь):\nhttp://{ip}:8765\n\n"
+            f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8770\n\n"
+            f"Сохрани как PWA в Safari:\nПоделиться → На экран «Домой»")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Не удалось узнать IP: {e}")
 

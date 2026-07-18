@@ -42,6 +42,7 @@ GREETING = (
     "Каждое утро в *07:00* пришлю дайджест: 7 минут теории продаж с цитатами "
     "(никогда не повторяются) + применение к твоей реальной воронке + "
     "микро-задание дня.\n\n"
+    "📊 Бизнес-пульт FARBAHOLIX (воронка + лиды + деньги): /ip — пришлю ссылку.\n"
     "🎤 Голосовые понимаю; /voice — отвечать голосом."
 )
 
@@ -53,6 +54,7 @@ RESTART_LEGEND = (
     "_/sales как дожать Café Sa'Sis_\n"
     "• */funnel* — воронка цифрами (без ИИ, мгновенно)\n"
     "• */digest* — утренний дайджест продаж прямо сейчас\n"
+    "• */ip* — ссылка на бизнес-пульт FARBAHOLIX (воронка + лиды + деньги)\n"
     "• */voice* — вкл/выкл голосовые ответы\n"
     "• */restart* — самоперезапуск\n\n"
     "Просто пиши (или говори) — обсудим сделки, цены, письма клиентам, "
@@ -103,6 +105,21 @@ async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         log.error(f"self-restart execv: {e}")
         await update.message.reply_text(f"Не смог перезапуститься сам: {e}")
+
+
+async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Ссылка на бизнес-пульт FARBAHOLIX (dashboard_biz.py, :8770)."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen("https://api.ipify.org", timeout=8) as r:
+            ip = r.read().decode().strip()
+        await update.message.reply_text(
+            f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8770\n\n"
+            "Внутри: воронка сделок (синхронна с «Проектами» Секретаря), доска "
+            "лидов с касаниями, деньги (обороты, порог §19, топ-клиенты).\n\n"
+            "Сохрани как PWA в Safari: Поделиться → На экран «Домой»")
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Не удалось узнать IP: {e}")
 
 
 def _voice_on() -> bool:
@@ -298,6 +315,7 @@ def main():
     app.add_handler(CommandHandler(["sales", "seller"], cmd_sales))
     app.add_handler(CommandHandler(["funnel", "voronka"], cmd_funnel))
     app.add_handler(CommandHandler("digest", cmd_digest))
+    app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler(["voice", "voice_on", "voice_off"], cmd_voice))
     app.add_handler(CommandHandler("restart", cmd_restart))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
