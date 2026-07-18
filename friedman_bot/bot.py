@@ -1404,19 +1404,20 @@ def bank_context() -> str:
     lines.append("Категории за период:")
     for c, v in seed.get("categories", {}).items():
         lines.append(f"  {c}: {v['total']:.0f}€ ({v['count']})")
-    biz = seed.get("business_transactions", [])
-    if biz:
-        lines.append(f"Деловые операции ({len(biz)} — доходы от клиентов, материалы, субподряд-художники и т.п.):")
-        for t in biz:
-            lines.append(f"  {t['date']} {t['amount']:+.0f}€ [{t['cat']}] {t['party']}")
+    # ПОЛНЫЙ список операций (деловые + личные) — компактно, одна строка на операцию.
+    # Отфильтрованное подмножество в контексте путало бота («это все транзакции?»),
+    # поэтому даём всё; формат ужат до минимума, чтобы не раздувать промпт.
+    txs = seed.get("transactions") or seed.get("business_transactions", [])
+    if txs:
+        label = "ВСЕ ОПЕРАЦИИ ПО СЧЁТУ" if seed.get("transactions") else "Деловые операции (полного списка нет)"
+        lines.append(f"{label} ({len(txs)} шт, деловые и личные, полный список — ничего не отфильтровано):")
+        for t in txs:
+            d = t["date"]
+            lines.append(f"  {d[:6]}{d[8:]} {t['amount']:+.0f} [{t['cat']}] {(t['party'] or '')[:44]}")
     lines.append("ВАЖНО для Юриста: subcontractor_artists — выплаты другим художникам "
                  "(релевантно Künstlersozialabgabe); client_income по банку сверяй с инвойсами "
-                 "(расхождение = наличные/неоплаченные счета).")
-    if seed.get("transactions"):
-        lines.append(f"ПОЛНЫЙ СПИСОК ВСЕХ операций ({len(seed['transactions'])} шт, включая личные) "
-                     f"лежит в файле {path} (JSON, ключ transactions). Если вопрос требует деталей "
-                     "по конкретным личным тратам/переводам/периодам — прочитай файл инструментом Read "
-                     "и найди нужное; в этот контекст он не включён целиком ради экономии.")
+                 "(расхождение = наличные/неоплаченные счета). Суммы выше в €. "
+                 f"Тот же список в JSON: {path} (ключ transactions).")
     return "\n".join(lines)
 
 
