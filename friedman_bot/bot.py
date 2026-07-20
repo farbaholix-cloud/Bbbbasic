@@ -4438,9 +4438,10 @@ def render_sales_card(topic: str, quote: str, when: str):
     Возвращает путь к JPEG или None — ошибка рендера не блокирует текст."""
     try:
         from PIL import Image, ImageDraw, ImageFont
-        import textwrap
         import tempfile as _tf
         W, H = 1080, 1080
+        MARGIN = 80
+        MAXW = W - 2 * MARGIN  # рабочая ширина текста
         img = Image.new("RGB", (W, H))
         drw = ImageDraw.Draw(img)
         top_c, bot_c = (16, 22, 42), (74, 38, 94)  # тёмно-синий → фиолет
@@ -4461,20 +4462,62 @@ def render_sales_card(topic: str, quote: str, when: str):
                     continue
             return ImageFont.load_default()
 
+        def _tw(s, font):
+            try:
+                return drw.textlength(s, font=font)
+            except Exception:
+                b = drw.textbbox((0, 0), s, font=font)
+                return b[2] - b[0]
+
+        def _wrap_px(text, font, maxw):
+            """Перенос по РЕАЛЬНОЙ ширине; слово шире полосы рубим по символам."""
+            lines, cur = [], ""
+            for word in (text or "").split():
+                trial = (cur + " " + word).strip()
+                if _tw(trial, font) <= maxw:
+                    cur = trial
+                    continue
+                if cur:
+                    lines.append(cur)
+                if _tw(word, font) <= maxw:
+                    cur = word
+                else:
+                    piece = ""
+                    for ch in word:
+                        if _tw(piece + ch, font) <= maxw:
+                            piece += ch
+                        else:
+                            lines.append(piece)
+                            piece = ch
+                    cur = piece
+            if cur:
+                lines.append(cur)
+            return lines
+
         y = 130
-        drw.text((80, y), "УТРО ПРОДАЖ", font=_font(34), fill=(255, 208, 122))
-        y += 90
-        for line in textwrap.wrap(topic or "Продажи сегодня", width=24)[:4]:
-            drw.text((80, y), line, font=_font(72, bold=True), fill=(255, 255, 255))
-            y += 88
+        drw.text((MARGIN, y), "УТРО ПРОДАЖ", font=_font(34), fill=(255, 208, 122))
+        y += 92
+        # заголовок: берём максимальный кегль (72→48), при котором ≤4 строк влезают
+        title = topic or "Продажи сегодня"
+        tf, tlines, size = _font(72, bold=True), None, 72
+        for size in (72, 66, 60, 54, 48):
+            tf = _font(size, bold=True)
+            tlines = _wrap_px(title, tf, MAXW)
+            if len(tlines) <= 4:
+                break
+        lh = int(size * 1.2)
+        for line in (tlines or [])[:4]:
+            drw.text((MARGIN, y), line, font=tf, fill=(255, 255, 255))
+            y += lh
         if quote:
-            y += 60
-            drw.line([(80, y), (200, y)], fill=(255, 208, 122), width=4)
+            y += 48
+            drw.line([(MARGIN, y), (MARGIN + 120, y)], fill=(255, 208, 122), width=4)
             y += 40
-            for line in textwrap.wrap("«" + quote.strip("«»\" ") + "»", width=38)[:8]:
-                drw.text((80, y), line, font=_font(40), fill=(214, 220, 235))
+            qf = _font(40)
+            for line in _wrap_px("«" + quote.strip("«»\" ") + "»", qf, MAXW)[:8]:
+                drw.text((MARGIN, y), line, font=qf, fill=(214, 220, 235))
                 y += 56
-        drw.text((80, H - 110), f"FARBAHOLIX · SALES · {when}",
+        drw.text((MARGIN, H - 110), f"FARBAHOLIX · SALES · {when}",
                  font=_font(28), fill=(150, 158, 180))
         out = _tf.NamedTemporaryFile(suffix=".jpg", delete=False).name
         img.save(out, "JPEG", quality=90)
