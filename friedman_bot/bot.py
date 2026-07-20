@@ -5077,6 +5077,39 @@ def _self_restart(d: str):
         log.error(f"не удалось перезапустить: {e}")
 
 
+def _kill_other_secretaries():
+    """Убить прочие процессы bot.py (кроме себя) при старте. `_self_restart`
+    намеренно не гасит старый процесс (чтобы при падении нового было кому жить),
+    из-за чего после серии рестартов накапливаются дубли-поллеры: Telegram раздаёт
+    апдейты между ними, и бот отвечает «через раз», а новые команды (которых нет у
+    старого кода) молча теряются. Свежий процесс при старте вычищает предшественников.
+    Паттерн `[ /]bot[.]py` ловит «python bot.py» и запуск по абсолютному пути, но НЕ
+    трогает jurist_bot.py/sales_bot.py/director_bot.py (там перед «bot.py» стоит «_»).
+    Спавнит секретаря всегда ровно один процесс за раз (spawn-then-exit), поэтому
+    одновременного старта двух новых не бывает — взаимного уничтожения нет."""
+    mypid = os.getpid()
+    try:
+        r = subprocess.run(["pgrep", "-f", "[ /]bot[.]py"],
+                           capture_output=True, text=True, timeout=10)
+    except Exception as e:
+        log.error(f"kill dup secretaries (pgrep): {e}")
+        return
+    for tok in (r.stdout or "").split():
+        try:
+            pid = int(tok)
+        except ValueError:
+            continue
+        if pid == mypid:
+            continue
+        try:
+            os.kill(pid, 9)
+            log.info(f"убил дубль секретаря PID {pid}")
+        except ProcessLookupError:
+            pass
+        except Exception as e:
+            log.error(f"kill dup secretary PID {pid}: {e}")
+
+
 def _restart_dashboard(d):
     """Перезапуск дашборда — освобождаем порт 8765 и поднимаем свежий процесс.
     Бизнес-пульт FARBAHOLIX смонтирован ВНУТРЬ dashboard.py (маршрут /biz на том
@@ -6256,6 +6289,7 @@ def main():
         log.error("BOT_TOKEN не задан в .env")
         return
 
+    _kill_other_secretaries()  # вычистить дубли-поллеры от прошлых нечистых рестартов
     init_db()
     try:
         run_data_import_20260709()  # одноразовая ревизия+импорт (флаг в settings)
