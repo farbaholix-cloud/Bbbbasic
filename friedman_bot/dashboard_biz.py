@@ -1,4 +1,9 @@
-"""FARBAHOLIX — бизнес-пульт (отдельный дашборд, порт 8770).
+"""FARBAHOLIX — бизнес-пульт.
+
+Смонтирован ВНУТРЬ основного дашборда (dashboard.py) на маршрут /biz того же
+порта 8765: dashboard.py импортирует этот модуль и отдаёт PAGE на /biz, get_data
+на /api/biz/data и ROUTES на /api/biz/*, под общей сессией и общим data_rev.
+Отдельный запуск (__main__, порт 8770) сохранён только для локальной отладки.
 
 Основной дашборд (dashboard.py, :8765) — про жизнь; этот — про бизнес:
   • Воронка сделок — kanban 🔵 Лид → 🟡 Согласовано → 🟠 Счёт → ✅ Оплачено.
@@ -584,7 +589,7 @@ function openSheet(html){$('sheet').innerHTML=html;$('sheet').style.display='blo
 function closeSheet(){$('sheet').style.display='none';$('sheetbg').style.display='none'}
 
 async function api(path,body){try{
-const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+const r=await fetch('/api/biz'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
 if(r.status===401||r.status===403){location.reload();return null}
 const j=await r.json();if(j&&j.data)apply(j.data);return j}catch(e){return null}}
 function apply(d){if(!d||typeof d.rev!=='number')return;if(d.rev<applied)return;applied=d.rev;S=d;render()}
@@ -622,20 +627,20 @@ ${stBtns}
 <button class="act" style="color:var(--paid)" onclick='markPaid(${id})'>✅ Оплачено (деньги пришли)</button>
 <button class="act" onclick='editDeal(${id})'>✏️ Сумма / дата</button>
 <button class="act sec" onclick="closeSheet()">Закрыть</button>`)}
-async function setStage(id,st){closeSheet();await api('/api/deal_stage',{id,status:st})}
+async function setStage(id,st){closeSheet();await api('/deal_stage',{id,status:st})}
 async function markPaid(id){const d=(S.funnel.deals||[]).find(x=>x.id===id);closeSheet();
 openSheet(`<h3>Куда пришли деньги?</h3><div class="sub">${esc(d?d.name:'')} · ${eur(d?d.amount:0)}</div>
 <button class="act" onclick='paidTo(${id},"card")'>💳 Карта</button>
 <button class="act" onclick='paidTo(${id},"cash")'>💵 Наличные</button>
 <button class="act sec" onclick="closeSheet()">Отмена</button>`)}
-async function paidTo(id,acc){closeSheet();await api('/api/deal_stage',{id,status:'paid',account:acc})}
+async function paidTo(id,acc){closeSheet();await api('/deal_stage',{id,status:'paid',account:acc})}
 async function editDeal(id){const d=(S.funnel.deals||[]).find(x=>x.id===id);closeSheet();
 const amt=prompt('Сумма €:',d?d.amount:'');if(amt===null)return;
 const dt=prompt('Дата оплаты (ГГГГ-ММ-ДД, пусто — убрать):',d&&d.date?d.date:'');if(dt===null)return;
-await api('/api/deal_update',{id,amount:parseFloat(amt)||0,date:dt.trim()})}
+await api('/deal_update',{id,amount:parseFloat(amt)||0,date:dt.trim()})}
 async function dealAdd(){
 const pid=$('d-proj').value,name=$('d-name').value.trim(),amt=parseFloat($('d-amt').value)||0,dt=$('d-date').value;
-if(!pid&&!name)return;await api('/api/deal_add',{project_id:pid?parseInt(pid):null,name,amount:amt,date:dt});
+if(!pid&&!name)return;await api('/deal_add',{project_id:pid?parseInt(pid):null,name,amount:amt,date:dt});
 $('d-name').value='';$('d-amt').value='';$('d-date').value='';$('d-proj').value='';toggleForm('dealform')}
 
 /* ── ЛИДЫ ── */
@@ -677,22 +682,22 @@ ${stBtns}
 <button class="act" onclick='leadEdit(${id})'>✏️ Правка (бюджет/заметка)</button>
 <button class="act warn" onclick='leadLost(${id})'>❌ Отказ</button>
 <button class="act sec" onclick="closeSheet()">Закрыть</button>`)}
-async function leadStage(id,st){closeSheet();await api('/api/lead_update',{id,stage:st})}
+async function leadStage(id,st){closeSheet();await api('/lead_update',{id,stage:st})}
 async function leadTouch(id){closeSheet();
 const na=prompt('Что дальше? (следующее действие)');if(na===null)return;
 const nad=prompt('Когда? (ГГГГ-ММ-ДД)',S.today||'');if(nad===null)return;
-await api('/api/lead_touch',{id,na,nad})}
+await api('/lead_touch',{id,na,nad})}
 async function leadConvert(id){closeSheet();const l=(S.leads.items||[]).find(x=>x.id===id);
 const amt=prompt('Сумма сделки €:',l&&l.budget?l.budget:'');if(amt===null)return;
-await api('/api/lead_convert',{id,amount:parseFloat(amt)||0});show('funnel')}
+await api('/lead_convert',{id,amount:parseFloat(amt)||0});show('funnel')}
 async function leadEdit(id){closeSheet();const l=(S.leads.items||[]).find(x=>x.id===id);
 const b=prompt('Бюджет ~€:',l.budget||'');if(b===null)return;
 const nt=prompt('Заметка:',l.notes||'');if(nt===null)return;
-await api('/api/lead_update',{id,budget:parseFloat(b)||0,notes:nt})}
+await api('/lead_update',{id,budget:parseFloat(b)||0,notes:nt})}
 async function leadLost(id){closeSheet();const r=prompt('Причина отказа (важно для анализа):');
-if(r===null)return;await api('/api/lead_lost',{id,reason:r})}
+if(r===null)return;await api('/lead_lost',{id,reason:r})}
 async function leadAdd(){const name=$('l-name').value.trim();if(!name)return;
-await api('/api/lead_add',{name,channel:$('l-chan').value,budget:parseFloat($('l-budget').value)||0,
+await api('/lead_add',{name,channel:$('l-chan').value,budget:parseFloat($('l-budget').value)||0,
 na:$('l-na').value,nad:$('l-nad').value,notes:$('l-notes').value});
 ['l-name','l-budget','l-na','l-nad','l-notes'].forEach(i=>$(i).value='');toggleForm('leadform')}
 
@@ -730,7 +735,7 @@ $('top-clients').innerHTML=(m.clients||[]).map(c=>`<div class="rowl">
 function render(){renderFunnel();renderLeads();renderMoney()}
 
 async function poll(){try{
-const r=await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+const r=await fetch('/api/biz/data',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
 if(r.status===401){location.reload();return}
 apply(await r.json())}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){
@@ -740,12 +745,14 @@ show('funnel');setInterval(poll,5000);
 </script></body></html>"""
 
 
+# Все мутации живут под /api/biz/* — чтобы пульт можно было смонтировать в общий
+# сервер основного дашборда (порт 8765) без коллизий с его /api/*.
 ROUTES = {
-    "/api/deal_add": api_deal_add, "/api/deal_stage": api_deal_stage,
-    "/api/deal_update": api_deal_update,
-    "/api/lead_add": api_lead_add, "/api/lead_update": api_lead_update,
-    "/api/lead_touch": api_lead_touch, "/api/lead_convert": api_lead_convert,
-    "/api/lead_lost": api_lead_lost, "/api/lead_delete": api_lead_delete,
+    "/api/biz/deal_add": api_deal_add, "/api/biz/deal_stage": api_deal_stage,
+    "/api/biz/deal_update": api_deal_update,
+    "/api/biz/lead_add": api_lead_add, "/api/biz/lead_update": api_lead_update,
+    "/api/biz/lead_touch": api_lead_touch, "/api/biz/lead_convert": api_lead_convert,
+    "/api/biz/lead_lost": api_lead_lost, "/api/biz/lead_delete": api_lead_delete,
 }
 
 
@@ -789,7 +796,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._send(LOCK_PAGE.encode(), "text/html; charset=utf-8")
             return
-        if path == "/api/data":
+        if path == "/api/biz/data":
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
         else:
@@ -828,7 +835,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
-        if path == "/api/data":
+        if path == "/api/biz/data":
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
             return

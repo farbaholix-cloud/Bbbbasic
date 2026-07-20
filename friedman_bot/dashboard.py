@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, date, timedelta
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from wisdom import today_wisdom
+import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонтирован на /biz этого же сервера
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
@@ -3998,6 +3999,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/data":
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
+        elif path == "/api/biz/data":
+            # бизнес-пульт смонтирован в этот же сервер (порт уже открыт) — общая сессия
+            self._send(json.dumps(bizdash.get_data(), ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+        elif path == "/biz":
+            try:
+                data_json = json.dumps(bizdash.get_data(), ensure_ascii=False)
+                page = (bizdash.PAGE.replace("__VERSION__", bizdash.VERSION)
+                                    .replace("window.__INIT__=null",
+                                             "window.__INIT__=" + data_json))
+            except Exception:
+                page = bizdash.PAGE.replace("__VERSION__", bizdash.VERSION)
+            self._send(page.encode(), "text/html; charset=utf-8")
         else:
             # вшиваем данные прямо в HTML — браузеру не нужен второй запрос
             try:
@@ -4044,6 +4058,27 @@ class Handler(BaseHTTPRequestHandler):
         # поэтому фоновый опрос и pull-to-refresh всегда получают свежий снимок.
         if path == "/api/data":
             self._send(json.dumps(get_data(), ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+            return
+
+        # ── бизнес-пульт (/biz): те же сессия и rev, отдельное пространство API ──
+        if path == "/api/biz/data":
+            self._send(json.dumps(bizdash.get_data(), ensure_ascii=False).encode(),
+                       "application/json; charset=utf-8")
+            return
+        if path in bizdash.ROUTES:
+            try:
+                result = bizdash.ROUTES[path](payload)
+            except Exception as e:
+                result = {"ok": False, "err": str(e)[:200]}
+            if not isinstance(result, dict):
+                result = {"ok": True}
+            try:
+                bump_rev()
+                result["data"] = bizdash.get_data()
+            except Exception:
+                pass
+            self._send(json.dumps(result, ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
             return
 

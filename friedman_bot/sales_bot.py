@@ -114,7 +114,7 @@ async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         with urllib.request.urlopen("https://api.ipify.org", timeout=8) as r:
             ip = r.read().decode().strip()
         await update.message.reply_text(
-            f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8770\n\n"
+            f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8765/biz\n\n"
             "Внутри: воронка сделок (синхронна с «Проектами» Секретаря), доска "
             "лидов с касаниями, деньги (обороты, порог §19, топ-клиенты).\n\n"
             "Сохрани как PWA в Safari: Поделиться → На экран «Домой»")

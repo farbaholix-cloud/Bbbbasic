@@ -4714,23 +4714,16 @@ def _self_restart(d: str):
 
 def _restart_dashboard(d):
     """Перезапуск дашборда — освобождаем порт 8765 и поднимаем свежий процесс.
-    Заодно поднимаем бизнес-пульт FARBAHOLIX (dashboard_biz.py, :8770) — он
-    живёт и умирает вместе с основным дашбордом во всех точках рестарта."""
+    Бизнес-пульт FARBAHOLIX смонтирован ВНУТРЬ dashboard.py (маршрут /biz на том
+    же порту 8765) — отдельный процесс/порт не нужен, поднимается вместе с ним.
+    На всякий случай гасим старый отдельный процесс 8770 из прежних версий."""
     import sys
     subprocess.run("pkill -9 -f dashboard.py; fuser -k 8765/tcp 2>/dev/null; true",
                    shell=True)
+    subprocess.run("pkill -9 -f dashboard_biz.py; true", shell=True)  # снести legacy :8770
     logf = open("/tmp/dash.log", "ab")
     subprocess.Popen([sys.executable, "dashboard.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
-    try:
-        subprocess.run("pkill -9 -f dashboard_biz.py; fuser -k 8770/tcp 2>/dev/null; true",
-                       shell=True)
-        if os.path.exists(os.path.join(d, "dashboard_biz.py")):
-            logb = open("/tmp/dash_biz.log", "ab")
-            subprocess.Popen([sys.executable, "dashboard_biz.py"], cwd=d,
-                             stdout=logb, stderr=logb, start_new_session=True)
-    except Exception as e:
-        log.error(f"restart dashboard_biz: {e}")
 
 
 def _restart_jurist(d):
@@ -5157,7 +5150,7 @@ async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             ip = r.read().decode().strip()
         await update.message.reply_text(
             f"🌐 Дашборд (жизнь):\nhttp://{ip}:8765\n\n"
-            f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8770\n\n"
+            f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8765/biz\n\n"
             f"Сохрани как PWA в Safari:\nПоделиться → На экран «Домой»")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Не удалось узнать IP: {e}")
