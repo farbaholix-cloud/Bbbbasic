@@ -5153,12 +5153,44 @@ def _restart_sales(d):
     log.info("Продавец-бот запущен (supervised)")
 
 
+def _ensure_sibling_file(d, filename):
+    """Самолечение: если файл соседнего бота отсутствует на диске (первый деплой
+    новой версии тянет код по СТАРОМУ списку UPDATE_FILES, где нового файла ещё
+    нет) — дотягиваем его с ветки, чтобы `python <файл>` не падал «нет файла»."""
+    dest = os.path.join(d, filename)
+    if os.path.exists(dest):
+        return True
+    import urllib.request
+    try:
+        h = {"User-Agent": "friedman-bot"}
+        tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+        if tok:
+            h["Authorization"] = f"Bearer {tok}"
+        req = urllib.request.Request(f"{RAW_BASE}/{BRANCH}/friedman_bot/{filename}", headers=h)
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = r.read()
+        if len(data) < 100:
+            raise RuntimeError(f"{filename}: подозрительно мал ({len(data)} б)")
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as out:
+            out.write(data)
+        log.info(f"self-heal fetched: {filename}")
+        return True
+    except Exception as e:
+        log.error(f"self-heal {filename}: {e}")
+        return False
+
+
 def _restart_director(d):
     """Поднять/перезапустить отдельного Директор-бота (director_bot.py) — тот же
-    паттерн, что _restart_jurist/_restart_sales: только при наличии токена."""
+    паттерн, что _restart_jurist/_restart_sales: только при наличии токена.
+    Перед запуском чиним отсутствующий director_bot.py (самолечение)."""
     import sys
     if not get_director_token():
         log.info("Токен Директор-бота не задан — Директор-бот не запускаю")
+        return
+    if not _ensure_sibling_file(d, "director_bot.py"):
+        log.error("director_bot.py отсутствует и не скачался — не запускаю Директора")
         return
     subprocess.run("pkill -9 -f director_bot.py; true", shell=True)
     logf = open("/tmp/director.log", "ab")
