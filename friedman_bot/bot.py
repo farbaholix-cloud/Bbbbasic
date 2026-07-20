@@ -635,6 +635,8 @@ def ask_claude_sync(user_text: str) -> dict:
 LEGAL_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "legal_kb")
 STRATEGY_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "strategy_kb")
 SALES_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sales_kb")
+SECRETARY_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secretary_kb")
+DIRECTOR_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "director_kb")
 
 LAWYER_PROMPT = """Ты — «Юрист», личный налогово-правовой консультант Вячеслава (Slavik): украинец в Германии со статусом §24 AufenthG (временная защита), работает как художник-фрилансер (Freiberufler Künstler, бренд FARBAHOLIX), Kleinunternehmer §19 UStG, gesetzlich krankenversichert, в KSK пока не состоит.
 
@@ -1379,6 +1381,8 @@ async def bureau_digest_check(ctx: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
     _settings_set(key, "1")
+    if _send_via_director(text):
+        return  # доставлено в чат главного бота (Директора)
     try:
         await ctx.bot.send_message(chat_id, text, parse_mode="Markdown")
     except Exception as e:
@@ -3771,8 +3775,11 @@ async def check_reminders(ctx: ContextTypes.DEFAULT_TYPE):
         for r in due:
             conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (r["id"],))
     for r in due:
+        text = f"⏰ Напоминание: *{r['text']}*"
+        if _send_via_director(text):
+            continue  # доставлено в чат главного бота (Директора)
         try:
-            await ctx.bot.send_message(chat_id, f"⏰ Напоминание: *{r['text']}*", parse_mode="Markdown")
+            await ctx.bot.send_message(chat_id, text, parse_mode="Markdown")
         except Exception as e:
             log.error(f"reminder send: {e}")
 
@@ -3969,6 +3976,10 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         return
     today = datetime.now().strftime("%Y-%m-%d")
     today_d = date.today()
+    # Когда активен Директор (главный бот) — утро ведёт он: его сводка-синтез в 07:00
+    # заменяет эту. Ручной /brief в чате Секретаря работает по-прежнему.
+    if not verbose and get_director_token():
+        return
     # Защита от двойной сводки: автоматическую утреннюю отправляет только один
     # процесс/один раз в день (атомарная заявка в общей БД). Ручной /brief — всегда.
     if not verbose and not _claim_daily("brief_sent:" + today):
@@ -4355,6 +4366,313 @@ def sales_dialog_sync(user_text: str) -> str:
         return ""
 
 
+# ── Директор: отдельный бот (director_bot.py) ────────────────────────────────
+DIRECTOR_WINDOW = 30      # последних реплик диалога дословно в контекст
+DIRECTOR_STORE_CAP = 400  # реплик хранить в БД максимум
+
+
+def get_director_token() -> str:
+    """Токен Директор-бота: окружение → настройка в БД (не в git). Пробелы чистим —
+    автокоррекция Telegram иногда вставляет пробел внутрь токена."""
+    raw = os.environ.get("DIRECTOR_BOT_TOKEN") or _settings_get("director_bot_token") or ""
+    return "".join(raw.split())
+
+
+def _send_via_director(text: str) -> bool:
+    """Доставить сообщение владельцу через ГЛАВНЫЙ бот (Директор): владелец общается
+    только с ним, поэтому напоминания и плановые уведомления идут в его чат.
+    False — если токена/чата нет или отправка не удалась (тогда шлёт вызывающий бот)."""
+    token = get_director_token()
+    chat_id = get_chat_id()
+    if not token or not chat_id:
+        return False
+    import urllib.request
+    import urllib.parse
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    # Сначала Markdown; если Telegram отверг разметку — плоский текст
+    for payload in ({"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+                    {"chat_id": chat_id, "text": text.replace("*", "").replace("_", "")}):
+        try:
+            data = urllib.parse.urlencode(payload).encode()
+            with urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=15) as r:
+                if r.status == 200:
+                    return True
+        except Exception as e:
+            log.error(f"send via director: {e}")
+    return False
+
+
+def _director_table(conn):
+    conn.execute("CREATE TABLE IF NOT EXISTS director_messages ("
+                 "id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, text TEXT, "
+                 "ts TEXT DEFAULT (datetime('now')))")
+
+
+def remember_director(role: str, text: str):
+    """Реплика диалога с Директором — в его отдельную память (по образцу Продавца)."""
+    try:
+        with db() as conn:
+            _director_table(conn)
+            conn.execute("INSERT INTO director_messages (role, text) VALUES (?,?)", (role, text))
+            conn.execute("DELETE FROM director_messages WHERE id NOT IN "
+                         "(SELECT id FROM director_messages ORDER BY id DESC LIMIT ?)",
+                         (DIRECTOR_STORE_CAP,))
+    except Exception as e:
+        log.error(f"remember_director: {e}")
+
+
+def get_director_memory():
+    """Последние реплики диалога с Директором (старые → новые)."""
+    try:
+        with db() as conn:
+            _director_table(conn)
+            rows = conn.execute("SELECT role, text FROM director_messages ORDER BY id DESC LIMIT ?",
+                                (DIRECTOR_WINDOW,)).fetchall()
+        return list(reversed(rows))
+    except Exception as e:
+        log.error(f"get_director_memory: {e}")
+        return []
+
+
+DIRECTOR_PROMPT = """Ты — «Директор», главный агент и ЕДИНСТВЕННЫЙ интерфейс владельца: Вячеслав (Slavik), бренд FARBAHOLIX, граффити/мурал Künstler в Германии, украинец на §24, Kleinunternehmer §19 (оборот-2025 превысил порог — статус на 2026 под вопросом, правовой финал у Юриста), в KSK не состоит, есть долги и регулярные платежи. Владелец общается только с тобой — остальных ботов он не читает.
+
+Твой полный регламент (навыки, показатели под контролем, маршрутизация, пересечения) — прочитай инструментом Read ПЕРВЫМ действием: {kb}/SKILL.md. Базы знаний команды (читай по мере надобности): 🗂 Секретарь {secretary_kb}/SKILL.md · ⚖️ Юрист {legal_kb}/SKILL.md · 💼 Продавец {sales_kb}/SKILL.md · 🧭 Стратег {strategy_kb}/SKILL.md. ИИ-инструменты и платформа Hermes: {kb}/references/ai-tools.md.
+
+ТЫ ДЕЛЕГИРУЕШЬ ПО-НАСТОЯЩЕМУ: поручения из твоего JSON исполняются агентами автоматически, их результаты вернутся тебе на контроль и синтез. Сам не исполняй чужие зоны и не выдумывай данные — работай из данных ниже (финансы, долги, воронка, лиды, планы); чего не хватает — делегируй тому, у кого это есть, или назови задачей владельцу.
+
+Тон: по-русски, минимально, по-делу. Владельцу — только решения на подтверждение, задачи, которые может сделать только он, и следующий шаг. Не цитируй российских/советских авторов.
+
+Сегодня: {today}.
+
+Ответь строго ОДНИМ JSON без текста вне его, в одном из двух видов:
+1) нужны агенты → {"note": "1 строка владельцу: что делаешь", "delegate": [{"to": "secretary|lawyer|sales|strategy", "task": "чёткое поручение с данными и ожидаемым результатом"}]}
+2) можешь ответить сам (вопрос к тебе, статус по данным, уточнение) → {"reply": "минимальный ответ владельцу"}"""
+
+
+def director_dialog_sync(user_text: str) -> dict:
+    """Диалоговый Директор, шаг 1: триаж задачи владельца. Возвращает dict:
+    либо {"reply": ...} — прямой ответ, либо {"note": ..., "delegate": [...]} —
+    поручения агентам (их исполнит director_run_delegation)."""
+    sys_prompt = (DIRECTOR_PROMPT
+                  .replace("{kb}", DIRECTOR_KB_DIR)
+                  .replace("{secretary_kb}", SECRETARY_KB_DIR)
+                  .replace("{legal_kb}", LEGAL_KB_DIR)
+                  .replace("{sales_kb}", SALES_KB_DIR)
+                  .replace("{strategy_kb}", STRATEGY_KB_DIR)
+                  .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    funnel = get_funnel_context()
+    leads = get_leads_context()
+    plans = get_plans_context()
+    hist = "\n".join(
+        f"{'Владелец' if r['role'] == 'user' else 'Директор'}: {r['text']}"
+        for r in get_director_memory())
+    prompt = (
+        f"{get_legal_context()}\n\n"
+        + (funnel + "\n\n" if funnel else "")
+        + (leads + "\n\n" if leads else "")
+        + (plans + "\n\n" if plans else "")
+        + (f"ПОСЛЕДНИЕ РЕПЛИКИ ДИАЛОГА (помни их, не повторяйся):\n{hist}\n\n" if hist else "")
+        + "НОВАЯ ЗАДАЧА ВЛАДЕЛЬЦА: " + user_text.strip() + "\n"
+        "Сначала прочитай свой регламент (Read: SKILL.md), затем реши: ответить самому "
+        "или делегировать (кому и что). Помни про минимализацию."
+    )
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
+            capture_output=True, text=True, timeout=360,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s >= 0 and e > s:
+            try:
+                data = jsonlib.loads(raw[s:e + 1]) or {}
+                if data.get("delegate") or data.get("reply"):
+                    return data
+            except Exception:
+                pass
+        return {"reply": raw} if raw else {}
+    except Exception as e:
+        log.error(f"director_dialog: {e}")
+        return {}
+
+
+DIRECTOR_AGENT_LABEL = {"secretary": "🗂 Секретарь", "lawyer": "⚖️ Юрист",
+                        "sales": "💼 Продавец", "strategy": "🧭 Стратег"}
+
+
+def director_run_delegation(to: str, task: str):
+    """Шаг 2: исполнить поручение Директора — вызвать нужного агента внутри
+    процесса (те же мозги, что в их ботах). Возвращает (текст результата,
+    список заметок о применённых действиях в БД)."""
+    notes = []
+    try:
+        if to == "secretary":
+            resp = ask_claude_sync(task) or {}
+            applied = apply_actions(resp.get("actions", []) or [])
+            notes = [f"{k}: {t}" for k, _i, t, _a, _p in applied]
+            return resp.get("reply", "") or "", notes
+        if to == "lawyer":
+            remember_lawyer("user", "[поручение Директора] " + task[:300])
+            resp = ask_lawyer_sync(task) or {}
+            applied = apply_actions(resp.get("actions", []) or [])
+            notes = [f"{k}: {t}" for k, _i, t, _a, _p in applied]
+            reply = resp.get("reply", "") or ""
+            if reply:
+                remember_lawyer("lawyer", reply[:1500])
+            return reply, notes
+        if to == "sales":
+            remember_seller("user", "[поручение Директора] " + task[:300])
+            out = sales_agent_sync(task) or ""
+            if out:
+                remember_seller("assistant", out[:1500])
+            return out, notes
+        if to == "strategy":
+            return strategy_council_sync() or "", notes
+    except Exception as e:
+        log.error(f"director delegation {to}: {e}")
+    return "", notes
+
+
+def director_finalize_sync(user_text: str, results: list) -> str:
+    """Шаг 3: контроль и синтез. results = [(to, task, output, notes)].
+    Директор проверяет результаты агентов и сводит владельцу минимум:
+    итог · решения на подтверждение · задачи владельцу · следующий шаг."""
+    blocks = []
+    for to, task, output, notes in results:
+        label = DIRECTOR_AGENT_LABEL.get(to, to)
+        blocks.append(f"=== {label} ===\nПОРУЧЕНИЕ: {task}\nРЕЗУЛЬТАТ:\n{output or '(пусто — агент не справился)'}"
+                      + (("\nЗАПИСАНО В БАЗУ: " + "; ".join(notes)) if notes else ""))
+    sys_prompt = (
+        "Ты — «Директор» FARBAHOLIX. Твои агенты исполнили поручения — ниже их результаты. "
+        "Проверь их (опора на данные, стыковка зон, соответствие поручению) и сведи владельцу "
+        "МИНИМУМ по регламенту: 1) итог одной-тремя строками; 2) ✅ решения на подтверждение "
+        "(если есть развилки); 3) 👤 задачи владельцу (только то, что агенты не могут сами); "
+        "4) следующий шаг одной строкой. Слабые места результатов не пересказывай — учти молча. "
+        "Тексты писем/документов, если агент их подготовил, приведи целиком (это результат, не процесс). "
+        "По-русски, без воды. Telegram Markdown (жирный *одной звёздочкой*). "
+        'Ответь строго JSON: {"reply": "текст владельцу"}. Никакого текста вне JSON.')
+    prompt = (f"ЗАДАЧА ВЛАДЕЛЬЦА: {user_text}\n\n" + "\n\n".join(blocks)
+              + "\n\nСведи по регламенту.")
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "", "--model", "sonnet", "--max-turns", "4"],
+            capture_output=True, text=True, timeout=240,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s >= 0 and e > s:
+            try:
+                return (jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "") or raw
+            except Exception:
+                pass
+        return raw
+    except Exception as e:
+        log.error(f"director_finalize: {e}")
+        return ""
+
+
+def director_morning_sync() -> str:
+    """Утренняя сводка Директора (07:00): выводы из картин Секретаря, Юриста,
+    Продавца/Маркетолога и Стратега — минимальный формат из director_kb/SKILL.md."""
+    parts = []
+    for name, fn in (("КАРТИНА СЕКРЕТАРЯ (день, задачи, деньги)", get_context),
+                     ("ФИНАНСЫ/ОБОРОТ/ДОЛГИ (Юрист)", get_legal_context),
+                     ("БЮРОКРАТИЯ И СРОКИ (Юрист)", bureau_digest_text),
+                     ("ВОРОНКА СДЕЛОК (Продавец)", get_funnel_context),
+                     ("ДОСКА ЛИДОВ (Продавец/Маркетолог)", get_leads_context)):
+        try:
+            t = fn()
+            if t:
+                parts.append(f"=== {name} ===\n{t}")
+        except Exception as e:
+            log.error(f"director brief part: {e}")
+    sys_prompt = (
+        "Ты — «Директор» FARBAHOLIX (единственный интерфейс владельца). Утренняя сводка — "
+        "это ВЫВОДЫ из картин четырёх линз: Секретарь (день/задачи/деньги), Юрист "
+        "(сроки/§19/бюрократия), Маркетолог+Продавец (воронка/лиды/касания), Стратег "
+        "(курс/риски на горизонте). Формат ЖЁСТКО минимальный:\n"
+        "📌 *Главное сегодня* — 1–3 строки\n"
+        "✅ *Решения на подтверждение* — только если есть развилка\n"
+        "👤 *Задачи владельцу* — только то, что агенты не могут сами\n"
+        "📊 одной строкой: баланс · взвешенная воронка · ближайший платёж/срок\n"
+        "Никаких лекций, цитат и пересказа данных. Ухудшение показателя — в «Главное». "
+        "По-русски. Telegram Markdown (жирный *одной звёздочкой*). "
+        'Ответь строго JSON: {"reply": "текст сводки"}. Никакого текста вне JSON.')
+    prompt = (f"Сегодня {datetime.now().strftime('%Y-%m-%d, %A')}.\n\n"
+              + ("\n\n".join(parts) if parts else "ДАННЫХ НЕТ — скажи это одной строкой.")
+              + "\n\nСобери утреннюю сводку.")
+    try:
+        result = subprocess.run(
+            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "", "--model", "sonnet", "--max-turns", "4"],
+            capture_output=True, text=True, timeout=240,
+            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        raw = (result.stdout or "").strip()
+        s, e = raw.find("{"), raw.rfind("}")
+        if s >= 0 and e > s:
+            try:
+                return (jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "") or raw
+            except Exception:
+                pass
+        return raw
+    except Exception as e:
+        log.error(f"director_morning: {e}")
+        return ""
+
+
+def ensure_director_kb():
+    """Самолечение: подтянуть director_kb с ветки, если файлов нет на диске."""
+    import urllib.request
+    d = os.path.dirname(os.path.abspath(__file__))
+    need = [x for x in UPDATE_FILES if x.startswith("director_kb/")]
+    for f in need:
+        dest = os.path.join(d, f)
+        if os.path.exists(dest):
+            continue
+        try:
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{BRANCH}/friedman_bot/{f}", headers=h)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = r.read()
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "wb") as out:
+                out.write(data)
+            log.info(f"director_kb fetched: {f}")
+        except Exception as e:
+            log.error(f"director_kb fetch {f}: {e}")
+
+
+def ensure_secretary_kb():
+    """Самолечение: подтянуть secretary_kb с ветки, если файлов нет на диске
+    (Директор читает его для маршрутизации операционки)."""
+    import urllib.request
+    d = os.path.dirname(os.path.abspath(__file__))
+    need = [x for x in UPDATE_FILES if x.startswith("secretary_kb/")]
+    for f in need:
+        dest = os.path.join(d, f)
+        if os.path.exists(dest):
+            continue
+        try:
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{BRANCH}/friedman_bot/{f}", headers=h)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = r.read()
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "wb") as out:
+                out.write(data)
+            log.info(f"secretary_kb fetched: {f}")
+        except Exception as e:
+            log.error(f"secretary_kb fetch {f}: {e}")
+
+
 def _sales_digest_history():
     """(последние 60 тем, ВСЕ использованные цитаты) — для антиповтора дайджеста."""
     topics, quotes = [], []
@@ -4547,11 +4865,12 @@ async def legal_deadlines_check(ctx: ContextTypes.DEFAULT_TYPE):
             _settings_set(key, "1")
             days_left = (dl - today).days
             when = "сегодня" if days_left == 0 else f"через {days_left} дн."
+            msg = (f"⚖️ *Юрист напоминает*\n\n📅 *{label}* — срок {dl.strftime('%d.%m.%Y')} "
+                   f"({when}).\n\n{note}")
+            if _send_via_director(msg):
+                continue  # доставлено в чат главного бота (Директора)
             try:
-                await ctx.bot.send_message(
-                    chat_id,
-                    f"⚖️ *Юрист напоминает*\n\n📅 *{label}* — срок {dl.strftime('%d.%m.%Y')} ({when}).\n\n{note}",
-                    parse_mode="Markdown")
+                await ctx.bot.send_message(chat_id, msg, parse_mode="Markdown")
             except Exception as e:
                 log.error(f"legal remind: {e}")
 
@@ -4607,7 +4926,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_biz.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_biz.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -4627,6 +4946,9 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "invoice.py", "financ
                 "sales_kb/references/leadgen.md",
                 "sales_kb/references/daily_digest.md",
                 "sales_kb/references/tools.md",
+                "secretary_kb/SKILL.md",
+                "director_kb/SKILL.md",
+                "director_kb/references/ai-tools.md",
                 "invoices_seed.json",
                 "bank_seed.json"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
@@ -4796,6 +5118,34 @@ def _restart_sales(d):
     subprocess.Popen([sys.executable, "sales_bot.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
     log.info("Продавец-бот запущен (supervised)")
+
+
+def _restart_director(d):
+    """Поднять/перезапустить отдельного Директор-бота (director_bot.py) — тот же
+    паттерн, что _restart_jurist/_restart_sales: только при наличии токена."""
+    import sys
+    if not get_director_token():
+        log.info("Токен Директор-бота не задан — Директор-бот не запускаю")
+        return
+    subprocess.run("pkill -9 -f director_bot.py; true", shell=True)
+    logf = open("/tmp/director.log", "ab")
+    subprocess.Popen([sys.executable, "director_bot.py"], cwd=d,
+                     stdout=logf, stderr=logf, start_new_session=True)
+    log.info("Директор-бот запущен (supervised)")
+
+
+def _restart_secretary(d):
+    """Перезапустить главный процесс Секретаря (bot.py) снаружи — по команде
+    Директора (/update). Паттерн '[ /]bot[.]py' ловит «python bot.py» и запуск по
+    абсолютному пути, но НЕ трогает jurist_bot.py/sales_bot.py/director_bot.py
+    (перед их «bot.py» стоит «_»). Свежий bot.py при старте сам поднимет
+    Юриста, Продавца и Директора."""
+    import sys
+    subprocess.run("pkill -9 -f '[ /]bot[.]py'; true", shell=True)
+    logf = open("/tmp/bot.log", "ab")
+    subprocess.Popen([sys.executable, "bot.py"], cwd=d,
+                     stdout=logf, stderr=logf, start_new_session=True)
+    log.info("Секретарь перезапущен (по команде Директора)")
 
 
 def _restart_dashboard_mac(d):
@@ -4970,6 +5320,40 @@ async def cmd_setsalestoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         chat_id, "✅ Токен Продавец-бота сохранён, запускаю отдельного бота.\n"
                  "Открой нового бота в Telegram и нажми *Start* — Продавец на связи. "
                  "Утренний дайджест продаж будет приходить туда в 07:00.",
+        parse_mode="Markdown")
+
+
+async def cmd_setdirectortoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Принять токен Директор-бота, сохранить в БД (не в git) и поднять бота.
+    Сообщение с токеном сразу удаляем из чата ради безопасности."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    token = (update.message.text or "").partition(" ")[2]
+    token = "".join(token.split())
+    try:
+        await ctx.bot.delete_message(chat_id, update.message.message_id)
+    except Exception:
+        pass
+    if not re.match(r'^\d{6,}:[A-Za-z0-9_-]{30,}$', token):
+        await ctx.bot.send_message(
+            chat_id, "Это не похоже на токен. Пришли так: `/setdirectortoken 123456789:AA...`",
+            parse_mode="Markdown")
+        return
+    _settings_set("director_bot_token", token)
+    save_chat_id(chat_id)
+    d = os.path.dirname(os.path.abspath(__file__))
+    try:
+        _restart_director(d)
+    except Exception as e:
+        log.error(f"setdirectortoken restart: {e}")
+        await ctx.bot.send_message(chat_id, f"Токен сохранён, но запуск дал сбой: {e}")
+        return
+    await ctx.bot.send_message(
+        chat_id, "✅ Токен Директор-бота сохранён, запускаю отдельного бота.\n"
+                 "Открой нового бота в Telegram и нажми *Start* — Директор на связи: "
+                 "кидай ему задачу целиком, он раздаст поручения команде.",
         parse_mode="Markdown")
 
 
@@ -5903,6 +6287,7 @@ def main():
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
     app.add_handler(CommandHandler("setsalestoken", cmd_setsalestoken))
+    app.add_handler(CommandHandler("setdirectortoken", cmd_setdirectortoken))
     app.add_handler(CommandHandler("setinvoicedata", cmd_setinvoicedata))
     app.add_handler(CommandHandler("wipeinvoicestoday", cmd_wipeinvoicestoday))
     app.add_handler(CommandHandler("juriststatus", cmd_juriststatus))
@@ -5936,6 +6321,12 @@ def main():
         _restart_sales(os.path.dirname(os.path.abspath(__file__)))
     except Exception as e:
         log.error(f"start sales: {e}")
+
+    # Директор — отдельный бот (director_bot.py); поднимаем его, если задан токен
+    try:
+        _restart_director(os.path.dirname(os.path.abspath(__file__)))
+    except Exception as e:
+        log.error(f"start director: {e}")
 
     log.info("Секретарь запущен 🗂")
     app.run_polling(drop_pending_updates=False)

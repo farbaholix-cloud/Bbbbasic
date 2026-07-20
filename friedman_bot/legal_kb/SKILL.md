@@ -52,7 +52,10 @@ description: >
 ## Текущий контекст пользователя (если не сказано иное)
 
 - Freiberufler, статус подтверждён Finanzamt (Tätigkeit: художник/Wandkünstler).
-- Kleinunternehmer по §19 UStG.
+- Kleinunternehmer по §19 UStG — **внимание**: оборот-2025 (34 387 €) превысил
+  порог прошлого года 25 000 €, поэтому с 01.01.2026 статус, скорее всего,
+  утрачен (см. `references/kleinunternehmer.md`); счета 2026 выставлялись ещё
+  с §19 — риск доначисления USt, финал подтвердить со Steuerberater.
 - Gesetzlich krankenversichert (не через KSK).
 - В KSK не состоит, заявление не подавал.
 - С IHK взаимодействия не было.

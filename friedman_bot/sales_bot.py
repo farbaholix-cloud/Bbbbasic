@@ -232,6 +232,10 @@ async def sales_morning(ctx: ContextTypes.DEFAULT_TYPE):
     chat_id = B.get_chat_id()
     if not chat_id:
         return
+    # Когда активен Директор (главный бот) — утро ведёт он; обучающий дайджест
+    # по-прежнему доступен вручную командой /digest.
+    if B.get_director_token():
+        return
     today = (datetime.now(B.BERLIN) if B.BERLIN else datetime.now()).strftime("%Y-%m-%d")
     if not B._claim_daily("sales_digest:" + today):
         return
