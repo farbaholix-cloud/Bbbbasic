@@ -230,21 +230,37 @@ async def _reply_chunks(update: Update, header: str, reply: str):
             await update.message.reply_text(chunk.replace("*", "").replace("_", ""))
 
 
+# Один оркестр за раз: наложение двух тяжёлых цепочек друг на друга — главный
+# источник «молчания». Вторая задача честно ждёт в очереди.
+_orch_lock = asyncio.Lock()
+
+
 async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
-    """Оркестрация: триаж → реальное делегирование агентам → контроль и синтез.
-    Владельцу — минимум; прогресс показываем короткими статусами."""
+    """Оркестрация: быстрый триаж → параллельное исполнение поручений агентами →
+    контроль и минимальный свод. На каждом шаге есть деградация — владелец
+    никогда не остаётся без ответа."""
+    if _orch_lock.locked():
+        await update.message.reply_text("⏳ Ещё довожу предыдущую задачу — эта в очереди, возьму следом.")
+    async with _orch_lock:
+        try:
+            await _orchestrate(update, ctx, txt)
+        except Exception as e:
+            log.error(f"orchestration crash: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"⚠️ Сбой оркестрации ({type(e).__name__}). Логи сохранены — попробуй ещё раз.")
+
+
+async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
     B.remember_director("user", txt)
     loop = asyncio.get_event_loop()
 
-    # Шаг 1: триаж — ответить самому или делегировать
+    # Шаг 1: быстрый триаж (haiku без инструментов; при сбое LLM внутри сработает
+    # резервный маршрут по ключевым словам — пустого resp не бывает)
     resp = await loop.run_in_executor(None, lambda: B.director_dialog_sync(txt))
-    if not resp:
-        await update.message.reply_text("Не получилось разобрать задачу 😔 Попробуй ещё раз.")
-        return
 
-    delegations = resp.get("delegate") or []
+    delegations = (resp or {}).get("delegate") or []
     if not delegations:
-        reply = resp.get("reply", "")
+        reply = (resp or {}).get("reply", "")
         if not reply:
             await update.message.reply_text("Не получилось собрать ответ 😔 Попробуй ещё раз.")
             return
@@ -257,37 +273,51 @@ async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
                 log.error(f"director voice reply: {e}")
         return
 
-    # Шаг 2: исполняем поручения (каждое — вызов мозга агента, до минуты)
+    # Шаг 2: исполняем поручения ПАРАЛЛЕЛЬНО (каждое — вызов мозга агента).
     note = resp.get("note", "")
-    who = " · ".join(B.DIRECTOR_AGENT_LABEL.get(d.get("to", ""), d.get("to", ""))
-                     for d in delegations if d.get("to"))
-    await update.message.reply_text(
-        ("🎩 " + note + "\n" if note else "🎩 ") + f"Поручил: {who}. Жди, соберу выводы…")
-
-    results = []
+    jobs = []
     for dlg in delegations[:4]:  # максимум 4 поручения за раз — защита от разбегания
         to = (dlg.get("to") or "").strip()
         task = (dlg.get("task") or "").strip()
-        if not to or not task:
-            continue
-        out, notes = await loop.run_in_executor(
-            None, lambda to=to, task=task: B.director_run_delegation(to, task))
-        results.append((to, task, out, notes))
+        if to and task:
+            jobs.append((to, task))
+    if not jobs:
+        await update.message.reply_text("Поручения не сформировались 😔 Попробуй переформулировать.")
+        return
 
-    if not results:
-        await update.message.reply_text("Поручения не исполнились 😔 Попробуй ещё раз.")
+    labels = [B.DIRECTOR_AGENT_LABEL.get(to, to) for to, _ in jobs]
+    header = ("🎩 " + note + "\n" if note else "🎩 ") + "Поручил: " + " · ".join(labels)
+    progress = await update.message.reply_text(header + "\n⏳ агенты работают…")
+
+    done_marks = {}
+
+    async def _run_one(to, task):
+        out, notes = await loop.run_in_executor(
+            None, lambda: B.director_run_delegation(to, task))
+        done_marks[to] = "✓" if out else "✗"
+        try:
+            marks = " ".join(f"{B.DIRECTOR_AGENT_LABEL.get(t, t)} {m}" for t, m in done_marks.items())
+            await progress.edit_text(header + f"\n{marks} ({len(done_marks)}/{len(jobs)})…")
+        except Exception:
+            pass  # правка прогресса — косметика, не роняем оркестр
+        return (to, task, out, notes)
+
+    results = list(await asyncio.gather(*(_run_one(to, task) for to, task in jobs)))
+    ok_results = [r for r in results if r[2]]
+
+    if not ok_results:
+        await update.message.reply_text(
+            "Агенты не дали результата 😔 Это записано в логи (/tmp/director.log). "
+            "Попробуй ещё раз или переформулируй.")
         return
 
     # Шаг 3: контроль результатов и минимальный свод владельцу
     reply = await loop.run_in_executor(
-        None, lambda: B.director_finalize_sync(txt, results))
+        None, lambda: B.director_finalize_sync(txt, ok_results))
     if not reply:
         # деградация: отдаём сырые результаты, лишь бы не потерять работу агентов
         reply = "\n\n".join(
-            f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n{out}" for to, _t, out, _n in results if out)
-    if not reply:
-        await update.message.reply_text("Агенты не дали результата 😔 Попробуй переформулировать.")
-        return
+            f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n{out}" for to, _t, out, _n in ok_results)
     B.remember_director("assistant", reply[:1500])
     await _reply_chunks(update, "", reply)
     if _voice_on():

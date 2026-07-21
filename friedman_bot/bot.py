@@ -4434,55 +4434,117 @@ def get_director_memory():
         return []
 
 
-DIRECTOR_PROMPT = """Ты — «Директор», главный агент и ЕДИНСТВЕННЫЙ интерфейс владельца: Вячеслав (Slavik), бренд FARBAHOLIX, граффити/мурал Künstler в Германии, украинец на §24, Kleinunternehmer §19 (оборот-2025 превысил порог — статус на 2026 под вопросом, правовой финал у Юриста), в KSK не состоит, есть долги и регулярные платежи. Владелец общается только с тобой — остальных ботов он не читает.
+def get_director_snapshot() -> str:
+    """Компактный срез показателей для триажа Директора — несколько строк вместо
+    тяжёлых блоков (полные данные получают сами агенты на своём шаге)."""
+    lines = []
+    try:
+        with db() as conn:
+            cash = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
+            card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
+            debts = conn.execute("SELECT COALESCE(SUM(total-COALESCE(paid,0)),0) FROM debts").fetchone()[0]
+            try:
+                regular = conn.execute(
+                    "SELECT COALESCE(SUM(amount),0) FROM payments WHERE active=1 "
+                    "AND COALESCE(kind,'')!='planned'").fetchone()[0]
+            except Exception:
+                regular = 0
+            try:
+                today = datetime.now().strftime("%Y-%m-%d")
+                leads_n = conn.execute(
+                    "SELECT COUNT(*) FROM leads WHERE stage IN ('new','contacted','qualified','offer')"
+                ).fetchone()[0]
+                leads_over = conn.execute(
+                    "SELECT COUNT(*) FROM leads WHERE stage IN ('new','contacted','qualified','offer') "
+                    "AND next_action_date IS NOT NULL AND next_action_date < ?", (today,)).fetchone()[0]
+            except Exception:
+                leads_n, leads_over = 0, 0
+        lines.append(f"ДЕНЬГИ: карта {card:+.0f}€ · нал {cash:+.0f}€ · долги {debts:.0f}€ "
+                     f"· регулярка ~{regular:.0f}€/мес")
+        lines.append(f"ЛИДЫ: открыто {leads_n}, просрочено касаний {leads_over}")
+    except Exception as e:
+        log.error(f"director snapshot: {e}")
+    try:
+        fun = get_funnel_context()
+        if fun:
+            lines.append(fun.splitlines()[-1])  # строка «Итого ожидаемо … взвешенно …»
+    except Exception:
+        pass
+    return "\n".join(lines)
 
-Твой полный регламент (навыки, показатели под контролем, маршрутизация, пересечения) — прочитай инструментом Read ПЕРВЫМ действием: {kb}/SKILL.md. Базы знаний команды (читай по мере надобности): 🗂 Секретарь {secretary_kb}/SKILL.md · ⚖️ Юрист {legal_kb}/SKILL.md · 💼 Продавец {sales_kb}/SKILL.md · 🧭 Стратег {strategy_kb}/SKILL.md. ИИ-инструменты и платформа Hermes: {kb}/references/ai-tools.md.
 
-ТЫ ДЕЛЕГИРУЕШЬ ПО-НАСТОЯЩЕМУ: поручения из твоего JSON исполняются агентами автоматически, их результаты вернутся тебе на контроль и синтез. Сам не исполняй чужие зоны и не выдумывай данные — работай из данных ниже (финансы, долги, воронка, лиды, планы); чего не хватает — делегируй тому, у кого это есть, или назови задачей владельцу.
+def _director_route_fallback(user_text: str) -> dict:
+    """Резервный детерминированный маршрут: если LLM-триаж дважды не ответил,
+    поручение уходит агенту по ключевым словам — Директор никогда не молчит."""
+    t = user_text.lower()
+    if re.search(r"юрист|налог|счёт|счет|rechnung|invoice|договор|vertrag|ведомств|"
+                 r"finanzamt|elster|ksk|krankenkass|виза|паспорт|правов|закон|легальн|"
+                 r"штраф|деклара|kleinunternehmer|freiberufler|стран", t):
+        to = "lawyer"
+    elif re.search(r"прода|клиент|лид|цена|цену|оферт|\bкп\b|заказ|дожат|воронк|переговор|"
+                   r"follow|аутрич|рассылк", t):
+        to = "sales"
+    elif re.search(r"стратег|кризис|план на год|куда ид|направлени|диверсифика|позиционир", t):
+        to = "strategy"
+    else:
+        to = "secretary"
+    return {"note": "распределяю экспресс-маршрутом", "fallback": True,
+            "delegate": [{"to": to, "task": user_text}]}
 
-Тон: по-русски, минимально, по-делу. Владельцу — только решения на подтверждение, задачи, которые может сделать только он, и следующий шаг. Не цитируй российских/советских авторов.
 
-Сегодня: {today}.
+DIRECTOR_PROMPT = """Ты — «Директор», главный агент и ЕДИНСТВЕННЫЙ интерфейс владельца: Вячеслав (Slavik), бренд FARBAHOLIX, граффити/мурал Künstler в Германии, украинец на §24, Kleinunternehmer §19 (оборот-2025 превысил порог — статус на 2026 под вопросом, правовой финал у Юриста), в KSK не состоит, есть долги и регулярные платежи. Владелец общается только с тобой.
 
-Ответь строго ОДНИМ JSON без текста вне его, в одном из двух видов:
-1) нужны агенты → {"note": "1 строка владельцу: что делаешь", "delegate": [{"to": "secretary|lawyer|sales|strategy", "task": "чёткое поручение с данными и ожидаемым результатом"}]}
-2) можешь ответить сам (вопрос к тебе, статус по данным, уточнение) → {"reply": "минимальный ответ владельцу"}"""
+Твоя задача СЕЙЧАС — быстрый триаж: решить, ответить самому или делегировать команде. Файлы читать не нужно — правила ниже, поручения из твоего JSON исполнятся агентами автоматически, результаты вернутся тебе на синтез.
+
+КОМУ ЧТО (можно несколько поручений сразу):
+- secretary — операционка и память: зафиксировать/запланировать/напомнить, проекты и шаги, финансы-учёт («потратил/получил», «сколько денег», «что горит»), контакты, сметы, письма-черновики.
+- lawyer — немецкое право/налоги/статус (§19, §24, KSK, ELSTER, Finanzamt), счета (Rechnung), договоры, письма в ведомства, «можно ли по закону», выбор стран/каналов с правовой стороны.
+- sales — клиенты и сделки: лиды, оферты, цена, переговоры, follow-up, дожатие, «что закрывать первым».
+- strategy — большие развилки: «куда идём», кризис, план на год, диверсификация, позиционирование.
+Пересечения: цена/большая сделка у порога §19 → sales И lawyer. Итог с записью в базу (оплата, новый проект, дедлайн) → добавь secretary.
+
+Отвечай сам (reply) только если ответ прямо в данных ниже (статус, цифра), это уточнение или приветствие. В остальном — делегируй; в task передай ВСЕ данные из сообщения владельца, сформулировав как поручение специалисту.
+
+Тон: по-русски, минимально. Не цитируй российских/советских авторов. Сегодня: {today}.
+
+Ответь строго ОДНИМ JSON без текста вне его и без markdown-обёртки:
+{"note": "1 строка владельцу: что делаешь", "delegate": [{"to": "secretary|lawyer|sales|strategy", "task": "чёткое поручение"}]}
+или {"reply": "минимальный ответ владельцу"}"""
 
 
 def director_dialog_sync(user_text: str) -> dict:
-    """Диалоговый Директор, шаг 1: триаж задачи владельца. Возвращает dict:
-    либо {"reply": ...} — прямой ответ, либо {"note": ..., "delegate": [...]} —
-    поручения агентам (их исполнит director_run_delegation)."""
-    sys_prompt = (DIRECTOR_PROMPT
-                  .replace("{kb}", DIRECTOR_KB_DIR)
-                  .replace("{secretary_kb}", SECRETARY_KB_DIR)
-                  .replace("{legal_kb}", LEGAL_KB_DIR)
-                  .replace("{sales_kb}", SALES_KB_DIR)
-                  .replace("{strategy_kb}", STRATEGY_KB_DIR)
-                  .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
-    funnel = get_funnel_context()
-    leads = get_leads_context()
-    plans = get_plans_context()
+    """Диалоговый Директор, шаг 1: быстрый триаж (haiku, без инструментов, две
+    попытки). Возвращает {"reply": ...} — прямой ответ, либо {"note": ...,
+    "delegate": [...]} — поручения агентам. При полном сбое LLM — резервный
+    маршрут по ключевым словам: пустого ответа не бывает."""
+    sys_prompt = DIRECTOR_PROMPT.replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A"))
+    snapshot = get_director_snapshot()
     hist = "\n".join(
-        f"{'Владелец' if r['role'] == 'user' else 'Директор'}: {r['text']}"
-        for r in get_director_memory())
+        f"{'Владелец' if r['role'] == 'user' else 'Директор'}: {r['text'][:300]}"
+        for r in get_director_memory()[-10:])
     prompt = (
-        f"{get_legal_context()}\n\n"
-        + (funnel + "\n\n" if funnel else "")
-        + (leads + "\n\n" if leads else "")
-        + (plans + "\n\n" if plans else "")
-        + (f"ПОСЛЕДНИЕ РЕПЛИКИ ДИАЛОГА (помни их, не повторяйся):\n{hist}\n\n" if hist else "")
-        + "НОВАЯ ЗАДАЧА ВЛАДЕЛЬЦА: " + user_text.strip() + "\n"
-        "Сначала прочитай свой регламент (Read: SKILL.md), затем реши: ответить самому "
-        "или делегировать (кому и что). Помни про минимализацию."
+        (snapshot + "\n\n" if snapshot else "")
+        + (f"ПОСЛЕДНИЕ РЕПЛИКИ ДИАЛОГА:\n{hist}\n\n" if hist else "")
+        + "СООБЩЕНИЕ ВЛАДЕЛЬЦА: " + user_text.strip()
     )
-    try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
-            capture_output=True, text=True, timeout=360,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+    for attempt in (1, 2):
+        try:
+            result = subprocess.run(
+                [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+                 "--model", "haiku", "--max-turns", "4", "--tools", ""],
+                capture_output=True, text=True, timeout=90,
+                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        except subprocess.TimeoutExpired:
+            log.error(f"director triage timeout (попытка {attempt})")
+            continue
+        except Exception as e:
+            log.error(f"director triage (попытка {attempt}): {e}")
+            continue
         raw = (result.stdout or "").strip()
+        if not raw or raw.startswith("Error:") or "max turns" in raw.lower():
+            log.error(f"director triage пусто/ошибка (попытка {attempt}): rc={result.returncode} "
+                      f"out={raw[:200]!r} err={(result.stderr or '')[:300]!r}")
+            continue
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
             try:
@@ -4491,10 +4553,8 @@ def director_dialog_sync(user_text: str) -> dict:
                     return data
             except Exception:
                 pass
-        return {"reply": raw} if raw else {}
-    except Exception as e:
-        log.error(f"director_dialog: {e}")
-        return {}
+        return {"reply": raw}  # осмысленный текст без JSON — отдадим как есть
+    return _director_route_fallback(user_text)
 
 
 DIRECTOR_AGENT_LABEL = {"secretary": "🗂 Секретарь", "lawyer": "⚖️ Юрист",
@@ -4557,10 +4617,13 @@ def director_finalize_sync(user_text: str, results: list) -> str:
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "", "--model", "sonnet", "--max-turns", "4"],
+             "--model", "sonnet", "--max-turns", "4", "--tools", ""],
             capture_output=True, text=True, timeout=240,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
         raw = (result.stdout or "").strip()
+        if not raw:
+            log.error(f"director finalize пусто: rc={result.returncode} "
+                      f"err={(result.stderr or '')[:300]!r}")
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
             try:
@@ -4606,10 +4669,13 @@ def director_morning_sync() -> str:
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "", "--model", "sonnet", "--max-turns", "4"],
+             "--model", "sonnet", "--max-turns", "4", "--tools", ""],
             capture_output=True, text=True, timeout=240,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
         raw = (result.stdout or "").strip()
+        if not raw:
+            log.error(f"director morning пусто: rc={result.returncode} "
+                      f"err={(result.stderr or '')[:300]!r}")
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
             try:
