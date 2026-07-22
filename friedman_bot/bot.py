@@ -4601,7 +4601,8 @@ def director_finalize_sync(user_text: str, results: list) -> str:
     blocks = []
     for to, task, output, notes in results:
         label = DIRECTOR_AGENT_LABEL.get(to, to)
-        blocks.append(f"=== {label} ===\nПОРУЧЕНИЕ: {task}\nРЕЗУЛЬТАТ:\n{output or '(пусто — агент не справился)'}"
+        out_cut = (output or "(пусто — агент не справился)")[:5000]  # диета токенов синтеза
+        blocks.append(f"=== {label} ===\nПОРУЧЕНИЕ: {task[:500]}\nРЕЗУЛЬТАТ:\n{out_cut}"
                       + (("\nЗАПИСАНО В БАЗУ: " + "; ".join(notes)) if notes else ""))
     sys_prompt = (
         "Ты — «Директор» FARBAHOLIX. Твои агенты исполнили поручения — ниже их результаты. "
@@ -4636,56 +4637,121 @@ def director_finalize_sync(user_text: str, results: list) -> str:
         return ""
 
 
-def director_morning_sync() -> str:
-    """Утренняя сводка Директора (07:00): выводы из картин Секретаря, Юриста,
-    Продавца/Маркетолога и Стратега — минимальный формат из director_kb/SKILL.md."""
-    parts = []
-    for name, fn in (("КАРТИНА СЕКРЕТАРЯ (день, задачи, деньги)", get_context),
-                     ("ФИНАНСЫ/ОБОРОТ/ДОЛГИ (Юрист)", get_legal_context),
-                     ("БЮРОКРАТИЯ И СРОКИ (Юрист)", bureau_digest_text),
-                     ("ВОРОНКА СДЕЛОК (Продавец)", get_funnel_context),
-                     ("ДОСКА ЛИДОВ (Продавец/Маркетолог)", get_leads_context)):
-        try:
-            t = fn()
-            if t:
-                parts.append(f"=== {name} ===\n{t}")
-        except Exception as e:
-            log.error(f"director brief part: {e}")
-    sys_prompt = (
-        "Ты — «Директор» FARBAHOLIX (единственный интерфейс владельца). Утренняя сводка — "
-        "это ВЫВОДЫ из картин четырёх линз: Секретарь (день/задачи/деньги), Юрист "
-        "(сроки/§19/бюрократия), Маркетолог+Продавец (воронка/лиды/касания), Стратег "
-        "(курс/риски на горизонте). Формат ЖЁСТКО минимальный:\n"
-        "📌 *Главное сегодня* — 1–3 строки\n"
-        "✅ *Решения на подтверждение* — только если есть развилка\n"
-        "👤 *Задачи владельцу* — только то, что агенты не могут сами\n"
-        "📊 одной строкой: баланс · взвешенная воронка · ближайший платёж/срок\n"
-        "Никаких лекций, цитат и пересказа данных. Ухудшение показателя — в «Главное». "
-        "По-русски. Telegram Markdown (жирный *одной звёздочкой*). "
-        'Ответь строго JSON: {"reply": "текст сводки"}. Никакого текста вне JSON.')
-    prompt = (f"Сегодня {datetime.now().strftime('%Y-%m-%d, %A')}.\n\n"
-              + ("\n\n".join(parts) if parts else "ДАННЫХ НЕТ — скажи это одной строкой.")
-              + "\n\nСобери утреннюю сводку.")
+def _director_brief_data() -> str:
+    """Детерминированная основа утренней сводки: цифры и факты прямо из БД,
+    без LLM — 0 токенов, мгновенно, отказать не может. Каждый блок независим."""
+    L = []
+    today_s = datetime.now().strftime("%Y-%m-%d")
+    today_d = date.today()
+    # Деньги
     try:
+        with db() as conn:
+            cash = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
+            card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
+            debts = conn.execute("SELECT COALESCE(SUM(total-COALESCE(paid,0)),0) FROM debts").fetchone()[0]
+        L.append(f"📊 *Деньги*: карта {card:+.0f}€ · нал {cash:+.0f}€ · долги {debts:.0f}€")
+    except Exception as e:
+        log.error(f"brief money: {e}")
+    # Воронка: итоговая строка + топ-3 «ближе к деньгам»
+    try:
+        fun = get_funnel_context()
+        if fun:
+            rows = fun.splitlines()
+            L.append("💰 *Воронка*: " + rows[-1].replace("Итого ожидаемо: ", ""))
+            for r in rows[1:4]:
+                L.append(r)
+    except Exception as e:
+        log.error(f"brief funnel: {e}")
+    # Сегодня: приоритеты и напоминания
+    try:
+        with db() as conn:
+            highs = conn.execute(
+                "SELECT text FROM chaos WHERE done=0 AND priority='high' "
+                "ORDER BY importance DESC, urgency DESC, created_at LIMIT 3").fetchall()
+            rems = conn.execute(
+                "SELECT due_at, text FROM reminders WHERE sent=0 AND due_at LIKE ?",
+                (today_s + "%",)).fetchall()
+        if highs or rems:
+            L.append("🔥 *Сегодня*:")
+            for r in highs:
+                L.append(f"  • {r['text'][:90]}")
+            for r in rems:
+                L.append(f"  ⏰ {r['due_at'][11:16]} {r['text'][:80]}")
+    except Exception as e:
+        log.error(f"brief today: {e}")
+    # Платежи ближайших 7 дней (регулярные + разовые)
+    try:
+        with db() as conn:
+            pays = conn.execute("SELECT * FROM payments WHERE active=1").fetchall()
+        horizon = today_d + timedelta(days=7)
+        soon = []
+        for p in pays:
+            for dt in _payment_occurrences(p, today_d, horizon):
+                soon.append((dt, p["title"], p["amount"] or 0))
+        if soon:
+            soon.sort()
+            L.append("📅 *Платежи 7 дней*: " + " · ".join(
+                f"{dt.strftime('%d.%m')} {title} {amt:.0f}€" for dt, title, amt in soon[:4]))
+    except Exception as e:
+        log.error(f"brief payments: {e}")
+    # Лиды: счётчики + самый просроченный
+    try:
+        with db() as conn:
+            leads_n = conn.execute(
+                "SELECT COUNT(*) FROM leads WHERE stage IN ('new','contacted','qualified','offer')"
+            ).fetchone()[0]
+            over = conn.execute(
+                "SELECT name, next_action, next_action_date FROM leads "
+                "WHERE stage IN ('new','contacted','qualified','offer') "
+                "AND next_action_date IS NOT NULL AND next_action_date < ? "
+                "ORDER BY next_action_date LIMIT 1", (today_s,)).fetchone()
+            over_n = conn.execute(
+                "SELECT COUNT(*) FROM leads WHERE stage IN ('new','contacted','qualified','offer') "
+                "AND next_action_date IS NOT NULL AND next_action_date < ?", (today_s,)).fetchone()[0]
+        if leads_n:
+            line = f"👥 *Лиды*: открыто {leads_n}"
+            if over_n:
+                line += f", просрочено {over_n}"
+                if over:
+                    line += f" (дольше всех: {over['name']} — {over['next_action'] or 'касание'})"
+            L.append(line)
+    except Exception as e:
+        log.error(f"brief leads: {e}")
+    return "\n".join(L)
+
+
+def director_morning_sync() -> str:
+    """Утренняя сводка Директора (07:00). Архитектура «цифры без LLM, выводы —
+    дёшево и опционально»: основа собирается Python'ом из БД (не может упасть и
+    не тратит токены), затем haiku добавляет 1–3 строки выводов; его сбой сводку
+    не роняет — она уходит без блока «Главное»."""
+    data = _director_brief_data()
+    header = "🗓 *Сводка Директора* — " + datetime.now().strftime("%d.%m.%Y")
+    if not data:
+        return header + "\n\nБаза пока пуста — данных для сводки нет."
+    text = header + "\n\n" + data
+    try:
+        sys_prompt = (
+            "Ты — «Директор» FARBAHOLIX. Ниже цифры утренней сводки владельца-художника. "
+            "Дай СВЕРХкратко и только по делу: 📌 *Главное сегодня* (1–3 строки выводов, "
+            "не пересказ цифр) и, ТОЛЬКО если явно нужно, одну строку ✅ решение на "
+            "подтверждение или 👤 задачу владельцу. Пустых рубрик не пиши. По-русски, "
+            "Telegram Markdown (жирный *одной звёздочкой*). "
+            'Ответь строго JSON: {"reply": "текст"}. Никакого текста вне JSON.')
         result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--model", "sonnet", "--max-turns", "4", "--tools", ""],
-            capture_output=True, text=True, timeout=240,
+            [CLAUDE_BIN, "-p", data, "--append-system-prompt", sys_prompt,
+             "--model", "haiku", "--max-turns", "2", "--tools", ""],
+            capture_output=True, text=True, timeout=60,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
         raw = (result.stdout or "").strip()
-        if not raw:
-            log.error(f"director morning пусто: rc={result.returncode} "
-                      f"err={(result.stderr or '')[:300]!r}")
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
-            try:
-                return (jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "") or raw
-            except Exception:
-                pass
-        return raw
+            concl = ((jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "") or "").strip()
+            if concl:
+                text = header + "\n\n" + concl + "\n\n" + data
     except Exception as e:
-        log.error(f"director_morning: {e}")
-        return ""
+        log.error(f"director morning conclusions: {e}")
+    return text
 
 
 def ensure_director_kb():

@@ -311,13 +311,20 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
             "Попробуй ещё раз или переформулируй.")
         return
 
-    # Шаг 3: контроль результатов и минимальный свод владельцу
-    reply = await loop.run_in_executor(
-        None, lambda: B.director_finalize_sync(txt, ok_results))
-    if not reply:
-        # деградация: отдаём сырые результаты, лишь бы не потерять работу агентов
-        reply = "\n\n".join(
-            f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n{out}" for to, _t, out, _n in ok_results)
+    # Шаг 3: один агент — его ответ уходит владельцу напрямую (свод не нужен,
+    # экономим целый sonnet-вызов); несколько — контроль и минимальный свод
+    if len(ok_results) == 1:
+        to, _task, out, notes = ok_results[0]
+        reply = f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n\n{out}"
+        if notes:
+            reply += "\n\n📝 " + "; ".join(notes)
+    else:
+        reply = await loop.run_in_executor(
+            None, lambda: B.director_finalize_sync(txt, ok_results))
+        if not reply:
+            # деградация: отдаём сырые результаты, лишь бы не потерять работу агентов
+            reply = "\n\n".join(
+                f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n{out}" for to, _t, out, _n in ok_results)
     B.remember_director("assistant", reply[:1500])
     await _reply_chunks(update, "", reply)
     if _voice_on():
