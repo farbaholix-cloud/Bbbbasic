@@ -4654,42 +4654,46 @@ DIRECTOR_AGENT_LABEL = {"secretary": "🗂 Секретарь", "lawyer": "⚖�
 def director_run_delegation(to: str, task: str):
     """Шаг 2: исполнить поручение Директора — вызвать нужного агента внутри
     процесса (те же мозги, что в их ботах). Возвращает (текст результата,
-    список заметок о применённых действиях в БД)."""
-    notes = []
+    заметки о записях в БД, файлы-приложения — например PDF счёта)."""
+    notes, files = [], []
+
+    def _applied(actions):
+        applied = apply_actions(actions or [])
+        notes.extend(f"{k}: {t}" for k, _i, t, _a, _p in applied)
+        files.extend(p for k, _i, _t, p, _pr in applied if k == "invoice" and p)
+
     try:
         if to == "secretary":
             resp = ask_claude_sync(task) or {}
-            applied = apply_actions(resp.get("actions", []) or [])
-            notes = [f"{k}: {t}" for k, _i, t, _a, _p in applied]
-            return resp.get("reply", "") or "", notes
+            _applied(resp.get("actions"))
+            return resp.get("reply", "") or "", notes, files
         if to == "lawyer":
             remember_lawyer("user", "[поручение Директора] " + task[:300])
             resp = ask_lawyer_sync(task) or {}
-            applied = apply_actions(resp.get("actions", []) or [])
-            notes = [f"{k}: {t}" for k, _i, t, _a, _p in applied]
+            _applied(resp.get("actions"))
             reply = resp.get("reply", "") or ""
             if reply:
                 remember_lawyer("lawyer", reply[:1500])
-            return reply, notes
+            return reply, notes, files
         if to == "sales":
             remember_seller("user", "[поручение Директора] " + task[:300])
             out = sales_agent_sync(task) or ""
             if out:
                 remember_seller("assistant", out[:1500])
-            return out, notes
+            return out, notes, files
         if to == "strategy":
-            return strategy_council_sync() or "", notes
+            return strategy_council_sync() or "", notes, files
     except Exception as e:
         log.error(f"director delegation {to}: {e}")
-    return "", notes
+    return "", notes, files
 
 
 def director_finalize_sync(user_text: str, results: list) -> str:
-    """Шаг 3: контроль и синтез. results = [(to, task, output, notes)].
+    """Шаг 3: контроль и синтез. results = [(to, task, output, notes, files)].
     Директор проверяет результаты агентов и сводит владельцу минимум:
     итог · решения на подтверждение · задачи владельцу · следующий шаг."""
     blocks = []
-    for to, task, output, notes in results:
+    for to, task, output, notes, _files in results:
         label = DIRECTOR_AGENT_LABEL.get(to, to)
         out_cut = (output or "(пусто — агент не справился)")[:5000]  # диета токенов синтеза
         blocks.append(f"=== {label} ===\nПОРУЧЕНИЕ: {task[:500]}\nРЕЗУЛЬТАТ:\n{out_cut}"

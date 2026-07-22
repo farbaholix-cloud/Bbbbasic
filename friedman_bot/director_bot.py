@@ -249,6 +249,18 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
     B.remember_director("user", txt)
     loop = asyncio.get_event_loop()
 
+    # Детерминированные сценарии с файлом на выходе — счёт (Rechnung) и договор.
+    # Тот же надёжный путь, что был у Юриста: мимо LLM-триажа, ноль токенов,
+    # гарантированный PDF прямо в этот чат (шлётся ботом Директора через update).
+    if B.looks_like_contract_request(txt):
+        await B.create_contract_from_text(update, txt)
+        B.remember_director("assistant", "составил договор: " + txt[:150])
+        return
+    if B.looks_like_invoice_request(txt):
+        await B.create_invoice_from_text(update, txt)
+        B.remember_director("assistant", "выставил счёт: " + txt[:150])
+        return
+
     # Шаг 1: быстрый триаж (haiku без инструментов; при сбое LLM внутри сработает
     # резервный маршрут по ключевым словам — пустого resp не бывает)
     resp = await loop.run_in_executor(None, lambda: B.director_dialog_sync(txt))
@@ -302,7 +314,7 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
     done_marks = {}
 
     async def _run_one(to, task):
-        out, notes = await loop.run_in_executor(
+        out, notes, files = await loop.run_in_executor(
             None, lambda: B.director_run_delegation(to, task))
         done_marks[to] = "✓" if out else "✗"
         try:
@@ -310,7 +322,7 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
             await progress.edit_text(header + f"\n{marks} ({len(done_marks)}/{len(jobs)})…")
         except Exception:
             pass  # правка прогресса — косметика, не роняем оркестр
-        return (to, task, out, notes)
+        return (to, task, out, notes, files)
 
     results = list(await asyncio.gather(*(_run_one(to, task) for to, task in jobs)))
     ok_results = [r for r in results if r[2]]
@@ -324,7 +336,7 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
     # Шаг 3: один агент — его ответ уходит владельцу напрямую (свод не нужен,
     # экономим целый sonnet-вызов); несколько — контроль и минимальный свод
     if len(ok_results) == 1:
-        to, _task, out, notes = ok_results[0]
+        to, _task, out, notes, _files = ok_results[0]
         reply = f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n\n{out}"
         if notes:
             reply += "\n\n📝 " + "; ".join(notes)
@@ -334,11 +346,19 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
         if not reply:
             # деградация: отдаём сырые результаты, лишь бы не потерять работу агентов
             reply = "\n\n".join(
-                f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n{out}" for to, _t, out, _n in ok_results)
+                f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n{out}"
+                for to, _t, out, _n, _f in ok_results)
     if applied_notes:
         reply += "\n\n📝 " + "\n📝 ".join(applied_notes)
     B.remember_director("assistant", reply[:1500])
     await _reply_chunks(update, "", reply)
+    # Файлы от агентов (PDF счёта и т.п.) — вслед за текстом
+    for path in (f for r in ok_results for f in (r[4] or [])):
+        try:
+            with open(path, "rb") as doc:
+                await update.message.reply_document(doc, filename=os.path.basename(path))
+        except Exception as e:
+            log.error(f"send delegated file {path}: {e}")
     if _voice_on():
         try:
             await B.speak_reply(update, reply)
