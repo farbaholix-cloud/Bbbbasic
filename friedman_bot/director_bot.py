@@ -408,6 +408,49 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await _route_text(update, ctx, txt)
 
 
+async def on_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """PDF/фото Директору → единый контур счетов: распознать и сложить счёт в
+    таблицу invoice_archive + PDF-хранилище (договор — в архив договоров).
+    Именно так закидываются старые счета, выставленные до появления хранилища."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    B.save_chat_id(chat_id)
+    doc = update.message.document
+    photo = update.message.photo[-1] if update.message.photo else None
+    if not doc and not photo:
+        return
+    fid = doc.file_id if doc else photo.file_id
+    name = (doc.file_name if doc else "image.jpg") or "file.bin"
+    ext = os.path.splitext(name)[1] or (".pdf" if doc else ".jpg")
+    tmp = os.path.join(tempfile.gettempdir(), f"dir_{fid[:16]}{ext}")
+    tg_file = await ctx.bot.get_file(fid)
+    await tg_file.download_to_drive(tmp)
+    B.remember_director("user", f"прислал документ: {name}")
+    await update.message.reply_text("📄 Принял — распознаю и кладу в архив… ~полминуты.")
+    try:
+        kind, ack = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: B.store_archived_document(tmp))
+    except Exception as e:
+        log.error(f"director ingest: {e}")
+        kind, ack = None, None
+    finally:
+        try:
+            os.unlink(tmp)
+        except Exception:
+            pass
+    if ack:
+        await update.message.reply_text(
+            f"✅ {ack}\n📁 Записан в единую таблицу"
+            + ("; PDF — в хранилище (пришлю по запросу)." if kind == "invoice" else "."))
+        B.remember_director("assistant", "в архив: " + ack)
+    else:
+        await update.message.reply_text(
+            "⚠️ Не распознал файл как счёт или договор. Пришли почётче (PDF или "
+            "ровное фото) — либо это не тот тип документа.")
+
+
 async def on_voice(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     owner = B.get_chat_id()
@@ -458,6 +501,8 @@ def main():
     app.add_handler(CommandHandler(["voice", "voice_on", "voice_off"], cmd_voice))
     app.add_handler(CommandHandler("restart", cmd_restart))
     app.add_handler(MessageHandler(filters.VOICE, on_voice))
+    app.add_handler(MessageHandler(filters.Document.ALL, on_file))
+    app.add_handler(MessageHandler(filters.PHOTO, on_file))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
 
     jq = app.job_queue
