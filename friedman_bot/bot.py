@@ -3975,15 +3975,23 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
     if not chat_id:
         return
     today = datetime.now().strftime("%Y-%m-%d")
-    today_d = date.today()
-    # Когда активен Директор (главный бот) — утро ведёт он: его сводка-синтез в 07:00
-    # заменяет эту. Ручной /brief в чате Секретаря работает по-прежнему.
+    # Когда активен Директор (главный бот) — утро ведёт он: тот же постер шлёт его
+    # бот. Ручной /brief в чате Секретаря работает по-прежнему.
     if not verbose and get_director_token():
         return
     # Защита от двойной сводки: автоматическую утреннюю отправляет только один
     # процесс/один раз в день (атомарная заявка в общей БД). Ручной /brief — всегда.
     if not verbose and not _claim_daily("brief_sent:" + today):
         return
+    await render_owner_brief(ctx.bot, chat_id, verbose)
+
+
+async def render_owner_brief(bot, chat_id: int, verbose: bool = False):
+    """Утренний постер владельца (та самая «картинка» из сводки Секретаря). Общий
+    рендер: зовётся и Секретарём (morning_focus), и Директором (его 07:00 и /brief),
+    каждый шлёт своим ботом — картинка идентична, кто бы ни отправлял."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    today_d = date.today()
     with db() as conn:
         high = conn.execute(
             "SELECT text FROM chaos WHERE done=0 AND priority='high' ORDER BY importance DESC, urgency DESC, created_at LIMIT 5"
@@ -4126,25 +4134,25 @@ async def morning_focus(ctx: ContextTypes.DEFAULT_TYPE, verbose: bool = False):
         tall = (height_css or 0) > 1180
         with open(img_path, "rb") as f:
             if tall:
-                await ctx.bot.send_document(
+                await bot.send_document(
                     chat_id, f, filename="Сводка.jpg",
                     caption="☀️ Сводка на сегодня — открой, чтобы пролистать целиком")
             else:
-                await ctx.bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
+                await bot.send_photo(chat_id, f, caption="☀️ Сводка на сегодня")
         if hap_reminder:
-            await ctx.bot.send_message(chat_id, hap_reminder, parse_mode="Markdown")
+            await bot.send_message(chat_id, hap_reminder, parse_mode="Markdown")
         return
     except Exception as e:
         log.error(f"morning image failed, fallback to text: {e}")
         if verbose:
-            await ctx.bot.send_message(
+            await bot.send_message(
                 chat_id,
                 "ℹ️ Постер-картинка не собралась — шлю текстом.\n"
                 f"Причина: {type(e).__name__}: {str(e)[:300]}\n\n"
                 "Чтобы включить картинку, напиши /setupbrief")
 
     try:
-        await ctx.bot.send_message(chat_id, "\n".join(lines), parse_mode="Markdown")
+        await bot.send_message(chat_id, "\n".join(lines), parse_mode="Markdown")
     except Exception as e:
         log.error(f"morning: {e}")
 
@@ -4635,123 +4643,6 @@ def director_finalize_sync(user_text: str, results: list) -> str:
     except Exception as e:
         log.error(f"director_finalize: {e}")
         return ""
-
-
-def _director_brief_data() -> str:
-    """Детерминированная основа утренней сводки: цифры и факты прямо из БД,
-    без LLM — 0 токенов, мгновенно, отказать не может. Каждый блок независим."""
-    L = []
-    today_s = datetime.now().strftime("%Y-%m-%d")
-    today_d = date.today()
-    # Деньги
-    try:
-        with db() as conn:
-            cash = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
-            card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
-            debts = conn.execute("SELECT COALESCE(SUM(total-COALESCE(paid,0)),0) FROM debts").fetchone()[0]
-        L.append(f"📊 *Деньги*: карта {card:+.0f}€ · нал {cash:+.0f}€ · долги {debts:.0f}€")
-    except Exception as e:
-        log.error(f"brief money: {e}")
-    # Воронка: итоговая строка + топ-3 «ближе к деньгам»
-    try:
-        fun = get_funnel_context()
-        if fun:
-            rows = fun.splitlines()
-            L.append("💰 *Воронка*: " + rows[-1].replace("Итого ожидаемо: ", ""))
-            for r in rows[1:4]:
-                L.append(r)
-    except Exception as e:
-        log.error(f"brief funnel: {e}")
-    # Сегодня: приоритеты и напоминания
-    try:
-        with db() as conn:
-            highs = conn.execute(
-                "SELECT text FROM chaos WHERE done=0 AND priority='high' "
-                "ORDER BY importance DESC, urgency DESC, created_at LIMIT 3").fetchall()
-            rems = conn.execute(
-                "SELECT due_at, text FROM reminders WHERE sent=0 AND due_at LIKE ?",
-                (today_s + "%",)).fetchall()
-        if highs or rems:
-            L.append("🔥 *Сегодня*:")
-            for r in highs:
-                L.append(f"  • {r['text'][:90]}")
-            for r in rems:
-                L.append(f"  ⏰ {r['due_at'][11:16]} {r['text'][:80]}")
-    except Exception as e:
-        log.error(f"brief today: {e}")
-    # Платежи ближайших 7 дней (регулярные + разовые)
-    try:
-        with db() as conn:
-            pays = conn.execute("SELECT * FROM payments WHERE active=1").fetchall()
-        horizon = today_d + timedelta(days=7)
-        soon = []
-        for p in pays:
-            for dt in _payment_occurrences(p, today_d, horizon):
-                soon.append((dt, p["title"], p["amount"] or 0))
-        if soon:
-            soon.sort()
-            L.append("📅 *Платежи 7 дней*: " + " · ".join(
-                f"{dt.strftime('%d.%m')} {title} {amt:.0f}€" for dt, title, amt in soon[:4]))
-    except Exception as e:
-        log.error(f"brief payments: {e}")
-    # Лиды: счётчики + самый просроченный
-    try:
-        with db() as conn:
-            leads_n = conn.execute(
-                "SELECT COUNT(*) FROM leads WHERE stage IN ('new','contacted','qualified','offer')"
-            ).fetchone()[0]
-            over = conn.execute(
-                "SELECT name, next_action, next_action_date FROM leads "
-                "WHERE stage IN ('new','contacted','qualified','offer') "
-                "AND next_action_date IS NOT NULL AND next_action_date < ? "
-                "ORDER BY next_action_date LIMIT 1", (today_s,)).fetchone()
-            over_n = conn.execute(
-                "SELECT COUNT(*) FROM leads WHERE stage IN ('new','contacted','qualified','offer') "
-                "AND next_action_date IS NOT NULL AND next_action_date < ?", (today_s,)).fetchone()[0]
-        if leads_n:
-            line = f"👥 *Лиды*: открыто {leads_n}"
-            if over_n:
-                line += f", просрочено {over_n}"
-                if over:
-                    line += f" (дольше всех: {over['name']} — {over['next_action'] or 'касание'})"
-            L.append(line)
-    except Exception as e:
-        log.error(f"brief leads: {e}")
-    return "\n".join(L)
-
-
-def director_morning_sync() -> str:
-    """Утренняя сводка Директора (07:00). Архитектура «цифры без LLM, выводы —
-    дёшево и опционально»: основа собирается Python'ом из БД (не может упасть и
-    не тратит токены), затем haiku добавляет 1–3 строки выводов; его сбой сводку
-    не роняет — она уходит без блока «Главное»."""
-    data = _director_brief_data()
-    header = "🗓 *Сводка Директора* — " + datetime.now().strftime("%d.%m.%Y")
-    if not data:
-        return header + "\n\nБаза пока пуста — данных для сводки нет."
-    text = header + "\n\n" + data
-    try:
-        sys_prompt = (
-            "Ты — «Директор» FARBAHOLIX. Ниже цифры утренней сводки владельца-художника. "
-            "Дай СВЕРХкратко и только по делу: 📌 *Главное сегодня* (1–3 строки выводов, "
-            "не пересказ цифр) и, ТОЛЬКО если явно нужно, одну строку ✅ решение на "
-            "подтверждение или 👤 задачу владельцу. Пустых рубрик не пиши. По-русски, "
-            "Telegram Markdown (жирный *одной звёздочкой*). "
-            'Ответь строго JSON: {"reply": "текст"}. Никакого текста вне JSON.')
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", data, "--append-system-prompt", sys_prompt,
-             "--model", "haiku", "--max-turns", "2", "--tools", ""],
-            capture_output=True, text=True, timeout=60,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
-        raw = (result.stdout or "").strip()
-        s, e = raw.find("{"), raw.rfind("}")
-        if s >= 0 and e > s:
-            concl = ((jsonlib.loads(raw[s:e + 1]) or {}).get("reply", "") or "").strip()
-            if concl:
-                text = header + "\n\n" + concl + "\n\n" + data
-    except Exception as e:
-        log.error(f"director morning conclusions: {e}")
-    return text
 
 
 def ensure_director_kb():

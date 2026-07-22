@@ -168,25 +168,20 @@ async def cmd_team(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def _send_brief(bot, chat_id: int):
-    text = await asyncio.get_event_loop().run_in_executor(None, B.director_morning_sync)
-    if not text:
-        await bot.send_message(chat_id, "Сводка не собралась 😔 Попробуй /brief ещё раз.")
-        return
-    for chunk in B._split_msg("🎩 " + text, 3800):
-        try:
-            await bot.send_message(chat_id, chunk, parse_mode="Markdown")
-        except Exception:
-            await bot.send_message(chat_id, chunk.replace("*", "").replace("_", ""))
+    # Тот же постер-«картинка», что слал Секретарь до появления Директора —
+    # общий рендер render_owner_brief, только шлёт бот Директора (verbose=True:
+    # при сбое рендера объяснит причину и предложит /setupbrief).
+    await B.render_owner_brief(bot, chat_id, verbose=True)
 
 
 async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Утренняя сводка вручную."""
+    """Утренняя сводка вручную — постер на сегодня."""
     chat_id = update.effective_chat.id
     owner = B.get_chat_id()
     if owner and chat_id != owner:
         return
     B.save_chat_id(chat_id)
-    await update.message.reply_text("🎩 Собираю сводку по всем линзам… ~1 минута.")
+    await update.message.reply_text("🎩 Собираю сводку…")
     await _send_brief(ctx.bot, chat_id)
 
 
