@@ -629,6 +629,9 @@ def ask_claude_sync(user_text: str) -> dict:
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
         )
         raw = result.stdout.strip()
+        if not raw or raw.startswith("Error:"):
+            log.error(f"Secretary CLI пусто/ошибка: rc={result.returncode} "
+                      f"out={raw[:200]!r} err={(result.stderr or '')[:300]!r}")
         start = raw.find("{")
         end = raw.rfind("}")
         if start >= 0 and end > start:
@@ -817,6 +820,9 @@ def ask_lawyer_sync(user_text: str) -> dict:
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
         )
         raw = result.stdout.strip()
+        if not raw or raw.startswith("Error:"):
+            log.error(f"Lawyer CLI пусто/ошибка: rc={result.returncode} "
+                      f"out={raw[:200]!r} err={(result.stderr or '')[:300]!r}")
         start = raw.find("{")
         end = raw.rfind("}")
         if start >= 0 and end > start:
@@ -2049,6 +2055,9 @@ def sales_agent_sync(user_text: str = "") -> str:
             capture_output=True, text=True, timeout=360,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
         raw = (result.stdout or "").strip()
+        if not raw or raw.startswith("Error:"):
+            log.error(f"Sales CLI пусто/ошибка: rc={result.returncode} "
+                      f"out={raw[:200]!r} err={(result.stderr or '')[:300]!r}")
         s, e = raw.find("{"), raw.rfind("}")
         reply = ""
         if s >= 0 and e > s:
@@ -5424,17 +5433,27 @@ def _self_restart(d: str):
         log.error(f"не удалось перезапустить: {e}")
 
 
+def _proc_age_s(pid: int) -> int:
+    """Возраст процесса в секундах (ps etimes); -1 — процесса нет/не узнали."""
+    try:
+        r = subprocess.run(["ps", "-o", "etimes=", "-p", str(pid)],
+                           capture_output=True, text=True, timeout=5)
+        return int((r.stdout or "").strip() or -1)
+    except Exception:
+        return -1
+
+
 def _kill_other_secretaries():
-    """Убить прочие процессы bot.py (кроме себя) при старте. `_self_restart`
-    намеренно не гасит старый процесс (чтобы при падении нового было кому жить),
-    из-за чего после серии рестартов накапливаются дубли-поллеры: Telegram раздаёт
-    апдейты между ними, и бот отвечает «через раз», а новые команды (которых нет у
-    старого кода) молча теряются. Свежий процесс при старте вычищает предшественников.
-    Паттерн `[ /]bot[.]py` ловит «python bot.py» и запуск по абсолютному пути, но НЕ
-    трогает jurist_bot.py/sales_bot.py/director_bot.py (там перед «bot.py» стоит «_»).
-    Спавнит секретаря всегда ровно один процесс за раз (spawn-then-exit), поэтому
-    одновременного старта двух новых не бывает — взаимного уничтожения нет."""
+    """Синглтон Секретаря: при старте убиваем дубли-поллеры bot.py — иначе
+    Telegram раздаёт апдейты между ними (Conflict в логах, ответы «через раз»,
+    новые команды теряются у процесса со старым кодом).
+    ВАЖНО (устранена гонка): убиваем только процессы СТАРШЕ себя (по возрасту,
+    при равном возрасте — с меньшим PID). Если два новых Секретаря стартовали
+    одновременно (авто-деплой + /update), взаимного уничтожения не будет —
+    детерминированно выживает ровно один, самый новый.
+    Паттерн `[ /]bot[.]py` не трогает jurist_/sales_/director_bot.py."""
     mypid = os.getpid()
+    my_age = _proc_age_s(mypid)
     try:
         r = subprocess.run(["pgrep", "-f", "[ /]bot[.]py"],
                            capture_output=True, text=True, timeout=10)
@@ -5448,13 +5467,17 @@ def _kill_other_secretaries():
             continue
         if pid == mypid:
             continue
-        try:
-            os.kill(pid, 9)
-            log.info(f"убил дубль секретаря PID {pid}")
-        except ProcessLookupError:
-            pass
-        except Exception as e:
-            log.error(f"kill dup secretary PID {pid}: {e}")
+        age = _proc_age_s(pid)
+        if age < 0:
+            continue  # уже умер
+        if age > my_age or (age == my_age and pid < mypid):
+            try:
+                os.kill(pid, 9)
+                log.info(f"убил дубль секретаря PID {pid} (возраст {age}с)")
+            except ProcessLookupError:
+                pass
+            except Exception as e:
+                log.error(f"kill dup secretary PID {pid}: {e}")
 
 
 def _restart_dashboard(d):

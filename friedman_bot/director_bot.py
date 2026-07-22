@@ -188,9 +188,14 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             with open(p, "rb") as f:
                 f.seek(0, 2)
                 size = f.tell()
-                f.seek(max(0, size - 4000))
+                f.seek(max(0, size - 12000))
                 txt = f.read().decode("utf-8", "replace")
-            tail = "\n".join(txt.splitlines()[-10:]) or "(пусто)"
+            lines = txt.splitlines()
+            errs = [l for l in lines if "ERROR" in l][-6:]
+            tail = ""
+            if errs:
+                tail += "⚠️ Последние ошибки:\n" + "\n".join(errs) + "\n---\n"
+            tail += "\n".join(lines[-8:]) or "(пусто)"
         except Exception as e:
             tail = f"(нет файла: {type(e).__name__})"
         parts.append(f"═══ {name} ═══\n{tail}")
