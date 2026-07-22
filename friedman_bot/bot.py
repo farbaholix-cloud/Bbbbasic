@@ -69,13 +69,21 @@ PRIORITY_KEYWORDS = {
 
 
 def db():
-    conn = sqlite3.connect(DB)
+    # timeout: шесть процессов (3 бота + Секретарь + 2 дашборда) пишут в один
+    # SQLite — без ожидания блокировки редкие «database is locked» неизбежны
+    conn = sqlite3.connect(DB, timeout=15)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db():
     with db() as conn:
+        try:
+            # WAL: свойство самого файла БД (хватает включить один раз любым
+            # процессом) — параллельные читатели не блокируют писателя
+            conn.execute("PRAGMA journal_mode=WAL")
+        except Exception:
+            pass
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS chaos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -638,10 +646,31 @@ SALES_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sales_k
 SECRETARY_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secretary_kb")
 DIRECTOR_KB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "director_kb")
 
+_KB_INLINE_CACHE = {}
+
+
+def _kb_inline(path: str, cap: int = 7000) -> str:
+    """SKILL.md базы знаний, вшитый прямо в системный промпт (кэш по mtime).
+    Экономия токенов: каждый Read-тур агентного цикла пересылает ВЕСЬ контекст
+    заново, поэтому «прочитай SKILL.md инструментом Read» стоил в разы дороже,
+    чем те же байты, отданные сразу. Reference-файлы агент по-прежнему читает
+    Read'ом, но только когда тема реально этого требует."""
+    try:
+        mtime = os.path.getmtime(path)
+        cached = _KB_INLINE_CACHE.get(path)
+        if cached and cached[0] == mtime:
+            return cached[1]
+        with open(path, encoding="utf-8") as f:
+            txt = f.read()[:cap]
+        _KB_INLINE_CACHE[path] = (mtime, txt)
+        return txt
+    except Exception:
+        return ""
+
 LAWYER_PROMPT = """Ты — «Юрист», личный налогово-правовой консультант Вячеслава (Slavik): украинец в Германии со статусом §24 AufenthG (временная защита), работает как художник-фрилансер (Freiberufler Künstler, бренд FARBAHOLIX), Kleinunternehmer §19 UStG, gesetzlich krankenversichert, в KSK пока не состоит.
 
 ТВОЯ БАЗА ЗНАНИЙ — каталог файлов: {kb}
-Там SKILL.md (карта тем) и references/*.md: Freiberufler vs Gewerbe, Kleinunternehmer, ELSTER/EÜR/Steuererklärung, KSK, IHK/Handwerk, Sozialversicherung, письма в инстанции. ВСЕГДА сначала прочитай нужный reference-файл инструментом Read, прежде чем отвечать по теме. Не выдумывай факты, которых там нет.
+SKILL.md (карта тем) уже вшит в конец этого промпта — НЕ читай его инструментом Read. В references/*.md лежат детали: Freiberufler vs Gewerbe, Kleinunternehmer, ELSTER/EÜR/Steuererklärung, KSK, IHK/Handwerk, Sozialversicherung, письма в инстанции — читай Read'ом ТОЛЬКО нужный файл по карте тем, когда ответ требует деталей/цифр оттуда. Не выдумывай факты, которых там нет.
 
 Контекст §24: украинец на временной защите имеет право на самозанятость (selbständige Erwerbstätigkeit), доступ к gesetzliche Krankenversicherung, может получать Bürgergeld через Jobcenter — доход от самозанятости влияет на эти выплаты (учитывается как Einkommen). Правила §24 и пороги меняются — для актуальных цифр делай web_search, не угадывай.
 
@@ -768,13 +797,16 @@ def ask_lawyer_sync(user_text: str) -> dict:
     sys_prompt = (LAWYER_PROMPT
                   .replace("{kb}", LEGAL_KB_DIR)
                   .replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A")))
+    skill = _kb_inline(os.path.join(LEGAL_KB_DIR, "SKILL.md"))
+    if skill:
+        sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", prompt,
              "--append-system-prompt", sys_prompt,
              "--allowedTools", "Read,WebSearch,WebFetch",
              "--model", "sonnet",
-             "--max-turns", "14"],
+             "--max-turns", "8"],
             capture_output=True, text=True, timeout=240,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
         )
@@ -1676,13 +1708,17 @@ def strategy_council_sync() -> str:
         + "ЗАПРОС: собери СТРАТЕГИЧЕСКИЙ СОВЕТ и дай комплексные антикризисные "
         "рекомендации по картине выше (таблица инвойсов по годам + финансы + планы "
         "владельца). Увяжи рекомендации с уже существующими проектами/целями/задачами. "
-        "Сначала прочитай базы знаний экспертов (Read), потом отвечай по структуре "
-        "из системного промпта."
+        "Карта совета уже в системном промпте; файлы экспертов (references/finance.md, "
+        "marketing.md, art-manager.md) читай Read'ом по мере надобности, затем отвечай "
+        "по структуре из системного промпта."
     )
+    skill = _kb_inline(os.path.join(STRATEGY_KB_DIR, "SKILL.md"))
+    if skill:
+        sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "10"],
             capture_output=True, text=True, timeout=360,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
         raw = (result.stdout or "").strip()
@@ -1731,10 +1767,7 @@ def ensure_strategy_kb():
 # ── Продавец: закрытие сделок (воронка лид → согласовано → счёт → оплачено) ────
 SALES_PROMPT = """Ты — «Продавец», закрывающий сделки для художника-фрилансера Вячеслава (Slavik), бренд FARBAHOLIX: граффити/мурал Künstler в Германии, украинец на §24, Kleinunternehmer §19 (оборот у порога), есть долги и регулярные платежи. Твоя цель — превращать интерес в ОПЛАЧЕННЫЕ заказы и закрывать кассовые разрывы.
 
-ТВОЯ БАЗА ЗНАНИЙ — прочитай инструментом Read ПЕРЕД ответом:
-- Карта роли и правила: {kb}/SKILL.md
-- Что умеет приложение (воронка, прогноз потока, карта поступлений): {kb}/references/product.md
-Маркетинговый контекст (верх воронки) при необходимости: {strategy_kb}/references/marketing.md. Механика счетов/налогов — у Юриста: {legal_kb} (читай при необходимости, финал по налогам — Steuerberater).
+ТВОЯ БАЗА ЗНАНИЙ: карта роли и правила (SKILL.md) уже вшита в конец этого промпта — НЕ читай её через Read. Read'ом читай ТОЛЬКО при реальной необходимости: {kb}/references/product.md (что умеет приложение), {strategy_kb}/references/marketing.md (верх воронки), {legal_kb} (механика счетов/налогов; финал — Steuerberater).
 
 ГЛАВНОЕ: работай ИЗ ДАННЫХ. Тебе дана воронка сделок (проекты со стадиями лид/согласовано/счёт/оплачено, ожидаемые суммы и даты), финансы (баланс, долги, регулярные платежи), таблица инвойсов (оборот, клиенты, средний чек) и планы владельца. Считай взвешенный прогноз (лид ×0.5, согласовано ×0.8, счёт ×0.95), сравнивай с потребностями ближайших 30/60 дней, называй КОНКРЕТНО: какой проект, до какой даты и на какую сумму дожать, чтобы не было разрыва. Не выдумывай цифры; чего не хватает — скажи, что домерить. Письма клиентам — по-немецки (если не просили иначе), коротко, с чётким следующим шагом.
 
@@ -1824,13 +1857,15 @@ def sales_agent_sync(user_text: str = "") -> str:
         + (leads + "\n\n" if leads else "")
         + (plans + "\n\n" if plans else "")
         + "ЗАПРОС К ПРОДАВЦУ: " + ask + "\n"
-        "Сначала прочитай базу знаний (Read: SKILL.md и references/product.md), "
-        "потом отвечай по данным выше."
+        "Правила роли уже в системном промпте; отвечай по данным выше."
     )
+    skill = _kb_inline(os.path.join(SALES_KB_DIR, "SKILL.md"))
+    if skill:
+        sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "8"],
             capture_output=True, text=True, timeout=360,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
         raw = (result.stdout or "").strip()
@@ -4375,14 +4410,17 @@ def sales_dialog_sync(user_text: str) -> str:
         + (plans + "\n\n" if plans else "")
         + (f"ПОСЛЕДНИЕ РЕПЛИКИ ДИАЛОГА (помни их, не повторяйся):\n{hist}\n\n" if hist else "")
         + "НОВОЕ СООБЩЕНИЕ ВЛАДЕЛЬЦА: " + user_text.strip() + "\n"
-        "Сначала прочитай базу знаний (Read: SKILL.md; по теме — references/leadgen.md, "
-        "references/tools.md, references/product.md), потом отвечай по данным выше. "
+        "Правила роли уже в системном промпте; по теме при необходимости читай "
+        "references/leadgen.md, references/tools.md, references/product.md. "
         "Это живой диалог: отвечай по делу, без повторения уже сказанного, длина — по ситуации."
     )
+    skill = _kb_inline(os.path.join(SALES_KB_DIR, "SKILL.md"))
+    if skill:
+        sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
         result = subprocess.run(
             [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "14"],
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "8"],
             capture_output=True, text=True, timeout=360,
             env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
         raw = (result.stdout or "").strip()
@@ -5095,25 +5133,39 @@ def _remote_sha():
 
 
 def _download_code(d, sha):
-    """Скачать файлы по неизменяемому SHA — такие URL CDN никогда не отдаёт устаревшими."""
+    """Скачать файлы по неизменяемому SHA — такие URL CDN никогда не отдаёт устаревшими.
+    Двухфазно: сначала ВСЁ во временную папку с py_compile-проверкой .py-файлов,
+    и только потом на место. Битый деплой не касается диска — иначе один
+    синтаксис-фейл в bot.py кладёт сразу все боты (все его импортируют)."""
     import urllib.request
-    downloaded = []
-    for f in UPDATE_FILES:
-        h = {"User-Agent": "friedman-bot"}
-        tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-        if tok:
-            h["Authorization"] = f"Bearer {tok}"
-        req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}", headers=h)
-        with urllib.request.urlopen(req, timeout=40) as r:
-            data = r.read()
-        if len(data) < 100:
-            raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
-        dest = os.path.join(d, f)
-        os.makedirs(os.path.dirname(dest), exist_ok=True)  # подпапки (legal_kb/…) создаём при необходимости
-        with open(dest, "wb") as out:
-            out.write(data)
-        downloaded.append(f)
-    return downloaded
+    import py_compile
+    import shutil
+    import tempfile
+    tmpdir = tempfile.mkdtemp(prefix="deploy_", dir=d)
+    staged = []  # (временный файл, куда класть)
+    try:
+        for f in UPDATE_FILES:
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}", headers=h)
+            with urllib.request.urlopen(req, timeout=40) as r:
+                data = r.read()
+            if len(data) < 100:
+                raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
+            tmp_path = os.path.join(tmpdir, f.replace("/", "__"))
+            with open(tmp_path, "wb") as out:
+                out.write(data)
+            if f.endswith(".py"):
+                py_compile.compile(tmp_path, doraise=True)  # SyntaxError → деплой отбит целиком
+            staged.append((tmp_path, os.path.join(d, f)))
+        for tmp_path, dest in staged:
+            os.makedirs(os.path.dirname(dest), exist_ok=True)  # подпапки (legal_kb/…)
+            shutil.move(tmp_path, dest)
+        return list(UPDATE_FILES)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def ensure_legal_kb():
@@ -6112,6 +6164,93 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     os._exit(0)
 
 
+async def watchdog_children(ctx: ContextTypes.DEFAULT_TYPE):
+    """Сторож (каждые 5 минут): если процесс бота/дашборда умер — поднять и один
+    раз в день уведомить владельца. Раньше упавший ночью бот лежал до следующего
+    рестарта Секретаря — система «чинилась, когда владелец заметил»."""
+    d = os.path.dirname(os.path.abspath(__file__))
+    checks = (
+        ("Юрист", "jurist_bot.py", _restart_jurist, get_jurist_token),
+        ("Продавец", "sales_bot.py", _restart_sales, get_sales_token),
+        ("Директор", "director_bot.py", _restart_director, get_director_token),
+        ("Дашборд", "dashboard.py", _restart_dashboard, None),
+    )
+    for name, pat, restart, token_fn in checks:
+        if token_fn and not token_fn():
+            continue  # бот не сконфигурирован — следить не за чем
+        try:
+            r = subprocess.run(["pgrep", "-f", pat], capture_output=True, text=True, timeout=10)
+            if r.stdout.strip():
+                continue  # жив
+        except Exception:
+            continue
+        log.error(f"watchdog: «{name}» ({pat}) не работает — поднимаю")
+        try:
+            restart(d)
+        except Exception as e:
+            log.error(f"watchdog restart {name}: {e}")
+            continue
+        if _claim_daily(f"watchdog:{pat}:{datetime.now().strftime('%Y-%m-%d')}"):
+            msg = f"🛠 Сторож: «{name}» был неактивен — перезапустил."
+            if not _send_via_director(msg):
+                cid = get_chat_id()
+                if cid:
+                    try:
+                        await ctx.bot.send_message(cid, msg)
+                    except Exception:
+                        pass
+
+
+def _backup_db_sync() -> str:
+    """Консистентная копия friedman.db (sqlite backup API — безопасно при
+    параллельной записи) в backups/ с ротацией 7 дней. Возвращает путь копии."""
+    d = os.path.dirname(os.path.abspath(__file__))
+    bdir = os.path.join(d, "backups")
+    os.makedirs(bdir, exist_ok=True)
+    dest = os.path.join(bdir, f"friedman_{datetime.now().strftime('%Y-%m-%d')}.db")
+    src = sqlite3.connect(DB, timeout=30)
+    dst = sqlite3.connect(dest)
+    try:
+        src.backup(dst)
+    finally:
+        dst.close()
+        src.close()
+    kept = sorted(f for f in os.listdir(bdir)
+                  if f.startswith("friedman_") and f.endswith(".db"))
+    for old in kept[:-7]:
+        try:
+            os.unlink(os.path.join(bdir, old))
+        except Exception:
+            pass
+    return dest
+
+
+async def nightly_backup(ctx: ContextTypes.DEFAULT_TYPE):
+    """Ежедневно 03:30 Berlin: бэкап БД с ротацией; по воскресеньям копия уходит
+    владельцу файлом в Telegram — бесплатный оффсайт-«сейф в чате» на случай
+    гибели сервера. В базе вся бизнес-память: финансы, инвойсы, проекты."""
+    if not _claim_daily("db_backup:" + datetime.now().strftime("%Y-%m-%d")):
+        return
+    try:
+        dest = await asyncio.to_thread(_backup_db_sync)
+        log.info(f"бэкап БД: {dest}")
+    except Exception as e:
+        log.error(f"backup: {e}")
+        return
+    wd = (datetime.now(BERLIN) if BERLIN else datetime.now()).weekday()
+    if wd == 6:  # воскресенье
+        cid = get_chat_id()
+        if cid:
+            try:
+                with open(dest, "rb") as f:
+                    await ctx.bot.send_document(
+                        cid, f, filename=os.path.basename(dest),
+                        caption="🗄 Еженедельный бэкап базы. Ничего делать не нужно — "
+                                "просто пусть лежит в чате: это твой сейф на случай сбоя сервера.")
+            except Exception as e:
+                log.error(f"backup send: {e}")
+
+
 async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
     """Раз в ~90 сек проверяет GitHub: появился новый коммит — тянет и перезапускается.
     Так изменения долетают сами, без ручного /update."""
@@ -6144,6 +6283,17 @@ async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
             f.write(sha)
     except Exception as e:
         log.error(f"auto-update failed: {e}")
+        # Битый/недоступный деплой: работаем на прежней версии, владельцу — один
+        # пинг на каждый SHA (ретраи каждые 15 мин продолжаются молча)
+        if _claim_daily("deploy_fail:" + sha[:7]):
+            cid = get_chat_id()
+            if cid:
+                try:
+                    await ctx.bot.send_message(
+                        cid, f"⚠️ Деплой {sha[:7]} отбит: {str(e)[:200]}\n"
+                             "Работаю на прежней версии, попробую снова через 15 минут.")
+                except Exception:
+                    pass
         return
     cid = get_chat_id()
     if cid:
@@ -6480,6 +6630,9 @@ def main():
     jq = app.job_queue
     jq.run_repeating(check_reminders, interval=60, first=10)
     jq.run_repeating(auto_update, interval=900, first=60)  # авто-деплой: раз в 15 мин (4 req/h)
+    jq.run_repeating(watchdog_children, interval=300, first=120)  # сторож упавших процессов
+    backup_t = time(3, 30, tzinfo=BERLIN) if BERLIN else time(3, 30)
+    jq.run_daily(nightly_backup, time=backup_t)  # бэкап БД: ротация 7 дн, вс — файл владельцу
     brief_t = time(7, 0, tzinfo=BERLIN) if BERLIN else time(7, 0)
     bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
     jq.run_daily(morning_focus, time=brief_t)
