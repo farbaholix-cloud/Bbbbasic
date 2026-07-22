@@ -2041,6 +2041,31 @@ def apply_actions(actions: list) -> list:
                 if proj and steps:
                     pct = int(stats["done"] / stats["total"] * 100) if stats["total"] else 0
                     results.append(("progress", pid, f"{proj['name']}: {pct}% ({stats['done']}/{stats['total']})", "", ""))
+            elif a.get("type") == "stage":
+                # Сдвиг сделки по воронке («согласовано», «счёт выставлен», «оплата пришла»).
+                # Приход денег при "paid" НЕ проводится автоматически — его даёт отдельный
+                # action finance (иначе возможен двойной учёт с дашбордом).
+                pid = int(a["project_id"])
+                stage = a.get("stage")
+                if stage in ("lead", "agreed", "invoiced", "paid"):
+                    with db() as conn:
+                        proj = conn.execute("SELECT name FROM projects WHERE id=?", (pid,)).fetchone()
+                        if proj:
+                            conn.execute("UPDATE projects SET income_status=? WHERE id=?", (stage, pid))
+                    if proj:
+                        lbl = {"lead": "🔵 лид", "agreed": "🟡 согласовано",
+                               "invoiced": "🟠 счёт выставлен", "paid": "✅ оплачено"}[stage]
+                        results.append(("stage", pid, f"{proj['name']} → {lbl}", "", ""))
+            elif a.get("type") == "unremind":
+                # Снять напоминание, потерявшее смысл («оплата пришла» → не напоминать
+                # «проверь оплату»): помечаем sent=1 — оно больше не сработает.
+                rid = int(a["id"])
+                with db() as conn:
+                    rem = conn.execute("SELECT text FROM reminders WHERE id=? AND sent=0", (rid,)).fetchone()
+                    if rem:
+                        conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (rid,))
+                if rem:
+                    results.append(("unremind", rid, f"снято напоминание: {rem['text']}", "", ""))
         except Exception as e:
             log.error(f"action error: {e}")
     return results
@@ -4481,6 +4506,49 @@ def get_director_snapshot() -> str:
     return "\n".join(lines)
 
 
+def get_director_state() -> str:
+    """Энергоэкономная выжимка общей БД для триажа Директора: строка на объект,
+    с id и обрезанными текстами — ровно столько, чтобы он мог актуализировать
+    базу действиями (done/progress/stage/finance/unremind) за минимум токенов."""
+    L = []
+    try:
+        with db() as conn:
+            tasks = conn.execute(
+                "SELECT id, text, priority FROM chaos WHERE done=0 "
+                "ORDER BY priority='high' DESC, created_at DESC LIMIT 15").fetchall()
+            if tasks:
+                L.append("ЗАДАЧИ: " + " | ".join(
+                    f"[{r['id']}]{'🔴' if r['priority'] == 'high' else ''} {r['text'][:45]}"
+                    for r in tasks))
+            cols = [c[1] for c in conn.execute("PRAGMA table_info(projects)").fetchall()]
+            has_funnel = "income_status" in cols
+            projs = conn.execute("SELECT * FROM projects ORDER BY id DESC LIMIT 10").fetchall()
+            plines = []
+            for p in projs:
+                nxt = conn.execute(
+                    "SELECT text FROM steps WHERE project_id=? AND done=0 ORDER BY id LIMIT 1",
+                    (p["id"],)).fetchone()
+                seg = f"[{p['id']}] {p['name'][:30]}"
+                if nxt:
+                    seg += f" · след: {nxt['text'][:35]}"
+                else:
+                    seg += " · шаги закрыты"
+                if has_funnel and (p["expected_income"] or 0) > 0 and (p["income_status"] or "lead") != "paid":
+                    st = {"lead": "🔵", "agreed": "🟡", "invoiced": "🟠"}.get(p["income_status"] or "lead", "🔵")
+                    seg += f" · {st}{p['expected_income']:.0f}€"
+                plines.append(seg)
+            if plines:
+                L.append("ПРОЕКТЫ: " + " | ".join(plines))
+            rems = conn.execute(
+                "SELECT id, due_at, text FROM reminders WHERE sent=0 ORDER BY due_at LIMIT 5").fetchall()
+            if rems:
+                L.append("НАПОМИНАНИЯ: " + " | ".join(
+                    f"[{r['id']}] {r['due_at'][5:16]} {r['text'][:30]}" for r in rems))
+    except Exception as e:
+        log.error(f"director state: {e}")
+    return "\n".join(L)
+
+
 def _director_route_fallback(user_text: str) -> dict:
     """Резервный детерминированный маршрут: если LLM-триаж дважды не ответил,
     поручение уходит агенту по ключевым словам — Директор никогда не молчит."""
@@ -4511,13 +4579,25 @@ DIRECTOR_PROMPT = """Ты — «Директор», главный агент и
 - strategy — большие развилки: «куда идём», кризис, план на год, диверсификация, позиционирование.
 Пересечения: цена/большая сделка у порога §19 → sales И lawyer. Итог с записью в базу (оплата, новый проект, дедлайн) → добавь secretary.
 
-Отвечай сам (reply) только если ответ прямо в данных ниже (статус, цифра), это уточнение или приветствие. В остальном — делегируй; в task передай ВСЕ данные из сообщения владельца, сформулировав как поручение специалисту.
+АКТУАЛИЗАЦИЯ БАЗЫ — твоё право и обязанность. Вводные-факты владельца («сделано/отправлено X», «эскиз готов», «получил/потратил N€», «оплата пришла», «договорились на Y», «напомни…») фиксируй САМ полем actions, БЕЗ делегирования — база общая, все агенты сразу видят и не переспрашивают. Сопоставляй с блоком ТЕКУЩЕЕ СОСТОЯНИЕ (там id):
+- {"type":"done","id":N} — задача [N] из списка выполнена
+- {"type":"progress","project_id":N,"count":1} — шаг проекта [N] сделан
+- {"type":"stage","project_id":N,"stage":"agreed|invoiced|paid"} — сделка сдвинулась; «оплата пришла» → stage paid И отдельный finance с суммой прихода
+- {"type":"finance","amount":300 или -40,"comment":"...","account":"card|cash"} — получил/потратил (по умолчанию card)
+- {"type":"save","text":"...","area":"work|money|health|people|home|self|other","importance":0-10,"urgency":0-10} — новая задача/вводная
+- {"type":"remind","when":"YYYY-MM-DD HH:MM","text":"..."} — напоминание
+- {"type":"unremind","id":N} — снять напоминание [N], потерявшее смысл (например, «проверь оплату» после «деньги пришли»)
+- {"type":"contact","name":"...","note":"..."} — факт о человеке
+Несколько фактов в одном сообщении → несколько actions. Если однозначно видно, о чём речь — фиксируй молча, не переспрашивая; неоднозначно (две похожие задачи) — один короткий вопрос в reply без actions.
+
+Отвечай сам (reply) если: сообщение — вводные-факты (тогда reply = короткое подтверждение, 1-2 строки, + actions), ответ прямо в данных ниже (статус, цифра), уточнение или приветствие. В остальном — делегируй; в task передай ВСЕ данные из сообщения владельца, сформулировав как поручение специалисту.
 
 Тон: по-русски, минимально. Не цитируй российских/советских авторов. Сегодня: {today}.
 
 Ответь строго ОДНИМ JSON без текста вне его и без markdown-обёртки:
-{"note": "1 строка владельцу: что делаешь", "delegate": [{"to": "secretary|lawyer|sales|strategy", "task": "чёткое поручение"}]}
-или {"reply": "минимальный ответ владельцу"}"""
+{"reply": "минимальный ответ владельцу", "actions": [...]}
+или {"note": "1 строка владельцу: что делаешь", "delegate": [{"to": "secretary|lawyer|sales|strategy", "task": "чёткое поручение"}], "actions": [...]}
+actions необязателен и может быть пустым."""
 
 
 def director_dialog_sync(user_text: str) -> dict:
@@ -4527,11 +4607,13 @@ def director_dialog_sync(user_text: str) -> dict:
     маршрут по ключевым словам: пустого ответа не бывает."""
     sys_prompt = DIRECTOR_PROMPT.replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A"))
     snapshot = get_director_snapshot()
+    state = get_director_state()
     hist = "\n".join(
         f"{'Владелец' if r['role'] == 'user' else 'Директор'}: {r['text'][:300]}"
         for r in get_director_memory()[-10:])
     prompt = (
         (snapshot + "\n\n" if snapshot else "")
+        + (f"ТЕКУЩЕЕ СОСТОЯНИЕ (id для actions):\n{state}\n\n" if state else "")
         + (f"ПОСЛЕДНИЕ РЕПЛИКИ ДИАЛОГА:\n{hist}\n\n" if hist else "")
         + "СООБЩЕНИЕ ВЛАДЕЛЬЦА: " + user_text.strip()
     )
@@ -4557,7 +4639,7 @@ def director_dialog_sync(user_text: str) -> dict:
         if s >= 0 and e > s:
             try:
                 data = jsonlib.loads(raw[s:e + 1]) or {}
-                if data.get("delegate") or data.get("reply"):
+                if data.get("delegate") or data.get("reply") or data.get("actions"):
                     return data
             except Exception:
                 pass

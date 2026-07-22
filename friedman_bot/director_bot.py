@@ -253,12 +253,27 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
     # резервный маршрут по ключевым словам — пустого resp не бывает)
     resp = await loop.run_in_executor(None, lambda: B.director_dialog_sync(txt))
 
+    # Актуализация базы: триаж мог вернуть actions («сделано», «оплата пришла»…) —
+    # применяем сразу, все агенты видят через общую БД
+    acts = (resp or {}).get("actions") or []
+    applied_notes = []
+    if acts:
+        try:
+            applied = await loop.run_in_executor(None, lambda: B.apply_actions(acts[:8]))
+            applied_notes = [t for _k, _i, t, _a, _p in applied if t]
+        except Exception as e:
+            log.error(f"director apply_actions: {e}")
+
     delegations = (resp or {}).get("delegate") or []
     if not delegations:
         reply = (resp or {}).get("reply", "")
+        if not reply and applied_notes:
+            reply = "Записал."
         if not reply:
             await update.message.reply_text("Не получилось собрать ответ 😔 Попробуй ещё раз.")
             return
+        if applied_notes:
+            reply += "\n\n📝 " + "\n📝 ".join(applied_notes)
         B.remember_director("assistant", reply[:1500])
         await _reply_chunks(update, "", reply)
         if _voice_on():
@@ -320,6 +335,8 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
             # деградация: отдаём сырые результаты, лишь бы не потерять работу агентов
             reply = "\n\n".join(
                 f"{B.DIRECTOR_AGENT_LABEL.get(to, to)}:\n{out}" for to, _t, out, _n in ok_results)
+    if applied_notes:
+        reply += "\n\n📝 " + "\n📝 ".join(applied_notes)
     B.remember_director("assistant", reply[:1500])
     await _reply_chunks(update, "", reply)
     if _voice_on():
