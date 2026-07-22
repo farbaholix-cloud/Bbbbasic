@@ -174,6 +174,30 @@ async def _send_brief(bot, chat_id: int):
     await B.render_owner_brief(bot, chat_id, verbose=True)
 
 
+async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Хвосты логов всех процессов — диагностика «почему молчит» без сервера."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    parts = []
+    for name, p in (("Секретарь", "/tmp/bot.log"), ("Юрист", "/tmp/jurist.log"),
+                    ("Продавец", "/tmp/sales.log"), ("Директор", "/tmp/director.log"),
+                    ("Дашборд", "/tmp/dash.log")):
+        try:
+            with open(p, "rb") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                f.seek(max(0, size - 4000))
+                txt = f.read().decode("utf-8", "replace")
+            tail = "\n".join(txt.splitlines()[-10:]) or "(пусто)"
+        except Exception as e:
+            tail = f"(нет файла: {type(e).__name__})"
+        parts.append(f"═══ {name} ═══\n{tail}")
+    for chunk in B._split_msg("\n\n".join(parts), 3800):
+        await update.message.reply_text(chunk)
+
+
 async def cmd_invoices(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Единая таблица счетов в .xls — та же, что /showinvoices у Юриста."""
     chat_id = update.effective_chat.id
@@ -497,6 +521,7 @@ def main():
     app.add_handler(CommandHandler(["team", "komanda", "status"], cmd_team))
     app.add_handler(CommandHandler(["brief", "svodka"], cmd_brief))
     app.add_handler(CommandHandler(["invoices", "showinvoices"], cmd_invoices))
+    app.add_handler(CommandHandler("logs", cmd_logs))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler(["voice", "voice_on", "voice_off"], cmd_voice))
     app.add_handler(CommandHandler("restart", cmd_restart))
