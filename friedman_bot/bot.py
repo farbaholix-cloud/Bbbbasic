@@ -16,6 +16,9 @@ from telegram.ext import (
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN", "")
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
+# Постоянное хранилище PDF счетов: /tmp живёт до перезагрузки, а рассылка
+# по запросу и бэкапы работают только с этим каталогом (файл = <номер>.pdf)
+INVOICES_PDF_DIR = os.path.join(os.path.dirname(__file__), "invoices_pdf")
 
 # Таймзона Франкфурта — чтобы сводка приходила по местному времени, а не по UTC сервера
 try:
@@ -710,9 +713,12 @@ def get_legal_context() -> str:
         card = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
         fin_last = conn.execute(
             "SELECT amount, comment, account, created_at FROM finance ORDER BY id DESC LIMIT 15").fetchall()
+        # Единый источник: invoice_archive (сид + сгенерированные + загруженные) —
+        # оборот и «последние счета» считаются по полной картине, а не по журналу бота
         invoices = conn.execute(
-            "SELECT number, COALESCE(date, created_at) AS d, recipient, total, description "
-            "FROM invoices ORDER BY d DESC, id DESC LIMIT 25").fetchall()
+            "SELECT number, inv_date AS d, client_name AS recipient, gross AS total, "
+            "items AS description FROM invoice_archive "
+            "ORDER BY inv_date DESC, id DESC LIMIT 25").fetchall()
         debts = conn.execute(
             "SELECT name, kind, total, paid, due_date, monthly FROM debts ORDER BY kind, due_date").fetchall()
         payments = conn.execute(
@@ -1201,6 +1207,7 @@ def store_archived_document(path: str):
             return None, None
         if (inv.get("client_recipient") or "").strip():
             upsert_client(inv["client_recipient"], inv.get("salutation", ""), inv.get("customer_no", ""))
+        _archive_pdf_copy(path, number)  # PDF — в постоянное хранилище (для выдачи по запросу)
         return "invoice", f"🧾 счёт №{number or '—'} · {inv_date or '—'} · {client or '—'} · {gross:.0f}€"
 
     if dt == "vertrag":
@@ -1254,6 +1261,179 @@ def year_archive_rows(year: int):
                 "FROM invoice_archive WHERE year = ? ORDER BY inv_date, number", (year,)).fetchall()
     except Exception:
         return []
+
+
+# ── Единый контур счетов: регистрация, PDF-хранилище, выдача по запросу ───────
+
+def _archive_pdf_copy(src_path: str, number: str) -> str:
+    """Копия PDF счёта в постоянное хранилище invoices_pdf/<номер>.pdf."""
+    try:
+        if not src_path or not os.path.exists(src_path):
+            return ""
+        os.makedirs(INVOICES_PDF_DIR, exist_ok=True)
+        safe = re.sub(r"[^\w.\-]", "_", (number or "").strip()) or datetime.now().strftime("%Y%m%d%H%M%S")
+        dest = os.path.join(INVOICES_PDF_DIR, f"{safe}.pdf")
+        import shutil
+        shutil.copyfile(src_path, dest)
+        return dest
+    except Exception as e:
+        log.error(f"pdf archive copy: {e}")
+        return ""
+
+
+def invoice_pdf_path(number: str) -> str:
+    """Путь к PDF счёта в хранилище по номеру ('' — файла нет)."""
+    safe = re.sub(r"[^\w.\-]", "_", (number or "").strip())
+    p = os.path.join(INVOICES_PDF_DIR, f"{safe}.pdf")
+    return p if safe and os.path.exists(p) else ""
+
+
+def register_own_invoice(number, recipient, customer_no, desc, total, pdf_path, vat_rate=None):
+    """ЕДИНАЯ регистрация выставленного счёта: журнал invoices + аналитический
+    invoice_archive (оборот, /showinvoices, .xls — «таблица» Юриста) + постоянная
+    PDF-копия. Раньше сгенерированные счета попадали только в invoices — Директор
+    и вся аналитика их не видели (кейс «Cosmopop 2000€»)."""
+    today_iso = datetime.now().strftime("%Y-%m-%d")
+    client = (recipient or "").split(chr(10))[0].strip()
+    try:
+        rate = float(vat_rate) if vat_rate else 0.0
+    except (TypeError, ValueError):
+        rate = 0.0
+    gross = float(total or 0)
+    net = round(gross / (1 + rate / 100), 2) if rate else gross
+    vat = round(gross - net, 2)
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
+            "VALUES (?,?,?,?,?,?, 'bot')",
+            (number, datetime.now().strftime("%d.%m.%Y"), client, customer_no or "", desc, gross))
+        conn.execute(
+            "INSERT OR IGNORE INTO invoice_archive "
+            "(number, inv_date, year, client_name, items, net, vat, gross, kleinunternehmer, raw_json) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (number, today_iso, datetime.now().year, client,
+             jsonlib.dumps([desc], ensure_ascii=False), net, vat, gross,
+             0 if rate else 1, jsonlib.dumps({"source": "bot", "desc": desc}, ensure_ascii=False)))
+    _archive_pdf_copy(pdf_path, number)
+
+
+def looks_like_invoice_fetch(text: str) -> bool:
+    """Просьба ПРИСЛАТЬ готовые PDF счетов (не выставить новый): «пришли инвойс
+    Cosmopop», «скинь все счета за 2026», «отправь Rechnung 39». Проверяется
+    ДО looks_like_invoice_request — глаголы отправки, не создания."""
+    t = text or ""
+    return bool(re.search(
+        r"(пришл|скин|отправ|вышл|перешл|покаж|сгруз|выгруз|найд)\w*[^.\n]{0,40}"
+        r"(сч[ёе]т|инвойс|invoice|rechnung|pdf)", t, re.IGNORECASE))
+
+
+_RU2LAT = str.maketrans({"а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ж": "zh",
+                         "з": "z", "и": "i", "й": "i", "к": "k", "л": "l", "м": "m", "н": "n",
+                         "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f",
+                         "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch", "ъ": "", "ы": "y",
+                         "ь": "", "э": "e", "ю": "yu", "я": "ya"})
+
+
+def _inv_norm(s: str) -> str:
+    """Нормализация имени для матчинга «космопоп» ↔ «Cosmopop»: нижний регистр,
+    транслит кириллицы, c→k."""
+    return (s or "").lower().replace("ё", "е").translate(_RU2LAT).replace("c", "k")
+
+
+_INV_STOP = {"пришли", "скинь", "отправь", "вышли", "покажи", "сгрузи", "выгрузи", "найди",
+             "перешли", "мне", "все", "счета", "инвойс", "инвойсы", "инвойса", "rechnung",
+             "invoice", "pdf", "евро", "eur", "год", "года", "пожалуйста", "для", "сумму"}
+
+
+def find_invoice_rows(query: str):
+    """Детерминированный поиск по единой таблице invoice_archive (0 токенов):
+    «все [за 2026]» · точный номер · сумма ±1€ · клиент (с транслитом)."""
+    q = (query or "").lower().replace("ё", "е")
+    rows = all_archive_rows()
+    # Год — только с предлогом («за 2026», «в 2025», «2026 год»): иначе сумма
+    # вроде «на 2000 евро» ошибочно принималась за год и убивала совпадения
+    year_m = re.search(r"(?:за|в)\s+(20\d{2})\b|\b(20\d{2})\s*год", q)
+    year = int(year_m.group(1) or year_m.group(2)) if year_m else None
+
+    def _yr(r):
+        return year is None or r["year"] == year
+
+    if re.search(r"\bвсе\b", q):
+        return [r for r in rows if _yr(r)]
+    # точный номер
+    for tok in re.findall(r"[\w\-]+", q):
+        if re.fullmatch(r"r?\d{1,4}(-\d+)?|\d{8}-\d+", tok):
+            hit = [r for r in rows
+                   if (r["number"] or "").lower().lstrip("r") == tok.lstrip("r")]
+            if hit:
+                return hit
+    sel, used = [], False
+    # сумма (gross ±1€)
+    for tok in re.findall(r"\d{2,6}(?:[.,]\d{2})?", q):
+        try:
+            val = float(tok.replace(",", "."))
+        except ValueError:
+            continue
+        if val >= 20:
+            hit = [r for r in rows if abs((r["gross"] or 0) - val) < 1.0 and _yr(r)]
+            if hit:
+                used = True
+                sel += [r for r in hit if r not in sel]
+    # клиент (подстрока, транслит-нормализация)
+    for w in re.findall(r"[a-zа-я]{3,}", q):
+        if w in _INV_STOP:
+            continue
+        wn = _inv_norm(w)
+        hit = [r for r in rows if wn and wn in _inv_norm(r["client_name"]) and _yr(r)]
+        if hit:
+            used = True
+            sel += [r for r in hit if r not in sel]
+    if not used and year is not None:
+        return [r for r in rows if r["year"] == year]
+    if not sel:
+        # «счета 2026» без предлога: голое 20xx считаем годом, только если такой
+        # год реально есть в архиве (сумму 2000-2099 это не заденет)
+        m = re.search(r"\b(20\d{2})\b", q)
+        if m and int(m.group(1)) in {r["year"] for r in rows}:
+            return [r for r in rows if r["year"] == int(m.group(1))]
+    return sel
+
+
+async def send_invoice_pdfs(update: Update, query: str):
+    """Отправить PDF счетов по описанию. В сами PDF не заглядываем: матчим по
+    данным единой таблицы, шлём готовые файлы из хранилища. Работает и у
+    Директора, и у Юриста (шлётся ботом, чей update)."""
+    rows = find_invoice_rows(query)
+    if not rows:
+        recent = all_archive_rows()[-5:]
+        hint = "\n".join(
+            f"• {r['number'] or '—'} · {r['inv_date'] or ''} · {r['client_name'] or ''} · {r['gross'] or 0:.0f}€"
+            for r in reversed(recent)) or "таблица пуста"
+        await update.message.reply_text(
+            "Не нашёл счетов по этому описанию. Последние в таблице:\n" + hint
+            + "\n\nУточни: клиент / номер / сумма / «все за 2026».")
+        return
+    total = sum(r["gross"] or 0 for r in rows)
+    await update.message.reply_text(f"🧾 Нашёл: {len(rows)} шт · {total:.0f}€. Отправляю PDF…")
+    missing = []
+    for r in rows[:40]:
+        p = invoice_pdf_path(r["number"] or "")
+        if not p:
+            missing.append(f"{r['number'] or '—'} ({r['client_name'] or ''})")
+            continue
+        try:
+            with open(p, "rb") as doc:
+                await update.message.reply_document(doc, filename=os.path.basename(p))
+        except Exception as e:
+            log.error(f"send invoice pdf {p}: {e}")
+    tail = []
+    if len(rows) > 40:
+        tail.append(f"…показал 40 из {len(rows)} — уточни запрос.")
+    if missing:
+        tail.append("Есть в таблице, но без PDF на сервере: " + ", ".join(missing[:10])
+                    + ". Пришли эти PDF мне или Юристу — сохраню в хранилище.")
+    if tail:
+        await update.message.reply_text("\n".join(tail))
 
 
 def all_archive_rows():
@@ -2034,12 +2214,8 @@ def apply_actions(actions: list) -> list:
                         vat_rate=a.get("vat_rate") or None,
                     )
                     desc = "; ".join(it.get("desc", "") for it in items)
-                    with db() as conn:
-                        conn.execute(
-                            "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
-                            "VALUES (?,?,?,?,?,?, 'bot')",
-                            (number, datetime.now().strftime("%d.%m.%Y"),
-                             recipient.split(chr(10))[0], customer_no, desc, total))
+                    register_own_invoice(number, recipient, customer_no, desc, total,
+                                         path, a.get("vat_rate"))
                     upsert_client(recipient, salutation or "", customer_no)  # запомнить клиента целиком
                     results.append(("invoice", 0, f"Rechnung {number} · {total:.2f}€", path, ""))
             elif a.get("type") == "case":
@@ -2582,12 +2758,8 @@ async def create_invoice_from_text(update: Update, text: str):
         return
 
     desc = "; ".join(it.get("desc", "") for it in data["items"])
-    with db() as conn:
-        conn.execute(
-            "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
-            "VALUES (?,?,?,?,?,?, 'bot')",
-            (number, datetime.now().strftime("%d.%m.%Y"),
-             recipient.split(chr(10))[0], customer_no, desc, total))
+    register_own_invoice(number, recipient, customer_no, desc, total, path,
+                         data.get("vat_rate"))
     upsert_client(recipient, salutation, customer_no)  # запомнить клиента целиком
 
     remember("user", "счёт: " + text)
@@ -4536,6 +4708,20 @@ def get_director_snapshot() -> str:
     except Exception as e:
         log.error(f"director snapshot: {e}")
     try:
+        yr = datetime.now().year
+        with db() as conn:
+            cnt, summ = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(gross),0) FROM invoice_archive WHERE year=?",
+                (yr,)).fetchone()
+            last3 = conn.execute(
+                "SELECT number, client_name, gross FROM invoice_archive "
+                "ORDER BY inv_date DESC, id DESC LIMIT 3").fetchall()
+        if cnt:
+            lines.append(f"СЧЕТА {yr}: {cnt} шт · оборот {summ:.0f}€ · последние: " + "; ".join(
+                f"{r['number'] or '—'} {r['client_name'] or ''} {r['gross'] or 0:.0f}€" for r in last3))
+    except Exception as e:
+        log.error(f"director snapshot invoices: {e}")
+    try:
         fun = get_funnel_context()
         if fun:
             lines.append(fun.splitlines()[-1])  # строка «Итого ожидаемо … взвешенно …»
@@ -6225,10 +6411,34 @@ def _backup_db_sync() -> str:
     return dest
 
 
+def _weekly_backup_zip(db_copy: str) -> str:
+    """Полный «сейф» недели: zip со свежей копией БД и ВСЕМИ PDF счетов из
+    хранилища (в т.ч. весь текущий год). Ротация — 4 последних архива."""
+    import zipfile
+    d = os.path.dirname(os.path.abspath(__file__))
+    bdir = os.path.join(d, "backups")
+    os.makedirs(bdir, exist_ok=True)
+    dest = os.path.join(bdir, f"farbaholix_{datetime.now().strftime('%Y-%m-%d')}.zip")
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
+        z.write(db_copy, os.path.basename(db_copy))
+        if os.path.isdir(INVOICES_PDF_DIR):
+            for f in sorted(os.listdir(INVOICES_PDF_DIR)):
+                if f.endswith(".pdf"):
+                    z.write(os.path.join(INVOICES_PDF_DIR, f), "invoices_pdf/" + f)
+    zips = sorted(f for f in os.listdir(bdir)
+                  if f.startswith("farbaholix_") and f.endswith(".zip"))
+    for old in zips[:-4]:
+        try:
+            os.unlink(os.path.join(bdir, old))
+        except Exception:
+            pass
+    return dest
+
+
 async def nightly_backup(ctx: ContextTypes.DEFAULT_TYPE):
-    """Ежедневно 03:30 Berlin: бэкап БД с ротацией; по воскресеньям копия уходит
-    владельцу файлом в Telegram — бесплатный оффсайт-«сейф в чате» на случай
-    гибели сервера. В базе вся бизнес-память: финансы, инвойсы, проекты."""
+    """Ежедневно 03:30 Berlin: бэкап БД с ротацией; по воскресеньям владельцу в
+    Telegram уходит zip «база + все PDF счетов» — бесплатный оффсайт-«сейф в
+    чате» на случай гибели сервера."""
     if not _claim_daily("db_backup:" + datetime.now().strftime("%Y-%m-%d")):
         return
     try:
@@ -6238,15 +6448,21 @@ async def nightly_backup(ctx: ContextTypes.DEFAULT_TYPE):
         log.error(f"backup: {e}")
         return
     wd = (datetime.now(BERLIN) if BERLIN else datetime.now()).weekday()
-    if wd == 6:  # воскресенье
+    if wd == 6:  # воскресенье — полный «сейф»
+        try:
+            pack = await asyncio.to_thread(_weekly_backup_zip, dest)
+        except Exception as e:
+            log.error(f"backup zip: {e}")
+            pack = dest  # деградация: хотя бы голая БД
         cid = get_chat_id()
         if cid:
             try:
-                with open(dest, "rb") as f:
+                with open(pack, "rb") as f:
                     await ctx.bot.send_document(
-                        cid, f, filename=os.path.basename(dest),
-                        caption="🗄 Еженедельный бэкап базы. Ничего делать не нужно — "
-                                "просто пусть лежит в чате: это твой сейф на случай сбоя сервера.")
+                        cid, f, filename=os.path.basename(pack),
+                        caption="🗄 Еженедельный бэкап: база + PDF всех счетов. Ничего "
+                                "делать не нужно — просто пусть лежит в чате: это твой "
+                                "сейф на случай сбоя сервера.")
             except Exception as e:
                 log.error(f"backup send: {e}")
 

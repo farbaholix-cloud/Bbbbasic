@@ -419,6 +419,11 @@ async def _route_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str):
     if re.search(r"продав\w+|воронк\w+|дожа(ть|м|ми|тие)|закрыть\s+сделк|что\s+закрыва\w+\s+(перв|срочн)", txt, re.I):
         await cmd_sales(update, ctx, ask=txt)
         return
+    # Просьба ПРИСЛАТЬ готовые PDF счетов — детерминированно из единой таблицы
+    if B.looks_like_invoice_fetch(txt):
+        await B.send_invoice_pdfs(update, txt)
+        B.remember_lawyer("assistant", "отправил PDF счетов по запросу: " + txt[:120])
+        return
     # Просьба составить договор (проверяем ДО инвойса — «договор» специфичнее)
     if B.looks_like_contract_request(txt):
         B.save_chat_id(update.effective_chat.id)

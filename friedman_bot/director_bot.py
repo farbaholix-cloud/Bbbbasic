@@ -174,6 +174,31 @@ async def _send_brief(bot, chat_id: int):
     await B.render_owner_brief(bot, chat_id, verbose=True)
 
 
+async def cmd_invoices(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Единая таблица счетов в .xls — та же, что /showinvoices у Юриста."""
+    chat_id = update.effective_chat.id
+    owner = B.get_chat_id()
+    if owner and chat_id != owner:
+        return
+    rows = B.all_archive_rows()
+    if not rows:
+        await update.message.reply_text("Таблица счетов пуста.")
+        return
+    total = sum((r["gross"] or 0) for r in rows)
+    try:
+        path = await asyncio.get_event_loop().run_in_executor(None, B.export_invoices_xls)
+    except Exception as e:
+        log.error(f"invoices xls: {e}")
+        await update.message.reply_text(f"Не смог собрать таблицу 😔 {e}")
+        return
+    await update.message.reply_text(f"🧾 В таблице {len(rows)} счетов · всего {total:.0f}€.")
+    try:
+        with open(path, "rb") as doc:
+            await update.message.reply_document(doc, filename="Rechnungen_alle.xls")
+    except Exception as e:
+        log.error(f"invoices send: {e}")
+
+
 async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Утренняя сводка вручную — постер на сегодня."""
     chat_id = update.effective_chat.id
@@ -249,9 +274,14 @@ async def _orchestrate(update: Update, ctx: ContextTypes.DEFAULT_TYPE, txt: str)
     B.remember_director("user", txt)
     loop = asyncio.get_event_loop()
 
-    # Детерминированные сценарии с файлом на выходе — счёт (Rechnung) и договор.
-    # Тот же надёжный путь, что был у Юриста: мимо LLM-триажа, ноль токенов,
-    # гарантированный PDF прямо в этот чат (шлётся ботом Директора через update).
+    # Детерминированные сценарии с файлом на выходе — мимо LLM-триажа, ноль
+    # токенов, гарантированный результат прямо в этот чат ботом Директора.
+    # 1) «пришли/скинь PDF счёта…» — выдача готовых PDF из единой таблицы
+    if B.looks_like_invoice_fetch(txt):
+        await B.send_invoice_pdfs(update, txt)
+        B.remember_director("assistant", "отправил PDF счетов по запросу: " + txt[:120])
+        return
+    # 2) создание документов: счёт (Rechnung) и договор
     if B.looks_like_contract_request(txt):
         await B.create_contract_from_text(update, txt)
         B.remember_director("assistant", "составил договор: " + txt[:150])
@@ -423,6 +453,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler(["team", "komanda", "status"], cmd_team))
     app.add_handler(CommandHandler(["brief", "svodka"], cmd_brief))
+    app.add_handler(CommandHandler(["invoices", "showinvoices"], cmd_invoices))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler(["voice", "voice_on", "voice_off"], cmd_voice))
     app.add_handler(CommandHandler("restart", cmd_restart))
