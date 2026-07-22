@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.34"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.35"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -3933,7 +3933,8 @@ function fade(){ink.style.opacity=0;
   setTimeout(()=>{clearAll();pts=[];lastXY=null;ink.style.opacity=1;hint.style.opacity='';},640);}
 function success(){const f=document.getElementById('flash'),d=document.getElementById('dot');
   d.style.transition='transform .45s,opacity .45s';d.style.transform='scale(28)';d.style.opacity=0;
-  f.style.opacity=1;setTimeout(()=>location.replace('/'),460);}
+  // остаёмся на пути, куда пришли (например /biz — бизнес-пульт), а не всегда на «/»
+  f.style.opacity=1;setTimeout(()=>location.replace(location.pathname||'/'),460);}
 surface.addEventListener('touchstart',start,{passive:false});
 surface.addEventListener('touchmove',move,{passive:false});
 surface.addEventListener('touchend',end,{passive:false});

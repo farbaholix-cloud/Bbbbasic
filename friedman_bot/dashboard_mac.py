@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.38 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.39 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -4464,7 +4464,7 @@ inp.addEventListener('keydown',async e=>{
   const r=await fetch('/api/unlock',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({password:inp.value})}).catch(()=>null);
   const j=r?await r.json().catch(()=>({})):{};
-  if(j.ok){document.getElementById('flash').style.opacity=1;setTimeout(()=>location.replace('/'),300);}
+  if(j.ok){document.getElementById('flash').style.opacity=1;setTimeout(()=>location.replace(location.pathname||'/'),300);}
   else{err.textContent='✕';inp.value='';inp.focus();setTimeout(()=>err.textContent='',900);}
 });
 inp.addEventListener('input',()=>err.textContent='');
