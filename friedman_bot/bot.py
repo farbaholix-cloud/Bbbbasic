@@ -579,6 +579,22 @@ def _needs_web(text: str) -> bool:
     return bool(_WEB_RE.search(text))
 
 
+def _claude_exec(cmd, timeout):
+    """Запуск claude CLI с промптом через STDIN, а не через argv. Большой промпт
+    в аргументах командной строки даёт OSError E2BIG «Argument list too long»
+    (лимит ОС на argv ~128 КБ) — именно из-за этого агенты «не давали результата».
+    cmd = [CLAUDE_BIN, "-p", PROMPT, ...флаги]; позиционный PROMPT снимаем и подаём
+    на stdin (claude -p без позиционного промпта читает его из stdin)."""
+    if len(cmd) >= 3 and cmd[1] == "-p":
+        prompt = cmd[2]
+        argv = [cmd[0], cmd[1]] + cmd[3:]
+    else:
+        prompt, argv = "", cmd
+    return subprocess.run(
+        argv, input=prompt, capture_output=True, text=True, timeout=timeout,
+        env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+
+
 def _web_research_sync(query: str) -> str:
     """Ищет в интернете через Claude + WebSearch/WebFetch, возвращает текстовое резюме."""
     prompt = (
@@ -591,14 +607,10 @@ def _web_research_sync(query: str) -> str:
         "Если не нашёл — скажи честно."
     )
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt,
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt,
              "--allowedTools", "WebSearch,WebFetch",
              "--model", "haiku",
-             "--max-turns", "6"],
-            capture_output=True, text=True, timeout=90,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
+             "--max-turns", "6"], timeout=90)
         out = (result.stdout or "").strip()
         return out if out else ""
     except Exception as e:
@@ -619,15 +631,11 @@ def ask_claude_sync(user_text: str) -> dict:
     prompt = f"{context}{web_block}\n\nНОВОЕ СООБЩЕНИЕ ОТ ЧЕЛОВЕКА:\n{user_text}"
     sys_prompt = SECRETARY_PROMPT.replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A"))
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt,
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt,
              "--append-system-prompt", sys_prompt,
              "--model", "haiku",
              "--max-turns", "8",
-             "--tools", ""],
-            capture_output=True, text=True, timeout=120,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
+             "--tools", ""], timeout=120)
         raw = result.stdout.strip()
         if not raw or raw.startswith("Error:"):
             log.error(f"Secretary CLI пусто/ошибка: rc={result.returncode} "
@@ -810,15 +818,11 @@ def ask_lawyer_sync(user_text: str) -> dict:
     if skill:
         sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt,
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt,
              "--append-system-prompt", sys_prompt,
              "--allowedTools", "Read,WebSearch,WebFetch",
              "--model", "sonnet",
-             "--max-turns", "8"],
-            capture_output=True, text=True, timeout=240,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
+             "--max-turns", "8"], timeout=240)
         raw = result.stdout.strip()
         if not raw or raw.startswith("Error:"):
             log.error(f"Lawyer CLI пусто/ошибка: rc={result.returncode} "
@@ -1038,10 +1042,7 @@ def import_own_invoice_sync(path: str):
         "пустые sender/client."
     )
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"],
-            capture_output=True, text=True, timeout=200,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"], timeout=200)
         raw = (result.stdout or "").strip()
         s, e = raw.find("{"), raw.rfind("}")
         if s < 0 or e <= s:
@@ -1110,10 +1111,7 @@ def extract_invoice_full_sync(path: str):
         "kleinunternehmer=true если есть оговорка §19 UStG. Если это не счёт — is_invoice=false."
     )
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"],
-            capture_output=True, text=True, timeout=200,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"], timeout=200)
         raw = (result.stdout or "").strip()
         s, e = raw.find("{"), raw.rfind("}")
         if s < 0 or e <= s:
@@ -1175,10 +1173,7 @@ def store_archived_document(path: str):
         "Заполни только релевантную секцию. Числа/даты точно как в документе."
     )
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"],
-            capture_output=True, text=True, timeout=200,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "6"], timeout=200)
         raw = (result.stdout or "").strip()
         s, e = raw.find("{"), raw.rfind("}")
         if s < 0 or e <= s:
@@ -1790,11 +1785,8 @@ def analyze_all_sync() -> str:
         f"{table}"
     )
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "10"],
-            capture_output=True, text=True, timeout=300,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "10"], timeout=300)
         raw = (result.stdout or "").strip()
         s, e = raw.find("{"), raw.rfind("}")
         reply = ""
@@ -1902,11 +1894,8 @@ def strategy_council_sync() -> str:
     if skill:
         sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "10"],
-            capture_output=True, text=True, timeout=360,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "10"], timeout=360)
         raw = (result.stdout or "").strip()
         s, e = raw.find("{"), raw.rfind("}")
         reply = ""
@@ -2049,11 +2038,8 @@ def sales_agent_sync(user_text: str = "") -> str:
     if skill:
         sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "8"],
-            capture_output=True, text=True, timeout=360,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "8"], timeout=360)
         raw = (result.stdout or "").strip()
         if not raw or raw.startswith("Error:"):
             log.error(f"Sales CLI пусто/ошибка: rc={result.returncode} "
@@ -2362,10 +2348,7 @@ def maybe_update_lawyer_summary():
             "не выдумывай, не теряй важное. Пиши по-русски, компактно, тезисами.\n\n"
             f"ТЕКУЩАЯ СВОДКА:\n{prev}\n\nНОВЫЕ ОБМЕНЫ:\n{block}\n\n"
             "Верни ТОЛЬКО обновлённый текст сводки, без пояснений.")
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""],
-            capture_output=True, text=True, timeout=90,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""], timeout=90)
         new_summary = (result.stdout or "").strip()
         if new_summary and not new_summary.startswith("Error:"):
             _settings_set("lawyer_summary", new_summary[:8000])
@@ -2639,11 +2622,7 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 "Если не понять — верни пустую строку."
             )
             try:
-                r = subprocess.run(
-                    [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""],
-                    capture_output=True, text=True, timeout=30,
-                    env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-                )
+                r = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""], timeout=30)
                 out = r.stdout.strip()
                 m = re.search(r'\d{4}-\d{2}-\d{2}', out)
                 return m.group() if m else ""
@@ -2716,11 +2695,7 @@ async def create_invoice_from_text(update: Update, text: str):
             + known_block
         )
         try:
-            result = subprocess.run(
-                [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""],
-                capture_output=True, text=True, timeout=120,
-                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-            )
+            result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""], timeout=120)
             raw = result.stdout.strip()
             s, e = raw.find("{"), raw.rfind("}")
             if s >= 0 and e > s:
@@ -2812,10 +2787,7 @@ async def create_contract_from_text(update: Update, text: str):
             "Если не хватает заказчика или сути работы или суммы — верни {\"need\": \"чего не хватает\"}."
         )
         try:
-            result = subprocess.run(
-                [CLAUDE_BIN, "-p", prompt, "--model", "sonnet", "--tools", ""],
-                capture_output=True, text=True, timeout=180,
-                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+            result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "sonnet", "--tools", ""], timeout=180)
             raw = result.stdout.strip()
             s, e = raw.find("{"), raw.rfind("}")
             if s >= 0 and e > s:
@@ -2871,11 +2843,7 @@ async def create_goal_project(update: Update, goal_text: str):
             '"area": "work|health|money|people|home|self|other", "steps": ["шаг 1", "шаг 2"]}'
         )
         try:
-            result = subprocess.run(
-                [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--max-turns", "8", "--tools", ""],
-                capture_output=True, text=True, timeout=120,
-                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-            )
+            result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--max-turns", "8", "--tools", ""], timeout=120)
             raw = result.stdout.strip()
             start, end = raw.find("{"), raw.rfind("}")
             if start >= 0 and end > start:
@@ -3063,14 +3031,10 @@ def _is_doc_caption(caption: str) -> bool:
 
 def analyze_doc_sync(path: str) -> dict:
     """Распознаёт финансовый/официальный документ через Claude CLI (sonnet — точнее OCR)."""
-    result = subprocess.run(
-        [CLAUDE_BIN, "-p", DOC_PROMPT.format(path=path),
+    result = _claude_exec([CLAUDE_BIN, "-p", DOC_PROMPT.format(path=path),
          "--allowedTools", "Read",
          "--model", "sonnet",
-         "--max-turns", "5"],
-        capture_output=True, text=True, timeout=160,
-        env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-    )
+         "--max-turns", "5"], timeout=160)
     raw = result.stdout.strip()
     m = re.search(r'\{[\s\S]*\}', raw)
     if m:
@@ -3343,12 +3307,8 @@ CLASSIFY_PROMPT = """Прочитай изображение по пути {path
 def classify_image_sync(path: str) -> str:
     """Быстрая классификация: event / parking / klarna / document / wall / other."""
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", CLASSIFY_PROMPT.format(path=path),
-             "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "3"],
-            capture_output=True, text=True, timeout=90,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
+        result = _claude_exec([CLAUDE_BIN, "-p", CLASSIFY_PROMPT.format(path=path),
+             "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "3"], timeout=90)
         out = (result.stdout or "").strip().lower()
         if "klarna" in out:
             return "klarna"
@@ -3380,12 +3340,8 @@ PLANNING_EXTRACT_PROMPT = """Прочитай изображение по пут
 
 def extract_planning_sync(path: str) -> dict:
     """Извлекает title/date/time/place/note из скриншота приглашения или задачи."""
-    result = subprocess.run(
-        [CLAUDE_BIN, "-p", PLANNING_EXTRACT_PROMPT.format(path=path),
-         "--allowedTools", "Read", "--model", "haiku", "--max-turns", "3"],
-        capture_output=True, text=True, timeout=90,
-        env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-    )
+    result = _claude_exec([CLAUDE_BIN, "-p", PLANNING_EXTRACT_PROMPT.format(path=path),
+         "--allowedTools", "Read", "--model", "haiku", "--max-turns", "3"], timeout=90)
     raw = result.stdout.strip()
     m = re.search(r'\{[\s\S]*\}', raw)
     if m:
@@ -3409,12 +3365,8 @@ KLARNA_PROMPT = """Прочитай изображение по пути {path} 
 
 def analyze_klarna_sync(path: str) -> dict:
     """Разбирает скриншот Klarna в список планов рассрочки."""
-    result = subprocess.run(
-        [CLAUDE_BIN, "-p", KLARNA_PROMPT.format(path=path),
-         "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "5"],
-        capture_output=True, text=True, timeout=120,
-        env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-    )
+    result = _claude_exec([CLAUDE_BIN, "-p", KLARNA_PROMPT.format(path=path),
+         "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "5"], timeout=120)
     raw = result.stdout.strip()
     m = re.search(r'\{[\s\S]*\}', raw)
     if m:
@@ -3499,12 +3451,8 @@ async def _analyze_as_document(update, ctx, path, wait):
 async def _analyze_as_wall(update, ctx, path, wait):
     def analyze():
         try:
-            result = subprocess.run(
-                [CLAUDE_BIN, "-p", WALL_PROMPT.format(path=path),
-                 "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "10"],
-                capture_output=True, text=True, timeout=180,
-                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-            )
+            result = _claude_exec([CLAUDE_BIN, "-p", WALL_PROMPT.format(path=path),
+                 "--allowedTools", "Read", "--model", "sonnet", "--max-turns", "10"], timeout=180)
             return result.stdout.strip()
         except Exception as e:
             log.error(f"wall analyze: {e}")
@@ -4130,13 +4078,9 @@ def culture_for_today_sync() -> dict:
         "Проверяй даты по интернету, не выдумывай. По-русски, начни с эмодзи 🎤, 🎂 или 🎧."
     )
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt,
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt,
              "--allowedTools", "WebSearch,WebFetch",
-             "--model", "haiku", "--max-turns", "6"],
-            capture_output=True, text=True, timeout=110,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
+             "--model", "haiku", "--max-turns", "6"], timeout=110)
         raw = result.stdout.strip()
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
@@ -4145,11 +4089,7 @@ def culture_for_today_sync() -> dict:
         log.error(f"culture: {ex}")
     # Фоллбэк без интернета: хотя бы хип-хоп факт из знаний модели
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--max-turns", "1", "--tools", ""],
-            capture_output=True, text=True, timeout=60,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--max-turns", "1", "--tools", ""], timeout=60)
         raw = result.stdout.strip()
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
@@ -4192,13 +4132,9 @@ def legal_news_ua_men_sync() -> dict:
         "date — период/дата новостей."
     )
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt,
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt,
              "--allowedTools", "WebSearch,WebFetch",
-             "--model", "haiku", "--max-turns", "10"],
-            capture_output=True, text=True, timeout=200,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-        )
+             "--model", "haiku", "--max-turns", "10"], timeout=200)
         raw = result.stdout.strip()
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
@@ -4599,11 +4535,8 @@ def sales_dialog_sync(user_text: str) -> str:
     if skill:
         sys_prompt += "\n\n=== SKILL.md (уже прочитан, Read не нужен) ===\n" + skill
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "8"],
-            capture_output=True, text=True, timeout=360,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "8"], timeout=360)
         raw = (result.stdout or "").strip()
         s, e = raw.find("{"), raw.rfind("}")
         reply = ""
@@ -4852,11 +4785,8 @@ def director_dialog_sync(user_text: str) -> dict:
     )
     for attempt in (1, 2):
         try:
-            result = subprocess.run(
-                [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-                 "--model", "haiku", "--max-turns", "4", "--tools", ""],
-                capture_output=True, text=True, timeout=90,
-                env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+            result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+                 "--model", "haiku", "--max-turns", "4", "--tools", ""], timeout=90)
         except subprocess.TimeoutExpired:
             log.error(f"director triage timeout (попытка {attempt})")
             continue
@@ -4943,11 +4873,8 @@ def director_finalize_sync(user_text: str, results: list) -> str:
     prompt = (f"ЗАДАЧА ВЛАДЕЛЬЦА: {user_text}\n\n" + "\n\n".join(blocks)
               + "\n\nСведи по регламенту.")
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--model", "sonnet", "--max-turns", "4", "--tools", ""],
-            capture_output=True, text=True, timeout=240,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--model", "sonnet", "--max-turns", "4", "--tools", ""], timeout=240)
         raw = (result.stdout or "").strip()
         if not raw:
             log.error(f"director finalize пусто: rc={result.returncode} "
@@ -5061,11 +4988,8 @@ def sales_digest_sync():
            + "\n- ".join(used_quotes[-200:]) + "\n\n" if used_quotes else "")
         + "Составь дайджест на сегодня.")
     try:
-        result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
-             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "16"],
-            capture_output=True, text=True, timeout=420,
-            env={**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")})
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--append-system-prompt", sys_prompt,
+             "--allowedTools", "Read,WebSearch,WebFetch", "--model", "sonnet", "--max-turns", "16"], timeout=420)
         raw = (result.stdout or "").strip()
     except Exception as e:
         log.error(f"sales_digest run: {e}")
