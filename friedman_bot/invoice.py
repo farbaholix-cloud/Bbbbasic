@@ -39,6 +39,7 @@ _SENDER_DEFAULTS = {
     "name":   "Viacheslav Balabaiev",
     "title":  "Graffiti Künstler",
     "street": "Sigmund-Freud-Str. 76",
+    "plz_city": "60435 Frankfurt am Main",   # PLZ + Ort — строка адреса под улицей
     "phone":  "+49 151 724 503 47",
     "email":  "farbaholix@gmail.com",
     "city":   "Frankfurt",           # город в строке «Ort, Datum»
@@ -191,6 +192,7 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
     </div>
     <div class='meta'>
       {_esc(snd['street'])}<br>
+      {_esc(snd['plz_city'])}<br>
       {_esc(snd['phone'])}<br>
       <span class='mail'>{_esc(snd['email'])}</span><br>
       Pers. Identifikationsnummer: {_esc(snd['ident_nr'])}<br>
@@ -311,14 +313,14 @@ h1 {{ font-size:20px; font-weight:700; margin:22px 0 4px; text-transform:upperca
 </style></head><body>
   <div class='head'>
     <div><div class='name'>{_esc(snd['name'])}</div><div class='title2'>{_esc(snd['title'])}</div></div>
-    <div class='meta'>{_esc(snd['street'])}<br>{_esc(snd['phone'])}<br>
+    <div class='meta'>{_esc(snd['street'])}<br>{_esc(snd['plz_city'])}<br>{_esc(snd['phone'])}<br>
       <span class='mail'>{_esc(snd['email'])}</span><br>
       Steuernummer: {_esc(snd['steuernummer'])}</div>
   </div>
   <div class='accent'></div>
   <h1>{_esc(title)}</h1>
   <div class='parties'>
-    <b>zwischen</b><br>{_addr_html(snd['name'] + chr(10) + snd['street'])} — nachfolgend „Auftragnehmer“<br><br>
+    <b>zwischen</b><br>{_addr_html(snd['name'] + chr(10) + snd['street'] + chr(10) + snd['plz_city'])} — nachfolgend „Auftragnehmer“<br><br>
     <b>und</b><br>{_addr_html(client)} — nachfolgend „Auftraggeber“
   </div>
   <p class='intro'>{_esc(intro)}</p>
