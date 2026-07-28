@@ -693,6 +693,7 @@ SKILL.md (карта тем) уже вшит в конец этого промп
 2. Сроки: напоминай о подаче деклараций (ESt + Anlage EÜR + Anlage S, обычно к 31 июля) и ежегодных обновлениях. Если просят — поставь напоминание (action remind).
 3. Инвойсы (СЧЕТА): когда просят выставить/сделать счёт или PDF-Rechnung — твоя ЕДИНСТВЕННАЯ задача вернуть action invoice с данными (recipient — получатель: название + адрес, каждая часть с новой строки \\n; items — позиции, desc на немецком профессионально с умляутами, price числом; salutation — обращение если известно; intro — вводная фраза на немецком если ясен повод). PDF собирает САМ БОТ по фиксированному шаблону. Ты НЕ рисуешь и НЕ меняешь дизайн счёта, НЕ редактируешь файлы, НЕ пишешь и НЕ запускаешь код, НЕ просишь никаких разрешений/«Allow», НЕ утверждай, что ты обновил дизайн или отредактировал invoice.py — у тебя нет такой возможности и это не нужно. Просто верни action invoice и короткий reply вроде «Готовлю счёт для … на …€». Если не хватает получателя или суммы — спроси одним вопросом. ВАЖНО по НДС: ВСЕГДА по умолчанию — оговорка Kleinunternehmer §19 UStG (без НДС), vat_rate НЕ ставь. Даже если оборот прошлого года превысил порог — НЕ переключай на 19% USt сам: решение отложено до Steuerberater. "vat_rate": 19 только если пользователь прямо скажет, что Steuerberater подтвердил переход.
 4. Письма/заявления: по reference letters.md составь готовый текст письма на немецком (Finanzamt, KSK, Krankenkasse, Handwerkskammer, Jobcenter) прямо в reply.
+3б. УДАЛЕНИЕ СЧЕТОВ ИЗ АРХИВА: если пользователь просит убрать счёт/дубль из таблицы («удали инвойс Cosmopop на 5000», «в архиве дубль — убери один») — НЕ отвечай просто «ок», а верни action delete_invoice с максимально точными критериями из просьбы и контекста (АРХИВ ИНВОЙСОВ выше): {"type":"delete_invoice","number":"","client":"Cosmopop","amount":5000,"date":"YYYY-MM-DD","all":false}. all=false удаляет ОДНУ последнюю совпавшую запись (для дубля из двух одинаковых — ровно то, что нужно); all=true — все совпавшие (только если пользователь явно просит убрать все). Если критериев мало и можно зацепить не тот счёт — сначала уточни одним вопросом.
 4б. ДОКУМЕНТЫ/БЮРОКРАТИЯ (права Führerschein-Umtausch, §24, паспорт, термины в ведомства): по reference buerokratie.md. В контексте тебе даны открытые «дела» (БЮРОКРАТИЧЕСКИЕ ДЕЛА) — когда пользователь сообщает новость по делу («записался на термин 15.08», «подал заявление», «получил права»), ОБНОВИ дело через action case: {"type":"case","topic":"fuehrerschein","status":"open|waiting|done","next_step":"...","due":"YYYY-MM-DD","note":"..."} (topic из списка в контексте; новую тему заводи с коротким латинским topic). Для актуальных процедур/правил делай web_search.
 5. ELSTER: помоги понять, какие формы (Anlage S, Anlage EÜR), как заполнять, какие поля — пошагово.
 6. Статус: рекомендуй изменения (вступление в KSK ради экономии ~50% на страховке, переход на Regelbesteuerung, регистрация Gewerbe/GmbH) — но как ОРИЕНТИР; финальное решение и расчёт — со Steuerberater.
@@ -710,6 +711,7 @@ SKILL.md (карта тем) уже вшит в конец этого промп
  {"type": "remind", "when": "2026-07-20 09:00", "text": "подать Einkommensteuererklärung"},
  {"type": "invoice", "recipient": "Galerie X\\nStraße 1\\n60311 Frankfurt", "items": [{"desc": "Künstlerische Wandgestaltung", "price": 1200}], "salutation": "", "customer_no": "", "intro": "", "vat_rate": null},
  {"type": "case", "topic": "fuehrerschein", "status": "waiting", "next_step": "термин в Führerscheinstelle 15.08", "due": "2026-08-15", "note": ""},
+ {"type": "delete_invoice", "number": "", "client": "Cosmopop", "amount": 5000, "date": "", "all": false},
  {"type": "contact", "name": "Steuerberater Müller", "note": "ведёт ESt 2025"}
 ]}
 actions может быть пустым []. Никакого текста вне JSON."""
@@ -867,6 +869,8 @@ async def ai_lawyer(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_text: s
             extras.append(f"💰 _{text}_")
         elif kind == "case":
             extras.append(f"🗂 дело обновлено: _{text}_")
+        elif kind == "delete_invoice":
+            extras.append(f"🗑 архив счетов: _{text}_")
 
     msg = "⚖️ *Юрист:*\n\n" + reply
     if extras:
@@ -1446,6 +1450,47 @@ def all_archive_rows():
                 "FROM invoice_archive ORDER BY year, inv_date, number").fetchall()
     except Exception:
         return []
+
+
+def delete_archived_invoice(number=None, client=None, amount=None, inv_date=None, delete_all=False):
+    """Удалить счёт(а) из архива аналитики по совпадению критериев.
+    По умолчанию удаляется ОДНА запись — последняя добавленная из совпавших
+    (идеально для дублей: из двух одинаковых уходит одна). delete_all=True — все
+    совпавшие. Возвращает число удалённых. Также чистит таблицу invoices по номеру."""
+    conds, vals = [], []
+    if number and str(number).strip():
+        conds.append("number = ?"); vals.append(str(number).strip())
+    if client and str(client).strip():
+        conds.append("LOWER(client_name) LIKE ?"); vals.append("%" + str(client).strip().lower() + "%")
+    if amount is not None and str(amount).strip() != "":
+        try:
+            amt = float(amount)
+            conds.append("ABS(gross - ?) < 0.01"); vals.append(amt)
+        except (TypeError, ValueError):
+            pass
+    if inv_date and str(inv_date).strip():
+        conds.append("inv_date = ?"); vals.append(str(inv_date).strip())
+    if not conds:
+        return 0  # без критериев не удаляем ничего
+    where = " AND ".join(conds)
+    try:
+        with db() as conn:
+            rows = conn.execute(f"SELECT id, number FROM invoice_archive WHERE {where} ORDER BY id DESC",
+                                vals).fetchall()
+            if not rows:
+                return 0
+            targets = rows if delete_all else rows[:1]
+            ids = [r["id"] for r in targets]
+            conn.execute(f"DELETE FROM invoice_archive WHERE id IN ({','.join('?'*len(ids))})", ids)
+            # подчистить и таблицу выставленных счетов по номеру (если он есть)
+            for r in targets:
+                if r["number"]:
+                    conn.execute("DELETE FROM invoices WHERE number = ?", (r["number"],))
+            log.info(f"delete_archived_invoice: удалено {len(ids)} ({[r['number'] for r in targets]})")
+            return len(ids)
+    except Exception as e:
+        log.error(f"delete_archived_invoice: {e}")
+        return 0
 
 
 def archive_years():
@@ -2218,6 +2263,14 @@ def apply_actions(actions: list) -> list:
                                    a.get("next_step"), a.get("due"), a.get("note"))
                 results.append(("case", 0, f"{a.get('topic')}: {a.get('status') or 'обновлено'}"
                                 + (f" → {a.get('next_step')}" if a.get("next_step") else ""), "", ""))
+            elif a.get("type") == "delete_invoice":
+                n = delete_archived_invoice(
+                    number=a.get("number"), client=a.get("client"),
+                    amount=a.get("amount"), inv_date=a.get("date"),
+                    delete_all=bool(a.get("all")))
+                results.append(("delete_invoice", 0,
+                                f"удалено записей: {n}" if n else "ничего не совпало — уточни номер/сумму/дату",
+                                "", ""))
             elif a.get("type") == "project":
                 area = a.get("area") if a.get("area") in AREAS else "work"
                 with db() as conn:
