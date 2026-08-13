@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.47 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.48 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1704,7 +1704,7 @@ select,textarea,.idea-txt{font-size:14px}
   color:rgba(255,208,122,.75);line-height:1.15}
 .ad-ruler b{font-size:10px;font-weight:900;color:#0f1220;background:#ffc657;border-radius:7px;
   padding:1px 6px;margin-top:2px}
-.ad-cells{flex:1;display:flex;max-height:170px;overflow-y:auto;scrollbar-width:thin}
+.ad-cells{flex:1;display:flex;max-height:170px;min-height:45px;overflow-y:auto;scrollbar-width:thin}
 .tgrid-allday.many .ad-cells{box-shadow:inset 0 -14px 12px -12px rgba(0,0,0,.65)}
 .ad-cell{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:6px 4px;
   border-left:1px solid rgba(255,255,255,.06)}
@@ -4287,24 +4287,22 @@ function _calTGrid(cols){
   html+='</div>';
   // ── полоса «без времени»: отдельно, вверху, в обычном потоке (никаких наездов) ──
   const adTotal=cols.reduce((s,c)=>s+_evForDate(c.ds).filter(e=>!e.time).length,0);
-  if(adTotal){
-    // если в какой-то день их много — полоса прокручивается, показываем это тенью снизу
-    const maxPerCol=Math.max(...cols.map(c=>_evForDate(c.ds).filter(e=>!e.time).length));
-    html+='<div class="tgrid-allday'+(maxPerCol>3?' many':'')+'">'+
-      '<div class="ad-ruler">📌<span>без<br>времени</span><b>'+adTotal+'</b></div><div class="ad-cells">';
-    cols.forEach(col=>{
-      const ad=_evForDate(col.ds).filter(e=>!e.time);
-      html+='<div class="ad-cell'+(col.ds===todayISO?' today':'')+'" data-ds="'+col.ds+'">';
-      ad.forEach(ev=>{
-        const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-        const drag=ev.kind==='event'?' draggable="true" data-evid="'+ev.id+'"':'';
-        html+='<div class="ad-card"'+drag+' title="'+_attr(ev.text)+' — двойной клик: изменить, можно перетащить" onclick=\'event.stopPropagation();openTask('+tdata+')\' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
-          esc(ev.text)+(ev.comment?'<span class="cmt-dot">💬</span>':'')+'</div>';
-      });
-      html+='</div>';
+  // если в какой-то день их много — полоса прокручивается, показываем это тенью снизу
+  const maxPerCol=Math.max(...cols.map(c=>_evForDate(c.ds).filter(e=>!e.time).length));
+  html+='<div class="tgrid-allday'+(maxPerCol>3?' many':'')+'">'+
+    '<div class="ad-ruler">📌<span>без<br>времени</span><b>'+(adTotal||0)+'</b></div><div class="ad-cells">';
+  cols.forEach(col=>{
+    const ad=_evForDate(col.ds).filter(e=>!e.time);
+    html+='<div class="ad-cell'+(col.ds===todayISO?' today':'')+'" data-ds="'+col.ds+'">';
+    ad.forEach(ev=>{
+      const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
+      const drag=ev.kind==='event'?' draggable="true" data-evid="'+ev.id+'"':'';
+      html+='<div class="ad-card"'+drag+' title="'+_attr(ev.text)+' — двойной клик: изменить, можно перетащить" onclick=\'event.stopPropagation();openTask('+tdata+')\' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
+        esc(ev.text)+(ev.comment?'<span class="cmt-dot">💬</span>':'')+'</div>';
     });
-    html+='</div></div>';
-  }
+    html+='</div>';
+  });
+  html+='</div></div>';
   // ── сетка часов: строка = час, ячейка = день. События внутри часа идут ДРУГ ЗА ДРУГОМ
   // по вертикали (никаких горизонтальных делений). Строка тянется под самый плотный
   // день — час с четырьмя делами станет выше пустого часа: шкала подстраивается под жизнь.
