@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.43 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.44 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -989,6 +989,11 @@ def api_event_update(payload):
             conn.execute("UPDATE events SET date=? WHERE id=?", (payload["date"], payload["id"]))
         if "time" in payload:
             conn.execute("UPDATE events SET time=? WHERE id=?", (payload["time"] or "", payload["id"]))
+            if not (payload["time"] or ""):     # сняли начало — конец теряет смысл
+                conn.execute("UPDATE events SET time_end='' WHERE id=?", (payload["id"],))
+        if "time_end" in payload:
+            conn.execute("UPDATE events SET time_end=? WHERE id=? AND COALESCE(time,'')<>''",
+                         (payload["time_end"] or "", payload["id"]))
         if "importance" in payload:
             conn.execute("UPDATE events SET importance=? WHERE id=?",
                          (int(payload["importance"] or 0), payload["id"]))
@@ -1003,11 +1008,13 @@ def api_event_add(payload):
     if not text:
         return {"ok": False}
     with db() as conn:
-        conn.execute("""INSERT INTO events (text, date, time, importance, urgency, project_id)
-            VALUES (?, ?, ?, ?, ?, ?)""", (
+        conn.execute("""INSERT INTO events (text, date, time, time_end, importance, urgency, project_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)""", (
             text,
             payload.get("date") or "",
             payload.get("time") or "",
+            # конец задаётся сразу при создании; без начала он бессмыслен
+            (payload.get("time_end") or "") if (payload.get("time") or "") else "",
             int(payload.get("importance") or 0),
             int(payload.get("urgency") or 0),
             payload.get("project_id") or None
@@ -1649,6 +1656,10 @@ select,textarea,.idea-txt{font-size:14px}
 .cal-pri-panel{padding:18px;position:sticky;top:72px;grid-column:2}
 /* time grid */
 .tgrid{position:relative;width:100%;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid var(--rim)}
+.ce-times{display:flex;gap:8px;align-items:center;margin-top:8px}
+.ce-times .ui-input{flex:1;min-width:0;margin:0;text-align:center}
+.ce-dash{color:var(--muted);font-weight:900;flex-shrink:0}
+.ce-hint{font-size:10.5px;color:var(--faint);font-weight:600;margin-top:6px;text-align:center}
 .tgrid-col-hdr{display:flex}
 .tgrid-ruler-hdr{width:48px;flex-shrink:0}
 .tgrid-col-hdr-cell{flex:1;text-align:center;font-size:11px;font-weight:800;padding:9px 4px;border-left:1px solid rgba(255,255,255,.06);transition:background .15s}
@@ -4467,10 +4478,13 @@ function _openCalEventSheet(ds,defTime,existing){
     '<div class="grab"></div>'+
     '<div class="stitle">'+(existing?'Редактировать событие':'Новое событие')+'</div>'+
     '<input id="ce-text" class="ui-input" placeholder="Название события" value="'+(existing?esc(existing.text):'')+'">'+
-    '<div style="display:flex;gap:8px;margin-top:10px">'+
-      '<input id="ce-date" class="ui-input" type="date" value="'+ds+'" style="flex:1;margin:0">'+
-      '<input id="ce-time" class="ui-input" type="time" value="'+(existing&&existing.time?existing.time:(defTime||''))+'" style="flex:1;margin:0">'+
+    '<input id="ce-date" class="ui-input" type="date" value="'+ds+'" style="margin-top:10px">'+
+    '<div class="ce-times">'+
+      '<input id="ce-time" class="ui-input" type="time" value="'+(existing&&existing.time?existing.time:(defTime||''))+'" title="Начало">'+
+      '<span class="ce-dash">–</span>'+
+      '<input id="ce-time2" class="ui-input" type="time" value="'+(existing&&existing.time_end?existing.time_end:'')+'" title="Конец (можно не указывать)">'+
     '</div>'+
+    '<div class="ce-hint">начало — конец · конец подставится сам (+1 ч), можно стереть</div>'+
     '<div class="sh-proj-row" style="margin-top:10px"><span style="font-size:12px;color:var(--muted);font-weight:700;flex-shrink:0">📁 Проект:</span>'+
       '<select id="ce-proj" style="flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:10px;color:#fff;font-size:13px;padding:6px 10px">'+projOpts+'</select></div>'+
     '<div class="slider-row" style="margin-top:14px"><div class="sl-top"><span>🔴 Важность</span><span class="val" id="ce-imp-val">'+imp+' / 10</span></div>'+
@@ -4485,23 +4499,41 @@ function _openCalEventSheet(ds,defTime,existing){
   const impEl=sheet.querySelector('#ce-imp'),urgEl=sheet.querySelector('#ce-urg');
   if(impEl)impEl.oninput=()=>sheet.querySelector('#ce-imp-val').textContent=impEl.value+' / 10';
   if(urgEl)urgEl.oninput=()=>sheet.querySelector('#ce-urg-val').textContent=urgEl.value+' / 10';
+  // конец сам становится «начало + 1 час», пока его не трогали руками; поставил начало —
+  // конец уже готов, но его можно стереть (событие без длительности) или задать своё
+  const ceT1=sheet.querySelector('#ce-time'),ceT2=sheet.querySelector('#ce-time2');
+  if(ceT1&&ceT2){
+    let touched=!!(existing&&existing.time_end);
+    ceT2.addEventListener('input',()=>{touched=true;});
+    const autoEnd=()=>{
+      if(!ceT1.value){ceT2.value='';return;}            // без начала конец не нужен
+      if(touched&&ceT2.value&&ceT2.value>ceT1.value)return;
+      const [h,m]=ceT1.value.split(':').map(Number);
+      ceT2.value=String(Math.min(23,h+1)).padStart(2,'0')+':'+String(m||0).padStart(2,'0');
+    };
+    ceT1.addEventListener('change',autoEnd);
+    if(ceT1.value&&!ceT2.value)autoEnd();
+  }
   setTimeout(()=>{try{sheet.querySelector('#ce-text').focus();}catch(_){}},140);
   sheet.querySelector('#ce-save').onclick=()=>{
     const text=(sheet.querySelector('#ce-text').value||'').trim();
     if(!text){sheet.querySelector('#ce-text').focus();return;}
     const date=sheet.querySelector('#ce-date').value;
     const time=sheet.querySelector('#ce-time').value;
+    // конец имеет смысл только вместе с началом и только если он позже
+    let time_end=sheet.querySelector('#ce-time2').value||'';
+    if(!time||(time_end&&time_end<=time))time_end='';
     const projVal=sheet.querySelector('#ce-proj').value;
     const importance=+sheet.querySelector('#ce-imp').value;
     const urgency=+sheet.querySelector('#ce-urg').value;
     const projId=projVal?parseInt(projVal):null;
     closeSheet();
     if(existing){
-      mutate(()=>{const c=_card(existing.id);if(c){c.text=text;c.date=date;c.time=time;c.importance=importance;c.urgency=urgency;c.project_id=projId;}},
-        '/api/event_update',{id:existing.id,text,date,time,importance,urgency,project_id:projId},()=>renderCalPage());
+      mutate(()=>{const c=_card(existing.id);if(c){c.text=text;c.date=date;c.time=time;c.time_end=time_end;c.importance=importance;c.urgency=urgency;c.project_id=projId;}},
+        '/api/event_update',{id:existing.id,text,date,time,time_end,importance,urgency,project_id:projId},()=>renderCalPage());
     } else {
-      mutate(()=>{(DATA.cards=DATA.cards||[]).push({id:_tmpId(),kind:'event',text,date,time,importance,urgency,project_id:projId,chaos_id:null,morning_brief:0});},
-        '/api/event_add',{text,date,time,importance,urgency,project_id:projId},()=>renderCalPage());
+      mutate(()=>{(DATA.cards=DATA.cards||[]).push({id:_tmpId(),kind:'event',text,date,time,time_end,importance,urgency,project_id:projId,chaos_id:null,morning_brief:0});},
+        '/api/event_add',{text,date,time,time_end,importance,urgency,project_id:projId},()=>renderCalPage());
     }
   };
   const delBtn=sheet.querySelector('#ce-del');
