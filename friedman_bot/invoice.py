@@ -121,13 +121,23 @@ def _build_html(recipient, items, number, salutation, customer_no,
         )
     table_rows = "\n".join(rows)
 
+    # ── итоговая строка «Summe» прямо в таблице позиций ──
+    # Нужна всегда: при нескольких позициях иначе не видно общей суммы, а в
+    # режиме §19 (без НДС) её вообще неоткуда взять.
+    summe_row = (
+        f"<tr class='sumrow'>"
+        f"<td colspan='4'>Summe</td>"
+        f"<td class=r>{_eur(subtotal)}</td>"
+        f"</tr>"
+    )
+
     # ── НДС / Kleinunternehmer ──
     if vat_rate:
         vat = subtotal * float(vat_rate) / 100.0
         total = subtotal + vat
+        # Zwischensumme уже показана строкой Summe в таблице — здесь только НДС и итог
         tax_block = (
             f"<table class='sum'>"
-            f"<tr><td>Zwischensumme (netto)</td><td class=r>{_eur(subtotal)} €</td></tr>"
             f"<tr><td>zzgl. {_eur(vat_rate)} % USt.</td><td class=r>{_eur(vat)} €</td></tr>"
             f"<tr class=grand><td>Gesamtbetrag</td><td class=r>{_eur(total)} €</td></tr>"
             f"</table>"
@@ -175,6 +185,7 @@ table.pos th {{ border: 1px solid #222; padding: 7px 9px; text-align: left; font
 table.pos td {{ border: 1px solid #222; padding: 7px 9px; }}
 table.pos td.c {{ text-align: left; width: 42px; }}
 table.pos td.r, table.pos th.r {{ text-align: right; white-space: nowrap; }}
+table.pos tr.sumrow td {{ font-weight: 700; background: #efefef; }}
 .klein {{ font-size: 12.5px; margin-top: 7px; }}
 table.sum {{ margin-top: 12px; margin-left: auto; border-collapse: collapse; font-size: 13.5px; }}
 table.sum td {{ padding: 4px 10px; }}
@@ -217,6 +228,7 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
       <th class='r'>Einzelpreis (€)</th><th class='r'>Betrag (€)</th>
     </tr>
     {table_rows}
+    {summe_row}
   </table>
   {tax_block}
 
