@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.46 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.47 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1695,8 +1695,6 @@ select,textarea,.idea-txt{font-size:14px}
 .tfl-span .t-event.spanning{height:100%;box-sizing:border-box;pointer-events:auto;
   display:flex;flex-direction:column;justify-content:flex-start;
   background:linear-gradient(160deg,rgba(91,157,255,.9),rgba(91,157,255,.45))}
-/* во время перетаскивания карточки «прозрачны» для курсора — цель ловят ячейки часов */
-.tflow.dnd .t-event,.tflow.dnd .tfl-span{pointer-events:none}
 /* полоса «без времени» — отдельный ярус над сеткой часов, обычный поток, без наездов */
 .tgrid-allday{display:flex;align-items:stretch;background:rgba(255,198,87,.06);
   border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,198,87,.22)}
@@ -4519,30 +4517,42 @@ function _wireCalDrag(){
   root._dragWired=true;
   let dragId=null;
   const clearHints=()=>root.querySelectorAll('.drop-hit').forEach(x=>x.classList.remove('drop-hit'));
+  // Ячейка под курсором. Обычно это e.target, но растянутый блок закрывает часы под
+  // собой — тогда берём стопку элементов в точке и находим ячейку ниже него.
+  // (Раньше на время перетаскивания гасились pointer-events у карточек, но правка
+  // стилей прямо в dragstart обрывает перетаскивание в Safari — так делать нельзя.)
+  const cellAt=e=>{
+    const direct=e.target&&e.target.closest?e.target.closest('.tfl-cell,.ad-cell'):null;
+    if(direct)return direct;
+    const stack=document.elementsFromPoint?document.elementsFromPoint(e.clientX,e.clientY):[];
+    for(let i=0;i<stack.length;i++){
+      const m=stack[i].closest?stack[i].closest('.tfl-cell,.ad-cell'):null;
+      if(m)return m;
+    }
+    return null;
+  };
   root.addEventListener('dragstart',e=>{
     const card=e.target.closest('[data-evid]');
     if(!card){e.preventDefault();return;}
     dragId=parseInt(card.dataset.evid,10);
-    card.classList.add('dragging');
-    // пока тащим — карточки не перехватывают курсор, иначе длинный блок закрывал бы
-    // часы под собой и в них нельзя было бы бросить
-    const fl=root.querySelector('.tflow');if(fl)fl.classList.add('dnd');
     e.dataTransfer.effectAllowed='move';
     try{e.dataTransfer.setData('text/plain',String(dragId));}catch(_){}
+    // подсветку источника ставим СЛЕДУЮЩИМ кадром: правка стилей внутри dragstart
+    // способна отменить начавшееся перетаскивание
+    setTimeout(()=>{if(dragId!==null)card.classList.add('dragging');},0);
   });
   root.addEventListener('dragend',()=>{
     root.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging'));
-    const fl=root.querySelector('.tflow');if(fl)fl.classList.remove('dnd');
     clearHints();dragId=null;
   });
   root.addEventListener('dragover',e=>{
-    const cell=e.target.closest('.tfl-cell,.ad-cell');
+    const cell=cellAt(e);
     if(!cell||dragId===null)return;
     e.preventDefault();e.dataTransfer.dropEffect='move';
     if(!cell.classList.contains('drop-hit')){clearHints();cell.classList.add('drop-hit');}
   });
   root.addEventListener('drop',e=>{
-    const cell=e.target.closest('.tfl-cell,.ad-cell');
+    const cell=cellAt(e);
     if(!cell)return;
     e.preventDefault();
     let id=dragId;
