@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.45 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.46 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1690,6 +1690,13 @@ select,textarea,.idea-txt{font-size:14px}
 .t-event:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(91,157,255,.32)}
 .t-event .t-time{display:block;font-size:9px;opacity:.8;font-weight:900;letter-spacing:.2px}
 .t-event .t-tx{display:block}
+/* длинное событие без соседей — блок во всю длительность поверх своих часов */
+.tfl-span{position:relative;z-index:2;padding:4px;pointer-events:none}
+.tfl-span .t-event.spanning{height:100%;box-sizing:border-box;pointer-events:auto;
+  display:flex;flex-direction:column;justify-content:flex-start;
+  background:linear-gradient(160deg,rgba(91,157,255,.9),rgba(91,157,255,.45))}
+/* во время перетаскивания карточки «прозрачны» для курсора — цель ловят ячейки часов */
+.tflow.dnd .t-event,.tflow.dnd .tfl-span{pointer-events:none}
 /* полоса «без времени» — отдельный ярус над сеткой часов, обычный поток, без наездов */
 .tgrid-allday{display:flex;align-items:stretch;background:rgba(255,198,87,.06);
   border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,198,87,.22)}
@@ -4310,35 +4317,66 @@ function _calTGrid(cols){
       const [h,m]=(ev.time||'').split(':').map(Number);
       if(isNaN(h))return;
       const hh=Math.min(Math.max(h,HOUR_START),HOUR_END-1);
-      (map[hh]=map[hh]||[]).push({ev,mins:h*60+(m||0)});
+      let endH=hh;                       // последний ЗАНЯТЫЙ час (16:00 не занимает час 16)
+      if(ev.time_end){
+        const [h2,m2]=ev.time_end.split(':').map(Number);
+        if(!isNaN(h2)&&(h2*60+(m2||0))>(h*60+(m||0)))
+          endH=Math.min(HOUR_END-1,(m2||0)>0?h2:h2-1);
+      }
+      (map[hh]=map[hh]||[]).push({ev,mins:h*60+(m||0),startH:hh,endH:Math.max(hh,endH)});
     });
     Object.keys(map).forEach(k=>map[k].sort((a,b)=>a.mins-b.mins));
     return map;
   });
+  // Длинное событие, на чьих часах нет соседей, рисуем блоком во всю длительность:
+  // место есть — покажем, сколько времени оно займёт. Если рядом кто-то есть,
+  // читаемость важнее: событие остаётся обычной карточкой в потоке своего часа.
+  const spans=[];
+  byCol.forEach((map,ci)=>{
+    Object.keys(map).forEach(k=>{
+      map[k].forEach(it=>{
+        if(it.endH<=it.startH)return;                       // укладывается в свой час
+        let alone=true;
+        for(let hh=it.startH;hh<=it.endH&&alone;hh++){
+          (map[hh]||[]).forEach(o=>{if(o!==it)alone=false;});
+        }
+        if(!alone)return;
+        it.spanned=true;
+        spans.push({ci,it});
+      });
+    });
+  });
   html+='<div class="tflow" style="grid-template-columns:48px repeat('+cols.length+',minmax(0,1fr))">';
+  const evHtml=(ev,cls)=>{
+    const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
+    const drag=ev.kind==='event'?' draggable="true" data-evid="'+ev.id+'"':'';
+    return '<div class="t-event'+(cls||'')+'"'+drag+' title="'+_attr(ev.text)+' — двойной клик: изменить, можно перетащить"'+
+      ' onclick=\'event.stopPropagation();openTask('+tdata+')\''+
+      ' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
+      '<span class="t-time">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span>'+
+      '<span class="t-tx">'+esc(ev.text)+(ev.comment?' <span class="cmt-dot">💬</span>':'')+'</span></div>';
+  };
   for(let h=HOUR_START;h<HOUR_END;h++){
+    const row=h-HOUR_START+1;
     const busy=byCol.some(m=>(m[h]||[]).length);
-    html+='<div class="tfl-lbl'+(busy?' busy':'')+'">'+String(h).padStart(2,'0')+'</div>';
+    html+='<div class="tfl-lbl'+(busy?' busy':'')+'" style="grid-row:'+row+';grid-column:1">'+String(h).padStart(2,'0')+'</div>';
     cols.forEach((col,ci)=>{
-      const list=byCol[ci][h]||[];
+      const list=(byCol[ci][h]||[]).filter(it=>!it.spanned);
       const isNow=col.ds===todayISO&&h===curH;
       html+='<div class="tfl-cell'+(col.ds===todayISO?' today':'')+(list.length?' has':'')+'"'+
+        ' style="grid-row:'+row+';grid-column:'+(ci+2)+'"'+
         ' data-ds="'+col.ds+'" data-h="'+h+'"'+
         ' onclick="calAddEvent(event,\''+col.ds+'\','+h+')">';
       if(isNow)html+='<div class="t-cursor" style="top:'+(curM/60*100)+'%"></div>';
-      list.forEach(it=>{
-        const ev=it.ev;
-        const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-        const drag=ev.kind==='event'?' draggable="true" data-evid="'+ev.id+'"':'';
-        html+='<div class="t-event"'+drag+' title="'+_attr(ev.text)+' — двойной клик: изменить, можно перетащить"'+
-          ' onclick=\'event.stopPropagation();openTask('+tdata+')\''+
-          ' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
-          '<span class="t-time">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span>'+
-          '<span class="t-tx">'+esc(ev.text)+(ev.comment?' <span class="cmt-dot">💬</span>':'')+'</span></div>';
-      });
+      list.forEach(it=>{html+=evHtml(it.ev);});
       html+='</div>';
     });
   }
+  spans.forEach(s=>{
+    const r1=s.it.startH-HOUR_START+1,r2=s.it.endH-HOUR_START+2;
+    html+='<div class="tfl-span" style="grid-row:'+r1+'/'+r2+';grid-column:'+(s.ci+2)+'">'+
+      evHtml(s.it.ev,' spanning')+'</div>';
+  });
   html+='</div></div>';
   return html;
 }
@@ -4486,11 +4524,15 @@ function _wireCalDrag(){
     if(!card){e.preventDefault();return;}
     dragId=parseInt(card.dataset.evid,10);
     card.classList.add('dragging');
+    // пока тащим — карточки не перехватывают курсор, иначе длинный блок закрывал бы
+    // часы под собой и в них нельзя было бы бросить
+    const fl=root.querySelector('.tflow');if(fl)fl.classList.add('dnd');
     e.dataTransfer.effectAllowed='move';
     try{e.dataTransfer.setData('text/plain',String(dragId));}catch(_){}
   });
   root.addEventListener('dragend',()=>{
     root.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging'));
+    const fl=root.querySelector('.tflow');if(fl)fl.classList.remove('dnd');
     clearHints();dragId=null;
   });
   root.addEventListener('dragover',e=>{
