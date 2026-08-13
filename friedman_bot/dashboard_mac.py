@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.42 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.43 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1649,30 +1649,31 @@ select,textarea,.idea-txt{font-size:14px}
 .cal-pri-panel{padding:18px;position:sticky;top:72px;grid-column:2}
 /* time grid */
 .tgrid{position:relative;width:100%;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid var(--rim)}
-.tgrid-cols{display:flex}
-.tgrid-ruler{width:48px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.07)}
-.tgrid-col-wrap{flex:1;display:flex;overflow:hidden}
 .tgrid-col-hdr{display:flex}
 .tgrid-ruler-hdr{width:48px;flex-shrink:0}
 .tgrid-col-hdr-cell{flex:1;text-align:center;font-size:11px;font-weight:800;padding:9px 4px;border-left:1px solid rgba(255,255,255,.06);transition:background .15s}
 .tgrid-col-hdr-cell.today{background:rgba(91,157,255,.14);color:#86b8ff}
 .tgrid-col-hdr-cell.has-ev{color:#ffc657}
-.tgrid-inner{position:relative;display:flex}
-.tgrid-slot-col{position:relative}
-.tslot{height:52px;border-bottom:1px solid rgba(255,255,255,.05);position:relative}
-.tslot-lbl{width:48px;height:52px;display:flex;align-items:flex-start;justify-content:flex-end;padding:0 8px;font-size:10px;color:rgba(235,240,250,.28);font-weight:700;flex-shrink:0;margin-top:-7px}
-.tcol{flex:1;position:relative;border-left:1px solid rgba(255,255,255,.06);cursor:pointer}
-.tcol:hover{background:rgba(91,157,255,.04)}
-.t-event{position:absolute;left:3px;right:3px;min-height:24px;border-radius:7px;padding:3px 7px;font-size:11px;font-weight:700;overflow:hidden;cursor:pointer;line-height:1.3;z-index:2;
-  background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(91,157,255,.55));border:1px solid rgba(255,255,255,.2);color:#fff;
-  box-shadow:0 2px 8px rgba(0,0,0,.28)}
-.t-event:hover{opacity:.85;z-index:5}
-.t-event .t-time{font-size:9px;opacity:.75;font-weight:800}
-.t-event.narrow{font-size:10px;padding:3px 5px}
-.t-event.narrow .t-time{display:block;margin-bottom:1px}
-/* короткие блоки (≈30 мин) — одна строка с многоточием, чтобы текст не обрезался пополам */
-.t-event.short{padding:2px 6px;font-size:10px;white-space:nowrap;text-overflow:ellipsis;line-height:1.15}
-.t-event.short .t-time{display:inline;margin:0;font-size:8.5px}
+/* Сетка часов: строка = час, ячейка = день. Час растягивается под самый плотный день,
+   события внутри идут друг за другом сверху вниз — без горизонтальных делений. */
+.tflow{display:grid;align-items:stretch}
+.tfl-lbl{padding:6px 8px 0 0;text-align:right;font-size:10px;font-weight:700;
+  color:rgba(235,240,250,.28);border-top:1px solid rgba(255,255,255,.05);
+  border-right:1px solid rgba(255,255,255,.07)}
+.tfl-lbl.busy{color:#86b8ff;font-weight:900}
+.tfl-cell{position:relative;min-height:34px;padding:4px;display:flex;flex-direction:column;gap:4px;
+  border-top:1px solid rgba(255,255,255,.05);border-left:1px solid rgba(255,255,255,.06);cursor:pointer}
+.tfl-cell:hover{background:rgba(91,157,255,.05)}
+.tfl-cell.today{background:rgba(91,157,255,.05)}
+.tfl-cell.today.has{background:rgba(91,157,255,.08)}
+.t-event{border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;line-height:1.3;
+  background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(91,157,255,.5));
+  border:1px solid rgba(255,255,255,.2);border-left:3px solid #86b8ff;color:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.28);flex:0 0 auto;word-break:break-word;
+  transition:transform .12s,box-shadow .12s}
+.t-event:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(91,157,255,.32)}
+.t-event .t-time{display:block;font-size:9px;opacity:.8;font-weight:900;letter-spacing:.2px}
+.t-event .t-tx{display:block}
 /* полоса «без времени» — отдельный ярус над сеткой часов, обычный поток, без наездов */
 .tgrid-allday{display:flex;align-items:stretch;background:rgba(255,198,87,.06);
   border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,198,87,.22)}
@@ -1695,6 +1696,7 @@ select,textarea,.idea-txt{font-size:14px}
   word-break:break-word;transition:transform .12s,box-shadow .12s}
 .ad-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(255,198,87,.28)}
 .t-cursor{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:10;pointer-events:none;box-shadow:0 0 6px rgba(255,59,91,.5)}
+.tfl-cell>.t-cursor{left:-1px;right:-1px}
 .t-cursor::before{content:'';position:absolute;left:-2px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--red)}
 /* month grid */
 .mgrid-hdr{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:4px}
@@ -4246,42 +4248,6 @@ function _calUpdateMatrix(){
 
 function _evForDate(ds){return (DATA.cards||[]).filter(e=>e.date===ds);}
 
-// Раскладка событий со временем: пересекающиеся по времени встают РЯДОМ (колонками),
-// а не друг на друга. Кластер = цепочка перекрывающихся событий; внутри кластера
-// каждому событию ищем первую свободную дорожку.
-function _layoutTimed(evs){
-  const items=[];
-  evs.forEach(ev=>{
-    if(!ev.time)return;
-    const [h,m]=(ev.time||'').split(':').map(Number);
-    if(isNaN(h))return;
-    const start=h*60+(m||0);
-    let end=start+50;                      // без конца — считаем ~50 мин
-    if(ev.time_end){
-      const [h2,m2]=ev.time_end.split(':').map(Number);
-      if(!isNaN(h2)){const e2=h2*60+(m2||0);if(e2>start)end=e2;}
-    }
-    items.push({ev,start,end});
-  });
-  items.sort((a,b)=>a.start-b.start||b.end-a.end);
-  let i=0;
-  while(i<items.length){
-    // собираем кластер перекрывающихся
-    let j=i+1,clusterEnd=items[i].end;
-    while(j<items.length&&items[j].start<clusterEnd){clusterEnd=Math.max(clusterEnd,items[j].end);j++;}
-    const cluster=items.slice(i,j);
-    const lanes=[];                        // конец последнего события в каждой дорожке
-    cluster.forEach(it=>{
-      let lane=lanes.findIndex(end=>end<=it.start);
-      if(lane<0){lane=lanes.length;lanes.push(it.end);}else{lanes[lane]=it.end;}
-      it.lane=lane;
-    });
-    cluster.forEach(it=>{it.lanes=lanes.length;});
-    i=j;
-  }
-  return items;
-}
-
 function _calTGrid(cols){
   const now=new Date();const todayISO=localISO(now);
   const curH=now.getHours(),curM=now.getMinutes();
@@ -4314,38 +4280,44 @@ function _calTGrid(cols){
     });
     html+='</div></div>';
   }
-  // body
-  html+='<div class="tgrid-cols"><div class="tgrid-ruler">';
-  for(let h=HOUR_START;h<HOUR_END;h++){
-    html+='<div class="tslot-lbl">'+String(h).padStart(2,'0')+'</div>';
-  }
-  html+='</div><div class="tgrid-col-wrap">';
-  cols.forEach(col=>{
-    const evs=_evForDate(col.ds);
-    const isToday=col.ds===todayISO;
-    html+='<div class="tcol" onclick="calAddEvent(event,\''+col.ds+'\')" data-ds="'+col.ds+'">';
-    for(let h=HOUR_START;h<HOUR_END;h++){html+='<div class="tslot"></div>';}
-    // события со временем: по порядку, пересекающиеся — рядом, а не внахлёст
-    _layoutTimed(evs).forEach(it=>{
-      const ev=it.ev;
-      const top=(it.start/60-HOUR_START)*SLOT_H;
-      if(top<0||top>totalH)return;
-      const hgt=Math.max(22,Math.min(totalH-top,(it.end-it.start)/60*SLOT_H));
-      const lanes=it.lanes||1,lane=it.lane||0;
-      const wPct=100/lanes;
-      const style='top:'+top+'px;height:'+hgt+'px;'+
-        'left:calc('+(lane*wPct)+'% + 3px);width:calc('+wPct+'% - 6px);right:auto;';
-      const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-      html+='<div class="t-event'+(lanes>1?' narrow':'')+(hgt<36?' short':'')+'" style="'+style+'" title="'+_attr(ev.text)+' — двойной клик: изменить" onclick=\'event.stopPropagation();openTask('+tdata+')\' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'
-        +'<span class="t-time">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span> '+esc(ev.text)+'</div>';
+  // ── сетка часов: строка = час, ячейка = день. События внутри часа идут ДРУГ ЗА ДРУГОМ
+  // по вертикали (никаких горизонтальных делений). Строка тянется под самый плотный
+  // день — час с четырьмя делами станет выше пустого часа: шкала подстраивается под жизнь.
+  const byCol=cols.map(col=>{
+    const map={};
+    _evForDate(col.ds).forEach(ev=>{
+      if(!ev.time)return;
+      const [h,m]=(ev.time||'').split(':').map(Number);
+      if(isNaN(h))return;
+      const hh=Math.min(Math.max(h,HOUR_START),HOUR_END-1);
+      (map[hh]=map[hh]||[]).push({ev,mins:h*60+(m||0)});
     });
-    // time cursor
-    if(isToday&&cursTop>=0&&cursTop<totalH){
-      html+='<div class="t-cursor" style="top:'+cursTop+'px"></div>';
-    }
-    html+='</div>';
+    Object.keys(map).forEach(k=>map[k].sort((a,b)=>a.mins-b.mins));
+    return map;
   });
-  html+='</div></div></div>';
+  html+='<div class="tflow" style="grid-template-columns:48px repeat('+cols.length+',minmax(0,1fr))">';
+  for(let h=HOUR_START;h<HOUR_END;h++){
+    const busy=byCol.some(m=>(m[h]||[]).length);
+    html+='<div class="tfl-lbl'+(busy?' busy':'')+'">'+String(h).padStart(2,'0')+'</div>';
+    cols.forEach((col,ci)=>{
+      const list=byCol[ci][h]||[];
+      const isNow=col.ds===todayISO&&h===curH;
+      html+='<div class="tfl-cell'+(col.ds===todayISO?' today':'')+(list.length?' has':'')+'"'+
+        ' onclick="calAddEvent(event,\''+col.ds+'\','+h+')">';
+      if(isNow)html+='<div class="t-cursor" style="top:'+(curM/60*100)+'%"></div>';
+      list.forEach(it=>{
+        const ev=it.ev;
+        const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
+        html+='<div class="t-event" title="'+_attr(ev.text)+' — двойной клик: изменить"'+
+          ' onclick=\'event.stopPropagation();openTask('+tdata+')\''+
+          ' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
+          '<span class="t-time">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span>'+
+          '<span class="t-tx">'+esc(ev.text)+(ev.comment?' <span class="cmt-dot">💬</span>':'')+'</span></div>';
+      });
+      html+='</div>';
+    });
+  }
+  html+='</div></div>';
   return html;
 }
 
@@ -4469,21 +4441,11 @@ function _calWireControls(){
 }
 _calWireControls();
 
-function calAddEvent(e,ds){
+function calAddEvent(e,ds,hour){
   if(e){e.stopPropagation();}
   const now=new Date();
-  let inferredTime='';
-  if(e&&(_calView==='day'||_calView==='week')){
-    const col=e.target.closest('.tcol');
-    if(col){
-      const rect=col.getBoundingClientRect();
-      const y=e.clientY-rect.top;
-      const h=Math.floor(y/SLOT_H)+HOUR_START;
-      const mRaw=Math.round(((y%SLOT_H)/SLOT_H)*2)*30;
-      const m=mRaw>=60?0:mRaw;const hFinal=mRaw>=60?Math.min(h+1,HOUR_END-1):h;
-      if(hFinal>=HOUR_START&&hFinal<HOUR_END)inferredTime=String(hFinal).padStart(2,'0')+':'+String(m).padStart(2,'0');
-    }
-  }
+  // час берём из самой ячейки строки-часа (сетка больше не пиксельная)
+  const inferredTime=(hour===undefined||hour===null)?'':String(hour).padStart(2,'0')+':00';
   _openCalEventSheet(ds||localISO(now),inferredTime,null);
 }
 
