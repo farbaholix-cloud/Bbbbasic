@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.44 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.45 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1656,6 +1656,11 @@ select,textarea,.idea-txt{font-size:14px}
 .cal-pri-panel{padding:18px;position:sticky;top:72px;grid-column:2}
 /* time grid */
 .tgrid{position:relative;width:100%;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid var(--rim)}
+/* перетаскивание событий по календарю */
+.t-event[draggable],.ad-card[draggable]{cursor:grab}
+.t-event.dragging,.ad-card.dragging{opacity:.4;cursor:grabbing}
+.tfl-cell.drop-hit{background:rgba(91,157,255,.18);box-shadow:inset 0 0 0 2px rgba(91,157,255,.65)}
+.ad-cell.drop-hit{background:rgba(255,198,87,.18);box-shadow:inset 0 0 0 2px rgba(255,198,87,.65)}
 .ce-times{display:flex;gap:8px;align-items:center;margin-top:8px}
 .ce-times .ui-input{flex:1;min-width:0;margin:0;text-align:center}
 .ce-dash{color:var(--muted);font-weight:900;flex-shrink:0}
@@ -3187,7 +3192,9 @@ function openTask(t){
     '<div class="sh-picker"><input type="date" id="sh-date" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).date)||localISO(now))+'">'+
     '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'" title="Начало (пусто — без времени)">'+
     '<input type="time" id="sh-time2" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time_end)||'')+'" title="Конец">'+
-    '<button id="sh-go">📅 в день</button></div>'+
+    // подпись по смыслу действия: у события поля предзаполнены его же датой/временем —
+    // это правка; вводную кнопка впервые кладёт в календарь; напоминание переносит
+    '<button id="sh-go">'+(t.kind==='event'?'💾 Сохранить':t.kind==='reminder'?'📅 Перенести':'📅 Запланировать')+'</button></div>'+
     '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
     '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>'+
     (t.kind==='event'?'<button class="sh-act sh-del" id="sh-evdel" style="margin-top:10px;width:100%">🗑 Удалить навсегда</button>':'');
@@ -4227,6 +4234,7 @@ function renderCalPage(){
   else if(_calView==='week')_calRenderWeek();
   else if(_calView==='month')_calRenderMonth();
   else _calRenderYear();
+  _wireCalDrag();
   _calScheduleCursor();
 }
 
@@ -4281,10 +4289,11 @@ function _calTGrid(cols){
       '<div class="ad-ruler">📌<span>без<br>времени</span><b>'+adTotal+'</b></div><div class="ad-cells">';
     cols.forEach(col=>{
       const ad=_evForDate(col.ds).filter(e=>!e.time);
-      html+='<div class="ad-cell'+(col.ds===todayISO?' today':'')+'">';
+      html+='<div class="ad-cell'+(col.ds===todayISO?' today':'')+'" data-ds="'+col.ds+'">';
       ad.forEach(ev=>{
         const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-        html+='<div class="ad-card" title="'+_attr(ev.text)+' — двойной клик: изменить" onclick=\'event.stopPropagation();openTask('+tdata+')\' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
+        const drag=ev.kind==='event'?' draggable="true" data-evid="'+ev.id+'"':'';
+        html+='<div class="ad-card"'+drag+' title="'+_attr(ev.text)+' — двойной клик: изменить, можно перетащить" onclick=\'event.stopPropagation();openTask('+tdata+')\' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
           esc(ev.text)+(ev.comment?'<span class="cmt-dot">💬</span>':'')+'</div>';
       });
       html+='</div>';
@@ -4314,12 +4323,14 @@ function _calTGrid(cols){
       const list=byCol[ci][h]||[];
       const isNow=col.ds===todayISO&&h===curH;
       html+='<div class="tfl-cell'+(col.ds===todayISO?' today':'')+(list.length?' has':'')+'"'+
+        ' data-ds="'+col.ds+'" data-h="'+h+'"'+
         ' onclick="calAddEvent(event,\''+col.ds+'\','+h+')">';
       if(isNow)html+='<div class="t-cursor" style="top:'+(curM/60*100)+'%"></div>';
       list.forEach(it=>{
         const ev=it.ev;
         const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-        html+='<div class="t-event" title="'+_attr(ev.text)+' — двойной клик: изменить"'+
+        const drag=ev.kind==='event'?' draggable="true" data-evid="'+ev.id+'"':'';
+        html+='<div class="t-event"'+drag+' title="'+_attr(ev.text)+' — двойной клик: изменить, можно перетащить"'+
           ' onclick=\'event.stopPropagation();openTask('+tdata+')\''+
           ' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
           '<span class="t-time">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span>'+
@@ -4458,6 +4469,58 @@ function calAddEvent(e,ds,hour){
   // час берём из самой ячейки строки-часа (сетка больше не пиксельная)
   const inferredTime=(hour===undefined||hour===null)?'':String(hour).padStart(2,'0')+':00';
   _openCalEventSheet(ds||localISO(now),inferredTime,null);
+}
+
+// ─── Перетаскивание событий по календарю ───
+// Бросил в час → начало берётся из позиции внутри часа (шаг 15 мин), конец снимается:
+// новая позиция говорит только «когда начать». Бросил в полосу «без времени» → время
+// стирается совсем. Переносим только события (напоминания живут по своим правилам).
+function _wireCalDrag(){
+  const root=document.getElementById('cal-content');
+  if(!root||root._dragWired)return;
+  root._dragWired=true;
+  let dragId=null;
+  const clearHints=()=>root.querySelectorAll('.drop-hit').forEach(x=>x.classList.remove('drop-hit'));
+  root.addEventListener('dragstart',e=>{
+    const card=e.target.closest('[data-evid]');
+    if(!card){e.preventDefault();return;}
+    dragId=parseInt(card.dataset.evid,10);
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    try{e.dataTransfer.setData('text/plain',String(dragId));}catch(_){}
+  });
+  root.addEventListener('dragend',()=>{
+    root.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging'));
+    clearHints();dragId=null;
+  });
+  root.addEventListener('dragover',e=>{
+    const cell=e.target.closest('.tfl-cell,.ad-cell');
+    if(!cell||dragId===null)return;
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    if(!cell.classList.contains('drop-hit')){clearHints();cell.classList.add('drop-hit');}
+  });
+  root.addEventListener('drop',e=>{
+    const cell=e.target.closest('.tfl-cell,.ad-cell');
+    if(!cell)return;
+    e.preventDefault();
+    let id=dragId;
+    if(id===null){const raw=e.dataTransfer.getData('text/plain');id=raw?parseInt(raw,10):null;}
+    clearHints();
+    if(!id)return;
+    const ev=_card(id);if(!ev)return;
+    const date=cell.dataset.ds||ev.date;
+    let time='';
+    if(cell.classList.contains('tfl-cell')){
+      const h=parseInt(cell.dataset.h,10);
+      const r=cell.getBoundingClientRect();
+      const frac=Math.max(0,Math.min(0.999,(e.clientY-r.top)/Math.max(1,r.height)));
+      const mins=Math.min(45,Math.round(frac*4)*15);   // шаг 15 минут внутри часа
+      time=String(h).padStart(2,'0')+':'+String(mins).padStart(2,'0');
+    }
+    if(date===ev.date&&time===(ev.time||''))return;    // ничего не изменилось
+    mutate(()=>{const c=_card(id);if(c){c.date=date;c.time=time;c.time_end='';}},
+      '/api/event_update',{id,date,time,time_end:''},()=>renderCalPage());
+  });
 }
 
 // Двойной клик по событию в сетке — полный редактор: имя, дата, время, проект, оценки
