@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.40 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.41 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1658,8 +1658,36 @@ select,textarea,.idea-txt{font-size:14px}
 .tcol{flex:1;position:relative;border-left:1px solid rgba(255,255,255,.06);cursor:pointer}
 .tcol:hover{background:rgba(91,157,255,.04)}
 .t-event{position:absolute;left:3px;right:3px;min-height:24px;border-radius:7px;padding:3px 7px;font-size:11px;font-weight:700;overflow:hidden;cursor:pointer;line-height:1.3;z-index:2;
-  background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(91,157,255,.55));border:1px solid rgba(255,255,255,.2);color:#fff}
-.t-event:hover{opacity:.85}
+  background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(91,157,255,.55));border:1px solid rgba(255,255,255,.2);color:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.28)}
+.t-event:hover{opacity:.85;z-index:5}
+.t-event .t-time{font-size:9px;opacity:.75;font-weight:800}
+.t-event.narrow{font-size:10px;padding:3px 5px}
+.t-event.narrow .t-time{display:block;margin-bottom:1px}
+/* короткие блоки (≈30 мин) — одна строка с многоточием, чтобы текст не обрезался пополам */
+.t-event.short{padding:2px 6px;font-size:10px;white-space:nowrap;text-overflow:ellipsis;line-height:1.15}
+.t-event.short .t-time{display:inline;margin:0;font-size:8.5px}
+/* полоса «без времени» — отдельный ярус над сеткой часов, обычный поток, без наездов */
+.tgrid-allday{display:flex;align-items:stretch;background:rgba(255,198,87,.06);
+  border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,198,87,.22)}
+.ad-ruler{width:48px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:6px 2px;font-size:12px;line-height:1;color:#ffd07a}
+.ad-ruler span{font-size:7.5px;font-weight:900;letter-spacing:.3px;text-transform:uppercase;text-align:center;
+  color:rgba(255,208,122,.75);line-height:1.15}
+.ad-ruler b{font-size:10px;font-weight:900;color:#0f1220;background:#ffc657;border-radius:7px;
+  padding:1px 6px;margin-top:2px}
+.ad-cells{flex:1;display:flex;max-height:170px;overflow-y:auto;scrollbar-width:thin}
+.tgrid-allday.many .ad-cells{box-shadow:inset 0 -14px 12px -12px rgba(0,0,0,.65)}
+.ad-cell{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:6px 4px;
+  border-left:1px solid rgba(255,255,255,.06)}
+.ad-cell.today{background:rgba(91,157,255,.07)}
+.ad-card{background:linear-gradient(135deg,rgba(255,198,87,.28),rgba(255,154,166,.18));
+  border:1px solid rgba(255,198,87,.42);border-left:3px solid #ffc657;border-radius:8px;
+  padding:5px 7px;font-size:10.5px;font-weight:700;line-height:1.28;color:#fff;cursor:pointer;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  flex:0 0 auto;                    /* не сжимать: иначе текст схлопывается в одну строку */
+  word-break:break-word;transition:transform .12s,box-shadow .12s}
+.ad-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(255,198,87,.28)}
 .t-cursor{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:10;pointer-events:none;box-shadow:0 0 6px rgba(255,59,91,.5)}
 .t-cursor::before{content:'';position:absolute;left:-2px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--red)}
 /* month grid */
@@ -1908,6 +1936,8 @@ const openProjects=new Set();
 
 function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// для значений внутри HTML-атрибутов в кавычках: esc + сами кавычки
+function _attr(s){return esc(s).replace(/"/g,'&quot;');}
 function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 async function api(path,body){const r=await fetch(path+'?_t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
 
@@ -4195,6 +4225,42 @@ function _calUpdateMatrix(){
 
 function _evForDate(ds){return (DATA.cards||[]).filter(e=>e.date===ds);}
 
+// Раскладка событий со временем: пересекающиеся по времени встают РЯДОМ (колонками),
+// а не друг на друга. Кластер = цепочка перекрывающихся событий; внутри кластера
+// каждому событию ищем первую свободную дорожку.
+function _layoutTimed(evs){
+  const items=[];
+  evs.forEach(ev=>{
+    if(!ev.time)return;
+    const [h,m]=(ev.time||'').split(':').map(Number);
+    if(isNaN(h))return;
+    const start=h*60+(m||0);
+    let end=start+50;                      // без конца — считаем ~50 мин
+    if(ev.time_end){
+      const [h2,m2]=ev.time_end.split(':').map(Number);
+      if(!isNaN(h2)){const e2=h2*60+(m2||0);if(e2>start)end=e2;}
+    }
+    items.push({ev,start,end});
+  });
+  items.sort((a,b)=>a.start-b.start||b.end-a.end);
+  let i=0;
+  while(i<items.length){
+    // собираем кластер перекрывающихся
+    let j=i+1,clusterEnd=items[i].end;
+    while(j<items.length&&items[j].start<clusterEnd){clusterEnd=Math.max(clusterEnd,items[j].end);j++;}
+    const cluster=items.slice(i,j);
+    const lanes=[];                        // конец последнего события в каждой дорожке
+    cluster.forEach(it=>{
+      let lane=lanes.findIndex(end=>end<=it.start);
+      if(lane<0){lane=lanes.length;lanes.push(it.end);}else{lanes[lane]=it.end;}
+      it.lane=lane;
+    });
+    cluster.forEach(it=>{it.lanes=lanes.length;});
+    i=j;
+  }
+  return items;
+}
+
 function _calTGrid(cols){
   const now=new Date();const todayISO=localISO(now);
   const curH=now.getHours(),curM=now.getMinutes();
@@ -4208,6 +4274,25 @@ function _calTGrid(cols){
       col.label+'</div>';
   });
   html+='</div>';
+  // ── полоса «без времени»: отдельно, вверху, в обычном потоке (никаких наездов) ──
+  const adTotal=cols.reduce((s,c)=>s+_evForDate(c.ds).filter(e=>!e.time).length,0);
+  if(adTotal){
+    // если в какой-то день их много — полоса прокручивается, показываем это тенью снизу
+    const maxPerCol=Math.max(...cols.map(c=>_evForDate(c.ds).filter(e=>!e.time).length));
+    html+='<div class="tgrid-allday'+(maxPerCol>3?' many':'')+'">'+
+      '<div class="ad-ruler">📌<span>без<br>времени</span><b>'+adTotal+'</b></div><div class="ad-cells">';
+    cols.forEach(col=>{
+      const ad=_evForDate(col.ds).filter(e=>!e.time);
+      html+='<div class="ad-cell'+(col.ds===todayISO?' today':'')+'">';
+      ad.forEach(ev=>{
+        const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
+        html+='<div class="ad-card" title="'+_attr(ev.text)+'" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'+
+          esc(ev.text)+(ev.comment?'<span class="cmt-dot">💬</span>':'')+'</div>';
+      });
+      html+='</div>';
+    });
+    html+='</div></div>';
+  }
   // body
   html+='<div class="tgrid-cols"><div class="tgrid-ruler">';
   for(let h=HOUR_START;h<HOUR_END;h++){
@@ -4219,35 +4304,19 @@ function _calTGrid(cols){
     const isToday=col.ds===todayISO;
     html+='<div class="tcol" onclick="calAddEvent(event,\''+col.ds+'\')" data-ds="'+col.ds+'">';
     for(let h=HOUR_START;h<HOUR_END;h++){html+='<div class="tslot"></div>';}
-    // timed events
-    evs.forEach(ev=>{
-      if(!ev.time)return;
-      const [eh,em]=(ev.time||'00:00').split(':').map(Number);
-      if(isNaN(eh))return;
-      const top=(eh-HOUR_START)*SLOT_H+(em||0)/60*SLOT_H;
+    // события со временем: по порядку, пересекающиеся — рядом, а не внахлёст
+    _layoutTimed(evs).forEach(it=>{
+      const ev=it.ev;
+      const top=(it.start/60-HOUR_START)*SLOT_H;
       if(top<0||top>totalH)return;
-      // высота блока = длительность (time_end), как в настоящем календаре
-      let hStyle='';
-      if(ev.time_end){
-        const [h2,m2]=ev.time_end.split(':').map(Number);
-        if(!isNaN(h2)){
-          const bottom=(h2-HOUR_START)*SLOT_H+(m2||0)/60*SLOT_H;
-          const hgt=Math.min(totalH-top,bottom-top);
-          if(hgt>20)hStyle='height:'+hgt+'px;';
-        }
-      }
+      const hgt=Math.max(22,Math.min(totalH-top,(it.end-it.start)/60*SLOT_H));
+      const lanes=it.lanes||1,lane=it.lane||0;
+      const wPct=100/lanes;
+      const style='top:'+top+'px;height:'+hgt+'px;'+
+        'left:calc('+(lane*wPct)+'% + 3px);width:calc('+wPct+'% - 6px);right:auto;';
       const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-      html+='<div class="t-event" style="top:'+top+'px;'+hStyle+'" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
-        +'<span style="font-size:9px;opacity:.7">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span> '+esc(ev.text)+'</div>';
-    });
-    // all-day events (no time)
-    const allDay=evs.filter(e=>!e.time);
-    let adTop=0;
-    allDay.forEach(ev=>{
-      const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-      html+='<div class="t-event" style="top:'+adTop+'px;position:absolute;left:3px;right:3px;min-height:22px;border-radius:6px" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
-        +esc(ev.text)+'</div>';
-      adTop+=26;
+      html+='<div class="t-event'+(lanes>1?' narrow':'')+(hgt<36?' short':'')+'" style="'+style+'" title="'+_attr(ev.text)+'" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
+        +'<span class="t-time">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span> '+esc(ev.text)+'</div>';
     });
     // time cursor
     if(isToday&&cursTop>=0&&cursTop<totalH){
