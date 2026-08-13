@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.41 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.42 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -977,8 +977,14 @@ def api_event_update(payload):
         if "project_id" in payload:
             conn.execute("UPDATE events SET project_id=? WHERE id=?",
                          (payload["project_id"] or None, payload["id"]))
-        if "text" in payload:
-            conn.execute("UPDATE events SET text=? WHERE id=?", (payload["text"], payload["id"]))
+        if "text" in payload and (payload["text"] or "").strip():
+            new_text = payload["text"].strip()
+            conn.execute("UPDATE events SET text=? WHERE id=?", (new_text, payload["id"]))
+            # имя события и породившей его вводной должны совпадать: иначе после
+            # возврата на парковку всплывёт старое название
+            row = conn.execute("SELECT chaos_id FROM events WHERE id=?", (payload["id"],)).fetchone()
+            if row and row["chaos_id"]:
+                conn.execute("UPDATE chaos SET text=? WHERE id=?", (new_text, row["chaos_id"]))
         if "date" in payload:
             conn.execute("UPDATE events SET date=? WHERE id=?", (payload["date"], payload["id"]))
         if "time" in payload:
@@ -3159,8 +3165,8 @@ function openTask(t){
     '<div class="sh-cmt-row"><span class="sh-cmt-state" id="sh-cmt-state"></span>'+
     '<button class="sh-btn prime sh-cmt-save" id="sh-cmt-save">💾 Сохранить</button></div></div>';
   sheet.innerHTML='<div class="grab"></div>'+
-    (t.kind==='chaos'?'<input id="sh-title" class="stitle stitle-edit" spellcheck="false" autocomplete="off">':'<div class="stitle">'+esc(t.text||'')+'</div>')+
-    '<div class="ssub">'+(t.kind==='chaos'?'печатай — переименуешь · оцени или запланируй день':'перенести / закрыть')+'</div>'+
+    '<input id="sh-title" class="stitle stitle-edit" spellcheck="false" autocomplete="off">'+
+    '<div class="ssub">'+(t.kind==='chaos'?'печатай — переименуешь · оцени или запланируй день':'✏️ клик по названию — переименовать · Enter — сохранить')+'</div>'+
     rateBlock+
     projBlock+mbBlock+commentBlock+
     '<div class="sh-divider"></div>'+
@@ -3262,22 +3268,37 @@ function openTask(t){
       }
     },'/api/event_delete',{id:t.id});
   };
-  // Название = редактируемое поле, текст на месте и сразу выделен: открыл карточку и печатаешь.
+  // Название — редактируемое поле и для вводной, и для события календаря.
+  // Вводную открывают, чтобы сформулировать → фокус и выделение сразу.
+  // Событие чаще открывают, чтобы перенести → фокус не забираем, чтобы случайная
+  // клавиша не затёрла имя; клик по названию ставит курсор и правит.
   const shTitle=sheet.querySelector('#sh-title');
   if(shTitle){
     shTitle.value=t.text||'';
     const saveTitle=()=>{
       const nv=shTitle.value.trim();
-      if(!nv||nv===(t.text||''))return;
+      if(!nv){shTitle.value=t.text||'';return;}     // пустое имя не сохраняем
+      if(nv===(t.text||''))return;
       t.text=nv;
-      mutate(()=>{const c=_chaos(t.id);if(c)c.text=nv;},'/api/chaos_rename',{id:t.id,text:nv});
+      if(t.kind==='chaos'){
+        mutate(()=>{const c=_chaos(t.id);if(c)c.text=nv;},'/api/chaos_rename',{id:t.id,text:nv});
+      } else if(t.kind==='event'){
+        // переименование события переносится и на связанную вводную (сервер делает то же),
+        // иначе на парковке останется старое имя
+        mutate(()=>{const card=_card(t.id);if(card){card.text=nv;
+          if(card.chaos_id){const c=_chaos(card.chaos_id);if(c)c.text=nv;}}},
+          '/api/event_update',{id:t.id,text:nv});
+      }
     };
     shTitle.addEventListener('keydown',e=>{
       if(e.key==='Enter'){e.preventDefault();saveTitle();shTitle.blur();}
+      if(e.key==='Escape'){shTitle.value=t.text||'';shTitle.blur();}
     });
     shTitle.addEventListener('blur',saveTitle);
-    // фокус + выделение всего текста, чтобы можно было сразу печатать новое имя
-    setTimeout(()=>{try{shTitle.focus();shTitle.select();}catch(_){}},120);
+    if(t.kind==='chaos'){
+      // фокус + выделение всего текста, чтобы можно было сразу печатать новое имя
+      setTimeout(()=>{try{shTitle.focus();shTitle.select();}catch(_){}},120);
+    }
   }
   // Project selector — save on change (sheet stays open; page repaints behind it)
   const shProj=sheet.querySelector('#sh-proj');
@@ -4286,7 +4307,7 @@ function _calTGrid(cols){
       html+='<div class="ad-cell'+(col.ds===todayISO?' today':'')+'">';
       ad.forEach(ev=>{
         const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-        html+='<div class="ad-card" title="'+_attr(ev.text)+'" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'+
+        html+='<div class="ad-card" title="'+_attr(ev.text)+' — двойной клик: изменить" onclick=\'event.stopPropagation();openTask('+tdata+')\' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'+
           esc(ev.text)+(ev.comment?'<span class="cmt-dot">💬</span>':'')+'</div>';
       });
       html+='</div>';
@@ -4315,7 +4336,7 @@ function _calTGrid(cols){
       const style='top:'+top+'px;height:'+hgt+'px;'+
         'left:calc('+(lane*wPct)+'% + 3px);width:calc('+wPct+'% - 6px);right:auto;';
       const tdata=JSON.stringify({kind:ev.kind,id:ev.id,text:ev.text});
-      html+='<div class="t-event'+(lanes>1?' narrow':'')+(hgt<36?' short':'')+'" style="'+style+'" title="'+_attr(ev.text)+'" onclick=\'event.stopPropagation();openTask('+tdata+')\'>'
+      html+='<div class="t-event'+(lanes>1?' narrow':'')+(hgt<36?' short':'')+'" style="'+style+'" title="'+_attr(ev.text)+' — двойной клик: изменить" onclick=\'event.stopPropagation();openTask('+tdata+')\' ondblclick=\'event.stopPropagation();calEditEvent('+ev.id+')\'>'
         +'<span class="t-time">'+ev.time+(ev.time_end?'–'+ev.time_end:'')+'</span> '+esc(ev.text)+'</div>';
     });
     // time cursor
@@ -4464,6 +4485,14 @@ function calAddEvent(e,ds){
     }
   }
   _openCalEventSheet(ds||localISO(now),inferredTime,null);
+}
+
+// Двойной клик по событию в сетке — полный редактор: имя, дата, время, проект, оценки
+function calEditEvent(id){
+  const ev=_card(id);
+  if(!ev){return;}
+  closeSheet();
+  _openCalEventSheet(ev.date||localISO(new Date()),ev.time||'',ev);
 }
 
 function _openCalEventSheet(ds,defTime,existing){
