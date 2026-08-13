@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.35"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.36"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -468,11 +468,13 @@ def api_move(payload):
                 t = row["due_at"][11:] or "09:00"
                 conn.execute("UPDATE reminders SET due_at=? WHERE id=?", (f"{new_date} {t}", payload["id"]))
         elif kind == "chaos":
-            row = conn.execute("SELECT text FROM chaos WHERE id=?", (payload["id"],)).fetchone()
+            # комментарий идеи переезжает вместе с ней в календарь (обратный путь — api_unplan)
+            row = conn.execute("SELECT text, comment FROM chaos WHERE id=?", (payload["id"],)).fetchone()
             if row:
-                conn.execute("INSERT INTO events (text, date, time, time_end, chaos_id) VALUES (?,?,?,?,?)",
+                conn.execute("INSERT INTO events (text, date, time, time_end, chaos_id, comment) VALUES (?,?,?,?,?,?)",
                              (row["text"], new_date, payload.get("time", ""),
-                              payload.get("time_end", ""), payload["id"]))
+                              payload.get("time_end", ""), payload["id"],
+                              row["comment"] if "comment" in row.keys() else None))
     return {"ok": True}
 
 
@@ -491,6 +493,22 @@ def api_event_delete(payload):
 def api_unplan(payload):
     with db() as conn:
         if payload["kind"] == "event":
+            # «↩️ на парковку»: комментарий карточки возвращаем связанной идее
+            row = conn.execute("SELECT chaos_id, comment FROM events WHERE id=?",
+                               (payload["id"],)).fetchone()
+            if row and row["chaos_id"] and (row["comment"] or "").strip():
+                cur = conn.execute("SELECT comment FROM chaos WHERE id=?", (row["chaos_id"],)).fetchone()
+                old = (cur["comment"] or "").strip() if cur else ""
+                new = row["comment"].strip()
+                # карточка обычно дописывает заметку идеи: если один текст уже
+                # содержит другой — берём полный, иначе склеиваем оба
+                if not old or new.find(old) >= 0:
+                    merged = new
+                elif old.find(new) >= 0:
+                    merged = old
+                else:
+                    merged = old + "\n" + new
+                conn.execute("UPDATE chaos SET comment=? WHERE id=?", (merged, row["chaos_id"]))
             conn.execute("DELETE FROM events WHERE id=?", (payload["id"],))
         elif payload["kind"] == "reminder":
             conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (payload["id"],))

@@ -15,7 +15,7 @@ from wisdom import today_wisdom
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8766
-VERSION = "1.39 · mac"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.40 · mac"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -589,11 +589,14 @@ def api_move(payload):
                 t = row["due_at"][11:] or "09:00"
                 conn.execute("UPDATE reminders SET due_at=? WHERE id=?", (f"{new_date} {t}", payload["id"]))
         elif kind == "chaos":
-            row = conn.execute("SELECT text FROM chaos WHERE id=?", (payload["id"],)).fetchone()
+            # комментарий идеи переезжает вместе с ней в календарь — иначе заметка
+            # терялась при планировании (а на обратном пути — в api_unplan)
+            row = conn.execute("SELECT text, comment FROM chaos WHERE id=?", (payload["id"],)).fetchone()
             if row:
-                conn.execute("INSERT INTO events (text, date, time, time_end, chaos_id) VALUES (?,?,?,?,?)",
+                conn.execute("INSERT INTO events (text, date, time, time_end, chaos_id, comment) VALUES (?,?,?,?,?,?)",
                              (row["text"], new_date, payload.get("time", ""),
-                              payload.get("time_end", ""), payload["id"]))
+                              payload.get("time_end", ""), payload["id"],
+                              row["comment"] if "comment" in row.keys() else None))
     return {"ok": True}
 
 
@@ -612,6 +615,23 @@ def api_event_delete(payload):
 def api_unplan(payload):
     with db() as conn:
         if payload["kind"] == "event":
+            # «↩️ на парковку»: карточка календаря удаляется, но её комментарий
+            # возвращаем связанной идее — заметка не должна теряться по дороге
+            row = conn.execute("SELECT chaos_id, comment FROM events WHERE id=?",
+                               (payload["id"],)).fetchone()
+            if row and row["chaos_id"] and (row["comment"] or "").strip():
+                cur = conn.execute("SELECT comment FROM chaos WHERE id=?", (row["chaos_id"],)).fetchone()
+                old = (cur["comment"] or "").strip() if cur else ""
+                new = row["comment"].strip()
+                # карточка обычно дописывает заметку идеи: если один текст уже
+                # содержит другой — берём полный, иначе склеиваем оба
+                if not old or new.find(old) >= 0:
+                    merged = new
+                elif old.find(new) >= 0:
+                    merged = old
+                else:
+                    merged = old + "\n" + new
+                conn.execute("UPDATE chaos SET comment=? WHERE id=?", (merged, row["chaos_id"]))
             conn.execute("DELETE FROM events WHERE id=?", (payload["id"],))
         elif payload["kind"] == "reminder":
             conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (payload["id"],))
@@ -1197,6 +1217,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .sh-comment-lbl{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:7px}
 .sh-comment{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:12px;color:#fff;font-size:13.5px;font-family:inherit;line-height:1.4;padding:10px 12px;resize:vertical;min-height:42px;outline:none}
 .sh-comment:focus{border-color:rgba(91,157,255,.5)}
+.sh-cmt-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.sh-cmt-state{flex:1;font-size:11.5px;font-weight:700;color:#7fe0a8;min-height:14px}
+.sh-btn.sh-cmt-save{flex:0 0 auto;padding:7px 16px;font-size:12.5px}
+.sh-btn.sh-cmt-save:disabled{opacity:.4;cursor:default}
 .cmt-dot{font-size:10px;opacity:.65;margin-left:4px;flex-shrink:0}
 .kcmt-prev{opacity:.85}
 .gact{display:flex;gap:7px;margin-top:10px}
@@ -3101,7 +3125,9 @@ function openTask(t){
   // Comment block (both chaos and event)
   const curComment=((t.kind==='chaos'?(_chaos(t.id)||{}):(_card(t.id)||{})).comment)||'';
   const commentBlock='<div class="sh-comment-wrap"><div class="sh-comment-lbl">💬 Комментарий</div>'+
-    '<textarea id="sh-comment" class="sh-comment" rows="2" placeholder="заметка к карточке…">'+esc(curComment)+'</textarea></div>';
+    '<textarea id="sh-comment" class="sh-comment" rows="2" placeholder="заметка к карточке…">'+esc(curComment)+'</textarea>'+
+    '<div class="sh-cmt-row"><span class="sh-cmt-state" id="sh-cmt-state"></span>'+
+    '<button class="sh-btn prime sh-cmt-save" id="sh-cmt-save">💾 Сохранить</button></div></div>';
   sheet.innerHTML='<div class="grab"></div>'+
     (t.kind==='chaos'?'<input id="sh-title" class="stitle stitle-edit" spellcheck="false" autocomplete="off">':'<div class="stitle">'+esc(t.text||'')+'</div>')+
     '<div class="ssub">'+(t.kind==='chaos'?'печатай — переименуешь · оцени или запланируй день':'перенести / закрыть')+'</div>'+
@@ -3235,19 +3261,33 @@ function openTask(t){
       }
     };
   }
-  // Comment — save on blur / change
+  // Comment — явная кнопка «Сохранить» (+ автосохранение по blur/change как страховка);
+  // шторка остаётся открытой, статус показывает, что записано
   const shComment=sheet.querySelector('#sh-comment');
   if(shComment){
     let last=curComment;
-    const saveComment=()=>{
+    const stateEl=sheet.querySelector('#sh-cmt-state');
+    const btn=sheet.querySelector('#sh-cmt-save');
+    const setState=txt=>{if(stateEl){stateEl.textContent=txt;if(txt)setTimeout(()=>{if(stateEl.textContent===txt)stateEl.textContent='';},2200);}};
+    const dirty=()=>shComment.value!==last;
+    const syncBtn=()=>{if(btn)btn.disabled=!dirty();};
+    const saveComment=(explicit)=>{
       const v=shComment.value;
-      if(v===last)return;
-      last=v;
+      if(v===last){if(explicit)setState('нечего сохранять');syncBtn();return;}
+      last=v;syncBtn();
       mutate(()=>{const o=(t.kind==='chaos'?_chaos(t.id):_card(t.id));if(o)o.comment=v;},
         '/api/card_comment',{kind:t.kind,id:t.id,comment:v});
+      setState('✓ сохранено');
     };
-    shComment.addEventListener('blur',saveComment);
-    shComment.addEventListener('change',saveComment);
+    shComment.addEventListener('input',syncBtn);
+    shComment.addEventListener('blur',()=>saveComment(false));
+    shComment.addEventListener('change',()=>saveComment(false));
+    // Cmd/Ctrl+Enter — сохранить не отрывая рук от клавиатуры
+    shComment.addEventListener('keydown',e=>{
+      if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();saveComment(true);}
+    });
+    if(btn){btn.onclick=()=>saveComment(true);}
+    syncBtn();
   }
 }
 
