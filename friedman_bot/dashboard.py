@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.36"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.37"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2047,7 +2047,15 @@ function renderCal(){
   let curMonth=-1;
   for(const ds of sorted){
     const dd=new Date(ds+'T00:00');
-    const evs=DATA.cards.filter(e=>e.date===ds);
+    // порядок внутри дня — хронологический: из базы карточки приходят в порядке
+    // создания (а напоминания вообще после всех событий), поэтому сортируем сами.
+    // «Без времени» — вверху дня, как полоса «без времени» в Mac-версии.
+    const evs=DATA.cards.filter(e=>e.date===ds).sort((a,b)=>{
+      const ta=a.time||'',tb=b.time||'';
+      if(!ta!==!tb)return ta?1:-1;                  // бесвременные — выше
+      if(ta!==tb)return ta<tb?-1:1;                 // дальше по времени начала
+      return (a.time_end||'')<(b.time_end||'')?-1:(a.time_end||'')>(b.time_end||'')?1:0;
+    });
     if(!evs.length)continue;
     // в режиме «год» — разделители по месяцам
     if(_calRange==='year'&&dd.getMonth()!==curMonth){curMonth=dd.getMonth();html+='<div class="cal-msep">'+MONTHS[curMonth]+'</div>';}
