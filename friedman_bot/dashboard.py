@@ -432,19 +432,21 @@ def get_data():
         # дашборд только рисует.
         income_flow, income_covered_to = [], None
         income_reason = None
+        income_daily = []
         try:
             import finance_core as _fin
             _fl = _fin.income_flow_for_dashboard()
             income_flow = _fl["rows"]
             income_covered_to = _fl["covered_to"]
             income_reason = _fl.get("reason")
+            income_daily = _fl.get("daily") or []
         except Exception as _e:
             # молчать нельзя: пустой график без причины невозможно чинить
             income_reason = "finance_core недоступен: %s" % str(_e)[:120]
         rev = _read_rev(conn)
     return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals,
             "income_flow": income_flow, "income_covered_to": income_covered_to,
-            "income_reason": income_reason,
+            "income_reason": income_reason, "income_daily": income_daily,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -3582,7 +3584,33 @@ let _flowRAF=null;
 const _YMM=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 function _ymNext(ym){let[y,m]=ym.split('-').map(Number);m++;if(m>12){m=1;y++;}return y+'-'+String(m).padStart(2,'0');}
 function _ymLabel(ym){const[y,m]=ym.split('-');return _YMM[+m-1]+' '+y.slice(2);}
+function _dLabel(dt){return dt.getDate()+' '+_YMM[dt.getMonth()];}
+// «3 месяца» по месяцам — это две-три точки, то есть отрезок между краями.
+// Разбиваем окно на N равных корзин и суммируем дневной приход в каждую:
+// видно не только сколько пришло за месяц, но и когда именно.
+function _flowBuckets(nPoints){
+  const daily=(DATA&&DATA.income_daily)||[];
+  if(!daily.length)return null;
+  const now=new Date();
+  const from=new Date(now.getFullYear(),now.getMonth()-2,1);
+  const t0=from.getTime(),t1=now.getTime()+86400000,span=t1-t0;
+  if(span<=0)return null;
+  const acc=new Array(nPoints).fill(0);
+  let hit=0;
+  daily.forEach(x=>{
+    const t=new Date(x.d+'T12:00:00').getTime();
+    if(t<t0||t>=t1)return;
+    let k=Math.floor((t-t0)/span*nPoints);
+    if(k<0)k=0; if(k>=nPoints)k=nPoints-1;
+    acc[k]+=x.total; hit++;
+  });
+  if(!hit)return null;                       // в окне нет движения — пусть решает месячная логика
+  return acc.map((v,i)=>({ym:'',total:Math.max(0,v),pt:true,
+    label:_dLabel(new Date(t0+span*(i+0.5)/nPoints))}));
+}
+function _rowLabel(r){return r.label||_ymLabel(r.ym);}
 function _flowFilled(){
+  if(_flowPeriod==='3'){const b=_flowBuckets(11);if(b)return b;}   // 2 края + 9 между
   let rows=((DATA&&DATA.income_flow)||[]).filter(r=>r.ym&&(r.total||0)>0);
   if(_flowPeriod!=='all'){
     const nP=+_flowPeriod;const now=new Date();
@@ -3638,13 +3666,18 @@ function drawFlowChart(phase){
   // подписи месяцев: первый (у левого края), середина, последний (у правого) — без обрезки
   ctx.fillStyle='rgba(235,240,250,.35)';ctx.font=`${Math.max(9,w/42)}px -apple-system,sans-serif`;ctx.textBaseline='alphabetic';
   const midI=Math.floor((n-1)/2);
-  ctx.textAlign='left';ctx.fillText(_ymLabel(rows[0].ym),padL,h-8);
-  ctx.textAlign='right';ctx.fillText(_ymLabel(rows[n-1].ym),w-padR,h-8);
-  if(midI!==0&&midI!==n-1){ctx.textAlign='center';ctx.fillText(_ymLabel(rows[midI].ym),X(midI),h-8);}
+  ctx.textAlign='left';ctx.fillText(_rowLabel(rows[0]),padL,h-8);
+  ctx.textAlign='right';ctx.fillText(_rowLabel(rows[n-1]),w-padR,h-8);
+  if(midI!==0&&midI!==n-1){ctx.textAlign='center';ctx.fillText(_rowLabel(rows[midI]),X(midI),h-8);}
   // точки: чем выше сумма — тем крупнее и ярче пульсирующее свечение
   const maxIdx=rows.reduce((mi,r,i)=>r.total>rows[mi].total?i:mi,0);
   rows.forEach((r,i)=>{
-    if(r.total<=0)return;   // нулевые месяцы — без точек
+    if(r.total<=0){
+      if(!r.pt)return;                       // нулевые МЕСЯЦЫ — без точек
+      const xz=X(i),yz=Y(0);                 // нулевая корзина — тусклый чекпоинт
+      ctx.fillStyle='rgba(235,240,250,.30)';ctx.beginPath();ctx.arc(xz,yz,2.6,0,Math.PI*2);ctx.fill();
+      return;
+    }
     const x=X(i),y=Y(r.total),k=r.total/max;
     const pulse=_flowAnim?(0.7+0.3*Math.sin(phase*2.2+i*0.9)):1;
     const rad=3.5+7*k;

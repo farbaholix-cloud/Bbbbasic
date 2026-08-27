@@ -964,6 +964,21 @@ def planned_expenses(conn, months=1):
     return {"months": months, "total": round(total, 2), "items": items}
 
 
+def daily_income(conn, days=400):
+    """Приход по ДНЯМ (нетто возвратов) — для мелкой шкалы графика.
+
+    Помесячных сумм хватает на длинных периодах, но на «3 месяца» их всего две-три
+    и линия вырождается в отрезок между краями. По дням видно, КОГДА деньги
+    реально приходили, а не только сколько вышло за месяц."""
+    q = ("SELECT val_date d,"
+         " SUM(CASE WHEN amount>0 AND category IN (%s) THEN amount"
+         "          WHEN amount<0 AND category='%s' THEN amount ELSE 0 END) s"
+         " FROM fin_payment GROUP BY d HAVING s<>0 ORDER BY d"
+         % (",".join("?" * len(BUSINESS_INCOME_CATS)), CLIENT_REFUND_CAT))
+    rows = conn.execute(q, list(BUSINESS_INCOME_CATS)).fetchall()
+    return [{"d": r["d"], "total": round(r["s"], 2)} for r in rows][-days:]
+
+
 def income_flow_for_dashboard(autobuild=True):
     """Помесячный поток для графика «Поток дохода» в дашбордах.
 
@@ -995,7 +1010,8 @@ def income_flow_for_dashboard(autobuild=True):
                 return {"rows": [], "covered_to": cov["bank_to"],
                         "reason": "в базе 0 операций; в finance_inbox: %s"
                                   % (", ".join(names) if names else "пусто")}
-            return {"rows": rows, "covered_to": cov["bank_to"], "reason": None}
+            return {"rows": rows, "covered_to": cov["bank_to"], "reason": None,
+                    "daily": daily_income(conn)}
     except Exception as e:
         return {"rows": [], "covered_to": None, "reason": "чтение базы: %s" % str(e)[:120]}
 
