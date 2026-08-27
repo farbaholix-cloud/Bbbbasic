@@ -36,6 +36,7 @@ sha256 СОДЕРЖИМОГО файла (fin_source). Поменялся фай
 """
 
 import csv
+import glob
 import hashlib
 import json
 import os
@@ -963,23 +964,40 @@ def planned_expenses(conn, months=1):
     return {"months": months, "total": round(total, 2), "items": items}
 
 
-def income_flow_for_dashboard():
+def income_flow_for_dashboard(autobuild=True):
     """Помесячный поток для графика «Поток дохода» в дашбордах.
 
     total = ДЕНЬГИ, ПРИШЕДШИЕ НА СЧЁТ. Раньше здесь стояла сумма выставленных
     счетов из invoice_archive (где paid по умолчанию =1), и график показывал
     оборот, которого на счету не было. Теперь источник — банковская выписка.
 
-    Возвращает [] если базы Финансиста ещё нет: дашборд в этом случае честно
-    покажет «нет данных», а не старую неправду."""
+    Если данных нет — возвращает ПРИЧИНУ, а не молчаливый пустой список.
+    Пустой график с надписью «нет данных» невозможно чинить: непонятно, база не
+    собралась, файлов нет или выписок правда ноль. Причина едет в дашборд и
+    печатается прямо на месте графика."""
+    try:
+        if not os.path.exists(FIN_DB) and autobuild:
+            bootstrap(verbose=False)      # первый запуск: собрать из того, что рядом
+    except Exception as e:
+        return {"rows": [], "covered_to": None,
+                "reason": "база не собралась: %s" % str(e)[:120]}
+    if not os.path.exists(FIN_DB):
+        return {"rows": [], "covered_to": None, "reason": "finance.db не создана"}
     try:
         with fdb_ro() as conn:
             cov = coverage(conn)
             rows = [{"ym": m["ym"], "total": m["received"], "invoiced": m["invoiced"]}
                     for m in monthly(conn)]
-            return {"rows": rows, "covered_to": cov["bank_to"]}
-    except Exception:
-        return {"rows": [], "covered_to": None}
+            if not rows:
+                names = [os.path.basename(x) for x in
+                         (glob.glob(os.path.join(INBOX_DIR, "*.json")) +
+                          glob.glob(os.path.join(INBOX_DIR, "*.csv")))]
+                return {"rows": [], "covered_to": cov["bank_to"],
+                        "reason": "в базе 0 операций; в finance_inbox: %s"
+                                  % (", ".join(names) if names else "пусто")}
+            return {"rows": rows, "covered_to": cov["bank_to"], "reason": None}
+    except Exception as e:
+        return {"rows": [], "covered_to": None, "reason": "чтение базы: %s" % str(e)[:120]}
 
 
 def context_block(conn, years=3):

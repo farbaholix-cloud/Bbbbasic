@@ -516,15 +516,20 @@ def get_data():
         # Раньше суммировались выставленные счета (invoice_archive, paid=1 по
         # умолчанию) — график показывал оборот, которого на счету не было.
         income_flow, income_covered_to = [], None
+        income_reason = None
         try:
             import finance_core as _fin
             _fl = _fin.income_flow_for_dashboard()
-            income_flow, income_covered_to = _fl["rows"], _fl["covered_to"]
-        except Exception:
-            pass
+            income_flow = _fl["rows"]
+            income_covered_to = _fl["covered_to"]
+            income_reason = _fl.get("reason")
+        except Exception as _e:
+            # молчать нельзя: пустой график без причины невозможно чинить
+            income_reason = "finance_core недоступен: %s" % str(_e)[:120]
         rev = _read_rev(conn)
     return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals,
             "income_flow": income_flow, "income_covered_to": income_covered_to,
+            "income_reason": income_reason,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -3975,7 +3980,8 @@ function drawFlowChart(phase){
   if(!rows.length){
     ctx.fillStyle='rgba(235,240,250,.22)';ctx.font=`bold ${w/28}px -apple-system,sans-serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('нет данных — пришли Финансисту выписку',w/2,h/2);return;
+    const why=(DATA&&DATA.income_reason)||'';
+    ctx.fillText(why?'нет данных: '+why:'нет данных — пришли Финансисту выписку',w/2,h/2);return;
   }
   const max=Math.max(...rows.map(r=>r.total),1);
   const n=rows.length;
@@ -4894,6 +4900,35 @@ class Handler(BaseHTTPRequestHandler):
                    "application/json; charset=utf-8")
 
 
+FIN_RAW_BASE = ("https://raw.githubusercontent.com/farbaholix-cloud/Bbbbasic/"
+                "claude/schedule-display-app-ixjt6b/friedman_bot")
+
+
+def _fin_selfheal():
+    """Дотянуть модуль Финансиста, если его нет рядом.
+
+    Дашборд разворачивается своим путём и может оказаться на машине, куда файлы
+    Финансиста ещё не доехали. Без finance_core.py график молча пустует, и
+    причину видно только в логе. Тянем сами — один раз, только недостающее."""
+    import urllib.request
+    for fn in ("finance_core.py", "finance_overrides.json"):
+        dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), fn)
+        if os.path.exists(dest):
+            continue
+        try:
+            req = urllib.request.Request(FIN_RAW_BASE + "/" + fn,
+                                         headers={"User-Agent": "friedman-dashboard"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                data = r.read()
+            if len(data) < 100:
+                raise RuntimeError("файл подозрительно мал")
+            with open(dest, "wb") as f:
+                f.write(data)
+            print("Финансист: дотянул %s" % fn)
+        except Exception as e:
+            print("Финансист: %s не скачался (%s)" % (fn, e))
+
+
 def _fin_bootstrap_bg():
     """Собрать базу Финансиста в фоне при старте дашборда.
 
@@ -4906,6 +4941,7 @@ def _fin_bootstrap_bg():
 
     def run():
         try:
+            _fin_selfheal()
             import finance_core as _fin
             _fin.bootstrap(verbose=False)
         except Exception as e:
