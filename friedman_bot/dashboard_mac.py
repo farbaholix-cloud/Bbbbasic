@@ -1768,7 +1768,7 @@ select,textarea,.idea-txt{font-size:14px}
   <div class="page on" id="page-plan">
     <div class="block glass flow-block">
       <div class="bh" style="margin-bottom:6px">
-        <div class="t">⚡ Поток дохода <span class="sm">по выписке · пунктир: дожать / ничего не делать</span></div>
+        <div class="t">⚡ Поток дохода <span class="sm">по выписке · пунктир: цель и ноль</span></div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="cnt" id="flow-total"></span>
           <div class="tog mini" id="flow-anim" title="пульсация энергии"><div class="tog-k"></div></div>
@@ -3954,28 +3954,36 @@ const _YMM=['янв','фев','мар','апр','май','июн','июл','ав
 function _ymNext(ym){let[y,m]=ym.split('-').map(Number);m++;if(m>12){m=1;y++;}return y+'-'+String(m).padStart(2,'0');}
 function _ymLabel(ym){const[y,m]=ym.split('-');return _YMM[+m-1]+' '+y.slice(2);}
 function _rowLabel(r){return r.label||_ymLabel(r.ym);}
-const _FCH=3;                       // горизонт сценариев, месяцев
-// Развилка. Обе ветки идут из ПОСЛЕДНЕГО фактического месяца и опираются только
-// на проверяемые числа (их считает Финансист, см. forecast_anchors):
-//   красная «если ничего не делать» — приходят лишь уже выставленные счета,
-//     новых заказов нет, за горизонт линия садится в ноль;
-//   зелёная «если дожать» — за тот же срок выходишь на свой ЛУЧШИЙ месяц за год.
-//     Это не обещание: столько он уже зарабатывал, значит это достижимо.
+// Развилка. Обе ветки выходят из ПОСЛЕДНЕГО фактического месяца и ведут в один
+// и тот же месяц — месяц ЦЕЛИ. Смысл в разрыве между ними: это ровно то, что
+// решается действиями, а не обстоятельствами.
+//   зелёная — цель владельца (finance_overrides.json → income_goals);
+//   красная — ноль в том же месяце: если ничего не делать.
+// Цели нет — откатываемся на прошлый рекорд как ориентир (best12).
 function _flowScenarios(rows){
   const f=(DATA&&DATA.income_forecast)||null;
   if(!f||!rows.length)return null;
-  const last=rows[rows.length-1].total;
-  const openT=Math.max(0,f.open_total||0);
-  const target=Math.max(f.best12||0,last*1.3,(f.avg3||0)*1.5);
-  if(target<=0&&openT<=0)return null;
-  const bad=[],good=[];
-  for(let i=0;i<_FCH;i++){
-    bad.push(_FCH>1?openT*(_FCH-1-i)/(_FCH-1):0);
-    good.push(last+(target-last)*(i+1)/_FCH);
+  const lastYm=rows[rows.length-1].ym, last=rows[rows.length-1].total;
+  const g=f.goal&&f.goal.ym>lastYm?f.goal:null;
+  let labels=[],H;
+  if(g){
+    let ym=lastYm;
+    while(ym<g.ym&&labels.length<24){ym=_ymNext(ym);labels.push(ym);}
+    H=labels.length; if(!H)return null;
+  }else{
+    H=3; let ym=lastYm;
+    for(let i=0;i<H;i++){ym=_ymNext(ym);labels.push(ym);}
   }
-  let ym=rows[rows.length-1].ym;const labels=[];
-  for(let i=0;i<_FCH;i++){ym=_ymNext(ym);labels.push(ym);}
-  return {bad:bad,good:good,labels:labels,target:target,openT:openT};
+  const target=g?g.target:Math.max(f.best12||0,last*1.3,(f.avg3||0)*1.5);
+  if(target<=0)return null;
+  const bad=[],good=[];
+  for(let i=0;i<H;i++){
+    const k=(i+1)/H;
+    good.push(last+(target-last)*k);      // ровно в цель к её месяцу
+    bad.push(last*(1-k));                 // ровно в ноль к тому же месяцу
+  }
+  return {bad:bad,good:good,labels:labels,target:target,
+          openT:Math.max(0,f.open_total||0),goalYm:g?g.ym:null};
 }
 function _flowFilled(){
   // Помесячно и БЕЗ пропусков: месяц без поступлений — это тоже факт, и на
@@ -4019,7 +4027,7 @@ function drawFlowChart(phase){
     ctx.fillText(why?'нет данных: '+why:'нет данных — пришли Финансисту выписку',w/2,h/2);return;
   }
   const SC=_flowScenarios(rows);
-  const nA=rows.length, H=SC?_FCH:0, n=nA+H;
+  const nA=rows.length, H=SC?SC.good.length:0, n=nA+H;
   const max=Math.max(...rows.map(r=>r.total), SC?Math.max(...SC.good):0, 1);
   const X=i=>padL+(w-padL-padR)*(n===1?0.5:i/(n-1));
   const Y=v=>padT+(h-padT-padB)*(1-v/max);
@@ -4057,12 +4065,31 @@ function drawFlowChart(phase){
     };
     branch(SC.bad,'rgba(255,90,110,.85)',[7,6]);
     branch(SC.good,'rgba(82,224,138,.9)',[7,6]);
+    // ── линия цели: горизонталь через весь график, чтобы всегда было видно,
+    //    насколько ты от неё сейчас. Цель — не точка справа, а планка.
+    if(SC.goalYm){
+      const gy0=Y(SC.target);
+      ctx.save();ctx.setLineDash([2,7]);ctx.strokeStyle='rgba(255,213,128,.45)';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(padL,gy0);ctx.lineTo(w-padR,gy0);ctx.stroke();ctx.restore();
+      ctx.font=`bold ${Math.max(9,w/46)}px -apple-system,sans-serif`;
+      ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      ctx.fillStyle='rgba(255,213,128,.85)';
+      ctx.fillText('цель '+eur(SC.target)+' · '+_ymLabel(SC.goalYm),padL+2,Math.max(padT+11,gy0-6));
+      // пульсирующая цель на конце зелёной ветки — к ней и тянется линия
+      const pl=_flowAnim?(0.6+0.4*Math.sin(phase*2.4)):1;
+      const tx=X(n-1),ty=gy0;
+      const tg=ctx.createRadialGradient(tx,ty,0,tx,ty,26*pl+10);
+      tg.addColorStop(0,`rgba(82,224,138,${0.42*pl})`);tg.addColorStop(1,'rgba(82,224,138,0)');
+      ctx.fillStyle=tg;ctx.beginPath();ctx.arc(tx,ty,26*pl+10,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(82,224,138,${0.75*pl})`;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(tx,ty,7+3*pl,0,Math.PI*2);ctx.stroke();
+    }
     // подписи концов веток
     ctx.font=`bold ${Math.max(9,w/44)}px -apple-system,sans-serif`;ctx.textBaseline='middle';
-    const gx=X(n-1),gy=Y(SC.good[H-1]),bx=X(n-1),by=Y(SC.bad[H-1]);
+    const gy=Y(SC.good[H-1]),by=Y(SC.bad[H-1]);
     ctx.textAlign='right';
-    ctx.fillStyle='rgba(82,224,138,.95)';ctx.fillText(eur(SC.good[H-1]),gx-2,Math.max(padT+8,gy-14));
-    ctx.fillStyle='rgba(255,90,110,.9)';ctx.fillText(eur(SC.bad[H-1]),bx-2,Math.min(h-padB-10,by+15));
+    if(!SC.goalYm){ctx.fillStyle='rgba(82,224,138,.95)';ctx.fillText(eur(SC.good[H-1]),X(n-1)-2,Math.max(padT+8,gy-14));}
+    ctx.fillStyle='rgba(255,90,110,.9)';ctx.fillText(eur(SC.bad[H-1]),X(n-1)-2,Math.min(h-padB-10,by+15));
   }
 
   // фактическая линия

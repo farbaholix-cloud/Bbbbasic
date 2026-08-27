@@ -980,11 +980,29 @@ def forecast_anchors(conn):
     last12 = [m["received"] for m in ms[-12:]]
     last3 = [m["received"] for m in ms[-3:]]
     op = open_invoices(conn)
+    last_ym = ms[-1]["ym"] if ms else None
+
+    # Цель владельца (finance_overrides.json → income_goals). Если она задана и
+    # ещё впереди — зелёная ветка ведёт к НЕЙ, а не к повторению лучшего месяца.
+    # Прошлый рекорд говорит «ты так уже мог»; цель говорит «сюда идём».
+    goal = None
+    try:
+        if os.path.exists(OVERRIDES_PATH):
+            with open(OVERRIDES_PATH, "r", encoding="utf-8") as f:
+                gs = (json.load(f) or {}).get("income_goals") or []
+            future = [g for g in gs if last_ym and str(g.get("ym", "")) > last_ym]
+            if future:
+                g = min(future, key=lambda x: x["ym"])
+                goal = {"ym": g["ym"], "target": float(g.get("target") or 0)}
+    except Exception:
+        goal = None
+
     return {"best12": round(max(last12) if last12 else 0.0, 2),
             "avg3": round(sum(last3) / len(last3), 2) if last3 else 0.0,
             "open_total": round(sum(o["open"] for o in op), 2),
-            "last_ym": ms[-1]["ym"] if ms else None,
-            "last_total": round(ms[-1]["received"], 2) if ms else 0.0}
+            "last_ym": last_ym,
+            "last_total": round(ms[-1]["received"], 2) if ms else 0.0,
+            "goal": goal}
 
 
 def income_flow_for_dashboard(autobuild=True):
