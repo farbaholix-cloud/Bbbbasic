@@ -1569,9 +1569,11 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="block glass">
       <div class="bh"><div class="t">📅 Прошивка календаря</div>
         <div class="cal-seg" id="cal-seg">
-          <button class="cs on" data-r="week" onclick="setCalRange('week')">неделя</button>
+          <button class="cs tails" data-r="tails" id="cal-tails" hidden onclick="setCalRange('tails')">хвосты</button>
+          <button class="cs" data-r="week" onclick="setCalRange('week')">неделя</button>
           <button class="cs" data-r="month" onclick="setCalRange('month')">месяц</button>
-          <button class="cs" data-r="year" onclick="setCalRange('year')">год</button><button class="cs tails" data-r="tails" id="cal-tails" hidden onclick="setCalRange('tails')">хвосты</button>
+          <button class="cs" data-r="year" onclick="setCalRange('year')">год</button>
+          <button class="cs on" data-r="all" onclick="setCalRange('all')">всё</button>
         </div></div>
       <div id="cal"></div>
       <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
@@ -2065,7 +2067,7 @@ function openQuadrant(q){
   sheet.querySelector('#q-close').onclick=closeSheet;
 }
 
-let _calRange='week';
+let _calRange='all';   // по умолчанию — вся картина целиком
 function setCalRange(r){
   _calRange=r;
   document.querySelectorAll('#cal-seg .cs').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
@@ -2097,7 +2099,7 @@ function syncTailsBtn(){
   const n=_calTails().length;
   b.hidden=n===0;
   b.textContent='хвосты '+n;
-  if(!n&&_calRange==='tails')setCalRange('week');   // разгрёб последний — уводим назад
+  if(!n&&_calRange==='tails')setCalRange('all');   // разгрёб последний — уводим ко всему
 }
 function renderCal(){
   const now=new Date();
@@ -2112,6 +2114,9 @@ function renderCal(){
     // висит. Сверху самое старое: чем дольше дело лежит, тем нужнее по нему
     // решение — сделать или снять.
     sorted=[...new Set(tails.map(c=>c.date))].sort();
+  }else if(_calRange==='all'){
+    // Без границ вообще: и прошлое, и будущее, вся база карточек целиком.
+    sorted=[...new Set((DATA.cards||[]).filter(c=>c.date).map(c=>c.date))].sort();
   }else{
     let start,end;
     if(_calRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,1);}
@@ -2124,7 +2129,7 @@ function renderCal(){
     sorted=[...dates].sort();
   }
   let html='';
-  let curMonth=-1;
+  let curMonth=-1,curYear=-1;
   if(_calRange==='tails'){
     if(!tails.length){
       document.getElementById('cal').innerHTML='<div class="tails-clean">✅ Хвостов нет — всё под контролем</div>';
@@ -2147,11 +2152,15 @@ function renderCal(){
     });
     if(!evs.length)continue;
     // в режиме «год» — разделители по месяцам
-    if(_calRange==='year'&&dd.getMonth()!==curMonth){curMonth=dd.getMonth();html+='<div class="cal-msep">'+MONTHS[curMonth]+'</div>';}
+    // Разделители по месяцам: в «год» и во «всё» без них список нечитаем.
+    // Во «всё» к месяцу добавляется год — иначе апрель 2025 и апрель 2026 сливаются.
+    if((_calRange==='year'||_calRange==='all')&&(dd.getMonth()!==curMonth||dd.getFullYear()!==curYear)){
+      curMonth=dd.getMonth();curYear=dd.getFullYear();
+      html+='<div class="cal-msep">'+MONTHS[curMonth]+(_calRange==='all'?' '+curYear:'')+'</div>';}
     const today=ds===todayISO;const past=ds<todayISO;
     const tailMode=_calRange==='tails';
     const showMonth=tailMode||_calRange!=='week'||dd.getMonth()!==now.getMonth();
-    const showYear=tailMode&&dd.getFullYear()!==now.getFullYear();
+    const showYear=(tailMode||_calRange==='all')&&dd.getFullYear()!==now.getFullYear();
     const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(showMonth?' '+MONTHS[dd.getMonth()]:'')+
       (showYear?' '+dd.getFullYear():'')+(past&&!tailMode?' ⚠️':'')+(today?' · сегодня':'')+
       (tailMode?'<span class="tail-age">'+_plur(_daysAgo(ds),'день','дня','дней')+' назад</span>':'');
@@ -2173,7 +2182,9 @@ function renderCal(){
           tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
       }).join('')+'</div>';
   }
-  const emptyMsg={week:'в ближайшие 7 дней пусто',month:'в этом месяце пусто',year:'в этом году пусто'}[_calRange];
+  const emptyMsg={week:'в ближайшие 7 дней пусто',month:'в этом месяце пусто',
+    year:'в этом году пусто',all:'в календаре пока ничего нет',
+    tails:'хвостов нет — всё под контролем'}[_calRange]||'пусто';
   document.getElementById('cal').innerHTML=html||'<div class="empty">'+emptyMsg+'</div>';
 }
 
