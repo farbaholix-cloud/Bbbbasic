@@ -12,7 +12,8 @@
 2. В свободном диалоге модель получает context_block() с уже готовыми суммами и
    явной «границей знания». Считать самой ей запрещено промптом.
 
-Запуск: отдельный процесс, токен FINANCE_BOT_TOKEN в .env (см. finance_kb/SKILL.md,
+Запуск: отдельный процесс. Токен — из FINANCE_BOT_TOKEN или из настройки
+finance_bot_token в friedman.db (команда /setfinancetoken Секретарю). См. finance_kb/SKILL.md,
 раздел «Подключение бота»).
 """
 
@@ -286,10 +287,36 @@ def ask_financier_sync(user_text):
 
 # ──────────────────────────────── telegram-обвязка ─────────────────────────────
 
+def get_token():
+    """Токен: окружение → настройка в общей базе Секретаря (никогда не в git).
+
+    Именно так берут токен Юрист и Продавец. В первой версии Финансист читал
+    ТОЛЬКО переменную окружения — а команда /setfinancetoken кладёт токен в
+    таблицу settings базы friedman.db. Бот не находил его, сразу завершался,
+    и сторож поднимал труп каждые пять минут."""
+    raw = os.environ.get("FINANCE_BOT_TOKEN") or ""
+    if not raw:
+        try:
+            import sqlite3
+            db = os.path.join(BASE_DIR, "friedman.db")
+            if os.path.exists(db):
+                conn = sqlite3.connect(db, timeout=10)
+                try:
+                    row = conn.execute(
+                        "SELECT value FROM settings WHERE key='finance_bot_token'").fetchone()
+                    raw = (row[0] if row else "") or ""
+                finally:
+                    conn.close()
+        except Exception as e:
+            log.error("токен из базы не прочитался: %s", e)
+    return "".join(raw.split())          # Telegram иногда вставляет пробел в токен
+
+
 def main():
-    token = os.environ.get("FINANCE_BOT_TOKEN")
+    token = get_token()
     if not token:
-        sys.exit("Нет FINANCE_BOT_TOKEN в окружении/.env — см. finance_kb/SKILL.md")
+        sys.exit("Токен не задан. Пришли Секретарю: /setfinancetoken <токен> "
+                 "(или положи FINANCE_BOT_TOKEN в .env) — см. finance_kb/SKILL.md")
     from telegram import Update
     from telegram.constants import ParseMode
     from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
@@ -297,8 +324,15 @@ def main():
     fc.bootstrap(verbose=False)      # база готова к первому же вопросу
 
     async def _send(update, text):
+        """Ответ частями. Если Telegram не принял разметку (в назначениях платежей
+        попадаются _ * [ ], которые ломают Markdown) — шлём тем же текстом без
+        разметки. Молчание вместо ответа хуже, чем ответ без жирного шрифта."""
         for chunk in [text[i:i + 3900] for i in range(0, len(text), 3900)] or [""]:
-            await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
+            try:
+                await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
+            except Exception as e:
+                log.warning("Markdown отклонён (%s) — шлю без разметки", e)
+                await update.message.reply_text(chunk)
 
     async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await _send(update, GREETING)

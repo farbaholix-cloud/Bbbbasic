@@ -5591,7 +5591,10 @@ def _restart_finance(d):
             return
     subprocess.run("pkill -9 -f finance_bot.py; true", shell=True)
     logf = open("/tmp/finance.log", "ab")
-    subprocess.Popen([sys.executable, "finance_bot.py"], cwd=d,
+    # Токен отдаём и через окружение: finance_bot.py умеет читать его из базы сам,
+    # но так он поднимется даже если friedman.db лежит не рядом.
+    env = dict(os.environ, FINANCE_BOT_TOKEN=get_finance_token())
+    subprocess.Popen([sys.executable, "finance_bot.py"], cwd=d, env=env,
                      stdout=logf, stderr=logf, start_new_session=True)
     log.info("Финансист-бот запущен (supervised)")
 
