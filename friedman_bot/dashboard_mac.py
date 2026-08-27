@@ -512,17 +512,19 @@ def get_data():
             "SELECT work,friendship,health,wellbeing,hobby,love,logged_at FROM happiness_log ORDER BY id DESC LIMIT 365").fetchall()]
         sgoals = [dict(r) for r in conn.execute(
             "SELECT * FROM goals WHERE period='strategic' AND done=0 ORDER BY id").fetchall()]
-        # Поток дохода: месячные суммы оплаченных инвойсов из архива Юриста (общая БД).
+        # Поток дохода: РЕАЛЬНО ПРИШЕДШИЕ деньги из базы Финансиста (finance.db).
+        # Раньше суммировались выставленные счета (invoice_archive, paid=1 по
+        # умолчанию) — график показывал оборот, которого на счету не было.
+        income_flow, income_covered_to = [], None
         try:
-            income_flow = [dict(r) for r in conn.execute(
-                "SELECT substr(inv_date,1,7) AS ym, "
-                "SUM(CASE WHEN COALESCE(gross,0)>0 THEN gross ELSE COALESCE(net,0)+COALESCE(vat,0) END) AS total "
-                "FROM invoice_archive WHERE COALESCE(paid,1)=1 AND inv_date LIKE '____-__%' "
-                "GROUP BY ym ORDER BY ym").fetchall()]
-        except sqlite3.OperationalError:
-            income_flow = []
+            import finance_core as _fin
+            _fl = _fin.income_flow_for_dashboard()
+            income_flow, income_covered_to = _fl["rows"], _fl["covered_to"]
+        except Exception:
+            pass
         rev = _read_rev(conn)
-    return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals, "income_flow": income_flow,
+    return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals,
+            "income_flow": income_flow, "income_covered_to": income_covered_to,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -1759,7 +1761,7 @@ select,textarea,.idea-txt{font-size:14px}
   <div class="page on" id="page-plan">
     <div class="block glass flow-block">
       <div class="bh" style="margin-bottom:6px">
-        <div class="t">⚡ Поток дохода <span class="sm">инвойсы · оплачено</span></div>
+        <div class="t">⚡ Поток дохода <span class="sm">деньги на счету · по выписке</span></div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="cnt" id="flow-total"></span>
           <div class="tog mini" id="flow-anim" title="пульсация энергии"><div class="tog-k"></div></div>
@@ -3973,7 +3975,7 @@ function drawFlowChart(phase){
   if(!rows.length){
     ctx.fillStyle='rgba(235,240,250,.22)';ctx.font=`bold ${w/28}px -apple-system,sans-serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('нет данных — пришли Юристу инвойсы в архив',w/2,h/2);return;
+    ctx.fillText('нет данных — пришли Финансисту выписку',w/2,h/2);return;
   }
   const max=Math.max(...rows.map(r=>r.total),1);
   const n=rows.length;

@@ -5269,7 +5269,13 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "director_kb/SKILL.md",
                 "director_kb/references/ai-tools.md",
                 "invoices_seed.json",
-                "bank_seed.json"]
+                "bank_seed.json",
+                # Финансист — отдельный денежный контур (своя база finance.db)
+                "finance_core.py",
+                "finance_bot.py",
+                "finance_backup.py",
+                "finance_kb/SKILL.md",
+                "finance_inbox/README.md"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -5347,7 +5353,11 @@ def ensure_legal_kb():
     d = os.path.dirname(os.path.abspath(__file__))
     # + seed-файлы: при первом деплое /update качает по СТАРОМУ списку UPDATE_FILES,
     # поэтому новые файлы доезжают только самолечением
-    need = (["jurist_bot.py", "sales_bot.py", "dashboard_biz.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json"]
+    need = (["jurist_bot.py", "sales_bot.py", "dashboard_biz.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json",
+             # Финансист: доезжает только самолечением — у развёрнутого бота в
+             # UPDATE_FILES ещё старый список, где этих файлов нет
+             "finance_core.py", "finance_bot.py", "finance_backup.py",
+             "finance_kb/SKILL.md", "finance_inbox/README.md"]
             + [x for x in UPDATE_FILES if x.startswith("legal_kb/")])
     for f in need:
         dest = os.path.join(d, f)
