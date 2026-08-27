@@ -41,6 +41,7 @@ import json
 import os
 import re
 import sqlite3
+import unicodedata
 from contextlib import contextmanager
 from datetime import date, datetime
 
@@ -239,9 +240,17 @@ def norm_number(s):
     return re.sub(r"[^0-9a-zA-Z]", "", (s or "")).lower()
 
 
+def nfc(s):
+    """Привести текст к NFC. В исходных файлах умляуты приходят по-разному:
+    «Höll» бывает как один символ ö (U+00F6), а бывает как o + комбинирующая
+    диакритика (U+0308). Внешне одинаково, для сравнения — разные строки, и
+    клиент молча перестаёт совпадать сам с собой. Нормализуем на входе."""
+    return unicodedata.normalize("NFC", s or "")
+
+
 def norm_party(s):
     """Схлопнуть пробелы/регистр — для устойчивого ключа дедупликации."""
-    return re.sub(r"\s+", " ", (s or "")).strip().lower()
+    return re.sub(r"\s+", " ", nfc(s)).strip().lower()
 
 
 def _dedup_key(val_date, amount, party, seq):
@@ -295,9 +304,9 @@ def import_invoices(conn, path, force=False):
             "(number, inv_date, client, client_no, description, amount, net, vat, currency,"
             " kleinunternehmer, source_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             ((r.get("number") or "").strip(), iso,
-             (r.get("recipient") or r.get("client") or r.get("client_name") or "").strip(),
+             nfc(r.get("recipient") or r.get("client") or r.get("client_name") or "").strip(),
              str(r.get("customer_no") or "").strip(),
-             (r.get("description") or "").strip(), amount, net, vat, CURRENCY,
+             nfc(r.get("description") or "").strip(), amount, net, vat, CURRENCY,
              1 if r.get("kleinunternehmer", vat <= 0) else 0, sid))
         new += cur.rowcount
     _finish_source(conn, sid, new, len(rows), min(dates or [""]), max(dates or [""]))
@@ -415,7 +424,7 @@ def _ingest_payments(conn, sid, items, label):
         amt = to_amount(it.get("amount"))
         if not iso or not amt:
             continue
-        party = (it.get("party") or "").strip()
+        party = nfc(it.get("party") or "").strip()
         k = (iso, round(amt, 2), norm_party(party))
         seen_same[k] = seen_same.get(k, 0) + 1
         key = _dedup_key(iso, amt, party, seen_same[k])
