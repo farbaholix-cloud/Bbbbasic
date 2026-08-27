@@ -1,0 +1,12 @@
+[
+ {"number":"110726","date":"2026-07-11","recipient":"Klügling Café & Konditorei Betriebs GmbH (Café Sa'Sis)","customer_no":"017",
+  "description":"Künstlerische Gestaltung und Anbringung des Logos auf den Gastronomiemöbeln","total":300.0,"net":300.0,"vat":0.0,"kleinunternehmer":true},
+ {"number":"190726","date":"2026-07-19","recipient":"hundert11 GmbH & Co. KG","customer_no":"",
+  "description":"Gestaltung eines Designprojekts","total":200.0,"net":200.0,"vat":0.0,"kleinunternehmer":true},
+ {"number":"270726","date":"2026-07-27","recipient":"Cosmopop GmbH","customer_no":"",
+  "description":"Künstlerische Gestaltung der Bühne 2 mit Graffiti, Festival Lovefamilypark (25.–26. Juli)","total":5000.0,"net":5000.0,"vat":0.0,"kleinunternehmer":true},
+ {"number":"290726","date":"2026-07-29","recipient":"FSV Frankfurt 1899 Fußball GmbH","customer_no":"005",
+  "description":"Grundierung und Neugestaltung Südtribüne PSD Bank Arena + Demontage Logos (3 Positionen)","total":2796.5,"net":2350.0,"vat":446.5,"kleinunternehmer":false},
+ {"number":"270826","date":"2026-08-27","recipient":"Hanauer Fußball-Club 1893 e.V.","customer_no":"007",
+  "description":"Künstlerische Gestaltung eines Containers auf dem Gelände des Fußballstadions in Hanau","total":2380.0,"net":2000.0,"vat":380.0,"kleinunternehmer":false}
+]

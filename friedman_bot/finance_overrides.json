@@ -3,9 +3,9 @@
     "Журнал РУЧНЫХ РЕШЕНИЙ по деньгам. Применяется при каждой сборке базы, поэтому",
     "решение переживает удаление и пересборку finance.db — в отличие от правки",
     "прямо в базе, которая молча пропадёт при следующем импорте.",
-    "Файл лежит в git: у каждого решения видны автор, дата и причина."
+    "Файл лежит в git: у каждого решения видны автор, дата и причина.",
+    "manual_links — связки «счёт ↔ платёж», подтверждённые документом, а не догадкой."
   ],
-
   "cancelled_invoices": [
     {
       "number": "190226",
@@ -16,7 +16,6 @@
       "decided": "2026-08-27"
     }
   ],
-
   "payment_category": [
     {
       "date": "2026-05-19",
@@ -40,6 +39,36 @@
       "party_like": "gling",
       "category": "client_refund",
       "reason": "Rückerstattung: клиент заплатил дважды, 1500 € возвращены. Возврат обязан уменьшать выручку, а не числиться расходом.",
+      "decided": "2026-08-27"
+    }
+  ],
+  "manual_links": [
+    {
+      "invoice": "270524",
+      "payment_date": "2024-05-28",
+      "payment_amount": 300.0,
+      "reason": "PDF Rechnung_2 называет клиента: «MW-Folientechnik. Lena Sponsel-Wipplinger» — это и есть плательщик «LENA STEFANIE SPONSEL-WIPPLINGER … MW-Folien». Сумма и дата (следующий день) сходятся.",
+      "decided": "2026-08-27"
+    },
+    {
+      "invoice": "010925",
+      "payment_date": "2025-09-22",
+      "payment_amount": 2000.0,
+      "reason": "PDF Rechnung_20 называет клиента «IK»: Evangelischer Verein für Jugendsozialarbeit in Frankfurt am Main e.V. / Internationales Kinderhaus, Kunde 008 — это плательщик. Сумма совпадает.",
+      "decided": "2026-08-27"
+    },
+    {
+      "invoice": "041025",
+      "payment_date": "2025-10-22",
+      "payment_amount": 2000.0,
+      "reason": "Тот же клиент (Ev. Verein für Jugendsozialarbeit, Kunde 008), второй счёт. Сумма совпадает, платёж через 18 дней после счёта.",
+      "decided": "2026-08-27"
+    },
+    {
+      "invoice": "060825",
+      "payment_date": "2025-08-07",
+      "payment_amount": 500.0,
+      "reason": "PDF Rechnung_17 выставлен Hanauer Fußball-Club 1893 e.V.; заплатил Förderverein Hanau 93 e.V. (клуб поддержки того же клуба) на следующий день, сумма копейка в копейку.",
       "decided": "2026-08-27"
     }
   ]

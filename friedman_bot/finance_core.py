@@ -161,6 +161,19 @@ def ensure_schema(conn):
     CREATE INDEX IF NOT EXISTS ix_pay_cat  ON fin_payment(category);
     CREATE INDEX IF NOT EXISTS ix_inv_date ON fin_invoice(inv_date);
     """)
+    _migrate(conn)
+
+
+def _migrate(conn):
+    """Догнать схему на живой базе. Появилось с первыми счетами с 19 % USt
+    (июль 2026): до этого все счета шли по §19 и разделять брутто/нетто/налог
+    было не нужно. amount остаётся БРУТТО — именно эту сумму платит клиент и
+    именно она сходится с выпиской; net/vat нужны Юристу для отчётности."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(fin_invoice)").fetchall()]
+    if "net" not in cols:
+        conn.execute("ALTER TABLE fin_invoice ADD COLUMN net REAL")
+    if "vat" not in cols:
+        conn.execute("ALTER TABLE fin_invoice ADD COLUMN vat REAL DEFAULT 0")
 
 
 def meta_get(conn, key, default=None):
@@ -275,15 +288,17 @@ def import_invoices(conn, path, force=False):
             continue
         dates.append(iso)
         amount = to_amount(r.get("total") if r.get("total") is not None else r.get("gross"))
+        vat = to_amount(r.get("vat") or 0)
+        net = to_amount(r.get("net")) if r.get("net") is not None else round(amount - vat, 2)
         cur = conn.execute(
             "INSERT OR IGNORE INTO fin_invoice"
-            "(number, inv_date, client, client_no, description, amount, currency,"
-            " kleinunternehmer, source_id) VALUES(?,?,?,?,?,?,?,?,?)",
+            "(number, inv_date, client, client_no, description, amount, net, vat, currency,"
+            " kleinunternehmer, source_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             ((r.get("number") or "").strip(), iso,
              (r.get("recipient") or r.get("client") or r.get("client_name") or "").strip(),
              str(r.get("customer_no") or "").strip(),
-             (r.get("description") or "").strip(), amount, CURRENCY,
-             1 if r.get("kleinunternehmer", True) else 0, sid))
+             (r.get("description") or "").strip(), amount, net, vat, CURRENCY,
+             1 if r.get("kleinunternehmer", vat <= 0) else 0, sid))
         new += cur.rowcount
     _finish_source(conn, sid, new, len(rows), min(dates or [""]), max(dates or [""]))
     return {"skipped": False, "kind": "invoices", "path": os.path.basename(path),
@@ -485,6 +500,15 @@ def apply_overrides(conn, path=None):
             out["cancelled"] += cur.rowcount
         else:
             out["not_found"].append("счёт %s от %s" % (c.get("number"), c.get("date")))
+
+    for l in ov.get("manual_links", []):
+        res = confirm_match(conn, l.get("invoice"), l.get("payment_date"),
+                            l.get("payment_amount"), l.get("reason", "")[:300])
+        if res.get("ok"):
+            out["linked"] = out.get("linked", 0) + 1
+        else:
+            out["not_found"].append("связка %s ← %s: %s"
+                                    % (l.get("invoice"), l.get("payment_date"), res.get("error")))
 
     for r in ov.get("payment_category", []):
         cur = conn.execute(
@@ -882,7 +906,11 @@ def year_report(conn, year):
     inv = invoiced(conn, year=y)
     warn = assert_covered(conn, "%s-12" % y)
     op = [o for o in open_invoices(conn) if o["date"][:4] == y]
+    v = conn.execute("SELECT COALESCE(SUM(vat),0) v, COUNT(*) n FROM fin_invoice"
+                     " WHERE cancelled=0 AND COALESCE(vat,0)>0 AND substr(inv_date,1,4)=?",
+                     (y,)).fetchone()
     return {"year": y,
+            "vat_invoiced": round(v["v"], 2), "vat_invoices": v["n"],
             "received": rec["total"], "received_count": rec["count"],
             "invoiced": inv["total"], "invoiced_count": inv["count"],
             "spent": sp["total"],

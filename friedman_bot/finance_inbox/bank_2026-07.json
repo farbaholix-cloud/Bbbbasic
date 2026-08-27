@@ -1,0 +1,317 @@
+[
+ {
+  "date": "01.07.2026",
+  "amount": -21.05,
+  "party": "Abrechnung 30.06.2026 siehe Anlage Nr. 1"
+ },
+ {
+  "date": "01.07.2026",
+  "amount": 100.0,
+  "party": "Gutschrift Überw. Vira Overchuk"
+ },
+ {
+  "date": "02.07.2026",
+  "amount": -25.3,
+  "party": "Lastschrift CORE Klarna Bank AB Purchase at eBay 019f1c8cc280724f98ff719057a44b51 1cf5586e92ae404da0b88ed3604cd642 Gläubiger-ID: SE71ZZZ5567370431"
+ },
+ {
+  "date": "03.07.2026",
+  "amount": -3.0,
+  "party": "GIRO E-COM (APPLE/HCE Dott scooter bill 12/Van Diemenstra at 292/none/NL/1 2026-07-02T18:31 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "03.07.2026",
+  "amount": -2.68,
+  "party": "GIRO E-COM (APPLE/HCE Dott scooter bill 22/Van Diemenstra at 292/Amsterdam/NL/1 2026-07-02T18:31 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "06.07.2026",
+  "amount": -5.45,
+  "party": "GIRO E-COM (APPLE/HCE LIME.3 RIDES IRHW/PIAZZA TRE TORRI 2 CAP/MILAN/IT/1 2026-07-04T13:36 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "06.07.2026",
+  "amount": -5.49,
+  "party": "Kartenzahlung Debitk. APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1 2026-07-03T00:00 Debitk.0 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "07.07.2026",
+  "amount": -3.93,
+  "party": "Lastschrift CORE PayPal Europe S.a.r.l. et Cie S.C.A 1051424929729/PP.5747.PP/. CONTABO GmbH, Ihr Einkauf bei CONTABO GmbH 1051424929729 5RGJ225C7KXZC Gläubiger-ID: LU96ZZZ0000000000000000058"
+ },
+ {
+  "date": "09.07.2026",
+  "amount": -19.4,
+  "party": "dig.Karte (Apple Pay) Istanbul Fisch Grill/Munchener Str. /Frankfurt am/DE/0 2026-07-08T00:00 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "09.07.2026",
+  "amount": 100.0,
+  "party": "Gutschr. Überw. Echtz Maik Füller Privat kredit"
+ },
+ {
+  "date": "09.07.2026",
+  "amount": 2000.0,
+  "party": "Gutschr. Überw. Echtz COSMOPOP GMBH 20260629-1"
+ },
+ {
+  "date": "09.07.2026",
+  "amount": -100.0,
+  "party": "Überweisung beleglos Maik Füller Zurück DATUM 09.07.2026, 14.12 UHR HRA: 4647 (AG Wiesbaden) https://www.naspa.de Steuernummer: 040 220 20052"
+ },
+ {
+  "date": "09.07.2026",
+  "amount": -1090.0,
+  "party": "Überweisung beleglos Vira Overchuk Vermieter Roland DATUM 09.07.2026, 14.15 UHR"
+ },
+ {
+  "date": "10.07.2026",
+  "amount": -106.88,
+  "party": "Überweisung beleglos Mainova AG Kundennummer 2036 0515 218 DATUM 10.07.2026, 00.51 UHR"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -64.95,
+  "party": "Lastschrift CORE Telefonica Germany GmbH + Co. OHG Kd-Nr.: 6110130919, Rg-Nr.: 1605743 618/8, Ihre Tarifrechnung 3304796382160001605743618008RCUR T0010001B000006110130919 Gläubiger-ID: DE9700000000142462"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -169.38,
+  "party": "Lastschrift CORE Klarna Bank AB Purchase at Klarna 019f4831e9ec75c98f6c4dc6a2bc77a3 1cf5586e92ae404da0b88ed3604cd642 Gläubiger-ID: SE71ZZZ5567370431"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -145.0,
+  "party": "Bargeldauszfremd GA / Wert: 10.07.2026 F-DUE.STR7//FRANKFURTER SPARKASSE/D E 2026-07-10T17:31 Debitk.0 2029-12"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -15.0,
+  "party": "dig.Karte (Apple Pay) Watan Kebab GIR 69221561//FRANKFURT /DE 2026-07-10T13:59 Debitk.14 2029-12"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -9.92,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44652442/Wittelsba c/Frankfurt Ostend /DE 2026-07-11T14:49 Debitk.14 2029-12"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -4.8,
+  "party": "dig.Karte (Apple Pay) Ditsch Giessen Bahnhof//Giessen/DE 2026-07-12T11:39 Debitk.14 2029-12"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -43.76,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-07-11T21:37 Debitk.14 2029-12"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -4.5,
+  "party": "dig.Karte (Apple Pay) Tip Shop Sportbar/Munchener Str. 56 /Frankfurt am Main/DE 2026-07-10T14:09 Debitk.14 2029-12"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -22.0,
+  "party": "GIRO E-COM (APPLE/HCE APPLE.COM.BILL/HOLLYHILL INDUSTRIAL ESTATE/CORK/IE/1 2026-07-10T00:03 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -3.5,
+  "party": "dig.Karte (Apple Pay) Kiosk an Station/Ostendstrasse 36/F rankfurt/DE/0 2026-07-09T16:18 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "13.07.2026",
+  "amount": -14.7,
+  "party": "dig.Karte (Apple Pay) Deepend/Danziger Platz 2-4/Frankfur t am/DE/0 2026-07-09T16:36 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "15.07.2026",
+  "amount": -2.7,
+  "party": "dig.Karte (Apple Pay) Wiener Feinbackerei Heberer Gm/Karl -von-Drais-Str/Frankfurt am Main/DE 2026-07-14T12:39 Debitk.14 2029-12"
+ },
+ {
+  "date": "15.07.2026",
+  "amount": -5.75,
+  "party": "dig.Karte (Apple Pay) Wiener Feinbackerei Heberer Gm/Karl -von-Drais-Str/Frankfurt am Main/DE 2026-07-14T14:22 Debitk.14 2029-12"
+ },
+ {
+  "date": "15.07.2026",
+  "amount": -4.5,
+  "party": "dig.Karte (Apple Pay) Wiener Feinbackerei Heberer Gm/Karl -von-Drais-Str/Frankfurt am Main/DE 2026-07-14T18:11 Debitk.14 2029-12"
+ },
+ {
+  "date": "15.07.2026",
+  "amount": -4.9,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE 2026-07-14T15:34 Debitk.14 2029-12"
+ },
+ {
+  "date": "16.07.2026",
+  "amount": -38.89,
+  "party": "dig.Karte (Apple Pay) ALDI SE + CO. KG/FRIEDBERGER LANDST R. 295/FRANKFURT/DE 2026-07-15T20:50 Debitk.14 2029-12 HRA: 4647 (AG Wiesbaden) https://www.naspa.de Steuernummer: 040 220 20052"
+ },
+ {
+  "date": "16.07.2026",
+  "amount": -5.08,
+  "party": "dig.Karte (Apple Pay) TEGUT SAGT DANKE/Friedberger Landst ra.e 408/Frankfurt am Main/DE 2026-07-15T20:11 Debitk.14 2029-12"
+ },
+ {
+  "date": "17.07.2026",
+  "amount": 300.0,
+  "party": "Gutschrift Überw. Klugling Cafe + Konditorei - Betrie bs GmbH Re 110726"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -10.5,
+  "party": "dig.Karte (Apple Pay) Star Kebaphaus GIR 69340260//RUSSEL SHEIM AM MAIN/DE 2026-07-19T20:46 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -1.5,
+  "party": "dig.Karte (Apple Pay) AVIA Thelen Mainz//Mainz/DE 2026-07-19T16:17 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -17.15,
+  "party": "dig.Karte (Apple Pay) PENNY SAGT DANKE. 63302406/Bergerst r./Frankfurt Bornheim /DE 2026-07-17T18:52 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -2.4,
+  "party": "dig.Karte (Apple Pay) ARAL Frankfurt Ratsweg 12//Frankfur t/DE 2026-07-17T16:01 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -2.65,
+  "party": "dig.Karte (Apple Pay) Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/DE 2026-07-19T14:58 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -19.35,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-07-17T22:01 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -0.29,
+  "party": "dig.Karte (Apple Pay) TEGUT SAGT DANKE/Kurt Schumacher St r. 30-32/Frankfurt/DE 2026-07-18T22:21 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -14.82,
+  "party": "dig.Karte (Apple Pay) TEGUT SAGT DANKE/Kurt Schumacher St r. 30-32/Frankfurt/DE 2026-07-18T22:21 Debitk.14 2029-12"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -14.9,
+  "party": "dig.Karte (Apple Pay) ASIA THAI/Saalburgallee Ecke am Buc hwal/Frankfurt/DE/0 2026-07-17T15:49 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "20.07.2026",
+  "amount": -4.99,
+  "party": "Kartenzahlung Debitk. OCULUS .DK2K4YREP2/4 Grand Canal Sq uare, Grand Canal Harbo/Dublin/IE/1 2026-07-19T15:19 Debitk.0 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "21.07.2026",
+  "amount": -38.25,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-07-20T17:55 Debitk.14 2029-12"
+ },
+ {
+  "date": "21.07.2026",
+  "amount": 200.0,
+  "party": "Gutschrift Überw. hundert11 GmbH + Co. KG Re.Nr. 190726"
+ },
+ {
+  "date": "23.07.2026",
+  "amount": -370.0,
+  "party": "Bargeldauszfremd GA / Wert: 22.07.2026 F-ZEIL 4//FRANKFURTER SPARKASSE/DE 2026-07-22T20:02 Debitk.14 2029-12"
+ },
+ {
+  "date": "23.07.2026",
+  "amount": -14.19,
+  "party": "dig.Karte (Apple Pay) 00297 MCDONALDS//FRANKFURT/DE 2026-07-22T20:10 Debitk.14 2029-12"
+ },
+ {
+  "date": "24.07.2026",
+  "amount": -30.5,
+  "party": "dig.Karte (Apple Pay) Asiadiamonds GIR 69321283//FRANKFUR T AM MAIN/DE 2026-07-23T21:16 Debitk.14 2029-12"
+ },
+ {
+  "date": "24.07.2026",
+  "amount": -6.32,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-07-23T21:55 Debitk.14 2029-12"
+ },
+ {
+  "date": "24.07.2026",
+  "amount": -20.54,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-07-23T21:52 Debitk.14 2029-12 HRA: 4647 (AG Wiesbaden) https://www.naspa.de Steuernummer: 040 220 20052"
+ },
+ {
+  "date": "24.07.2026",
+  "amount": -6.96,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-07-23T16:27 Debitk.14 2029-12"
+ },
+ {
+  "date": "27.07.2026",
+  "amount": -17.2,
+  "party": "dig.Karte (Apple Pay) ESSO TANKSTELLE/Ludwig-Landmann-Str . 339/Frankfurt/DE 2026-07-24T11:41 Debitk.14 2029-12"
+ },
+ {
+  "date": "28.07.2026",
+  "amount": -2.72,
+  "party": "dig.Karte (Apple Pay) LIDL SAGT DANKE/Hanauer Landstr. 21 9/Frankfurt/DE 2026-07-27T16:54 Debitk.14 2029-12"
+ },
+ {
+  "date": "28.07.2026",
+  "amount": -20.96,
+  "party": "dig.Karte (Apple Pay) APFEL APOTHEKE/Zeil 65-69/Frankfurt am Main/DE 2026-07-27T13:45 Debitk.14 2029-12"
+ },
+ {
+  "date": "28.07.2026",
+  "amount": -11.9,
+  "party": "dig.Karte (Apple Pay) LOTTO-PETERS FRANKFURT GIR 79516225 //FRANKFURT/DE 2026-07-27T12:34 Debitk.14 2029-12"
+ },
+ {
+  "date": "29.07.2026",
+  "amount": -20.3,
+  "party": "Kartenzahlung Debitk. HORNBACH FRANKFURT HORNBACH FRANKFURT 2707172341969932 91200005246 ELV65148530 27.07 17.23 Der Einzug erfolgt im Namen und au f Rechnung der PAYONE GmbH 27071723419699329120000524665148530 G514853031092606121845 Gläubiger-ID: DE16E0100000020245"
+ },
+ {
+  "date": "29.07.2026",
+  "amount": -18.0,
+  "party": "dig.Karte (Apple Pay) Woolworth GmbH Fil. 1795//Frankfurt /DE 2026-07-28T14:52 Debitk.14 2029-12"
+ },
+ {
+  "date": "29.07.2026",
+  "amount": -4.45,
+  "party": "dig.Karte (Apple Pay) Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/DE 2026-07-28T14:58 Debitk.14 2029-12"
+ },
+ {
+  "date": "30.07.2026",
+  "amount": -7.99,
+  "party": "GIRO E-COM (APPLE/HCE APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1 2026-07-29T00:00 Debitk.14 2029-12 Zahl.System DebitMastercard"
+ },
+ {
+  "date": "30.07.2026",
+  "amount": -14.45,
+  "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-07-29T14:28 Debitk.14 2029-12"
+ },
+ {
+  "date": "30.07.2026",
+  "amount": -17.2,
+  "party": "GIRO E-COM (APPLE/HCE Wolt Enterprises Deutschland GmbH/S tralauer allee/Berlin/DE 2026-07-28T22:09 Debitk.14 2029-12"
+ },
+ {
+  "date": "31.07.2026",
+  "amount": -6.5,
+  "party": "dig.Karte (Apple Pay) OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE 2026-07-30T15:24 Debitk.14 2029-12"
+ },
+ {
+  "date": "31.07.2026",
+  "amount": 2796.5,
+  "party": "Gutschr. Überw. Echtz FSV Frankfurt 1899 Fusball GmbH Rechnung 290726"
+ },
+ {
+  "date": "31.07.2026",
+  "amount": -1590.0,
+  "party": "Überweisung beleglos Vira Overchuk Vermieter Roland DATUM 31.07.2026, 12.24 UHR HRA: 4647 (AG Wiesbaden) https://www.naspa.de Steuernummer: 040 220 20052 Kontostand in EUR am 30.06.2026 15,76 + -------------- Abrechnungszeitraum vom 01.04.2026 bis 30.06.2026 Zinsen für geduldete Kontoüberziehung 0,0"
+ }
+]
