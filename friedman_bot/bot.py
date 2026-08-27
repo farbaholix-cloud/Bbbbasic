@@ -4527,6 +4527,15 @@ def get_sales_token() -> str:
     return "".join(raw.split())
 
 
+# ── Финансист: отдельный бот (finance_bot.py), своя база finance.db ──────────
+
+def get_finance_token() -> str:
+    """Токен Финансист-бота: окружение → настройка в БД (никогда не в git).
+    Пробелы чистим — автокоррекция Telegram иногда вставляет пробел в токен."""
+    raw = os.environ.get("FINANCE_BOT_TOKEN") or _settings_get("finance_bot_token") or ""
+    return "".join(raw.split())
+
+
 def _seller_table(conn):
     conn.execute("CREATE TABLE IF NOT EXISTS seller_messages ("
                  "id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, text TEXT, "
@@ -5556,6 +5565,36 @@ def _restart_director(d):
     log.info("Директор-бот запущен (supervised)")
 
 
+def _restart_finance(d):
+    """Поднять/перезапустить Финансист-бота (finance_bot.py) — тот же паттерн, что
+    у остальных. Отличие: Финансисту нужны ещё два своих модуля и база знаний,
+    поэтому чиним весь комплект, а не один файл. И сразу собираем finance.db —
+    бот должен уметь ответить точной цифрой с первого же вопроса."""
+    import sys
+    if not get_finance_token():
+        log.info("Токен Финансист-бота не задан — Финансиста не запускаю")
+        return
+    for f in ("finance_core.py", "finance_bot.py", "finance_backup.py",
+              "finance_kb/SKILL.md", "finance_inbox/README.md"):
+        if not _ensure_sibling_file(d, f) and f.endswith(".py"):
+            log.error(f"{f} отсутствует и не скачался — не запускаю Финансиста")
+            return
+    try:
+        sys.path.insert(0, d)
+        import finance_core as _fin
+        rep = _fin.bootstrap(verbose=False)
+        log.info("finance.db готова: счетов/платежей импортировано %s, открыто счетов %s",
+                 sum(i.get("new", 0) for i in rep["imports"]),
+                 rep["reconcile"]["invoices_open"])
+    except Exception as e:
+        log.error(f"finance bootstrap: {e}")   # бот всё равно поднимется и скажет об этом
+    subprocess.run("pkill -9 -f finance_bot.py; true", shell=True)
+    logf = open("/tmp/finance.log", "ab")
+    subprocess.Popen([sys.executable, "finance_bot.py"], cwd=d,
+                     stdout=logf, stderr=logf, start_new_session=True)
+    log.info("Финансист-бот запущен (supervised)")
+
+
 def _restart_secretary(d):
     """Перезапустить главный процесс Секретаря (bot.py) снаружи — по команде
     Директора (/update). Паттерн '[ /]bot[.]py' ловит «python bot.py» и запуск по
@@ -5742,6 +5781,43 @@ async def cmd_setsalestoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         chat_id, "✅ Токен Продавец-бота сохранён, запускаю отдельного бота.\n"
                  "Открой нового бота в Telegram и нажми *Start* — Продавец на связи. "
                  "Утренний дайджест продаж будет приходить туда в 07:00.",
+        parse_mode="Markdown")
+
+
+async def cmd_setfinancetoken(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Принять токен Финансист-бота, сохранить в БД (не в git) и поднять бота.
+    Сообщение с токеном сразу удаляем из чата — секрет не должен лежать в переписке."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    token = (update.message.text or "").partition(" ")[2]
+    token = "".join(token.split())
+    try:
+        await ctx.bot.delete_message(chat_id, update.message.message_id)
+    except Exception:
+        pass
+    if not re.match(r'^\d{6,}:[A-Za-z0-9_-]{30,}$', token):
+        await ctx.bot.send_message(
+            chat_id, "Это не похоже на токен. Пришли так: `/setfinancetoken 123456789:AA...`",
+            parse_mode="Markdown")
+        return
+    _settings_set("finance_bot_token", token)
+    save_chat_id(chat_id)
+    d = os.path.dirname(os.path.abspath(__file__))
+    try:
+        _restart_finance(d)
+    except Exception as e:
+        log.error(f"setfinancetoken restart: {e}")
+        await ctx.bot.send_message(chat_id, f"Токен сохранён, но запуск дал сбой: {e}")
+        return
+    await ctx.bot.send_message(
+        chat_id, "✅ Токен Финансиста сохранён, запускаю отдельного бота.\n\n"
+                 "Открой нового бота и нажми *Start*, потом сразу */sum* — он покажет "
+                 "период выписок и суммы по годам. Если они сходятся с реальностью — "
+                 "денежный контур подключён верно.\n\n"
+                 "Деньги теперь веду не я, а он: спрашивай у него, сколько получено, "
+                 "кто не заплатил и какие расходы.",
         parse_mode="Markdown")
 
 
@@ -6369,6 +6445,7 @@ async def watchdog_children(ctx: ContextTypes.DEFAULT_TYPE):
         ("Юрист", "jurist_bot.py", _restart_jurist, get_jurist_token),
         ("Продавец", "sales_bot.py", _restart_sales, get_sales_token),
         ("Директор", "director_bot.py", _restart_director, get_director_token),
+        ("Финансист", "finance_bot.py", _restart_finance, get_finance_token),
         ("Дашборд", "dashboard.py", _restart_dashboard, None),
     )
     for name, pat, restart, token_fn in checks:
@@ -6838,6 +6915,7 @@ def main():
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
     app.add_handler(CommandHandler("setsalestoken", cmd_setsalestoken))
+    app.add_handler(CommandHandler("setfinancetoken", cmd_setfinancetoken))
     app.add_handler(CommandHandler("setdirectortoken", cmd_setdirectortoken))
     app.add_handler(CommandHandler("setinvoicedata", cmd_setinvoicedata))
     app.add_handler(CommandHandler("wipeinvoicestoday", cmd_wipeinvoicestoday))
@@ -6875,6 +6953,12 @@ def main():
         _restart_sales(os.path.dirname(os.path.abspath(__file__)))
     except Exception as e:
         log.error(f"start sales: {e}")
+
+    # Финансист — отдельный бот (finance_bot.py) со своей базой finance.db
+    try:
+        _restart_finance(os.path.dirname(os.path.abspath(__file__)))
+    except Exception as e:
+        log.error(f"start finance: {e}")
 
     # Директор — отдельный бот (director_bot.py); поднимаем его, если задан токен
     try:
