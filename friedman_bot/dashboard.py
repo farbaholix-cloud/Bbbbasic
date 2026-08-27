@@ -1016,13 +1016,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .wisdom{padding:13px 16px;border-radius:17px;font-style:italic;font-size:13px;font-weight:500;color:#fbeec6;margin-bottom:14px;display:flex;gap:9px;line-height:1.4}
 .wisdom .q{font-size:24px;line-height:.7;color:var(--amber);font-style:normal}
 .block{padding:16px;margin-bottom:14px}
-.bh{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.bh{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;gap:8px;flex-wrap:wrap}
 .bh .t{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
 .bh .t .sm{font-size:10px;color:var(--faint);font-weight:700}
 .bh .cnt{font-size:10.5px;color:var(--muted);font-weight:700;padding:3px 10px;border-radius:12px;background:var(--glass2);border:1px solid var(--rim)}
-.cal-seg{display:flex;gap:2px;background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:11px;padding:2px}
-.cal-seg .cs{font-size:11px;font-weight:700;color:var(--muted);background:transparent;border:none;padding:5px 11px;border-radius:9px;cursor:pointer;transition:background .18s,color .18s}
+.cal-seg{display:flex;gap:2px;flex-shrink:0;background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:11px;padding:2px}
+.cal-seg .cs{font-size:11px;font-weight:700;color:var(--muted);background:transparent;border:none;padding:5px 9px;white-space:nowrap;border-radius:9px;cursor:pointer;transition:background .18s,color .18s}
 .cal-seg .cs.on{color:#fff;background:linear-gradient(135deg,var(--blue),var(--violet))}
+.cal-seg .cs.tails{color:#ff9aa6;font-weight:900}
+.cal-seg .cs.tails::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:#ff5a6e;margin-right:5px;vertical-align:1px;box-shadow:0 0 7px rgba(255,90,110,.9);
+  animation:tailPulse 1.9s ease-in-out infinite}
+.cal-seg .cs.tails.on{color:#fff;background:linear-gradient(135deg,#c0304a,#ff5a6e)}
+.cal-seg .cs.tails.on::before{background:#fff;box-shadow:none}
+@keyframes tailPulse{0%,100%{opacity:1}50%{opacity:.25}}
+.tails-sum{display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:10px;
+  border-radius:14px;font-size:12.5px;font-weight:800;color:#ffb3bd;
+  background:rgba(255,90,110,.12);border:1px solid rgba(255,90,110,.32)}
+.tails-clean{padding:16px 12px;text-align:center;font-size:13px;font-weight:800;color:#8fe3b0}
+.cell.tail{border-color:rgba(255,90,110,.35)}
+.cell.tail .cd{color:#ff9aa6}
+.tail-age{font-size:10px;font-weight:800;color:#ff9aa6;opacity:.85;margin-left:6px}
 .cal-msep{font-size:11px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin:12px 2px 5px}
 .cal-msep:first-child{margin-top:0}
 .matrix{position:relative;width:100%;height:344px;border-radius:20px;overflow:hidden;border:1px solid var(--rim);
@@ -1557,7 +1571,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
         <div class="cal-seg" id="cal-seg">
           <button class="cs on" data-r="week" onclick="setCalRange('week')">неделя</button>
           <button class="cs" data-r="month" onclick="setCalRange('month')">месяц</button>
-          <button class="cs" data-r="year" onclick="setCalRange('year')">год</button>
+          <button class="cs" data-r="year" onclick="setCalRange('year')">год</button><button class="cs tails" data-r="tails" id="cal-tails" hidden onclick="setCalRange('tails')">хвосты</button>
         </div></div>
       <div id="cal"></div>
       <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
@@ -2057,22 +2071,69 @@ function setCalRange(r){
   document.querySelectorAll('#cal-seg .cs').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
   renderCal();
 }
+// Хвост — дело, которое так и осталось запланированным на прошлое: его не сделали
+// и не перенесли. В данных это видно однозначно: выполненное событие удаляется из
+// таблицы, выполненное напоминание помечается отправленным и в выдачу не попадает.
+// Значит всё, что лежит в DATA.cards с датой раньше сегодняшней, — это хвост.
+// Русские окончания: 1 день, 2 дня, 5 дней. Без этого «5 день назад» режет глаз
+// в интерфейсе, который должен подталкивать к действию, а не раздражать.
+function _plur(n,one,few,many){
+  const a=Math.abs(n)%100,b=a%10;
+  const w=(a>10&&a<20)?many:(b===1?one:(b>=2&&b<=4?few:many));
+  return n+' '+w;
+}
+function _calTails(){
+  const t=localISO(new Date());
+  return (DATA.cards||[]).filter(c=>c.date&&c.date<t);
+}
+function _daysAgo(ds){
+  const a=new Date(ds+'T00:00'),b=new Date();b.setHours(0,0,0,0);
+  return Math.round((b-a)/86400000);
+}
+// Кнопка «хвосты» существует только когда есть о чём говорить: всё под контролем —
+// её нет вовсе. Прятать нечего и глаз не цепляется.
+function syncTailsBtn(){
+  const b=document.getElementById('cal-tails');if(!b)return;
+  const n=_calTails().length;
+  b.hidden=n===0;
+  b.textContent='хвосты '+n;
+  if(!n&&_calRange==='tails')setCalRange('week');   // разгрёб последний — уводим назад
+}
 function renderCal(){
   const now=new Date();
   const today0=new Date(now);today0.setHours(0,0,0,0);
   const todayISO=localISO(now);
   // границы диапазона: неделя = ближайшие 7 дней (сегодня…+7) / месяц / год
-  let start,end;
-  if(_calRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,1);}
-  else if(_calRange==='year'){start=new Date(now.getFullYear(),0,1);end=new Date(now.getFullYear()+1,0,1);}
-  else {start=new Date(today0);end=new Date(today0);end.setDate(today0.getDate()+7);}
-  const startISO=localISO(start),endISO=localISO(end);
-  const dates=new Set();
-  if(_calRange==='week'){for(let i=0;i<7;i++){const dd=new Date(today0);dd.setDate(today0.getDate()+i);dates.add(localISO(dd));}}
-  DATA.cards.forEach(c=>{if(c.date&&c.date>=startISO&&c.date<endISO)dates.add(c.date);});
-  const sorted=[...dates].sort();
+  const tails=_calTails();
+  syncTailsBtn();
+  let sorted,startISO='',endISO='';
+  if(_calRange==='tails'){
+    // Никакой границы по глубине: и вчерашнее, и годовой давности — одинаково
+    // висит. Сверху самое старое: чем дольше дело лежит, тем нужнее по нему
+    // решение — сделать или снять.
+    sorted=[...new Set(tails.map(c=>c.date))].sort();
+  }else{
+    let start,end;
+    if(_calRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,1);}
+    else if(_calRange==='year'){start=new Date(now.getFullYear(),0,1);end=new Date(now.getFullYear()+1,0,1);}
+    else {start=new Date(today0);end=new Date(today0);end.setDate(today0.getDate()+7);}
+    startISO=localISO(start);endISO=localISO(end);
+    const dates=new Set();
+    if(_calRange==='week'){for(let i=0;i<7;i++){const dd=new Date(today0);dd.setDate(today0.getDate()+i);dates.add(localISO(dd));}}
+    DATA.cards.forEach(c=>{if(c.date&&c.date>=startISO&&c.date<endISO)dates.add(c.date);});
+    sorted=[...dates].sort();
+  }
   let html='';
   let curMonth=-1;
+  if(_calRange==='tails'){
+    if(!tails.length){
+      document.getElementById('cal').innerHTML='<div class="tails-clean">✅ Хвостов нет — всё под контролем</div>';
+      return;
+    }
+    const oldest=sorted[0],d=_daysAgo(oldest);
+    html+='<div class="tails-sum">🔴 <span>Зависло дел: '+tails.length+
+      ' · самое старое '+_plur(d,'день','дня','дней')+' назад</span></div>';
+  }
   for(const ds of sorted){
     const dd=new Date(ds+'T00:00');
     // порядок внутри дня — хронологический: из базы карточки приходят в порядке
@@ -2088,9 +2149,13 @@ function renderCal(){
     // в режиме «год» — разделители по месяцам
     if(_calRange==='year'&&dd.getMonth()!==curMonth){curMonth=dd.getMonth();html+='<div class="cal-msep">'+MONTHS[curMonth]+'</div>';}
     const today=ds===todayISO;const past=ds<todayISO;
-    const showMonth=_calRange!=='week'||dd.getMonth()!==now.getMonth();
-    const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(showMonth?' '+MONTHS[dd.getMonth()]:'')+(past?' ⚠️':'')+(today?' · сегодня':'');
-    html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past?'past':'')+'">'+
+    const tailMode=_calRange==='tails';
+    const showMonth=tailMode||_calRange!=='week'||dd.getMonth()!==now.getMonth();
+    const showYear=tailMode&&dd.getFullYear()!==now.getFullYear();
+    const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(showMonth?' '+MONTHS[dd.getMonth()]:'')+
+      (showYear?' '+dd.getFullYear():'')+(past&&!tailMode?' ⚠️':'')+(today?' · сегодня':'')+
+      (tailMode?'<span class="tail-age">'+_plur(_daysAgo(ds),'день','дня','дней')+' назад</span>':'');
+    html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past&&!tailMode?'past':'')+' '+(tailMode?'tail':'')+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
       evs.map(e=>{
         const tdata={kind:e.kind,id:e.id,text:e.text};
