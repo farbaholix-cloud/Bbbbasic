@@ -53,6 +53,12 @@ INBOX_DIR = os.path.join(BASE_DIR, "finance_inbox")
 # их с выручкой нельзя ни для §19, ни для отчётности.
 BUSINESS_INCOME_CATS = ("client_income",)
 
+# Возврат клиенту (переплата, Rückerstattung). Хранится отрицательной суммой и
+# ВЫЧИТАЕТСЯ из выручки, а не попадает в расходы: иначе один и тот же возврат
+# завышал бы и доход, и затраты. Так было с Klügling Café — клиент заплатил
+# дважды, 1500 € вернули, и обе стороны операции считались по отдельности.
+CLIENT_REFUND_CAT = "client_refund"
+
 CURRENCY = "EUR"
 
 
@@ -448,6 +454,66 @@ def normalize_categories(conn):
     return {"recategorized_negative_income": moved}
 
 
+OVERRIDES_PATH = os.path.join(BASE_DIR, "finance_overrides.json")
+
+
+def apply_overrides(conn, path=None):
+    """Применить журнал ручных решений (finance_overrides.json).
+
+    Зачем файл, а не правка прямо в базе: база собирается заново из источников,
+    и любое решение, записанное только в неё, при следующей пересборке молча
+    исчезнет. Здесь оно переживает всё и лежит в git — видно, кто, когда и почему.
+
+    Решения человека имеют приоритет над автокатегоризацией, поэтому вызывается
+    ПОСЛЕ normalize_categories()."""
+    p = path or OVERRIDES_PATH
+    out = {"cancelled": 0, "recategorized": 0, "not_found": []}
+    if not os.path.exists(p):
+        return out
+    with open(p, "r", encoding="utf-8") as f:
+        ov = json.load(f)
+
+    for c in ov.get("cancelled_invoices", []):
+        cur = conn.execute(
+            "UPDATE fin_invoice SET cancelled=1, note=? WHERE number=? AND inv_date=?",
+            (c.get("reason", "")[:400], c.get("number"), to_iso(c.get("date"))))
+        if cur.rowcount:
+            # снять привязки: аннулированный счёт не должен «съедать» платёж
+            conn.execute("DELETE FROM fin_match WHERE invoice_id IN"
+                         " (SELECT id FROM fin_invoice WHERE number=? AND inv_date=?)",
+                         (c.get("number"), to_iso(c.get("date"))))
+            out["cancelled"] += cur.rowcount
+        else:
+            out["not_found"].append("счёт %s от %s" % (c.get("number"), c.get("date")))
+
+    for r in ov.get("payment_category", []):
+        cur = conn.execute(
+            "UPDATE fin_payment SET category=? WHERE val_date=? AND ABS(amount-?)<0.01"
+            " AND lower(party) LIKE ?",
+            (r.get("category"), to_iso(r.get("date")), float(r.get("amount")),
+             "%" + (r.get("party_like") or "").lower() + "%"))
+        if cur.rowcount:
+            out["recategorized"] += cur.rowcount
+        else:
+            out["not_found"].append("платёж %s на %s" % (r.get("date"), r.get("amount")))
+    return out
+
+
+PERSONAL_HINTS = ("overchuk", "privat", "darlehen", "bürgergeld", "buergergeld")
+
+
+def income_review(conn, floor=300.0):
+    """Крупные приходы, лежащие в other_income, — кандидаты на «это на самом деле
+    клиент». Именно так 3 000 € от Klügling Café выпали из выручки: банк пометил
+    их как прочий доход, и они не попадали ни в один отчёт. Личные переводы
+    (родственники, частные займы) отсеиваем по признакам."""
+    rows = conn.execute(
+        "SELECT * FROM fin_payment WHERE amount>=? AND category='other_income'"
+        " ORDER BY val_date", (floor,)).fetchall()
+    return [{"date": r["val_date"], "amount": round(r["amount"], 2), "party": r["party"]}
+            for r in rows if not any(h in (r["party"] or "").lower() for h in PERSONAL_HINTS)]
+
+
 def subcontractor_payments(conn, year=None):
     """Выплаты подрядчикам/другим художникам. Отдельная величина: от неё зависит
     Künstlersozialabgabe как Verwerter — вопрос к Юристу, но цифру даёт Финансист."""
@@ -711,12 +777,23 @@ def received(conn, year=None, month=None, business_only=True):
         where.append("substr(val_date,1,7)=?"); args.append(month)
     r = conn.execute("SELECT COALESCE(SUM(amount),0) s, COUNT(*) n FROM fin_payment"
                      " WHERE " + " AND ".join(where), args).fetchone()
-    return {"total": round(r["s"], 2), "count": r["n"]}
+    total, cnt = r["s"], r["n"]
+    if business_only:                       # вычесть возвраты клиентам за тот же период
+        w2, a2 = ["amount < 0", "category = ?"], [CLIENT_REFUND_CAT]
+        if year:
+            w2.append("substr(val_date,1,4)=?"); a2.append(str(year))
+        if month:
+            w2.append("substr(val_date,1,7)=?"); a2.append(month)
+        rf = conn.execute("SELECT COALESCE(SUM(amount),0) s FROM fin_payment"
+                          " WHERE " + " AND ".join(w2), a2).fetchone()
+        total += rf["s"]                    # сумма отрицательная — это вычитание
+    return {"total": round(total, 2), "count": cnt}
 
 
 def spent(conn, year=None, month=None):
-    """Сколько ушло (расходы, положительным числом)."""
-    where = ["amount < 0"]
+    """Сколько ушло (расходы, положительным числом). Возвраты клиентам сюда НЕ
+    входят — они уже вычтены из выручки в received()."""
+    where = ["amount < 0", "category != '%s'" % CLIENT_REFUND_CAT]
     args = []
     if year:
         where.append("substr(val_date,1,4)=?"); args.append(str(year))
@@ -747,9 +824,11 @@ def monthly(conn, ym_from=None, ym_to=None):
                           " WHERE cancelled=0 GROUP BY ym").fetchall():
         rows.setdefault(r["ym"], {})["invoiced"] = round(r["s"], 2)
     q = ("SELECT substr(val_date,1,7) ym,"
-         " SUM(CASE WHEN amount>0 AND category IN (%s) THEN amount ELSE 0 END) inc,"
-         " SUM(CASE WHEN amount<0 THEN -amount ELSE 0 END) exp"
-         " FROM fin_payment GROUP BY ym" % ",".join("?" * len(BUSINESS_INCOME_CATS)))
+         " SUM(CASE WHEN amount>0 AND category IN (%s) THEN amount"
+         "          WHEN amount<0 AND category='%s' THEN amount ELSE 0 END) inc,"
+         " SUM(CASE WHEN amount<0 AND category!='%s' THEN -amount ELSE 0 END) exp"
+         " FROM fin_payment GROUP BY ym"
+         % (",".join("?" * len(BUSINESS_INCOME_CATS)), CLIENT_REFUND_CAT, CLIENT_REFUND_CAT))
     for r in conn.execute(q, list(BUSINESS_INCOME_CATS)).fetchall():
         d = rows.setdefault(r["ym"], {})
         d["received"] = round(r["inc"], 2)
@@ -894,6 +973,13 @@ def context_block(conn, years=3):
             p = s["payment"]
             c = s["candidates"][0]["number"] if s["candidates"] else "—"
             L.append("  %s %.2f € «%s» → возможно счёт %s" % (p["date"], p["amount"], p["party"][:60], c))
+    rev = income_review(conn)
+    if rev:
+        L.append("")
+        L.append("ПРОЧИЙ ДОХОД НА ПРОВЕРКУ — крупные приходы вне выручки (%d):" % len(rev))
+        for r in rev:
+            L.append("  %s %.2f € «%s» — если это клиент, деньги сейчас НЕ в обороте"
+                     % (r["date"], r["amount"], r["party"][:60]))
     pe = planned_expenses(conn, 1)
     if pe["items"]:
         L.append("")
@@ -917,6 +1003,7 @@ def bootstrap(force=False, verbose=True):
                 report["imports"].append(fx(conn, p, force))
         report["imports"] += import_inbox(conn, force)
         report["normalize"] = normalize_categories(conn)
+        report["overrides"] = apply_overrides(conn)   # решения человека — после автоматики
         report["reconcile"] = reconcile(conn)
         meta_set(conn, "last_bootstrap", datetime.now().isoformat(timespec="seconds"))
         report["coverage"] = {k: v for k, v in coverage(conn).items() if k != "sources"}

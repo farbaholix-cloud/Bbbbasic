@@ -158,8 +158,17 @@ def r_open():
 def r_todo():
     with fc.fdb_ro() as c:
         sug = fc.suggest_matches(c)
+        rev = fc.income_review(c)
+    tail = []
+    if rev:
+        # Отдельный класс ошибок: банк пометил приход как «прочий доход», и деньги
+        # не попали в выручку вообще. Так выпали 3 000 € от Klügling Café.
+        tail = ["", "*Прочий доход — это точно не клиент?* (%d)" % len(rev),
+                "_Если клиент — деньги сейчас НЕ в выручке._"]
+        for r in rev:
+            tail.append("• %s · %s — `%s`" % (r["date"], _eur(r["amount"]), r["party"][:80]))
     if not sug:
-        return "Все поступления разнесены по счетам."
+        return "Все поступления разнесены по счетам." + ("\n".join(tail) if tail else "")
     L = ["*Поступления без однозначного счёта — %d*" % len(sug),
          "_Я не угадываю: подтверди, и я запишу._", ""]
     for s in sug:
@@ -172,7 +181,7 @@ def r_todo():
             L.append("  → похожих счетов нет — возможно, это не оплата счёта")
     L.append("")
     L.append("Подтвердить: `/link <номер счёта> <дата платежа> <сумма>`")
-    return "\n".join(L)
+    return "\n".join(L + tail)
 
 
 def r_sum():
