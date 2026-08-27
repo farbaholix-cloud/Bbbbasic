@@ -1409,6 +1409,15 @@ input[type=range].urg{background:linear-gradient(90deg,var(--cyan),var(--blue))}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.45);cursor:pointer}
 .sh-quad{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:14px;font-size:13px;font-weight:800;margin:14px 0}
 .sh-days{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+/* Частые кнопки — крупнее и цветом: «сегодня»/«завтра» и «выполнено». */
+.sh-days-hot{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:7px}
+.sh-days-hot .sh-day{padding:14px 4px;font-size:15px;font-weight:900;border-radius:13px;
+  background:linear-gradient(135deg,rgba(91,157,255,.32),rgba(124,92,255,.24));
+  border-color:rgba(140,180,255,.5);color:#fff}
+.sh-days-rest{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}
+.sh-days-rest .sh-day{padding:8px 3px;font-size:12px;font-weight:700;border-radius:10px}
+.sh-btn.go{flex:1.5;background:linear-gradient(135deg,#2fa76b,#52e08a);
+  border-color:rgba(255,255,255,.28);color:#06180d;font-size:15px;font-weight:900}
 .sh-day{background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 4px;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
 .sh-picker{display:flex;gap:8px;margin-bottom:12px}
 .sh-picker select{flex:1;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px;font-size:15px;-webkit-appearance:none;text-align:center}
@@ -3168,10 +3177,14 @@ function openTask(t){
   const now=new Date();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';sheet.classList.add('mac-top-left');
-  let dayBtns='';
+  // «Сегодня» и «завтра» отдельным крупным рядом — на них приходится почти весь
+  // перенос, и искать их среди одинаковых кнопок незачем.
+  let hotBtns='',restBtns='';
   for(let i=0;i<8;i++){const dd=new Date(now);dd.setDate(now.getDate()+i);const ds=localISO(dd);
     const lbl=i===0?'сегодня':i===1?'завтра':DOW[(dd.getDay()+6)%7]+' '+dd.getDate();
-    dayBtns+='<button class="sh-day" data-date="'+ds+'">'+lbl+'</button>';}
+    const b='<button class="sh-day" data-date="'+ds+'">'+lbl+'</button>';
+    if(i<2)hotBtns+=b;else restBtns+=b;}
+  const dayBtns='<div class="sh-days-hot">'+hotBtns+'</div><div class="sh-days-rest">'+restBtns+'</div>';
   let rateBlock='';
   if(t.kind==='chaos'){
     const imp=t.imp||5,urg=t.urg||5;
@@ -3202,14 +3215,14 @@ function openTask(t){
     rateBlock+
     projBlock+mbBlock+commentBlock+
     '<div class="sh-divider"></div>'+
-    '<div class="sh-days">'+dayBtns+'</div>'+
+    dayBtns+
     '<div class="sh-picker"><input type="date" id="sh-date" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).date)||localISO(now))+'">'+
     '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'" title="Начало (пусто — без времени)">'+
     '<input type="time" id="sh-time2" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time_end)||'')+'" title="Конец">'+
     // подпись по смыслу действия: у события поля предзаполнены его же датой/временем —
     // это правка; вводную кнопка впервые кладёт в календарь; напоминание переносит
     '<button id="sh-go">'+(t.kind==='event'?'💾 Сохранить':t.kind==='reminder'?'📅 Перенести':'📅 Запланировать')+'</button></div>'+
-    '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
+    '<div class="sh-actions"><button class="sh-btn go" id="sh-done">✅ выполнено</button>'+
     '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>'+
     (t.kind==='event'?'<button class="sh-act sh-del" id="sh-evdel" style="margin-top:10px;width:100%">🗑 Удалить навсегда</button>':'');
   document.body.appendChild(sheet);

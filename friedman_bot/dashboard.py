@@ -1136,10 +1136,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .gstep-row .gst-act:active{opacity:1;background:rgba(255,255,255,.12);transform:scale(.88)}
 .gstep-row .gst-act.del:active{background:rgba(255,107,125,.2)}
 .gstep-row .gst-act.on{opacity:.9}
-.sh-proj-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--rim);margin-top:6px;overflow:hidden}
-.sh-comment-wrap{padding:10px 0 2px;border-top:1px solid var(--rim);margin-top:6px}
-.sh-comment-lbl{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:7px}
-.sh-comment{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:12px;color:#fff;font-size:13.5px;font-family:inherit;line-height:1.4;padding:10px 12px;resize:vertical;min-height:42px;outline:none}
+.sh-proj-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--rim);margin-top:6px;overflow:hidden}
+.sh-comment-wrap{padding:7px 0 2px;border-top:1px solid var(--rim);margin-top:4px}
+.sh-comment-lbl{font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:4px}
+.sh-comment{width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid var(--rim);border-radius:12px;color:#fff;font-size:13.5px;font-family:inherit;line-height:1.4;padding:7px 11px;resize:vertical;min-height:34px;outline:none}
 .sh-comment:focus{border-color:rgba(91,157,255,.5)}
 .cmt-dot{font-size:10px;opacity:.65;margin-left:4px;flex-shrink:0}
 .pm-move{display:flex;gap:8px;margin:12px 0 4px}
@@ -1284,40 +1284,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .page{display:none}.page.on{display:block}
 /* bottom sheet */
 #sheet-bg{position:fixed;inset:0;background:rgba(5,6,12,.55);backdrop-filter:blur(3px);z-index:40}
-#sheet{position:fixed;left:8px;right:8px;bottom:10px;z-index:41;padding:18px 18px calc(20px + env(safe-area-inset-bottom));border-radius:30px;max-width:544px;margin:0 auto;
-  max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+#sheet{position:fixed;left:8px;right:8px;bottom:8px;z-index:41;padding:13px 15px calc(13px + env(safe-area-inset-bottom));border-radius:26px;max-width:544px;margin:0 auto;
+  max-height:90vh;max-height:93dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   transform:translateY(40px);opacity:0;transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .25s}
-.grab{width:42px;height:5px;border-radius:3px;background:var(--rim2);margin:0 auto 16px}
-.stitle{font-size:16px;font-weight:800;text-align:center;margin-bottom:3px}
+.grab{width:38px;height:4px;border-radius:3px;background:var(--rim2);margin:0 auto 9px}
+.stitle{font-size:14.5px;font-weight:800;text-align:center;margin-bottom:2px;line-height:1.25}
 .stitle-row{display:flex;align-items:center;gap:8px;margin-bottom:3px}
 .stitle-row .stitle{flex:1;min-width:0;margin:0}
-.title-edit-spacer{width:34px;flex-shrink:0}
-.title-edit-btn{width:34px;height:34px;flex-shrink:0;border-radius:11px;border:1px solid var(--rim);
+.title-edit-spacer{width:30px;flex-shrink:0}
+.title-edit-btn{width:30px;height:30px;flex-shrink:0;border-radius:11px;border:1px solid var(--rim);
   background:rgba(255,255,255,.06);color:rgba(235,240,250,.6);font-size:15px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
 .title-edit-btn:active{background:rgba(255,255,255,.16);transform:scale(.92)}
-.ssub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px;font-weight:600}
-.slider-row{margin-bottom:16px}
-.sl-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:9px}
+.ssub{font-size:11.5px;color:var(--muted);text-align:center;margin-bottom:9px;font-weight:600}
+.slider-row{margin-bottom:9px}
+.sl-top{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:5px}
 .sl-top .val{color:var(--blue)}
-input[type=range]{-webkit-appearance:none;width:100%;height:10px;border-radius:6px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);outline:none}
+input[type=range]{-webkit-appearance:none;width:100%;height:9px;border-radius:6px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);outline:none}
 input[type=range].imp{background:linear-gradient(90deg,var(--amber),var(--red))}
 input[type=range].urg{background:linear-gradient(90deg,var(--cyan),var(--blue))}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.45);cursor:pointer}
-.sh-quad{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:14px;font-size:13px;font-weight:800;margin:14px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:23px;height:23px;border-radius:50%;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.45);cursor:pointer}
+.sh-quad{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px;border-radius:12px;font-size:12.5px;font-weight:800;margin:8px 0}
 .sh-days{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
 .sh-day{background:rgba(0,0,0,.25);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 4px;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
-.sh-picker{display:flex;gap:8px;margin-bottom:12px;align-items:stretch}
+.sh-picker{display:flex;gap:7px;margin-bottom:9px;align-items:stretch}
 .sh-picker select{flex:1;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px;font-size:15px;-webkit-appearance:none;text-align:center}
-.sh-picker input[type=date],.sh-picker input[type=time]{flex:1;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px 8px;font-size:15px;font-weight:700;font-family:inherit;text-align:center;-webkit-appearance:none}
+.sh-picker input[type=date],.sh-picker input[type=time]{flex:1;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:11px;color:var(--txt);padding:9px 6px;font-size:13.5px;font-weight:700;font-family:inherit;text-align:center;-webkit-appearance:none}
 .sh-picker input[type=time]{flex:.8}
-.sh-picker button{flex:1.2;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:12px;color:#fff;padding:11px 6px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
-.sh-pick-lbl{font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:2px 0 8px;letter-spacing:.3px}
-.sh-actions{display:flex;gap:10px;margin-top:4px}
-.sh-btn{flex:1;padding:14px;border-radius:15px;font-size:13.5px;font-weight:800;text-align:center;border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer}
+.sh-picker button{flex:1.2;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:11px;color:#fff;padding:9px 6px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+.sh-pick-lbl{font-size:10.5px;color:var(--muted);font-weight:700;text-align:center;margin:1px 0 5px;letter-spacing:.3px}
+.sh-actions{display:flex;gap:9px;margin-top:3px;align-items:stretch}
+.sh-btn{flex:1;padding:12px;border-radius:14px;font-size:13.5px;font-weight:800;text-align:center;border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer}
 .sh-btn.prime{background:linear-gradient(135deg,var(--blue),var(--violet));border-color:rgba(255,255,255,.3)}
-.sh-btn.danger{color:#ff9aa6}
-.sh-divider{height:1px;background:var(--rim);margin:14px 0}
+.sh-btn.danger{color:#ff9aa6;flex:.85;font-size:12.5px}
+/* Частые кнопки крупнее и цветом: «сегодня»/«завтра» и «выполнено» нажимают
+   в разы чаще остального, поэтому они не должны выглядеть как соседи по ряду. */
+.sh-foot{position:sticky;bottom:calc(-13px - env(safe-area-inset-bottom));z-index:2;
+  margin:0 -15px calc(-13px - env(safe-area-inset-bottom));
+  padding:9px 15px calc(11px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,rgba(12,14,24,0),rgba(12,14,24,.93) 30%);
+  backdrop-filter:blur(6px)}
+.sh-foot .sh-actions{margin-top:0}
+.sh-btn.go{flex:1.5;background:linear-gradient(135deg,#2fa76b,#52e08a);
+  border-color:rgba(255,255,255,.28);color:#06180d;font-size:15px;font-weight:900;padding:14px}
+.sh-btn.go:active{transform:scale(.97)}
+.sh-days-hot{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.sh-days-hot .sh-day{padding:13px 4px;font-size:14.5px;font-weight:900;border-radius:13px;
+  background:linear-gradient(135deg,rgba(91,157,255,.32),rgba(124,92,255,.24));
+  border-color:rgba(140,180,255,.5);color:#fff}
+.sh-days-hot .sh-day:active{transform:scale(.96)}
+.sh-days-rest{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.sh-days-rest .sh-day{padding:7px 2px;font-size:11.5px;font-weight:700;border-radius:10px}
+.sh-divider{height:1px;background:var(--rim);margin:9px 0}
 .sh-act{width:100%;padding:15px;border-radius:16px;font-size:14px;font-weight:800;text-align:center;
   border:1px solid var(--rim);color:#fff;background:var(--glass2);cursor:pointer;letter-spacing:.2px}
 .sh-act.sh-del{color:var(--red)}
@@ -2949,10 +2967,15 @@ function openTask(t){
   const now=new Date();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
-  let dayBtns='';
-  for(let i=0;i<8;i++){const dd=new Date(now);dd.setDate(now.getDate()+i);const ds=localISO(dd);
+  // «Сегодня» и «завтра» — отдельным рядом и крупно: на них приходится почти
+  // весь перенос. Остальные дни ужаты в три колонки — они нужны реже и не должны
+  // занимать пол-экрана, из-за чего лист не помещался и его приходилось листать.
+  let hotBtns='',restBtns='';
+  for(let i=0;i<7;i++){const dd=new Date(now);dd.setDate(now.getDate()+i);const ds=localISO(dd);
     const lbl=i===0?'сегодня':i===1?'завтра':DOW[(dd.getDay()+6)%7]+' '+dd.getDate();
-    dayBtns+='<button class="sh-day" data-date="'+ds+'">'+lbl+'</button>';}
+    const b='<button class="sh-day" data-date="'+ds+'">'+lbl+'</button>';
+    if(i<2)hotBtns+=b;else restBtns+=b;}
+  const dayBtns='<div class="sh-days-hot">'+hotBtns+'</div><div class="sh-days-rest">'+restBtns+'</div>';
   let rateBlock='';
   if(t.kind==='chaos'||t.kind==='event'){
     const imp=t.imp||0,urg=t.urg||0;
@@ -2983,16 +3006,16 @@ function openTask(t){
     rateBlock+
     projBlock+mbBlock+commentBlock+
     '<div class="sh-divider"></div>'+
-    '<div class="sh-days">'+dayBtns+'</div>'+
+    dayBtns+
     '<div class="sh-pick-lbl">или выбери дату и время (начало · конец)</div>'+
     '<div class="sh-picker">'+
       '<input type="date" id="sh-date" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).date)||localISO(now))+'">'+
       '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'" title="Начало">'+
       '<input type="time" id="sh-time2" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time_end)||'')+'" title="Конец">'+
       '<button id="sh-go">📅</button></div>'+
-    '<div class="sh-actions"><button class="sh-btn" id="sh-done">✅ выполнено</button>'+
-    '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div>'+
-    (t.kind==='event'?'<button class="sh-act sh-del" id="sh-evdel" style="margin-top:10px;width:100%">🗑 Удалить навсегда</button>':'');
+    (t.kind==='event'?'<button class="sh-act sh-del" id="sh-evdel" style="margin:0 0 7px;width:100%;padding:10px;font-size:12px;border-radius:12px">🗑 Удалить навсегда</button>':'')+
+    '<div class="sh-foot"><div class="sh-actions"><button class="sh-btn go" id="sh-done">✅ выполнено</button>'+
+    '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div></div>';
   document.body.appendChild(sheet);
   requestAnimationFrame(()=>{sheet.style.transform='translateY(0)';sheet.style.opacity='1';});
   _swipeDismiss(sheet,closeSheet);
