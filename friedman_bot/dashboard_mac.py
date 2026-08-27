@@ -517,21 +517,21 @@ def get_data():
         # умолчанию) — график показывал оборот, которого на счету не было.
         income_flow, income_covered_to = [], None
         income_reason = None
-        income_daily = []
+        income_forecast = {}
         try:
             import finance_core as _fin
             _fl = _fin.income_flow_for_dashboard()
             income_flow = _fl["rows"]
             income_covered_to = _fl["covered_to"]
             income_reason = _fl.get("reason")
-            income_daily = _fl.get("daily") or []
+            income_forecast = _fl.get("forecast") or {}
         except Exception as _e:
             # молчать нельзя: пустой график без причины невозможно чинить
             income_reason = "finance_core недоступен: %s" % str(_e)[:120]
         rev = _read_rev(conn)
     return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals,
             "income_flow": income_flow, "income_covered_to": income_covered_to,
-            "income_reason": income_reason, "income_daily": income_daily,
+            "income_reason": income_reason, "income_forecast": income_forecast,
             "balance": balance, "cash": cash, "card": card, "fin_log": fin_log,
             "debts": debts, "payments": payments,
             "spend_today": spend_today, "spend_week": spend_week,
@@ -1768,7 +1768,7 @@ select,textarea,.idea-txt{font-size:14px}
   <div class="page on" id="page-plan">
     <div class="block glass flow-block">
       <div class="bh" style="margin-bottom:6px">
-        <div class="t">⚡ Поток дохода <span class="sm">деньги на счету · по выписке</span></div>
+        <div class="t">⚡ Поток дохода <span class="sm">по выписке · пунктир: дожать / ничего не делать</span></div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="cnt" id="flow-total"></span>
           <div class="tog mini" id="flow-anim" title="пульсация энергии"><div class="tog-k"></div></div>
@@ -3953,45 +3953,52 @@ let _flowRAF=null;
 const _YMM=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 function _ymNext(ym){let[y,m]=ym.split('-').map(Number);m++;if(m>12){m=1;y++;}return y+'-'+String(m).padStart(2,'0');}
 function _ymLabel(ym){const[y,m]=ym.split('-');return _YMM[+m-1]+' '+y.slice(2);}
-function _dLabel(dt){return dt.getDate()+' '+_YMM[dt.getMonth()];}
-// «3 месяца» по месяцам — это две-три точки, то есть отрезок между краями.
-// Разбиваем окно на N равных корзин и суммируем дневной приход в каждую:
-// видно не только сколько пришло за месяц, но и когда именно.
-function _flowBuckets(nPoints){
-  const daily=(DATA&&DATA.income_daily)||[];
-  if(!daily.length)return null;
-  const now=new Date();
-  const from=new Date(now.getFullYear(),now.getMonth()-2,1);
-  const t0=from.getTime(),t1=now.getTime()+86400000,span=t1-t0;
-  if(span<=0)return null;
-  const acc=new Array(nPoints).fill(0);
-  let hit=0;
-  daily.forEach(x=>{
-    const t=new Date(x.d+'T12:00:00').getTime();
-    if(t<t0||t>=t1)return;
-    let k=Math.floor((t-t0)/span*nPoints);
-    if(k<0)k=0; if(k>=nPoints)k=nPoints-1;
-    acc[k]+=x.total; hit++;
-  });
-  if(!hit)return null;                       // в окне нет движения — пусть решает месячная логика
-  return acc.map((v,i)=>({ym:'',total:Math.max(0,v),pt:true,
-    label:_dLabel(new Date(t0+span*(i+0.5)/nPoints))}));
-}
 function _rowLabel(r){return r.label||_ymLabel(r.ym);}
-function _flowFilled(){
-  if(_flowPeriod==='3'){const b=_flowBuckets(11);if(b)return b;}   // 2 края + 9 между
-  let rows=((DATA&&DATA.income_flow)||[]).filter(r=>r.ym&&(r.total||0)>0);
-  if(_flowPeriod!=='all'){
-    const nP=+_flowPeriod;const now=new Date();
-    const cut=new Date(now.getFullYear(),now.getMonth()-nP+1,1);
-    const cutYm=cut.getFullYear()+'-'+String(cut.getMonth()+1).padStart(2,'0');
-    rows=rows.filter(r=>r.ym>=cutYm);
+const _FCH=3;                       // горизонт сценариев, месяцев
+// Развилка. Обе ветки идут из ПОСЛЕДНЕГО фактического месяца и опираются только
+// на проверяемые числа (их считает Финансист, см. forecast_anchors):
+//   красная «если ничего не делать» — приходят лишь уже выставленные счета,
+//     новых заказов нет, за горизонт линия садится в ноль;
+//   зелёная «если дожать» — за тот же срок выходишь на свой ЛУЧШИЙ месяц за год.
+//     Это не обещание: столько он уже зарабатывал, значит это достижимо.
+function _flowScenarios(rows){
+  const f=(DATA&&DATA.income_forecast)||null;
+  if(!f||!rows.length)return null;
+  const last=rows[rows.length-1].total;
+  const openT=Math.max(0,f.open_total||0);
+  const target=Math.max(f.best12||0,last*1.3,(f.avg3||0)*1.5);
+  if(target<=0&&openT<=0)return null;
+  const bad=[],good=[];
+  for(let i=0;i<_FCH;i++){
+    bad.push(_FCH>1?openT*(_FCH-1-i)/(_FCH-1):0);
+    good.push(last+(target-last)*(i+1)/_FCH);
   }
-  if(!rows.length)return [];
-  // заполнить пропущенные месяцы нулями — линия непрерывна во времени
-  const map={};rows.forEach(r=>{map[r.ym]=r.total;});
-  const out=[];let cur=rows[0].ym;const last=rows[rows.length-1].ym;let guard=0;
-  while(cur<=last&&guard++<400){out.push({ym:cur,total:map[cur]||0});cur=_ymNext(cur);}
+  let ym=rows[rows.length-1].ym;const labels=[];
+  for(let i=0;i<_FCH;i++){ym=_ymNext(ym);labels.push(ym);}
+  return {bad:bad,good:good,labels:labels,target:target,openT:openT};
+}
+function _flowFilled(){
+  // Помесячно и БЕЗ пропусков: месяц без поступлений — это тоже факт, и на
+  // коротком окне он важен. Раньше нулевые месяцы отбрасывались, из-за чего
+  // «3 месяца» превращались в две точки и динамику было не прочитать.
+  const all=((DATA&&DATA.income_flow)||[]).filter(r=>r.ym);
+  if(!all.length)return [];
+  const map={};all.forEach(r=>{map[r.ym]=r.total||0;});
+  const now=new Date();
+  const curYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  let from,to;
+  if(_flowPeriod==='all'){
+    const nz=all.filter(r=>(r.total||0)>0);
+    if(!nz.length)return [];
+    from=nz[0].ym;to=nz[nz.length-1].ym;
+  }else{
+    const nP=+_flowPeriod;
+    const cut=new Date(now.getFullYear(),now.getMonth()-nP+1,1);
+    from=cut.getFullYear()+'-'+String(cut.getMonth()+1).padStart(2,'0');
+    to=curYm;
+  }
+  const out=[];let cur=from,guard=0;
+  while(cur<=to&&guard++<400){out.push({ym:cur,total:map[cur]||0});cur=_ymNext(cur);}
   return out;
 }
 function drawFlowChart(phase){
@@ -4011,40 +4018,77 @@ function drawFlowChart(phase){
     const why=(DATA&&DATA.income_reason)||'';
     ctx.fillText(why?'нет данных: '+why:'нет данных — пришли Финансисту выписку',w/2,h/2);return;
   }
-  const max=Math.max(...rows.map(r=>r.total),1);
-  const n=rows.length;
+  const SC=_flowScenarios(rows);
+  const nA=rows.length, H=SC?_FCH:0, n=nA+H;
+  const max=Math.max(...rows.map(r=>r.total), SC?Math.max(...SC.good):0, 1);
   const X=i=>padL+(w-padL-padR)*(n===1?0.5:i/(n-1));
   const Y=v=>padT+(h-padT-padB)*(1-v/max);
   // сетка
   ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
   for(let i=1;i<=4;i++){const y=padT+(h-padT-padB)*(1-i/4);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(w-padR,y);ctx.stroke();}
-  // заливка под линией
+  // заливка под фактической линией
   const grad=ctx.createLinearGradient(0,padT,0,h-padB);
   grad.addColorStop(0,'rgba(82,224,138,.26)');grad.addColorStop(1,'rgba(91,157,255,.02)');
   ctx.beginPath();
   rows.forEach((r,i)=>{const x=X(i),y=Y(r.total);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-  ctx.lineTo(X(n-1),h-padB);ctx.lineTo(X(0),h-padB);ctx.closePath();
+  ctx.lineTo(X(nA-1),h-padB);ctx.lineTo(X(0),h-padB);ctx.closePath();
   ctx.fillStyle=grad;ctx.fill();
-  // линия
+
+  if(SC){
+    // «конус возможностей» между худшим и лучшим — вся площадь между ветками
+    // это и есть то, что решается действиями, а не обстоятельствами
+    ctx.beginPath();
+    ctx.moveTo(X(nA-1),Y(rows[nA-1].total));
+    SC.good.forEach((v,k)=>ctx.lineTo(X(nA+k),Y(v)));
+    for(let k=H-1;k>=0;k--)ctx.lineTo(X(nA+k),Y(SC.bad[k]));
+    ctx.closePath();
+    ctx.fillStyle='rgba(120,180,255,.07)';ctx.fill();
+    // вертикаль «сейчас» на развилке
+    ctx.save();ctx.setLineDash([4,6]);ctx.strokeStyle='rgba(235,240,250,.22)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(X(nA-1),padT-6);ctx.lineTo(X(nA-1),h-padB);ctx.stroke();ctx.restore();
+    const branch=(vals,col,dash)=>{
+      ctx.save();ctx.setLineDash(dash);ctx.strokeStyle=col;ctx.lineWidth=3;
+      ctx.lineJoin='round';ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(X(nA-1),Y(rows[nA-1].total));
+      vals.forEach((v,k)=>ctx.lineTo(X(nA+k),Y(v)));
+      ctx.stroke();ctx.restore();
+      vals.forEach((v,k)=>{
+        ctx.fillStyle=col;ctx.beginPath();ctx.arc(X(nA+k),Y(v),k===H-1?4.5:2.8,0,Math.PI*2);ctx.fill();});
+    };
+    branch(SC.bad,'rgba(255,90,110,.85)',[7,6]);
+    branch(SC.good,'rgba(82,224,138,.9)',[7,6]);
+    // подписи концов веток
+    ctx.font=`bold ${Math.max(9,w/44)}px -apple-system,sans-serif`;ctx.textBaseline='middle';
+    const gx=X(n-1),gy=Y(SC.good[H-1]),bx=X(n-1),by=Y(SC.bad[H-1]);
+    ctx.textAlign='right';
+    ctx.fillStyle='rgba(82,224,138,.95)';ctx.fillText(eur(SC.good[H-1]),gx-2,Math.max(padT+8,gy-14));
+    ctx.fillStyle='rgba(255,90,110,.9)';ctx.fillText(eur(SC.bad[H-1]),bx-2,Math.min(h-padB-10,by+15));
+  }
+
+  // фактическая линия
   const lg=ctx.createLinearGradient(padL,0,w-padR,0);
   lg.addColorStop(0,'#5b9dff');lg.addColorStop(1,'#52e08a');
   ctx.strokeStyle=lg;ctx.lineWidth=3.5;ctx.lineJoin='round';ctx.lineCap='round';
   ctx.beginPath();
   rows.forEach((r,i)=>{const x=X(i),y=Y(r.total);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
   ctx.stroke();
-  // подписи месяцев: первый (у левого края), середина, последний (у правого) — без обрезки
+  // подписи месяцев
   ctx.fillStyle='rgba(235,240,250,.35)';ctx.font=`${Math.max(9,w/42)}px -apple-system,sans-serif`;ctx.textBaseline='alphabetic';
-  const midI=Math.floor((n-1)/2);
   ctx.textAlign='left';ctx.fillText(_rowLabel(rows[0]),padL,h-8);
-  ctx.textAlign='right';ctx.fillText(_rowLabel(rows[n-1]),w-padR,h-8);
-  if(midI!==0&&midI!==n-1){ctx.textAlign='center';ctx.fillText(_rowLabel(rows[midI]),X(midI),h-8);}
-  // точки: чем выше сумма — тем крупнее и ярче пульсирующее свечение
+  if(SC){
+    ctx.textAlign='center';ctx.fillText(_ymLabel(rows[nA-1].ym),X(nA-1),h-8);
+    ctx.textAlign='right';ctx.fillText(_ymLabel(SC.labels[H-1]),w-padR,h-8);
+  }else{
+    ctx.textAlign='right';ctx.fillText(_rowLabel(rows[nA-1]),w-padR,h-8);
+    const midI=Math.floor((nA-1)/2);
+    if(midI!==0&&midI!==nA-1){ctx.textAlign='center';ctx.fillText(_rowLabel(rows[midI]),X(midI),h-8);}
+  }
+  // точки месяцев
   const maxIdx=rows.reduce((mi,r,i)=>r.total>rows[mi].total?i:mi,0);
   rows.forEach((r,i)=>{
-    if(r.total<=0){
-      if(!r.pt)return;                       // нулевые МЕСЯЦЫ — без точек
-      const xz=X(i),yz=Y(0);                 // нулевая корзина — тусклый чекпоинт
-      ctx.fillStyle='rgba(235,240,250,.30)';ctx.beginPath();ctx.arc(xz,yz,2.6,0,Math.PI*2);ctx.fill();
+    if(r.total<=0){                          // месяц без поступлений — тусклая метка,
+      const xz=X(i),yz=Y(0);                 // но метка есть: ноль тоже показатель
+      ctx.fillStyle='rgba(235,240,250,.28)';ctx.beginPath();ctx.arc(xz,yz,2.6,0,Math.PI*2);ctx.fill();
       return;
     }
     const x=X(i),y=Y(r.total),k=r.total/max;

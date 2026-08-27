@@ -964,19 +964,27 @@ def planned_expenses(conn, months=1):
     return {"months": months, "total": round(total, 2), "items": items}
 
 
-def daily_income(conn, days=400):
-    """Приход по ДНЯМ (нетто возвратов) — для мелкой шкалы графика.
+def forecast_anchors(conn):
+    """Опоры для двух сценариев на графике. Никаких выдуманных коэффициентов —
+    только числа, которые владелец может проверить сам:
 
-    Помесячных сумм хватает на длинных периодах, но на «3 месяца» их всего две-три
-    и линия вырождается в отрезок между краями. По дням видно, КОГДА деньги
-    реально приходили, а не только сколько вышло за месяц."""
-    q = ("SELECT val_date d,"
-         " SUM(CASE WHEN amount>0 AND category IN (%s) THEN amount"
-         "          WHEN amount<0 AND category='%s' THEN amount ELSE 0 END) s"
-         " FROM fin_payment GROUP BY d HAVING s<>0 ORDER BY d"
-         % (",".join("?" * len(BUSINESS_INCOME_CATS)), CLIENT_REFUND_CAT))
-    rows = conn.execute(q, list(BUSINESS_INCOME_CATS)).fetchall()
-    return [{"d": r["d"], "total": round(r["s"], 2)} for r in rows][-days:]
+      best12     — лучший месяц за последние 12 месяцев. Это доказанный потолок:
+                   столько он УЖЕ зарабатывал, значит может снова.
+      avg3       — средний приход за последние 3 месяца: текущий темп.
+      open_total — сумма уже выставленных, но неоплаченных счетов. Это единственные
+                   деньги, которые придут, даже если не делать вообще ничего.
+
+    Из них дашборд строит развилку: «если дожать» и «если ничего не делать».
+    Сценарий — не прогноз и не обещание; это две границы того, что в руках."""
+    ms = monthly(conn)
+    last12 = [m["received"] for m in ms[-12:]]
+    last3 = [m["received"] for m in ms[-3:]]
+    op = open_invoices(conn)
+    return {"best12": round(max(last12) if last12 else 0.0, 2),
+            "avg3": round(sum(last3) / len(last3), 2) if last3 else 0.0,
+            "open_total": round(sum(o["open"] for o in op), 2),
+            "last_ym": ms[-1]["ym"] if ms else None,
+            "last_total": round(ms[-1]["received"], 2) if ms else 0.0}
 
 
 def income_flow_for_dashboard(autobuild=True):
@@ -1011,7 +1019,7 @@ def income_flow_for_dashboard(autobuild=True):
                         "reason": "в базе 0 операций; в finance_inbox: %s"
                                   % (", ".join(names) if names else "пусто")}
             return {"rows": rows, "covered_to": cov["bank_to"], "reason": None,
-                    "daily": daily_income(conn)}
+                    "forecast": forecast_anchors(conn)}
     except Exception as e:
         return {"rows": [], "covered_to": None, "reason": "чтение базы: %s" % str(e)[:120]}
 
