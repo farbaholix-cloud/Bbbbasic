@@ -4894,6 +4894,29 @@ class Handler(BaseHTTPRequestHandler):
                    "application/json; charset=utf-8")
 
 
+def _fin_bootstrap_bg():
+    """Собрать базу Финансиста в фоне при старте дашборда.
+
+    Дашборд читает finance.db только на чтение, но если её ещё нет (первый
+    запуск, чистый сервер) — график «Поток дохода» остался бы пуст и молчал бы
+    об этом. Источники лежат рядом в репозитории, импорт идемпотентен, поэтому
+    собираем сами. В отдельном потоке: старт HTTP-сервера ждать этого не должен.
+    """
+    import threading
+
+    def run():
+        try:
+            import finance_core as _fin
+            _fin.bootstrap(verbose=False)
+        except Exception as e:
+            print("finance.db не собралась: %s" % e)
+    try:
+        threading.Thread(target=run, daemon=True, name="fin-bootstrap").start()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
+    _fin_bootstrap_bg()   # база Финансиста готовится параллельно старту
     print(f"Дашборд Mac: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

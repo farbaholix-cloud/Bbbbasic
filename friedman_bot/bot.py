@@ -5284,7 +5284,12 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "finance_bot.py",
                 "finance_backup.py",
                 "finance_kb/SKILL.md",
-                "finance_inbox/README.md"]
+                "finance_inbox/README.md",
+                # данные Финансиста: без них база на сервере пустая
+                "finance_overrides.json",
+                "finance_inbox/invoices_2026H2.json",
+                "finance_inbox/bank_2026-07.json",
+                "finance_inbox/bank_2026-08.json"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -5366,7 +5371,9 @@ def ensure_legal_kb():
              # Финансист: доезжает только самолечением — у развёрнутого бота в
              # UPDATE_FILES ещё старый список, где этих файлов нет
              "finance_core.py", "finance_bot.py", "finance_backup.py",
-             "finance_kb/SKILL.md", "finance_inbox/README.md"]
+             "finance_kb/SKILL.md", "finance_inbox/README.md",
+             "finance_overrides.json", "finance_inbox/invoices_2026H2.json",
+             "finance_inbox/bank_2026-07.json", "finance_inbox/bank_2026-08.json"]
             + [x for x in UPDATE_FILES if x.startswith("legal_kb/")])
     for f in need:
         dest = os.path.join(d, f)
@@ -5566,28 +5573,22 @@ def _restart_director(d):
 
 
 def _restart_finance(d):
-    """Поднять/перезапустить Финансист-бота (finance_bot.py) — тот же паттерн, что
-    у остальных. Отличие: Финансисту нужны ещё два своих модуля и база знаний,
-    поэтому чиним весь комплект, а не один файл. И сразу собираем finance.db —
-    бот должен уметь ответить точной цифрой с первого же вопроса."""
+    """Поднять/перезапустить Финансист-бота (finance_bot.py).
+
+    ВАЖНО — здесь нельзя делать ничего долгого. Функция вызывается СИНХРОННО при
+    старте Секретаря и из сторожа каждые 5 минут. В первой версии тут качались
+    пять файлов с GitHub (до 30 с таймаута на каждый) и целиком собиралась
+    finance.db. Пока это шло, Секретарь не отвечал, а вместе с ним не поднимался
+    и дашборд — его запускает тот же процесс. Сборку базы делает сам
+    finance_bot.py при старте, в своём процессе; здесь — только запуск."""
     import sys
     if not get_finance_token():
         log.info("Токен Финансист-бота не задан — Финансиста не запускаю")
         return
-    for f in ("finance_core.py", "finance_bot.py", "finance_backup.py",
-              "finance_kb/SKILL.md", "finance_inbox/README.md"):
-        if not _ensure_sibling_file(d, f) and f.endswith(".py"):
+    for f in ("finance_core.py", "finance_bot.py"):
+        if not _ensure_sibling_file(d, f):
             log.error(f"{f} отсутствует и не скачался — не запускаю Финансиста")
             return
-    try:
-        sys.path.insert(0, d)
-        import finance_core as _fin
-        rep = _fin.bootstrap(verbose=False)
-        log.info("finance.db готова: счетов/платежей импортировано %s, открыто счетов %s",
-                 sum(i.get("new", 0) for i in rep["imports"]),
-                 rep["reconcile"]["invoices_open"])
-    except Exception as e:
-        log.error(f"finance bootstrap: {e}")   # бот всё равно поднимется и скажет об этом
     subprocess.run("pkill -9 -f finance_bot.py; true", shell=True)
     logf = open("/tmp/finance.log", "ab")
     subprocess.Popen([sys.executable, "finance_bot.py"], cwd=d,
@@ -6954,9 +6955,13 @@ def main():
     except Exception as e:
         log.error(f"start sales: {e}")
 
-    # Финансист — отдельный бот (finance_bot.py) со своей базой finance.db
+    # Финансист — отдельный бот (finance_bot.py) со своей базой finance.db.
+    # В фоновом потоке: если GitHub тупит, самолечение файлов может занять
+    # десятки секунд, а старт Секретаря (и запуск дашборда) ждать этого не должен.
     try:
-        _restart_finance(os.path.dirname(os.path.abspath(__file__)))
+        import threading as _th
+        _th.Thread(target=lambda: _restart_finance(os.path.dirname(os.path.abspath(__file__))),
+                   daemon=True, name="start-finance").start()
     except Exception as e:
         log.error(f"start finance: {e}")
 

@@ -535,6 +535,22 @@ def apply_overrides(conn, path=None):
 PERSONAL_HINTS = ("overchuk", "privat", "darlehen", "bürgergeld", "buergergeld")
 
 
+def promote_matched_to_income(conn):
+    """Платёж, закрывающий счёт, — выручка по определению, какой бы ярлык ни
+    поставил банк.
+
+    Так в июле 2026 потерялись 2 200 €: поступления от Cosmopop и hundert11 были
+    привязаны к счетам №39 и №41 (совпал номер счёта в назначении), но категория
+    осталась other_income, а её-то и фильтрует received(). Деньги считались
+    личным переводом. Правило снимает весь этот класс ошибок разом — категорию
+    определяет факт связи со счётом, а не удачная формулировка в выписке."""
+    cur = conn.execute("""
+        UPDATE fin_payment SET category='client_income'
+        WHERE amount > 0 AND category != 'client_income'
+          AND id IN (SELECT payment_id FROM fin_match)""")
+    return {"promoted_to_client_income": cur.rowcount}
+
+
 def income_review(conn, floor=300.0):
     """Крупные приходы, лежащие в other_income, — кандидаты на «это на самом деле
     клиент». Именно так 3 000 € от Klügling Café выпали из выручки: банк пометил
@@ -1042,6 +1058,8 @@ def bootstrap(force=False, verbose=True):
         report["normalize"] = normalize_categories(conn)
         report["overrides"] = apply_overrides(conn)   # решения человека — после автоматики
         report["reconcile"] = reconcile(conn)
+        # после сверки: связанный со счётом приход — это выручка, а не «прочее»
+        report["promote"] = promote_matched_to_income(conn)
         meta_set(conn, "last_bootstrap", datetime.now().isoformat(timespec="seconds"))
         report["coverage"] = {k: v for k, v in coverage(conn).items() if k != "sources"}
     if verbose:
