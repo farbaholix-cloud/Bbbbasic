@@ -1117,6 +1117,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 /* Во время переноса выключаем выделение текста и «резинку» страницы. */
 body.dragging-now{user-select:none;-webkit-user-select:none;overscroll-behavior:none}
 body.dragging-now .ev{cursor:grabbing}
+/* Живой значок календаря: эмодзи 📅 намертво показывает 17 июля, поэтому в
+   меню и в шапке рисуем свой — с настоящей датой, но в том же виде: красная
+   шапка с месяцем, белое поле с числом. */
+.calico{display:inline-flex;flex-direction:column;align-items:stretch;overflow:hidden;
+  background:#fff;border-radius:4px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.35);
+  font-family:-apple-system,system-ui,sans-serif;vertical-align:-2px}
+.calico b{background:#ff3b30;color:#fff;font-weight:800;text-align:center;letter-spacing:.2px}
+.calico i{color:#1a1a1c;font-weight:800;font-style:normal;text-align:center}
+.calico.sm{width:19px}
+.calico.sm b{font-size:5.5px;padding:1.5px 0 1px}
+.calico.sm i{font-size:11px;padding:1px 0 2px}
+.calico.lg{width:27px}
+.calico.lg b{font-size:7.5px;padding:2px 0 1.5px}
+.calico.lg i{font-size:15px;padding:1.5px 0 3px}
 .cal-plain{padding:0;margin-bottom:14px;background:none;border:none;box-shadow:none}
 .cal-view{width:30px;height:30px;flex-shrink:0;border-radius:10px;cursor:pointer;
   background:rgba(255,255,255,.07);border:1px solid var(--rim);color:var(--txt);
@@ -1658,7 +1672,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
   </div>
   <div class="seg glass-sm" id="seg">
     <div class="s on" data-p="plan"><span class="e">🧭</span>Мостик</div>
-    <div class="s" data-p="cal"><span class="e">📅</span>Календарь</div>
+    <div class="s" data-p="cal"><span class="e" id="tab-cal-ico">📅</span>Календарь</div>
     <div class="s" data-p="fin"><span class="e">💰</span>Финансы</div>
     <div class="s" data-p="proj"><span class="e">📁</span>Проекты</div>
     <div class="s" data-p="hap"><span class="e">🤗</span>Счастье</div>
@@ -1924,17 +1938,33 @@ function _tmpId(){return -(Date.now()*1000+Math.floor(Math.random()*1000));}
 // Название страницы живёт в шапке, а не в первом блоке каждой вкладки: раньше
 // «Прошивка календаря» стояла и наверху, и третьей строкой — одно и то же слово
 // дважды на пол-экрана.
+// Значок с настоящей датой. Месяц берём из общего массива MONTHS, чтобы
+// подписи в значке и в календаре не разъезжались.
+function calIcon(cls){
+  const d=new Date();
+  return '<span class="calico '+cls+'"><b>'+MONTHS[d.getMonth()].toUpperCase()+'</b><i>'+d.getDate()+'</i></span>';
+}
+
 const PAGE_TITLES={
   plan:['⚓','Капитанский мостик'],
-  cal :['📅','Прошивка календаря'],
+  cal :[null,'Прошивка календаря'],     // значок рисуется живым, см. setPageTitle
   fin :['💰','Финансы'],
   proj:['📁','Проекты'],
   hap :['🤗','Счастье']
 };
+// Значки с датой обновляем при каждой отрисовке: приложение живёт на телефоне
+// сутками, и в полночь число должно смениться само, без перезагрузки.
+function refreshCalIcons(){
+  const tab=document.getElementById('tab-cal-ico');
+  if(tab)tab.innerHTML=calIcon('sm');
+  const ic=document.getElementById('page-icon');
+  if(ic&&ic.querySelector('.calico'))ic.innerHTML=calIcon('lg');
+}
+
 function setPageTitle(p){
   const t=PAGE_TITLES[p]||PAGE_TITLES.plan;
   const ic=document.getElementById('page-icon'),ti=document.getElementById('page-title');
-  if(ic)ic.textContent=t[0];
+  if(ic){if(t[0])ic.textContent=t[0];else ic.innerHTML=calIcon('lg');}
   if(ti)ti.textContent=t[1];
   document.title=t[1];
 }
@@ -2001,6 +2031,7 @@ function render(){
   }
   // calendar
   renderCal();
+  refreshCalIcons();
   // стратегические цели на «Мостике»
   const sg=d.sgoals||[];
   const scnt=document.getElementById('sgoal-cnt');if(scnt)scnt.textContent=sg.length?sg.length+' в фокусе':'';
