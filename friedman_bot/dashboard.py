@@ -2247,7 +2247,7 @@ function renderCal(){
     }
     const tBadge=e.time?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
     // Перетаскиваются все события (напоминание живёт в своей таблице — его нет).
-    const drg=e.kind==='event'?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'"':'';
+    const drg=e.kind==='event'?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'" data-tend="'+(e.time_end||'')+'"':'';
     return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
       tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
   };
@@ -2382,9 +2382,9 @@ function _cdgTarget(x,y){
 }
 
 // Время по соседям. Правило зависит от того, сколько соседей есть:
-//   между двумя — ровно посередине (единственный случай, где «середина» имеет смысл);
-//   только снизу — за 1,5 часа ДО него;
-//   только сверху — через 1,5 часа ПОСЛЕ него;
+//   между двумя — ровно посередине свободного окна;
+//   только снизу — за 1,5 часа ДО его начала;
+//   только сверху — через 1,5 часа ПОСЛЕ его окончания;
 //   соседей нет вовсе — полдень.
 // Полтора часа, а не половина пути до полуночи: сосед в 09:00 означает «ставь
 // перед ним», а не «ставь в 04:30» — в пустую ночь дело никто не планирует.
@@ -2397,7 +2397,7 @@ function _cdgMid(prevT,nextT){
   if(a===null&&b===null)v=12*60;
   else if(a===null)v=b-_CDG_GAP;
   else if(b===null)v=a+_CDG_GAP;
-  else v=(a+b)/2;
+  else v=(a>=b)?a:(a+b)/2;   // дела наложились — встаём там, где кончилось предыдущее
   v=Math.max(0,Math.min(1439,Math.round(v/5)*5));
   return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
 }
@@ -2493,9 +2493,12 @@ function _cdgCommit(src){
   let newTime='';
   if(timed){
     // соседей ищем только среди карточек со временем; черта — стоп
+    // Верхняя граница свободного окна — КОНЕЦ предыдущего дела, а не его начало:
+    // дело с 09:00 до 11:00 занимает эти два часа, и вставать «посередине» между
+    // его началом и следующим делом значило бы влезть внутрь него.
     let prevT=null,nextT=null;
     for(let i=srcAt-1;i>=0;i--){const n=nodes[i];if(n.classList.contains('day-split'))break;
-      if(n.dataset.time){prevT=n.dataset.time;break;}}
+      if(n.dataset.time){prevT=n.dataset.tend||n.dataset.time;break;}}
     for(let i=srcAt+1;i<nodes.length;i++){const n=nodes[i];if(n.classList.contains('day-split'))break;
       if(n.dataset.time){nextT=n.dataset.time;break;}}
     newTime=_cdgMid(prevT,nextT);
