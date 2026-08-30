@@ -561,22 +561,16 @@ def api_cards_order(payload):
     важен только для карточек «весь день». Но пишем его всем — дешевле, чем
     отдельная ветка.
 
-    time_end сдвигаем на ту же дельту, что и начало: перетаскивание меняет КОГДА
-    дело начнётся, а не сколько оно длится. Если конец вылезает за сутки —
-    обрезаем, чтобы не получить событие, кончающееся вчера.
+    Перетаскивание задаёт ТОЛЬКО начало: время окончания снимается. Место в списке
+    говорит, когда дело начнётся, но ничего не говорит о длительности — сохранять
+    старую значило бы додумывать за хозяина. Конец задаётся руками в карточке.
+    Карточек, которых жест не касался, это не трогает: у них время не менялось.
     """
     date = (payload.get("date") or "").strip()
     items = payload.get("items") or []
     move_id = payload.get("move_id")
     if not date:
         return {"ok": False, "error": "no date"}
-
-    def mins(hhmm):
-        try:
-            h, m = str(hhmm).split(":")
-            return int(h) * 60 + int(m)
-        except Exception:
-            return None
 
     with db() as conn:
         old_date = None
@@ -592,13 +586,8 @@ def api_cards_order(payload):
                 continue
             old_time, old_end = (cur["time"] or ""), (cur["time_end"] or "")
             end = old_end
-            if not new_time:
-                end = ""                       # «весь день» — конца не бывает
-            elif old_end and old_time and new_time != old_time:
-                a, b, c = mins(old_time), mins(old_end), mins(new_time)
-                if None not in (a, b, c):
-                    shifted = c + (b - a)      # длительность сохраняем
-                    end = "%02d:%02d" % (shifted // 60, shifted % 60) if shifted < 24 * 60 else "23:59"
+            if not new_time or new_time != old_time:
+                end = ""                       # время поставил жест — длительности он не знает
             conn.execute("UPDATE events SET time=?, time_end=?, position=? WHERE id=?",
                          (new_time, end, i, eid))
         # В дне, ОТКУДА карточку унесли, остаются дыры в нумерации. Сами по себе они
