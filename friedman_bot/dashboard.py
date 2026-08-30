@@ -1063,7 +1063,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .hdr .date{font-size:12px;color:var(--muted);margin-top:1px;font-weight:500}
 .seg{display:flex;gap:4px;padding:4px;border-radius:18px;margin-bottom:10px}
 .seg .s{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 2px;border-radius:13px;font-size:10.5px;font-weight:700;color:var(--muted);cursor:pointer;line-height:1;letter-spacing:-.1px;transition:color .2s,background .2s}
-.seg .s .e{font-size:19px;line-height:1;filter:grayscale(.35) opacity(.7);transition:filter .2s}
+.seg .s .e{font-size:19px;line-height:1;filter:grayscale(.35) opacity(.7);transition:filter .2s;
+  height:26px;display:flex;align-items:center;justify-content:center}
 .seg .s.on{color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.24),rgba(255,255,255,.1));box-shadow:0 5px 15px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.42)}
 .seg .s.on .e{filter:none}
 .balstrip{display:flex;align-items:center;padding:13px 16px;border-radius:18px;margin-bottom:13px;gap:8px}
@@ -1131,12 +1132,15 @@ body.dragging-now .ev{cursor:grabbing}
   font-family:-apple-system,system-ui,sans-serif;vertical-align:-2px}
 .calico b{background:#ff3b30;color:#fff;font-weight:800;text-align:center;letter-spacing:.2px}
 .calico i{color:#1a1a1c;font-weight:800;font-style:normal;text-align:center}
-.calico.sm{width:19px}
-.calico.sm b{font-size:5.5px;padding:1.5px 0 1px}
-.calico.sm i{font-size:11px;padding:1px 0 2px}
-.calico.lg{width:27px}
-.calico.lg b{font-size:7.5px;padding:2px 0 1.5px}
-.calico.lg i{font-size:15px;padding:1.5px 0 3px}
+.calico em{color:#8a8a8f;font-style:normal;font-weight:800;text-align:center;letter-spacing:.2px}
+.calico.sm{width:23px}
+.calico.sm b{font-size:5px;padding:1.5px 0 1px}
+.calico.sm i{font-size:10.5px;padding:0}
+.calico.sm em{font-size:5px;padding:0 0 1.5px}
+.calico.lg{width:31px}
+.calico.lg b{font-size:6.5px;padding:2px 0 1.5px}
+.calico.lg i{font-size:14px;padding:0}
+.calico.lg em{font-size:6.5px;padding:0 0 2px}
 .cal-plain{padding:0;margin-bottom:14px;background:none;border:none;box-shadow:none}
 .cal-view{width:30px;height:30px;flex-shrink:0;border-radius:10px;cursor:pointer;
   background:rgba(255,255,255,.07);border:1px solid var(--rim);color:var(--txt);
@@ -1991,9 +1995,11 @@ function _tmpId(){return -(Date.now()*1000+Math.floor(Math.random()*1000));}
 // дважды на пол-экрана.
 // Значок с настоящей датой. Месяц берём из общего массива MONTHS, чтобы
 // подписи в значке и в календаре не разъезжались.
+const DOW2=['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'];
 function calIcon(cls){
   const d=new Date();
-  return '<span class="calico '+cls+'"><b>'+MONTHS[d.getMonth()].toUpperCase()+'</b><i>'+d.getDate()+'</i></span>';
+  return '<span class="calico '+cls+'"><b>'+MONTHS[d.getMonth()].toUpperCase()+'</b>'+
+    '<i>'+d.getDate()+'</i><em>'+DOW2[(d.getDay()+6)%7]+'</em></span>';
 }
 
 const PAGE_TITLES={
