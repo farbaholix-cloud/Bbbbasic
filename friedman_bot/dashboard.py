@@ -1202,10 +1202,19 @@ body.dragging-now .ev{cursor:grabbing}
 .addr{display:flex;align-items:center;gap:9px;padding:13px 14px;border:1.5px dashed var(--rim);border-radius:15px;color:var(--muted);font-size:12.5px;font-weight:700;margin-top:3px;cursor:pointer}
 .addr .p{width:22px;height:22px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
 .addr .badge{margin-left:auto;font-size:9px;color:#fff;font-weight:700;background:rgba(91,157,255,.4);padding:4px 9px;border-radius:10px;border:1px solid var(--rim);text-align:right;line-height:1.3}
-.cell{padding:11px 13px;border-radius:15px;margin-bottom:9px}
+/* Дни — колонками слева направо, как доска проектов. Вертикальная лента
+   заставляла листать сутки за сутками; в ленте колонок неделя видна целиком,
+   а перетаскивание между днями становится коротким жестом вбок. */
+.cal-cols{display:flex;gap:10px;overflow-x:auto;padding:2px 16px 12px;margin:0 -16px;
+  scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  align-items:flex-start}
+.cal-cols::-webkit-scrollbar{display:none}
+.cell{min-width:224px;max-width:224px;flex-shrink:0;scroll-snap-align:start;
+  padding:11px 12px;border-radius:15px;margin-bottom:0;
+  display:flex;flex-direction:column;gap:0}
 .cell.today{border:1px solid rgba(91,157,255,.55);box-shadow:0 0 18px rgba(91,157,255,.26),inset 0 1px 0 rgba(255,255,255,.25)}
 .cell.past{opacity:.72}
-.cd{font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+.cd{font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px}
 .cd .td{color:#86b8ff}
 .ev{border-radius:11px;padding:8px 11px;margin-bottom:6px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:7px;color:#fff;cursor:pointer;
   background:linear-gradient(135deg,rgba(91,157,255,.85),rgba(91,157,255,.55));border:1px solid rgba(255,255,255,.2);line-height:1.3;word-break:break-word}
@@ -2251,7 +2260,8 @@ function renderCal(){
     return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
       tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
   };
-  let html='';
+  let html='';        // колонки дней
+  let head='';        // всё, что стоит НАД доской и колонкой быть не должно
   let curMonth=-1,curYear=-1;
   if(_calRange==='tails'){
     if(!tails.length){
@@ -2259,7 +2269,7 @@ function renderCal(){
       return;
     }
     const oldest=sorted[0],d=_daysAgo(oldest);
-    html+='<div class="tails-sum">🔴 <span>Зависло дел: '+tails.length+
+    head+='<div class="tails-sum">🔴 <span>Зависло дел: '+tails.length+
       ' · самое старое '+_plur(d,'день','дня','дней')+' назад</span></div>';
   }
   for(const ds of sorted){
@@ -2283,15 +2293,14 @@ function renderCal(){
     });
     if(!evs.length)continue;
     // в режиме «год» — разделители по месяцам
-    // Разделители по месяцам: в «год» и во «всё» без них список нечитаем.
-    // Во «всё» к месяцу добавляется год — иначе апрель 2025 и апрель 2026 сливаются.
-    if((_calRange==='year'||_calRange==='all')&&(dd.getMonth()!==curMonth||dd.getFullYear()!==curYear)){
-      curMonth=dd.getMonth();curYear=dd.getFullYear();
-      html+='<div class="cal-msep">'+MONTHS[curMonth]+(_calRange==='all'?' '+curYear:'')+'</div>';}
+    // Разделителей по месяцам больше нет: дни стоят колонками слева направо, и
+    // горизонтальная полоса между ними стала бы такой же колонкой. Месяц теперь
+    // всегда в шапке дня — так он виден в любой колонке, а не только в первой
+    // после разделителя.
     const today=ds===todayISO;const past=ds<todayISO;
     const tailMode=_calRange==='tails';
-    const showMonth=tailMode||_calRange!=='week'||dd.getMonth()!==now.getMonth();
-    const showYear=(tailMode||_calRange==='all')&&dd.getFullYear()!==now.getFullYear();
+    const showMonth=true;
+    const showYear=dd.getFullYear()!==now.getFullYear();
     const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(showMonth?' '+MONTHS[dd.getMonth()]:'')+
       (showYear?' '+dd.getFullYear():'')+(past&&!tailMode?' ⚠️':'')+(today?' · сегодня':'')+
       (tailMode?'<span class="tail-age">'+_plur(_daysAgo(ds),'день','дня','дней')+' назад</span>':'');
@@ -2314,7 +2323,8 @@ function renderCal(){
   const emptyMsg={week:'в ближайшие 7 дней пусто',month:'в этом месяце пусто',
     year:'в этом году пусто',all:'в календаре пока ничего нет',
     tails:'хвостов нет — всё под контролем'}[_calRange]||'пусто';
-  document.getElementById('cal').innerHTML=html||'<div class="empty">'+emptyMsg+'</div>';
+  document.getElementById('cal').innerHTML=
+    head+(html?'<div class="cal-cols">'+html+'</div>':'<div class="empty">'+emptyMsg+'</div>');
 }
 
 // ─── Перетаскивание карточек «весь день» ──────────────────────────────────────
@@ -2419,16 +2429,30 @@ function _cdgMoveSlot(t){
   });
 }
 
-function _cdgAutoScroll(y){
+function _cdgAutoScroll(x,y){
+  // Две оси: страница вверх-вниз (колонка длиннее экрана) и лента дней
+  // влево-вправо (нужный день за краем). Без горизонтальной ветки перетащить
+  // карточку в день, которого не видно, было бы нельзя вовсе.
   const h=window.innerHeight,edge=90;
   let v=0;
   if(y<edge)v=-(edge-y)/edge*14;
   else if(y>h-edge)v=(y-(h-edge))/edge*14;
   _cdg.scrollV=v;
-  if(v&&!_cdg.scrollRAF){
+
+  let hz=0;
+  const cols=document.querySelector('#cal .cal-cols');
+  if(cols){
+    const r=cols.getBoundingClientRect(),e2=64;
+    if(x<r.left+e2)hz=-(r.left+e2-x)/e2*16;
+    else if(x>r.right-e2)hz=(x-(r.right-e2))/e2*16;
+  }
+  _cdg.scrollH=hz;_cdg.cols=cols;
+
+  if((v||hz)&&!_cdg.scrollRAF){
     const step=()=>{
-      if(!_cdg||!_cdg.scrollV){if(_cdg)_cdg.scrollRAF=0;return;}
-      window.scrollBy(0,_cdg.scrollV);
+      if(!_cdg||(!_cdg.scrollV&&!_cdg.scrollH)){if(_cdg)_cdg.scrollRAF=0;return;}
+      if(_cdg.scrollV)window.scrollBy(0,_cdg.scrollV);
+      if(_cdg.scrollH&&_cdg.cols)_cdg.cols.scrollLeft+=_cdg.scrollH;
       _cdg.scrollRAF=requestAnimationFrame(step);
     };
     _cdg.scrollRAF=requestAnimationFrame(step);
@@ -2529,7 +2553,7 @@ function _cdgCommit(src){
 document.addEventListener('pointerdown',e=>{
   const card=e.target.closest&&e.target.closest('#cal .ev[data-drag="1"]');
   if(!card||e.button)return;
-  _cdg={src:card,active:false,x0:e.clientX,y0:e.clientY,moved:false,lastCell:null,lastBefore:null,scrollV:0,scrollRAF:0};
+  _cdg={src:card,active:false,x0:e.clientX,y0:e.clientY,moved:false,lastCell:null,lastBefore:null,scrollV:0,scrollH:0,scrollRAF:0};
   _cdgGuardOn();
   _cdg.timer=setTimeout(()=>{
     if(!_cdg||_cdg.moved)return;                 // успел повести пальцем — это скролл
@@ -2550,7 +2574,7 @@ document.addEventListener('pointermove',e=>{
   e.preventDefault();
   _cdgGhostTo(e.clientX,e.clientY);
   _cdgMoveSlot(_cdgTarget(e.clientX,e.clientY));
-  _cdgAutoScroll(e.clientY);
+  _cdgAutoScroll(e.clientX,e.clientY);
 },{passive:false});
 
 document.addEventListener('pointerup',e=>{
