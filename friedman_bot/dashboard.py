@@ -1037,6 +1037,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .cell.tail{border-color:rgba(255,90,110,.35)}
 .cell.tail .cd{color:#ff9aa6}
 .tail-age{font-size:10px;font-weight:800;color:#ff9aa6;opacity:.85;margin-left:6px}
+.cal-add{width:30px;height:30px;flex-shrink:0;border:none;border-radius:10px;cursor:pointer;
+  background:linear-gradient(135deg,#5b9dff,#b18bff);color:#fff;font-size:20px;font-weight:800;
+  line-height:1;display:flex;align-items:center;justify-content:center;padding:0 0 2px;
+  box-shadow:0 4px 14px rgba(91,157,255,.34),inset 0 1px 0 rgba(255,255,255,.4);
+  transition:transform .12s;-webkit-tap-highlight-color:transparent}
+.cal-add:active{transform:scale(.9)}
 .cal-msep{font-size:11px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin:12px 2px 5px}
 .cal-msep:first-child{margin-top:0}
 .matrix{position:relative;width:100%;height:344px;border-radius:20px;overflow:hidden;border:1px solid var(--rim);
@@ -1574,7 +1580,8 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
           <button class="cs" data-r="month" onclick="setCalRange('month')">месяц</button>
           <button class="cs" data-r="year" onclick="setCalRange('year')">год</button>
           <button class="cs on" data-r="all" onclick="setCalRange('all')">всё</button>
-        </div></div>
+        </div>
+        <button class="cal-add" onclick="openIdeaSheet()" title="Новая вводная" aria-label="Новая вводная">+</button></div>
       <div id="cal"></div>
       <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
     </div>
