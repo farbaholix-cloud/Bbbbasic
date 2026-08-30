@@ -1253,6 +1253,50 @@ body.dragging-now .ev{cursor:grabbing}
   box-shadow:0 0 6px rgba(255,90,110,.8)}
 .tg-now::before{content:'';position:absolute;left:0;top:-3px;width:7px;height:7px;
   border-radius:50%;background:#ff5a6e}
+/* Закреплённая панель «весь день»: пятая часть экрана, поверх сетки, со своей
+   прокруткой. Колонки в ней те же, что в сетке, и ездят синхронно. */
+/* ── Обзор месяца и года ── */
+.cal-nav{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+.cal-nav button{width:30px;height:30px;border-radius:10px;border:1px solid var(--rim);
+  background:rgba(255,255,255,.06);color:var(--txt);font-size:17px;font-weight:800;cursor:pointer;line-height:1}
+.cal-nav button:active{background:rgba(255,255,255,.16)}
+.cal-nav-t{flex:1;text-align:center;font-size:14px;font-weight:800;text-transform:capitalize}
+.mv-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.mv-dow{font-size:9.5px;font-weight:800;color:var(--faint);text-align:center;text-transform:uppercase;padding-bottom:2px}
+.mv-cell{aspect-ratio:1;border-radius:10px;background:rgba(255,255,255,.045);border:1px solid transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
+.mv-cell.out{opacity:.28}
+.mv-cell.has{background:rgba(91,157,255,.14);border-color:rgba(91,157,255,.28)}
+.mv-cell.today{border-color:#5b9dff;box-shadow:0 0 10px rgba(91,157,255,.35)}
+.mv-cell:active{transform:scale(.94)}
+.mv-n{font-size:12.5px;font-weight:800;line-height:1}
+.mv-dots{display:flex;align-items:center;gap:2px;height:5px}
+.mv-dots i{width:4px;height:4px;border-radius:50%;background:#86b8ff}
+.mv-dots u{font-size:7px;font-weight:900;color:var(--faint);text-decoration:none;margin-left:1px}
+.yv-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.yv-m{background:rgba(255,255,255,.045);border-radius:12px;padding:7px 6px 8px;cursor:pointer}
+.yv-m:active{transform:scale(.96)}
+.yv-t{font-size:10px;font-weight:800;margin-bottom:4px;text-transform:capitalize;color:var(--muted)}
+.yv-g{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.yv-d{font-size:7px;line-height:9px;text-align:center;color:var(--faint)}
+.yv-d.out{visibility:hidden}
+.yv-d.has{color:#86b8ff;font-weight:900}
+.yv-d.today{background:#5b9dff;color:#fff;border-radius:3px;font-weight:900}
+.tg-dock{position:fixed;left:0;right:0;bottom:0;z-index:30;height:20vh;min-height:104px;
+  display:flex;gap:6px;padding:8px 14px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(12,14,24,.93);backdrop-filter:blur(14px);
+  border-top:1px solid rgba(255,90,110,.5);box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.tg-dock-lbl{flex-shrink:0;width:30px;font-size:8.5px;font-weight:900;letter-spacing:.3px;
+  text-transform:uppercase;color:#ff9aa6;line-height:1.2;padding-top:2px;text-align:right}
+.tg-dock-days{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;flex:1;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:stretch}
+.tg-dock-days::-webkit-scrollbar{display:none}
+.tg-dock-day{min-width:196px;max-width:196px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-right:2px}
+.tg-dock-day::-webkit-scrollbar{display:none}
+.tg-dock-day.today{border-left:2px solid rgba(91,157,255,.7);padding-left:6px;border-radius:2px}
+/* Календарь уезжает под панель — иначе последние часы дня под ней и не достать. */
+.page#page-cal.on{padding-bottom:calc(20vh + 16px)}
 .tg-allday{display:flex;flex-direction:column;gap:7px}
 .tg-none{font-size:10.5px;color:var(--faint);text-align:center;padding:2px 0 4px}
 .cal-cols{display:flex;gap:10px;overflow-x:auto;padding:2px 0 12px;margin:0;
@@ -1875,6 +1919,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 <script>
 const AREAS={work:"💼",health:"🌿",money:"💰",people:"👥",home:"🏠",self:"📚",other:"⚡"};
 const MONTHS=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const MONTHS_FULL=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
 const DOW=['пн','вт','ср','чт','пт','сб','вс'];
 window.__INIT__=null;let DATA=null;
 const openProjects=new Set();
@@ -2277,12 +2322,28 @@ let _calRange='all';   // по умолчанию — вся картина це
 // хроносетка с часами и красной линией «сейчас». Выбор запоминается: это вкус,
 // а не разовое действие.
 let _calView=localStorage.getItem('calView')||'list';
+// Панель и сетка ездят вбок как одно целое: иначе колонка «весь день» под днём
+// 31-го оказывалась бы под сеткой 30-го, и панель врала бы о том, чей это день.
+function _tgSyncScroll(){
+  const a=document.getElementById('tg-days'), b=document.getElementById('tg-dock-days');
+  if(!a||!b||a._synced)return;
+  a._synced=b._synced=true;
+  let lock=false;
+  const bind=(from,to)=>from.addEventListener('scroll',()=>{
+    if(lock)return; lock=true; to.scrollLeft=from.scrollLeft;
+    requestAnimationFrame(()=>{lock=false;});
+  },{passive:true});
+  bind(a,b);bind(b,a);
+}
+
 function toggleCalView(){
   _calView=_calView==='grid'?'list':'grid';
   localStorage.setItem('calView',_calView);
   renderCal();
 }
 function setCalRange(r){
+  // Переключили режим кнопкой, а не тапом по дню — значит смотрим «сейчас».
+  if(!_calGoing)_calAnchor=null;
   _calRange=r;
   document.querySelectorAll('#cal-seg .cs').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
   renderCal();
@@ -2315,6 +2376,85 @@ function syncTailsBtn(){
   b.textContent='хвосты '+n;
   if(!n&&_calRange==='tails')setCalRange('all');   // разгрёб последний — уводим ко всему
 }
+// ─── Обзорные масштабы: месяц и год ──────────────────────────────────────────
+// Раньше «месяц» и «год» лишь сужали список дней — масштаб обзора не менялся, и
+// разницы на экране почти не было. Теперь это отдельные виды, как в календаре
+// Apple: месяц — сетка недель, год — двенадцать мини-месяцев. Тап углубляет
+// обзор: месяц → неделя с этого дня, год → этот месяц.
+let _calAnchor=null;                     // какой месяц/год показываем; null = текущий
+function _anchorDate(){return _calAnchor?new Date(_calAnchor+'T00:00'):new Date();}
+let _calGoing=false;
+function _calGo(range,iso){
+  _calGoing=true;
+  _calAnchor=iso||null;
+  setCalRange(range);
+  _calGoing=false;
+}
+function _calShift(delta){
+  const d=_anchorDate();
+  if(_calRange==='year')d.setFullYear(d.getFullYear()+delta);
+  else d.setMonth(d.getMonth()+delta);
+  _calAnchor=localISO(d);
+  renderCal();
+}
+
+// Сколько дел в каждом дне — по этой карте рисуются точки в обзоре.
+function _calCountByDate(){
+  const m={};
+  (DATA.cards||[]).forEach(c=>{if(c.date)m[c.date]=(m[c.date]||0)+1;});
+  return m;
+}
+
+function _calNav(title){
+  return '<div class="cal-nav"><button onclick="_calShift(-1)">‹</button>'+
+    '<div class="cal-nav-t">'+title+'</div>'+
+    '<button onclick="_calShift(1)">›</button></div>';
+}
+
+function _calMonthView(){
+  const a=_anchorDate(), y=a.getFullYear(), mo=a.getMonth();
+  const cnt=_calCountByDate(), todayISO=localISO(new Date());
+  const first=new Date(y,mo,1);
+  const shift=(first.getDay()+6)%7;                  // неделя с понедельника
+  const start=new Date(y,mo,1-shift);
+  let cells='';
+  for(let i=0;i<42;i++){
+    const d=new Date(start);d.setDate(start.getDate()+i);
+    const iso=localISO(d), out=d.getMonth()!==mo, n=cnt[iso]||0;
+    let dots='';
+    for(let k=0;k<Math.min(n,3);k++)dots+='<i></i>';
+    if(n>3)dots+='<u>+'+(n-3)+'</u>';
+    cells+='<div class="mv-cell'+(out?' out':'')+(iso===todayISO?' today':'')+(n?' has':'')+'"'+
+      ' onclick="_calGo(&quot;week&quot;,&quot;'+iso+'&quot;)">'+
+      '<span class="mv-n">'+d.getDate()+'</span><div class="mv-dots">'+dots+'</div></div>';
+  }
+  const dow=['пн','вт','ср','чт','пт','сб','вс'].map(x=>'<div class="mv-dow">'+x+'</div>').join('');
+  return _calNav(MONTHS_FULL[mo]+' '+y)+'<div class="mv-grid">'+dow+cells+'</div>';
+}
+
+function _calYearView(){
+  const y=_anchorDate().getFullYear();
+  const cnt=_calCountByDate(), todayISO=localISO(new Date());
+  let out='';
+  for(let mo=0;mo<12;mo++){
+    const first=new Date(y,mo,1);
+    const shift=(first.getDay()+6)%7;
+    const start=new Date(y,mo,1-shift);
+    const days=new Date(y,mo+1,0).getDate();
+    const rows=Math.ceil((shift+days)/7);
+    let cells='';
+    for(let i=0;i<rows*7;i++){
+      const d=new Date(start);d.setDate(start.getDate()+i);
+      const iso=localISO(d), out2=d.getMonth()!==mo;
+      cells+='<span class="yv-d'+(out2?' out':'')+(cnt[iso]?' has':'')+(iso===todayISO?' today':'')+'">'+
+        (out2?'':d.getDate())+'</span>';
+    }
+    out+='<div class="yv-m" onclick="_calGo(&quot;month&quot;,&quot;'+localISO(new Date(y,mo,1))+'&quot;)">'+
+      '<div class="yv-t">'+MONTHS_FULL[mo]+'</div><div class="yv-g">'+cells+'</div></div>';
+  }
+  return _calNav(y)+'<div class="yv-wrap">'+out+'</div>';
+}
+
 // ─── Хроносетка: день как в календаре Apple ──────────────────────────────────
 // Общая шкала часов слева, дни колонками справа. Событие занимает высоту своей
 // длительности, поэтому «плотный день» видно глазом, а не по счётчику карточек.
@@ -2367,7 +2507,7 @@ function _calGridCols(sorted,ctx){
     ruler+='<div class="tg-h" style="top:'+((m-lo)/60*TG_SLOT)+'px">'+String(m/60).padStart(2,'0')+'</div>';
   ruler+='</div></div>';
 
-  let cols='';
+  let cols='',dock='';
   sorted.forEach((ds,di)=>{
     const evs=perDay[di];
     const dd=new Date(ds+'T00:00');
@@ -2392,14 +2532,19 @@ function _calGridCols(sorted,ctx){
     if(today&&nowMin>=lo&&nowMin<=hi)
       body+='<div class="tg-now" style="top:'+((nowMin-lo)/60*TG_SLOT)+'px"></div>';
     const allday=evs.filter(e=>!e.time);
+    dock+='<div class="tg-dock-day '+(today?'today':'')+'" data-ds="'+ds+'">'+
+      (allday.length?allday.map(e=>evHtml(e)).join(''):'<div class="tg-none">—</div>')+'</div>';
     cols+='<div class="tg-day '+(today?'today':'')+' '+(past?'past':'')+'" data-ds="'+ds+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
       '<div class="tg-hours" data-lo="'+lo+'" style="height:'+H+'px">'+body+'</div>'+
-      '<div class="day-split"></div>'+
-      '<div class="tg-allday">'+(allday.length?allday.map(e=>evHtml(e)).join(''):'<div class="tg-none">—</div>')+'</div>'+
       '</div>';
   });
-  return '<div class="cal-grid">'+ruler+'<div class="tg-days">'+cols+'</div></div>';
+  // Панель «весь день» — на переднем плане внизу, со своей прокруткой. Такие дела
+  // не привязаны к часу, поэтому им не место внутри ленты времени: они всегда
+  // под рукой, а сетка уезжает под них.
+  return '<div class="cal-grid">'+ruler+'<div class="tg-days" id="tg-days">'+cols+'</div></div>'+
+    '<div class="tg-dock"><div class="tg-dock-lbl">весь<br>день</div>'+
+    '<div class="tg-dock-days" id="tg-dock-days">'+dock+'</div></div>';
 }
 
 function renderCal(){
@@ -2409,6 +2554,18 @@ function renderCal(){
   // границы диапазона: неделя = ближайшие 7 дней (сегодня…+7) / месяц / год
   const tails=_calTails();
   syncTailsBtn();
+  const vb0=document.getElementById('cal-view');
+  const overview=(_calRange==='month'||_calRange==='year');
+  if(vb0)vb0.style.display=overview?'none':'';    // в обзоре список/сетка не при чём
+  const hint0=document.getElementById('cal-hint');
+  if(overview){
+    document.getElementById('cal').innerHTML=
+      _calRange==='month'?_calMonthView():_calYearView();
+    if(hint0)hint0.textContent=_calRange==='month'
+      ? '📅 обзор месяца: точки — дела в дне, тап по дню откроет его неделю'
+      : '📅 обзор года: тап по месяцу углубит обзор';
+    return;
+  }
   let sorted,startISO='',endISO='';
   if(_calRange==='tails'){
     // Никакой границы по глубине: и вчерашнее, и годовой давности — одинаково
@@ -2422,10 +2579,14 @@ function renderCal(){
     let start,end;
     if(_calRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,1);}
     else if(_calRange==='year'){start=new Date(now.getFullYear(),0,1);end=new Date(now.getFullYear()+1,0,1);}
-    else {start=new Date(today0);end=new Date(today0);end.setDate(today0.getDate()+7);}
+    else {                                   // неделя: от выбранного дня (по умолчанию сегодня)
+      const a=_calAnchor?new Date(_calAnchor+'T00:00'):today0;
+      start=new Date(a);start.setHours(0,0,0,0);
+      end=new Date(start);end.setDate(start.getDate()+7);
+    }
     startISO=localISO(start);endISO=localISO(end);
     const dates=new Set();
-    if(_calRange==='week'){for(let i=0;i<7;i++){const dd=new Date(today0);dd.setDate(today0.getDate()+i);dates.add(localISO(dd));}}
+    if(_calRange==='week'){const a=new Date(start);for(let i=0;i<7;i++){const dd=new Date(a);dd.setDate(a.getDate()+i);dates.add(localISO(dd));}}
     DATA.cards.forEach(c=>{if(c.date&&c.date>=startISO&&c.date<endISO)dates.add(c.date);});
     sorted=[...dates].sort();
   }
@@ -2482,6 +2643,7 @@ function renderCal(){
     : '✋ удерживай карточку и тащи: выше черты — время между соседями, ниже — весь день';
   if(_calView==='grid'&&withCards.length){
     document.getElementById('cal').innerHTML=head+_calGridCols(withCards,{now,todayISO,evHtml,dayEvents});
+    _tgSyncScroll();
     return;
   }
   for(const ds of sorted){
@@ -2598,14 +2760,20 @@ function _cdgCards(){return [...document.querySelectorAll('#cal .ev')];}
 const TG_SNAP=5;
 function _cdgTargetGrid(x,y){
   const els=document.elementsFromPoint(x,y);
-  let hours=null,allday=null,day=null;
+  let hours=null,dock=null,day=null;
   for(const el of els){
     if(!el.closest)continue;
     hours=hours||el.closest('.tg-hours');
-    allday=allday||el.closest('.tg-allday');
+    dock=dock||el.closest('.tg-dock-day');
     day=day||el.closest('.tg-day');
-    if(day&&(hours||allday))break;
+    if(hours||dock)break;
   }
+  // Панель «весь день» лежит поверх сетки, поэтому проверяем её первой: под
+  // пальцем там может оказаться и колонка часов, но решает верхний слой.
+  if(dock)return {grid:true,day:dock,ds:dock.dataset.ds,time:'',zone:dock,
+    before:(()=>{const sl=[...dock.querySelectorAll('.ev')].filter(n=>n!==_cdg.src);
+      for(const n of sl){const r=n.getBoundingClientRect();if(y<r.top+r.height/2)return n;}
+      return null;})()};
   if(!day)return null;
   if(hours){
     const r=hours.getBoundingClientRect();
@@ -2617,7 +2785,8 @@ function _cdgTargetGrid(x,y){
       String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'),
       lineY:r.top+(m-lo)/60*TG_SLOT, left:r.left, right:r.right};
   }
-  const zone=allday||day.querySelector('.tg-allday');
+  const zone=day.querySelector('.tg-allday');
+  if(!zone)return null;
   const slots=[...zone.querySelectorAll('.ev')].filter(n=>n!==_cdg.src);
   let idx=slots.length;
   for(let i=0;i<slots.length;i++){
