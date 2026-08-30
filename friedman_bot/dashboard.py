@@ -97,6 +97,11 @@ def ensure_schema(conn):
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         text TEXT, date TEXT, time TEXT, chaos_id INTEGER,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
+    # position — ручной порядок карточек БЕЗ времени внутри дня. У событий со
+    # временем порядок задаёт само время, спорить с ним нельзя; у «весь день»
+    # порядка не было вовсе, и перетаскивание было бы некуда сохранять.
+    if "position" not in [r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()]:
+        conn.execute("ALTER TABLE events ADD COLUMN position INTEGER DEFAULT 0")
     conn.execute("""CREATE TABLE IF NOT EXISTS debts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -381,6 +386,7 @@ def get_data():
                           "chaos_id": cid,
                           "project_id": d.get("project_id"),
                           "morning_brief": d.get("morning_brief", 0) or 0,
+                          "position": d.get("position", 0) or 0,
                           "importance": imp,
                           "urgency": urg,
                           "comment": d.get("comment") or ""})
@@ -540,6 +546,38 @@ def api_complete(payload):
             conn.execute("UPDATE reminders SET sent=1 WHERE id=?", (payload["id"],))
         elif payload["kind"] == "chaos":
             conn.execute("UPDATE chaos SET done=1 WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
+def api_cards_order(payload):
+    """Сохранить ручной порядок карточек без времени внутри дня и, если карточку
+    перетащили в другой день, её новую дату.
+
+    Клиент присылает ПОЛНЫЙ список id для дня, а не «сдвинь на единицу»: так
+    порядок на сервере не разъедется с тем, что человек видит на экране, даже
+    если запросы придут не по порядку."""
+    date = (payload.get("date") or "").strip()
+    ids = [int(x) for x in (payload.get("ids") or [])]
+    move_id = payload.get("move_id")
+    if not date:
+        return {"ok": False, "error": "no date"}
+    with db() as conn:
+        old_date = None
+        if move_id:
+            row = conn.execute("SELECT date FROM events WHERE id=?", (int(move_id),)).fetchone()
+            old_date = row["date"] if row else None
+            conn.execute("UPDATE events SET date=? WHERE id=?", (date, int(move_id)))
+        for i, eid in enumerate(ids):
+            conn.execute("UPDATE events SET position=? WHERE id=?", (i, eid))
+        # В дне, ОТКУДА карточку унесли, остаются дыры в нумерации. Сами по себе они
+        # не вредят (сортировка по возрастанию), но новое событие создаётся с
+        # position=0 и молча встало бы выше всех. Поэтому перенумеровываем и его.
+        if old_date and old_date != date:
+            rest = conn.execute(
+                "SELECT id FROM events WHERE date=? AND COALESCE(time,'')='' "
+                "ORDER BY COALESCE(position,0), id", (old_date,)).fetchall()
+            for i, r in enumerate(rest):
+                conn.execute("UPDATE events SET position=? WHERE id=?", (i, r["id"]))
     return {"ok": True}
 
 
@@ -1037,6 +1075,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .cell.tail{border-color:rgba(255,90,110,.35)}
 .cell.tail .cd{color:#ff9aa6}
 .tail-age{font-size:10px;font-weight:800;color:#ff9aa6;opacity:.85;margin-left:6px}
+.ev[data-drag="1"]{touch-action:pan-y}          /* тап и скролл живут как жили */
+/* Поднятая карточка: тень и лёгкий наклон — видно, что она «в руке». */
+.ev-ghost{box-shadow:0 18px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.14)!important;
+  opacity:.97;transform-origin:12% 50%}
+/* Гнездо на месте карточки: пунктир, куда она сядет. */
+.ev-src{background:rgba(255,255,255,.05)!important;border:1px dashed var(--rim2)!important;
+  color:transparent!important;box-shadow:none!important;overflow:hidden}
+.ev-src>*{visibility:hidden}
+/* Во время переноса выключаем выделение текста и «резинку» страницы. */
+body.dragging-now{user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+body.dragging-now .ev{cursor:grabbing}
 .cal-add{width:30px;height:30px;flex-shrink:0;border:none;border-radius:10px;cursor:pointer;
   background:linear-gradient(135deg,#5b9dff,#b18bff);color:#fff;font-size:20px;font-weight:800;
   line-height:1;display:flex;align-items:center;justify-content:center;padding:0 0 2px;
@@ -1530,6 +1579,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
   </div>
   <div class="seg glass-sm" id="seg">
     <div class="s on" data-p="plan"><span class="e">🧭</span>Мостик</div>
+    <div class="s" data-p="cal"><span class="e">📅</span>Календарь</div>
     <div class="s" data-p="fin"><span class="e">💰</span>Финансы</div>
     <div class="s" data-p="proj"><span class="e">📁</span>Проекты</div>
     <div class="s" data-p="hap"><span class="e">🤗</span>Счастье</div>
@@ -1576,6 +1626,9 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       </div>
       <div class="mhint">✋ тапни точку или задачу → оцени важность/срочность</div>
     </div>
+  </div>
+
+  <div class="page" id="page-cal">
     <div class="block glass">
       <div class="bh"><div class="t">📅 Прошивка календаря</div>
         <div class="cal-seg" id="cal-seg">
@@ -1587,7 +1640,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
         </div>
         <button class="cal-add" onclick="openIdeaSheet()" title="Новая вводная" aria-label="Новая вводная">+</button></div>
       <div id="cal"></div>
-      <div class="addr" style="margin-top:9px;cursor:default">↔ тапни задачу — перенести в день или вернуть на парковку</div>
+      <div class="addr" style="margin-top:9px;cursor:default">✋ удерживай карточку без времени — перетащи в другой день</div>
     </div>
   </div>
 
@@ -1791,7 +1844,7 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   document.querySelectorAll('#seg .s').forEach(x=>x.classList.remove('on'));
   s.classList.add('on');
   const p=s.dataset.p;
-  ['plan','fin','proj','hap'].forEach(n=>document.getElementById('page-'+n).classList.toggle('on',p===n));
+  ['plan','cal','fin','proj','hap'].forEach(n=>document.getElementById('page-'+n).classList.toggle('on',p===n));
   window.scrollTo(0,0);
   if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
   if(p==='plan')requestAnimationFrame(()=>_flowStart());else _flowStop();
@@ -2158,6 +2211,11 @@ function renderCal(){
     const evs=DATA.cards.filter(e=>e.date===ds).sort((a,b)=>{
       const ta=a.time||'',tb=b.time||'';
       if(!ta!==!tb)return ta?1:-1;                  // бесвременные — выше
+      if(!ta&&!tb){                                 // оба без времени — ручной порядок
+        const pa=a.position||0,pb=b.position||0;
+        if(pa!==pb)return pa-pb;
+        return (a.id||0)-(b.id||0);
+      }
       if(ta!==tb)return ta<tb?-1:1;                 // дальше по времени начала
       return (a.time_end||'')<(b.time_end||'')?-1:(a.time_end||'')>(b.time_end||'')?1:0;
     });
@@ -2175,7 +2233,7 @@ function renderCal(){
     const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+(showMonth?' '+MONTHS[dd.getMonth()]:'')+
       (showYear?' '+dd.getFullYear():'')+(past&&!tailMode?' ⚠️':'')+(today?' · сегодня':'')+
       (tailMode?'<span class="tail-age">'+_plur(_daysAgo(ds),'день','дня','дней')+' назад</span>':'');
-    html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past&&!tailMode?'past':'')+' '+(tailMode?'tail':'')+'">'+
+    html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past&&!tailMode?'past':'')+' '+(tailMode?'tail':'')+'" data-ds="'+ds+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
       evs.map(e=>{
         const tdata={kind:e.kind,id:e.id,text:e.text};
@@ -2189,7 +2247,10 @@ function renderCal(){
           priDot='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+col+';margin-left:5px;flex-shrink:0;vertical-align:middle"></span>';
         }
         const tBadge=e.time?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
-        return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'" onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
+        // Перетаскивать можно только события без времени: у события со временем
+        // порядок задаёт время, а напоминание живёт в своей таблице.
+        const drg=(e.kind==='event'&&!e.time)?' data-drag="1" data-id="'+e.id+'"':'';
+        return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
           tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
       }).join('')+'</div>';
   }
@@ -2198,6 +2259,180 @@ function renderCal(){
     tails:'хвостов нет — всё под контролем'}[_calRange]||'пусто';
   document.getElementById('cal').innerHTML=html||'<div class="empty">'+emptyMsg+'</div>';
 }
+
+// ─── Перетаскивание карточек «весь день» ──────────────────────────────────────
+// Почему не HTML5 drag-and-drop: на тач-экранах он либо не стартует, либо
+// конфликтует со скроллом. Здесь pointer-события — один код для пальца и мыши.
+//
+// Как это ощущается (по образцу Trello):
+//   • удержание ~200 мс поднимает карточку — обычный тап по-прежнему открывает её,
+//     а движение пальцем до срабатывания таймера остаётся скроллом страницы;
+//   • поднятая карточка едет за пальцем «призраком», исходная превращается
+//     в пунктирное гнездо;
+//   • соседи РАЗДВИГАЮТСЯ анимированно (FLIP: замерили позиции → переставили
+//     в DOM → вернули трансформом → отпустили с переходом);
+//   • на отпускании призрак долетает до гнезда и гаснет — «примагничивается»;
+//   • у краёв экрана список сам подкручивается.
+let _cdg=null;   // состояние перетаскивания В КАЛЕНДАРЕ (в парковке своё, _dg)                                  // состояние текущего перетаскивания
+
+function _cdgFlip(nodes,mutate){
+  // FLIP: без него перестановка в DOM выглядит рывком, а не движением.
+  const first=new Map();
+  nodes.forEach(n=>first.set(n,n.getBoundingClientRect().top));
+  mutate();
+  nodes.forEach(n=>{
+    const dy=first.get(n)-n.getBoundingClientRect().top;
+    if(!dy)return;
+    n.style.transition='none';
+    n.style.transform='translateY('+dy+'px)';
+    requestAnimationFrame(()=>{
+      n.style.transition='transform .19s cubic-bezier(.2,.85,.25,1)';
+      n.style.transform='';
+    });
+  });
+}
+
+function _cdgCards(){return [...document.querySelectorAll('#cal .ev')];}
+
+// Куда встанет карточка: день под пальцем + место среди его карточек без времени.
+function _cdgTarget(x,y){
+  const els=document.elementsFromPoint(x,y);
+  let cell=null;
+  for(const el of els){const c=el.closest&&el.closest('#cal .cell');if(c){cell=c;break;}}
+  if(!cell)return null;
+  const slots=[...cell.querySelectorAll('.ev')].filter(n=>n!==_cdg.src&&n.dataset.drag==='1');
+  let idx=slots.length;
+  for(let i=0;i<slots.length;i++){
+    const r=slots[i].getBoundingClientRect();
+    if(y<r.top+r.height/2){idx=i;break;}
+  }
+  return {cell:cell,before:slots[idx]||null,ds:cell.dataset.ds};
+}
+
+function _cdgMoveSlot(t){
+  if(!t)return;
+  if(_cdg.lastCell===t.cell&&_cdg.lastBefore===t.before)return;
+  _cdg.lastCell=t.cell;_cdg.lastBefore=t.before;
+  const nodes=_cdgCards();
+  _cdgFlip(nodes,()=>{
+    if(t.before)t.cell.insertBefore(_cdg.src,t.before);
+    else{
+      // после последней карточки без времени, но ПЕРЕД первой со временем —
+      // «весь день» всегда наверху дня, руками это ломать нельзя
+      const timed=[...t.cell.querySelectorAll('.ev')].find(n=>n!==_cdg.src&&n.dataset.drag!=='1');
+      if(timed)t.cell.insertBefore(_cdg.src,timed);else t.cell.appendChild(_cdg.src);
+    }
+  });
+}
+
+function _cdgAutoScroll(y){
+  const h=window.innerHeight,edge=90;
+  let v=0;
+  if(y<edge)v=-(edge-y)/edge*14;
+  else if(y>h-edge)v=(y-(h-edge))/edge*14;
+  _cdg.scrollV=v;
+  if(v&&!_cdg.scrollRAF){
+    const step=()=>{
+      if(!_cdg||!_cdg.scrollV){if(_cdg)_cdg.scrollRAF=0;return;}
+      window.scrollBy(0,_cdg.scrollV);
+      _cdg.scrollRAF=requestAnimationFrame(step);
+    };
+    _cdg.scrollRAF=requestAnimationFrame(step);
+  }
+}
+
+function _cdgStart(card,ev){
+  const r=card.getBoundingClientRect();
+  const ghost=card.cloneNode(true);
+  ghost.className=card.className+' ev-ghost';
+  ghost.style.cssText='position:fixed;left:0;top:0;margin:0;z-index:60;pointer-events:none;'+
+    'width:'+r.width+'px;box-sizing:border-box;will-change:transform';
+  document.body.appendChild(ghost);
+  _cdg.ghost=ghost;_cdg.gw=r.width;_cdg.gh=r.height;
+  _cdg.offX=ev.clientX-r.left;_cdg.offY=ev.clientY-r.top;
+  card.classList.add('ev-src');
+  card.style.height=r.height+'px';
+  document.body.classList.add('dragging-now');
+  if(navigator.vibrate)navigator.vibrate(12);
+  _cdgGhostTo(ev.clientX,ev.clientY,true);
+}
+
+function _cdgGhostTo(x,y,first){
+  const g=_cdg.ghost;if(!g)return;
+  g.style.transform='translate3d('+(x-_cdg.offX)+'px,'+(y-_cdg.offY)+'px,0) scale(1.03) rotate(-1.2deg)';
+  if(first)requestAnimationFrame(()=>{g.style.transition='transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .16s';});
+}
+
+function _cdgEnd(commit){
+  if(!_cdg)return;
+  const st=_cdg;_cdg=null;
+  if(st.scrollRAF)cancelAnimationFrame(st.scrollRAF);
+  clearTimeout(st.timer);
+  document.body.classList.remove('dragging-now');
+  const src=st.src;
+  const finish=()=>{
+    if(st.ghost)st.ghost.remove();
+    if(src){src.classList.remove('ev-src');src.style.height='';src.style.transform='';src.style.transition='';}
+  };
+  if(!st.active){finish();return;}
+  // «Примагничивание»: призрак долетает до гнезда, и только потом исчезает.
+  const r=src.getBoundingClientRect();
+  if(st.ghost){
+    st.ghost.style.transition='transform .17s cubic-bezier(.2,.8,.2,1),opacity .17s';
+    st.ghost.style.transform='translate3d('+r.left+'px,'+r.top+'px,0) scale(1)';
+    st.ghost.style.opacity='0';
+  }
+  setTimeout(finish,175);
+  if(commit)_cdgCommit(src);
+  else renderCal();
+}
+
+function _cdgCommit(src){
+  const cell=src.closest('.cell');if(!cell)return;
+  const ds=cell.dataset.ds;
+  const ids=[...cell.querySelectorAll('.ev[data-drag="1"]')].map(n=>+n.dataset.id);
+  const id=+src.dataset.id;
+  const card=(DATA.cards||[]).find(c=>c.kind==='event'&&c.id===id);
+  const moved=card&&card.date!==ds;
+  mutate(()=>{
+    if(card)card.date=ds;
+    ids.forEach((eid,i)=>{const c=(DATA.cards||[]).find(x=>x.kind==='event'&&x.id===eid);if(c)c.position=i;});
+  },'/api/cards_order',{date:ds,ids:ids,move_id:moved?id:null});
+}
+
+document.addEventListener('pointerdown',e=>{
+  const card=e.target.closest&&e.target.closest('#cal .ev[data-drag="1"]');
+  if(!card||e.button)return;
+  _cdg={src:card,active:false,x0:e.clientX,y0:e.clientY,moved:false,lastCell:null,lastBefore:null,scrollV:0,scrollRAF:0};
+  _cdg.timer=setTimeout(()=>{
+    if(!_cdg||_cdg.moved)return;                 // успел повести пальцем — это скролл
+    _cdg.active=true;
+    try{card.setPointerCapture(e.pointerId);}catch(_){}
+    _cdgStart(card,e);
+  },200);
+},{passive:true});
+
+document.addEventListener('pointermove',e=>{
+  if(!_cdg)return;
+  if(!_cdg.active){
+    if(Math.abs(e.clientY-_cdg.y0)>8||Math.abs(e.clientX-_cdg.x0)>8){
+      _cdg.moved=true;clearTimeout(_cdg.timer);_cdg=null;   // отдаём жест скроллу
+    }
+    return;
+  }
+  e.preventDefault();
+  _cdgGhostTo(e.clientX,e.clientY);
+  _cdgMoveSlot(_cdgTarget(e.clientX,e.clientY));
+  _cdgAutoScroll(e.clientY);
+},{passive:false});
+
+document.addEventListener('pointerup',e=>{
+  if(!_cdg)return;
+  const was=_cdg.active;
+  _cdgEnd(true);
+  if(was){e.preventDefault();e.stopPropagation();}   // тап после переноса не открывает карточку
+},true);
+document.addEventListener('pointercancel',()=>{if(_cdg)_cdgEnd(false);},true);
 
 function renderFinance(){
   const d=DATA;
@@ -4356,7 +4591,7 @@ class Handler(BaseHTTPRequestHandler):
 
         routes = {
             "/api/move": api_move, "/api/unplan": api_unplan, "/api/complete": api_complete,
-            "/api/rate": api_rate,
+            "/api/rate": api_rate, "/api/cards_order": api_cards_order,
             "/api/finance_add": api_finance_add, "/api/finance_delete": api_finance_delete,
             "/api/debt_add": api_debt_add, "/api/debt_delete": api_debt_delete,
             "/api/debt_update": api_debt_update,
