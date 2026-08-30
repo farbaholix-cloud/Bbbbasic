@@ -1117,6 +1117,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 /* Во время переноса выключаем выделение текста и «резинку» страницы. */
 body.dragging-now{user-select:none;-webkit-user-select:none;overscroll-behavior:none}
 body.dragging-now .ev{cursor:grabbing}
+.cal-view{width:30px;height:30px;flex-shrink:0;border-radius:10px;cursor:pointer;
+  background:rgba(255,255,255,.07);border:1px solid var(--rim);color:var(--txt);
+  font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;
+  padding:0;-webkit-tap-highlight-color:transparent}
+.cal-view.on{background:linear-gradient(135deg,rgba(91,157,255,.35),rgba(124,92,255,.28));
+  border-color:rgba(140,180,255,.5)}
+.cal-view:active{transform:scale(.9)}
 .cal-add{width:30px;height:30px;flex-shrink:0;border:none;border-radius:10px;cursor:pointer;
   background:linear-gradient(135deg,#5b9dff,#b18bff);color:#fff;font-size:20px;font-weight:800;
   line-height:1;display:flex;align-items:center;justify-content:center;padding:0 0 2px;
@@ -1200,6 +1207,33 @@ body.dragging-now .ev{cursor:grabbing}
 /* Дни — колонками слева направо, как доска проектов. Вертикальная лента
    заставляла листать сутки за сутками; в ленте колонок неделя видна целиком,
    а перетаскивание между днями становится коротким жестом вбок. */
+/* ── Хроносетка ── */
+.cal-grid{display:flex;gap:0;margin:0 -16px;padding:2px 0 12px}
+.tg-ruler{flex-shrink:0;width:34px;padding-left:6px}
+.tg-head-sp{height:26px}
+.tg-scale{position:relative}
+.tg-h{position:absolute;left:0;font-size:9.5px;font-weight:800;color:var(--faint);
+  transform:translateY(-6px);letter-spacing:.3px}
+.tg-days{display:flex;gap:10px;overflow-x:auto;padding:0 16px 0 4px;
+  scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:flex-start}
+.tg-days::-webkit-scrollbar{display:none}
+.tg-day{min-width:196px;max-width:196px;flex-shrink:0;scroll-snap-align:start}
+.tg-day.past{opacity:.72}
+.tg-day .cd{height:26px;margin:0;align-items:center}
+.tg-hours{position:relative;border-radius:12px;background:rgba(255,255,255,.035);
+  border:1px solid var(--rim);overflow:hidden}
+.tg-day.today .tg-hours{border-color:rgba(91,157,255,.5);background:rgba(91,157,255,.05)}
+.tg-line{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.06)}
+.tg-ev{position:absolute;overflow:hidden}
+.tg-ev .ev{height:100%;box-sizing:border-box;margin:0;font-size:11px;padding:5px 7px;
+  display:flex;align-items:flex-start;line-height:1.25}
+/* Красная линия «сейчас» — как в Apple: точка слева и черта через всю колонку. */
+.tg-now{position:absolute;left:0;right:0;height:1px;background:#ff5a6e;z-index:6;
+  box-shadow:0 0 6px rgba(255,90,110,.8)}
+.tg-now::before{content:'';position:absolute;left:0;top:-3px;width:7px;height:7px;
+  border-radius:50%;background:#ff5a6e}
+.tg-allday{display:flex;flex-direction:column;gap:7px}
+.tg-none{font-size:10.5px;color:var(--faint);text-align:center;padding:2px 0 4px}
 .cal-cols{display:flex;gap:10px;overflow-x:auto;padding:2px 16px 12px;margin:0 -16px;
   scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;
   align-items:flex-start}
@@ -1682,9 +1716,10 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
           <button class="cs" data-r="year" onclick="setCalRange('year')">год</button>
           <button class="cs on" data-r="all" onclick="setCalRange('all')">всё</button>
         </div>
+        <button class="cal-view" id="cal-view" onclick="toggleCalView()" title="Список / хроносетка">🕐</button>
         <button class="cal-add" onclick="openIdeaSheet()" title="Новая вводная" aria-label="Новая вводная">+</button></div>
       <div id="cal"></div>
-      <div class="addr" style="margin-top:9px;cursor:default">✋ удерживай карточку и тащи: выше черты — время между соседями, ниже — весь день</div>
+      <div class="addr" id="cal-hint" style="margin-top:9px;cursor:default"></div>
     </div>
   </div>
 
@@ -2179,6 +2214,15 @@ function openQuadrant(q){
 }
 
 let _calRange='all';   // по умолчанию — вся картина целиком
+// Два взгляда на один и тот же день: 'list' — карточки подряд, 'grid' —
+// хроносетка с часами и красной линией «сейчас». Выбор запоминается: это вкус,
+// а не разовое действие.
+let _calView=localStorage.getItem('calView')||'list';
+function toggleCalView(){
+  _calView=_calView==='grid'?'list':'grid';
+  localStorage.setItem('calView',_calView);
+  renderCal();
+}
 function setCalRange(r){
   _calRange=r;
   document.querySelectorAll('#cal-seg .cs').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
@@ -2212,6 +2256,93 @@ function syncTailsBtn(){
   b.textContent='хвосты '+n;
   if(!n&&_calRange==='tails')setCalRange('all');   // разгрёб последний — уводим ко всему
 }
+// ─── Хроносетка: день как в календаре Apple ──────────────────────────────────
+// Общая шкала часов слева, дни колонками справа. Событие занимает высоту своей
+// длительности, поэтому «плотный день» видно глазом, а не по счётчику карточек.
+// Отличие от Apple намеренное: «весь день» не сверху, а ВНИЗУ каждого дня —
+// такие дела не занимают времени и не должны отжимать вниз реальное расписание.
+const TG_SLOT=48, TG_HEAD=26;          // высота часа и шапки дня, px
+
+function _tgMin(t){const p=String(t||'').split(':');return p.length===2?(+p[0])*60+(+p[1]):null;}
+
+// Границы шкалы: по умолчанию рабочий день, но раздвигаем под реальные события —
+// дело в 05:00 не должно оказаться за пределами таблицы.
+function _tgRange(days){
+  let lo=7*60, hi=23*60;
+  days.forEach(evs=>evs.forEach(e=>{
+    const a=_tgMin(e.time); if(a===null)return;
+    const b=_tgMin(e.time_end);
+    lo=Math.min(lo,a); hi=Math.max(hi,(b!==null&&b>a)?b:a+60);
+  }));
+  return {lo:Math.max(0,Math.floor(lo/60)*60), hi:Math.min(1440,Math.ceil(hi/60)*60)};
+}
+
+// Наложения: события, идущие внахлёст, делят ширину колонки. Без этого они
+// просто накрывали бы друг друга и одно становилось невидимым.
+function _tgLanes(items){
+  const lanes=[];
+  items.forEach(it=>{
+    let k=lanes.findIndex(end=>end<=it.a);
+    if(k<0){k=lanes.length;lanes.push(0);}
+    lanes[k]=it.b; it.lane=k;
+  });
+  const groups=[];let cur=[],curEnd=-1;
+  items.forEach(it=>{
+    if(it.a>=curEnd&&cur.length){groups.push(cur);cur=[];}
+    cur.push(it);curEnd=Math.max(curEnd,it.b);
+  });
+  if(cur.length)groups.push(cur);
+  groups.forEach(g=>{const n=Math.max(...g.map(x=>x.lane))+1;g.forEach(x=>x.lanes=n);});
+  return items;
+}
+
+function _calGridCols(sorted,ctx){
+  const {now,todayISO,evHtml,dayEvents}=ctx;
+  const perDay=sorted.map(ds=>dayEvents(ds));
+  const {lo,hi}=_tgRange(perDay);
+  const H=(hi-lo)/60*TG_SLOT;
+  const nowMin=now.getHours()*60+now.getMinutes();
+
+  let ruler='<div class="tg-ruler"><div class="tg-head-sp"></div><div class="tg-scale" style="height:'+H+'px">';
+  for(let m=lo;m<hi;m+=60)
+    ruler+='<div class="tg-h" style="top:'+((m-lo)/60*TG_SLOT)+'px">'+String(m/60).padStart(2,'0')+'</div>';
+  ruler+='</div></div>';
+
+  let cols='';
+  sorted.forEach((ds,di)=>{
+    const evs=perDay[di];
+    const dd=new Date(ds+'T00:00');
+    const today=ds===todayISO, past=ds<todayISO;
+    const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+' '+MONTHS[dd.getMonth()]+
+      (dd.getFullYear()!==now.getFullYear()?' '+dd.getFullYear():'')+(today?' · сегодня':'');
+    const timed=evs.filter(e=>e.time).map(e=>{
+      const a=_tgMin(e.time); const b=_tgMin(e.time_end);
+      return {e:e,a:a,b:(b!==null&&b>a)?b:a+45};
+    }).sort((x,y)=>x.a-y.a||x.b-y.b);
+    _tgLanes(timed);
+    let body='';
+    for(let m=lo;m<hi;m+=60)
+      body+='<div class="tg-line" style="top:'+((m-lo)/60*TG_SLOT)+'px"></div>';
+    timed.forEach(it=>{
+      const top=(it.a-lo)/60*TG_SLOT;
+      const h=Math.max(20,(it.b-it.a)/60*TG_SLOT-2);
+      const w=100/(it.lanes||1), left=w*(it.lane||0);
+      body+='<div class="tg-ev" style="top:'+top+'px;height:'+h+'px;left:calc('+left+'% + 2px);width:calc('+w+'% - 4px)">'
+           +evHtml(it.e,true)+'</div>';
+    });
+    if(today&&nowMin>=lo&&nowMin<=hi)
+      body+='<div class="tg-now" style="top:'+((nowMin-lo)/60*TG_SLOT)+'px"></div>';
+    const allday=evs.filter(e=>!e.time);
+    cols+='<div class="tg-day '+(today?'today':'')+' '+(past?'past':'')+'" data-ds="'+ds+'">'+
+      '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
+      '<div class="tg-hours" style="height:'+H+'px">'+body+'</div>'+
+      '<div class="day-split"></div>'+
+      '<div class="tg-allday">'+(allday.length?allday.map(e=>evHtml(e)).join(''):'<div class="tg-none">—</div>')+'</div>'+
+      '</div>';
+  });
+  return '<div class="cal-grid">'+ruler+'<div class="tg-days">'+cols+'</div></div>';
+}
+
 function renderCal(){
   const now=new Date();
   const today0=new Date(now);today0.setHours(0,0,0,0);
@@ -2241,7 +2372,7 @@ function renderCal(){
   }
   // Разметка одной карточки. Вынесена из цикла: её теперь зовут в двух местах —
   // до красной черты и после.
-  const evHtml=e=>{
+  const evHtml=(e,inGrid)=>{
     const tdata={kind:e.kind,id:e.id,text:e.text};
     if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;tdata.imp=e.importance||0;tdata.urg=e.urgency||0;}
     const mbDot=e.morning_brief?'<span style="font-size:9px;opacity:.7;margin-left:4px">🌅</span>':'';
@@ -2252,9 +2383,12 @@ function renderCal(){
       const col=({r:'#ff9aa6',a:'#ffd07a',b:'#86b8ff',g:'var(--muted)'})[q]||'var(--muted)';
       priDot='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+col+';margin-left:5px;flex-shrink:0;vertical-align:middle"></span>';
     }
-    const tBadge=e.time?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
-    // Перетаскиваются все события (напоминание живёт в своей таблице — его нет).
-    const drg=e.kind==='event'?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'" data-tend="'+(e.time_end||'')+'"':'';
+    // В сетке время читается по положению блока — дублировать его в тексте
+    // значит съедать и без того узкую колонку.
+    const tBadge=(e.time&&!inGrid)?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
+    // Перетаскивание живёт в списочном режиме: в сетке место задаёт время, и
+    // тот же жест значил бы там другое. Время правится в самой карточке.
+    const drg=(e.kind==='event'&&_calView!=='grid')?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'" data-tend="'+(e.time_end||'')+'"':'';
     return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
       tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
   };
@@ -2270,6 +2404,29 @@ function renderCal(){
     head+='<div class="tails-sum">🔴 <span>Зависло дел: '+tails.length+
       ' · самое старое '+_plur(d,'день','дня','дней')+' назад</span></div>';
   }
+  // Отбор и порядок событий дня — общие для обоих режимов.
+  const dayEvents=ds=>DATA.cards.filter(e=>e.date===ds).sort((a,b)=>{
+      const ta=a.time||'',tb=b.time||'';
+      if(!ta!==!tb)return ta?-1:1;
+      if(!ta&&!tb){
+        const pa=a.position||0,pb=b.position||0;
+        if(pa!==pb)return pa-pb;
+        return (a.id||0)-(b.id||0);
+      }
+      if(ta!==tb)return ta<tb?-1:1;
+      return (a.time_end||'')<(b.time_end||'')?-1:(a.time_end||'')>(b.time_end||'')?1:0;
+    });
+  const withCards=sorted.filter(ds=>dayEvents(ds).length);
+  const vb=document.getElementById('cal-view');
+  if(vb){vb.textContent=_calView==='grid'?'📋':'🕐';vb.classList.toggle('on',_calView==='grid');}
+  const hint=document.getElementById('cal-hint');
+  if(hint)hint.textContent=_calView==='grid'
+    ? '🕐 хроносетка: высота блока — длительность. Перетаскивание — в списке; здесь время правится в карточке'
+    : '✋ удерживай карточку и тащи: выше черты — время между соседями, ниже — весь день';
+  if(_calView==='grid'&&withCards.length){
+    document.getElementById('cal').innerHTML=head+_calGridCols(withCards,{now,todayISO,evHtml,dayEvents});
+    return;
+  }
   for(const ds of sorted){
     const dd=new Date(ds+'T00:00');
     // порядок внутри дня — хронологический: из базы карточки приходят в порядке
@@ -2278,17 +2435,7 @@ function renderCal(){
     // Сначала дела со временем — по часам, потом «весь день» — в ручном порядке.
     // Так день читается сверху вниз как расписание, а бессрочное лежит хвостом
     // под чертой и не разрывает ленту времени.
-    const evs=DATA.cards.filter(e=>e.date===ds).sort((a,b)=>{
-      const ta=a.time||'',tb=b.time||'';
-      if(!ta!==!tb)return ta?-1:1;                  // со временем — выше
-      if(!ta&&!tb){                                 // оба без времени — ручной порядок
-        const pa=a.position||0,pb=b.position||0;
-        if(pa!==pb)return pa-pb;
-        return (a.id||0)-(b.id||0);
-      }
-      if(ta!==tb)return ta<tb?-1:1;                 // дальше по времени начала
-      return (a.time_end||'')<(b.time_end||'')?-1:(a.time_end||'')>(b.time_end||'')?1:0;
-    });
+    const evs=dayEvents(ds);
     if(!evs.length)continue;
     // в режиме «год» — разделители по месяцам
     // Разделителей по месяцам больше нет: дни стоят колонками слева направо, и
