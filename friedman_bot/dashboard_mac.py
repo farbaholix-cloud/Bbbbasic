@@ -4042,7 +4042,16 @@ function drawFlowChart(phase){
   const SC=_flowScenarios(rows);
   const nA=rows.length, H=SC?SC.good.length:0, n=nA+H;
   const max=Math.max(...rows.map(r=>r.total), SC?Math.max(...SC.good):0, 1);
-  const X=i=>padL+(w-padL-padR)*(n===1?0.5:i/(n-1));
+  // Развилке отдаём гарантированную долю ширины. Иначе цель на следующий месяц
+  // при длинной истории («всё» — под три десятка месяцев) ужимается в пару
+  // пикселей у правого края: ветки сливаются в вертикальный штрих, а подписи
+  // наезжают друг на друга. Не меньше 18 % — вилку видно всегда.
+  const WW=w-padL-padR;
+  const fShare=H?Math.max(H/Math.max(n-1,1),0.18):0;
+  const aW=WW*(1-fShare);
+  const X=i=>i<=nA-1
+    ? padL+(nA===1?0:aW*i/(nA-1))
+    : padL+aW+WW*fShare*((i-(nA-1))/H);
   const Y=v=>padT+(h-padT-padB)*(1-v/max);
   // сетка
   ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
@@ -4102,7 +4111,9 @@ function drawFlowChart(phase){
     const gy=Y(SC.good[H-1]),by=Y(SC.bad[H-1]);
     ctx.textAlign='right';
     if(!SC.goalYm){ctx.fillStyle='rgba(82,224,138,.95)';ctx.fillText(eur(SC.good[H-1]),X(n-1)-2,Math.max(padT+8,gy-14));}
-    ctx.fillStyle='rgba(255,90,110,.9)';ctx.fillText(eur(SC.bad[H-1]),X(n-1)-2,Math.min(h-padB-10,by+15));
+    // Подпись красной ветки — левее и выше её конца: иначе ложится прямо на
+    // пунктир и цифру не разобрать.
+    ctx.fillStyle='rgba(255,90,110,.92)';ctx.fillText(eur(SC.bad[H-1]),X(n-1)-9,Math.max(padT+8,by-13));
   }
 
   // фактическая линия
@@ -4116,8 +4127,17 @@ function drawFlowChart(phase){
   ctx.fillStyle='rgba(235,240,250,.35)';ctx.font=`${Math.max(9,w/42)}px -apple-system,sans-serif`;ctx.textBaseline='alphabetic';
   ctx.textAlign='left';ctx.fillText(_rowLabel(rows[0]),padL,h-8);
   if(SC){
-    ctx.textAlign='center';ctx.fillText(_ymLabel(rows[nA-1].ym),X(nA-1),h-8);
-    ctx.textAlign='right';ctx.fillText(_ymLabel(SC.labels[H-1]),w-padR,h-8);
+    // Развилка бывает короткой (цель на следующий месяц) при длинной истории —
+    // тогда «сейчас» и месяц цели оказываются в паре пикселей друг от друга и
+    // подписи наезжают одна на другую. Меряем и рисуем «сейчас» только если
+    // между ними реально есть место.
+    const rLbl=_ymLabel(SC.labels[H-1]),mLbl=_ymLabel(rows[nA-1].ym);
+    ctx.textAlign='right';ctx.fillText(rLbl,w-padR,h-8);
+    const rLeft=(w-padR)-ctx.measureText(rLbl).width;
+    const mHalf=ctx.measureText(mLbl).width/2;
+    if(X(nA-1)+mHalf < rLeft-10){
+      ctx.textAlign='center';ctx.fillText(mLbl,X(nA-1),h-8);
+    }
   }else{
     ctx.textAlign='right';ctx.fillText(_rowLabel(rows[nA-1]),w-padR,h-8);
     const midI=Math.floor((nA-1)/2);
