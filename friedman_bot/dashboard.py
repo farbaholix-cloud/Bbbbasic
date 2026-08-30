@@ -1117,6 +1117,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 /* Во время переноса выключаем выделение текста и «резинку» страницы. */
 body.dragging-now{user-select:none;-webkit-user-select:none;overscroll-behavior:none}
 body.dragging-now .ev{cursor:grabbing}
+.cal-plain{padding:0;margin-bottom:14px;background:none;border:none;box-shadow:none}
 .cal-view{width:30px;height:30px;flex-shrink:0;border-radius:10px;cursor:pointer;
   background:rgba(255,255,255,.07);border:1px solid var(--rim);color:var(--txt);
   font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;
@@ -1208,13 +1209,13 @@ body.dragging-now .ev{cursor:grabbing}
    заставляла листать сутки за сутками; в ленте колонок неделя видна целиком,
    а перетаскивание между днями становится коротким жестом вбок. */
 /* ── Хроносетка ── */
-.cal-grid{display:flex;gap:0;margin:0 -16px;padding:2px 0 12px}
+.cal-grid{display:flex;gap:0;margin:0;padding:2px 0 12px}
 .tg-ruler{flex-shrink:0;width:34px;padding-left:6px}
 .tg-head-sp{height:26px}
 .tg-scale{position:relative}
 .tg-h{position:absolute;left:0;font-size:9.5px;font-weight:800;color:var(--faint);
   transform:translateY(-6px);letter-spacing:.3px}
-.tg-days{display:flex;gap:10px;overflow-x:auto;padding:0 16px 0 4px;
+.tg-days{display:flex;gap:10px;overflow-x:auto;padding:0 0 0 4px;
   scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:flex-start}
 .tg-days::-webkit-scrollbar{display:none}
 .tg-day{min-width:196px;max-width:196px;flex-shrink:0;scroll-snap-align:start}
@@ -1234,7 +1235,7 @@ body.dragging-now .ev{cursor:grabbing}
   border-radius:50%;background:#ff5a6e}
 .tg-allday{display:flex;flex-direction:column;gap:7px}
 .tg-none{font-size:10.5px;color:var(--faint);text-align:center;padding:2px 0 4px}
-.cal-cols{display:flex;gap:10px;overflow-x:auto;padding:2px 16px 12px;margin:0 -16px;
+.cal-cols{display:flex;gap:10px;overflow-x:auto;padding:2px 0 12px;margin:0;
   scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;
   align-items:flex-start}
 .cal-cols::-webkit-scrollbar{display:none}
@@ -1651,8 +1652,8 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 <div id="ptr"><span class="i">⚓</span></div>
 <div class="wrap">
   <div class="hdr">
-    <div class="anchor">⚓</div>
-    <div><h1>Капитанский мостик</h1><div class="date" id="updated"></div></div>
+    <div class="anchor" id="page-icon">⚓</div>
+    <div><h1 id="page-title">Капитанский мостик</h1><div class="date" id="updated"></div></div>
     <div style="margin-left:auto;font-size:9px;color:rgba(235,240,250,.3);font-weight:700;align-self:flex-start">v__VERSION__</div>
   </div>
   <div class="seg glass-sm" id="seg">
@@ -1707,8 +1708,10 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
   </div>
 
   <div class="page" id="page-cal">
-    <div class="block glass">
-      <div class="bh"><div class="t">📅 Прошивка календаря</div>
+    <!-- Без оформления карточки: заголовок страницы теперь в шапке, и вторая
+         рамка сразу под блоком вкладок читалась как лишний разделитель. -->
+    <div class="block cal-plain">
+      <div class="bh" style="margin-bottom:9px">
         <div class="cal-seg" id="cal-seg">
           <button class="cs tails" data-r="tails" id="cal-tails" hidden onclick="setCalRange('tails')">хвосты</button>
           <button class="cs" data-r="week" onclick="setCalRange('week')">неделя</button>
@@ -1918,12 +1921,31 @@ function _kcol(id){return _byId(DATA.kanban_cols,id);}
 function _step(id){for(const p of (DATA.projects||[])){const s=_byId(p.steps,id);if(s)return s;}return null;}
 function _tmpId(){return -(Date.now()*1000+Math.floor(Math.random()*1000));}
 
+// Название страницы живёт в шапке, а не в первом блоке каждой вкладки: раньше
+// «Прошивка календаря» стояла и наверху, и третьей строкой — одно и то же слово
+// дважды на пол-экрана.
+const PAGE_TITLES={
+  plan:['⚓','Капитанский мостик'],
+  cal :['📅','Прошивка календаря'],
+  fin :['💰','Финансы'],
+  proj:['📁','Проекты'],
+  hap :['🤗','Счастье']
+};
+function setPageTitle(p){
+  const t=PAGE_TITLES[p]||PAGE_TITLES.plan;
+  const ic=document.getElementById('page-icon'),ti=document.getElementById('page-title');
+  if(ic)ic.textContent=t[0];
+  if(ti)ti.textContent=t[1];
+  document.title=t[1];
+}
+
 // segmented control
 document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   document.querySelectorAll('#seg .s').forEach(x=>x.classList.remove('on'));
   s.classList.add('on');
   const p=s.dataset.p;
   ['plan','cal','fin','proj','hap'].forEach(n=>document.getElementById('page-'+n).classList.toggle('on',p===n));
+  setPageTitle(p);
   window.scrollTo(0,0);
   if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
   if(p==='plan')requestAnimationFrame(()=>_flowStart());else _flowStop();
