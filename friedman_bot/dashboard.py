@@ -1111,6 +1111,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .ev-ghost{box-shadow:0 18px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.14)!important;
   opacity:.97;transform-origin:12% 50%}
 /* Гнездо на месте карточки: пунктир, куда она сядет. */
+.ev-src-grid{opacity:.28;filter:grayscale(.4)}
+/* Указатель времени при броске в хроносетку. */
+.tg-drop{position:fixed;height:2px;background:#ff3b30;z-index:59;pointer-events:none;
+  box-shadow:0 0 8px rgba(255,59,48,.7);border-radius:2px}
+.tg-drop span{position:absolute;left:-2px;top:-10px;background:#ff3b30;color:#fff;
+  font-size:9.5px;font-weight:900;padding:1px 5px;border-radius:6px;letter-spacing:.3px}
 .ev-src{background:rgba(255,255,255,.05)!important;border:1px dashed var(--rim2)!important;
   color:transparent!important;box-shadow:none!important;overflow:hidden}
 .ev-src>*{visibility:hidden}
@@ -2388,7 +2394,7 @@ function _calGridCols(sorted,ctx){
     const allday=evs.filter(e=>!e.time);
     cols+='<div class="tg-day '+(today?'today':'')+' '+(past?'past':'')+'" data-ds="'+ds+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
-      '<div class="tg-hours" style="height:'+H+'px">'+body+'</div>'+
+      '<div class="tg-hours" data-lo="'+lo+'" style="height:'+H+'px">'+body+'</div>'+
       '<div class="day-split"></div>'+
       '<div class="tg-allday">'+(allday.length?allday.map(e=>evHtml(e)).join(''):'<div class="tg-none">—</div>')+'</div>'+
       '</div>';
@@ -2439,9 +2445,7 @@ function renderCal(){
     // В сетке время читается по положению блока — дублировать его в тексте
     // значит съедать и без того узкую колонку.
     const tBadge=(e.time&&!inGrid)?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
-    // Перетаскивание живёт в списочном режиме: в сетке место задаёт время, и
-    // тот же жест значил бы там другое. Время правится в самой карточке.
-    const drg=(e.kind==='event'&&_calView!=='grid')?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'" data-tend="'+(e.time_end||'')+'"':'';
+    const drg=e.kind==='event'?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'" data-tend="'+(e.time_end||'')+'"':'';
     return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
       tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
   };
@@ -2474,7 +2478,7 @@ function renderCal(){
   if(vb){vb.textContent=_calView==='grid'?'📋':'🕐';vb.classList.toggle('on',_calView==='grid');}
   const hint=document.getElementById('cal-hint');
   if(hint)hint.textContent=_calView==='grid'
-    ? '🕐 хроносетка: высота блока — длительность. Перетаскивание — в списке; здесь время правится в карточке'
+    ? '🕐 хроносетка: удерживай карточку и тащи — время задаёт то место, куда отпустишь'
     : '✋ удерживай карточку и тащи: выше черты — время между соседями, ниже — весь день';
   if(_calView==='grid'&&withCards.length){
     document.getElementById('cal').innerHTML=head+_calGridCols(withCards,{now,todayISO,evHtml,dayEvents});
@@ -2587,7 +2591,44 @@ function _cdgCards(){return [...document.querySelectorAll('#cal .ev')];}
 
 // Куда встанет карточка: день под пальцем + место среди его карточек.
 // Красная черта делит день на две зоны: выше — «по часам», ниже — «весь день».
+// В хроносетке цель — не место в списке, а ВРЕМЯ: его задаёт вертикальная
+// позиция пальца внутри колонки. Шаг 5 минут: при 48 px на час один пиксель —
+// это 1,25 минуты, то есть точнее пальца всё равно не получится, а круглые
+// значения предсказуемы.
+const TG_SNAP=5;
+function _cdgTargetGrid(x,y){
+  const els=document.elementsFromPoint(x,y);
+  let hours=null,allday=null,day=null;
+  for(const el of els){
+    if(!el.closest)continue;
+    hours=hours||el.closest('.tg-hours');
+    allday=allday||el.closest('.tg-allday');
+    day=day||el.closest('.tg-day');
+    if(day&&(hours||allday))break;
+  }
+  if(!day)return null;
+  if(hours){
+    const r=hours.getBoundingClientRect();
+    const lo=+(hours.dataset.lo||0);
+    let m=lo+(y-r.top)/TG_SLOT*60;
+    m=Math.round(m/TG_SNAP)*TG_SNAP;
+    m=Math.max(0,Math.min(1439,m));
+    return {grid:true,day:day,ds:day.dataset.ds,time:
+      String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'),
+      lineY:r.top+(m-lo)/60*TG_SLOT, left:r.left, right:r.right};
+  }
+  const zone=allday||day.querySelector('.tg-allday');
+  const slots=[...zone.querySelectorAll('.ev')].filter(n=>n!==_cdg.src);
+  let idx=slots.length;
+  for(let i=0;i<slots.length;i++){
+    const r=slots[i].getBoundingClientRect();
+    if(y<r.top+r.height/2){idx=i;break;}
+  }
+  return {grid:true,day:day,ds:day.dataset.ds,time:'',zone:zone,before:slots[idx]||null};
+}
+
 function _cdgTarget(x,y){
+  if(_cdg.grid)return _cdgTargetGrid(x,y);
   const els=document.elementsFromPoint(x,y);
   let cell=null;
   for(const el of els){const c=el.closest&&el.closest('#cal .cell');if(c){cell=c;break;}}
@@ -2623,7 +2664,31 @@ function _cdgMid(prevT,nextT){
   return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
 }
 
+// Указатель времени: красная черта там, куда попадёт карточка, с подписью часа.
+// Без него бросок в сетку — это гадание: карточка едет за пальцем, а во сколько
+// она встанет, видно только после отпускания.
+function _cdgGridHint(t){
+  let el=_cdg.hint;
+  if(!el){
+    el=document.createElement('div');el.className='tg-drop';
+    el.innerHTML='<span></span>';document.body.appendChild(el);_cdg.hint=el;
+  }
+  if(!t){el.style.display='none';return;}
+  if(t.time){
+    el.style.display='block';
+    el.style.left=t.left+'px';el.style.width=(t.right-t.left)+'px';el.style.top=t.lineY+'px';
+    el.firstChild.textContent=t.time;
+    el.classList.remove('allday');
+  }else{
+    el.style.display='none';
+    if(t.zone){
+      if(t.before)t.zone.insertBefore(_cdg.src,t.before);else t.zone.appendChild(_cdg.src);
+    }
+  }
+}
+
 function _cdgMoveSlot(t){
+  if(_cdg.grid){_cdg.lastT=t;_cdgGridHint(t);return;}
   if(!t)return;
   if(_cdg.lastCell===t.cell&&_cdg.lastBefore===t.before)return;
   _cdg.lastCell=t.cell;_cdg.lastBefore=t.before;
@@ -2678,8 +2743,8 @@ function _cdgStart(card,ev){
   document.body.appendChild(ghost);
   _cdg.ghost=ghost;_cdg.gw=r.width;_cdg.gh=r.height;
   _cdg.offX=ev.clientX-r.left;_cdg.offY=ev.clientY-r.top;
-  card.classList.add('ev-src');
-  card.style.height=r.height+'px';
+  card.classList.add(_cdg.grid?'ev-src-grid':'ev-src');
+  if(!_cdg.grid)card.style.height=r.height+'px';
   card.style.touchAction='none';
   document.body.classList.add('dragging-now');
   if(navigator.vibrate)navigator.vibrate(12);
@@ -2702,22 +2767,63 @@ function _cdgEnd(commit){
   const src=st.src;
   const finish=()=>{
     if(st.ghost)st.ghost.remove();
-    if(src){src.classList.remove('ev-src');src.style.height='';src.style.transform='';src.style.transition='';src.style.touchAction='';}
+    if(st.hint)st.hint.remove();
+    if(src){src.classList.remove('ev-src','ev-src-grid');src.style.height='';src.style.transform='';
+            src.style.transition='';src.style.touchAction='';}
   };
   if(!st.active){finish();return;}
   // «Примагничивание»: призрак долетает до гнезда, и только потом исчезает.
   const r=src.getBoundingClientRect();
+  if(st.grid&&st.ghost){
+    st.ghost.style.transition='transform .16s,opacity .16s';st.ghost.style.opacity='0';
+    setTimeout(finish,170);
+    if(commit)_cdgCommit(src,st);else renderCal();
+    return;
+  }
   if(st.ghost){
     st.ghost.style.transition='transform .17s cubic-bezier(.2,.8,.2,1),opacity .17s';
     st.ghost.style.transform='translate3d('+r.left+'px,'+r.top+'px,0) scale(1)';
     st.ghost.style.opacity='0';
   }
   setTimeout(finish,175);
-  if(commit)_cdgCommit(src);
+  if(commit)_cdgCommit(src,st);
   else renderCal();
 }
 
-function _cdgCommit(src){
+// Сохранение после броска в хроносетке. Здесь нет списка, из которого можно
+// прочитать порядок, поэтому состав дня собираем из данных: у перетащенной
+// карточки — новое время (или «весь день»), у остальных всё как было.
+function _cdgCommitGrid(src,st){
+  const t=st.lastT;if(!t)return;
+  const ds=t.ds, id=+src.dataset.id;
+  const card=(DATA.cards||[]).find(c=>c.kind==='event'&&c.id===id);
+  if(!card)return;
+  const moved=card.date!==ds;
+  const others=(DATA.cards||[]).filter(c=>c.kind==='event'&&c.date===ds&&c.id!==id);
+  const timed=others.filter(c=>c.time).map(c=>({id:c.id,time:c.time}));
+  if(t.time)timed.push({id:id,time:t.time});
+  timed.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0);
+  // «весь день»: порядок берём из зоны — туда карточку уже вставили при наведении
+  let allday;
+  if(!t.time&&t.zone){
+    allday=[...t.zone.querySelectorAll('.ev[data-drag="1"]')].map(n=>+n.dataset.id);
+  }else{
+    allday=others.filter(c=>!c.time).sort((a,b)=>(a.position||0)-(b.position||0)).map(c=>c.id);
+  }
+  const items=timed.concat(allday.map(i=>({id:i,time:''})));
+  mutate(()=>{
+    items.forEach((it,i)=>{
+      const c=(DATA.cards||[]).find(x=>x.kind==='event'&&x.id===it.id);
+      if(!c)return;
+      if(c.time!==it.time)c.time_end='';
+      c.time=it.time;c.position=i;
+      if(it.id===id)c.date=ds;
+    });
+  },'/api/cards_order',{date:ds,items:items,move_id:moved?id:null});
+}
+
+function _cdgCommit(src,st){
+  if(st&&st.grid)return _cdgCommitGrid(src,st);
   const cell=src.closest('.cell');if(!cell)return;
   const ds=cell.dataset.ds;
   const nodes=[...cell.children].filter(n=>n.classList.contains('ev')||n.classList.contains('day-split'));
@@ -2763,7 +2869,8 @@ function _cdgCommit(src){
 document.addEventListener('pointerdown',e=>{
   const card=e.target.closest&&e.target.closest('#cal .ev[data-drag="1"]');
   if(!card||e.button)return;
-  _cdg={src:card,active:false,x0:e.clientX,y0:e.clientY,moved:false,lastCell:null,lastBefore:null,scrollV:0,scrollH:0,scrollRAF:0};
+  _cdg={src:card,active:false,grid:_calView==='grid',x0:e.clientX,y0:e.clientY,moved:false,
+        lastCell:null,lastBefore:null,lastT:null,hint:null,scrollV:0,scrollH:0,scrollRAF:0};
   _cdgGuardOn();
   _cdg.timer=setTimeout(()=>{
     if(!_cdg||_cdg.moved)return;                 // успел повести пальцем — это скролл
