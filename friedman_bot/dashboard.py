@@ -1100,7 +1100,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 /* Черта между «по часам» и «весь день». Тонкая и красная: это граница смысла,
    а не украшение — выше линии у дела есть место в сутках, ниже его нет. */
 .day-split{height:1px;background:rgba(255,90,110,.55);margin:7px 2px;border-radius:1px}
-.day-split.hot{background:rgba(255,90,110,.95);box-shadow:0 0 8px rgba(255,90,110,.6)}          /* тап и скролл живут как жили */
+.day-split.hot{background:rgba(255,90,110,.95);box-shadow:0 0 8px rgba(255,90,110,.6)}
+/* Граница «уже прошло / ещё впереди» в сегодняшней колонке. Та же красная линия
+   в 1 пиксель, но с подписью: две одинаковые черты в одной колонке иначе
+   читались бы как одно и то же. */
+.day-now{position:relative;height:1px;background:rgba(255,90,110,.75);margin:9px 2px 10px;border-radius:1px}
+.day-now span{position:absolute;right:0;top:-7px;font-size:8.5px;font-weight:900;letter-spacing:.4px;
+  text-transform:uppercase;color:#ff9aa6;background:var(--bg,#12141f);padding:0 4px;line-height:13px}          /* тап и скролл живут как жили */
 /* Поднятая карточка: тень и лёгкий наклон — видно, что она «в руке». */
 .ev-ghost{box-shadow:0 18px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.14)!important;
   opacity:.97;transform-origin:12% 50%}
@@ -1886,6 +1892,9 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   window.scrollTo(0,0);
   if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
   if(p==='plan')requestAnimationFrame(()=>_flowStart());else _flowStop();
+  // Открыли календарь — пересчитываем «что уже прошло»: со времени прошлой
+  // отрисовки могло пройти сколько угодно, а граница привязана к часам.
+  if(p==='cal')renderCal();
 });
 
 function quadClass(imp,urg){
@@ -2299,9 +2308,21 @@ function renderCal(){
         // Красная черта — граница между «по часам» и «весь день». Она же граница
         // зон при перетаскивании: бросил выше — получишь время, ниже — «весь день».
         // Рисуем всегда, даже если одна из групп пуста: иначе бросать было бы некуда.
+        // Вторая черта — только в сегодняшней колонке: отделяет то, что уже
+        // прошло, от того, что впереди. Прошедшим считается дело, чьё ОКОНЧАНИЕ
+        // (а если его нет — начало) раньше текущего времени: дело с 14:00 до
+        // 15:00 в 14:30 ещё идёт, а не прошло.
+        // Черта появляется, только если по обе стороны что-то есть: иначе она
+        // отделяла бы прошедшее от пустоты и вставала бы вплотную ко второй.
+        const nowHM=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+        const isPast=e=>e.time&&((e.time_end||e.time)<nowHM);
+        const timed=evs.filter(e=>e.time);
+        const showNow=today&&timed.some(isPast)&&timed.some(e=>!isPast(e));
         const parts=[];
-        let split=false;
+        let split=false,nowDone=false;
         evs.forEach(e=>{
+          if(showNow&&!nowDone&&e.time&&!isPast(e)){
+            parts.push('<div class="day-now"><span>сейчас</span></div>');nowDone=true;}
           if(!split&&!e.time){parts.push('<div class="day-split"></div>');split=true;}
           parts.push(evHtml(e));
         });
