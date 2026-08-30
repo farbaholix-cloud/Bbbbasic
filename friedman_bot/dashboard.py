@@ -550,28 +550,60 @@ def api_complete(payload):
 
 
 def api_cards_order(payload):
-    """Сохранить ручной порядок карточек без времени внутри дня и, если карточку
-    перетащили в другой день, её новую дату.
+    """Сохранить раскладку карточек одного дня после перетаскивания.
 
-    Клиент присылает ПОЛНЫЙ список id для дня, а не «сдвинь на единицу»: так
-    порядок на сервере не разъедется с тем, что человек видит на экране, даже
-    если запросы придут не по порядку."""
+    Клиент присылает ПОЛНЫЙ список карточек дня в том порядке, в каком человек их
+    видит, и для каждой — время ('' = «весь день»). Полный список, а не «сдвинь
+    на единицу»: так порядок на сервере не разъедется с экраном, если запросы
+    придут не по порядку.
+
+    Время у карточки со временем задаёт её место само по себе, поэтому position
+    важен только для карточек «весь день». Но пишем его всем — дешевле, чем
+    отдельная ветка.
+
+    time_end сдвигаем на ту же дельту, что и начало: перетаскивание меняет КОГДА
+    дело начнётся, а не сколько оно длится. Если конец вылезает за сутки —
+    обрезаем, чтобы не получить событие, кончающееся вчера.
+    """
     date = (payload.get("date") or "").strip()
-    ids = [int(x) for x in (payload.get("ids") or [])]
+    items = payload.get("items") or []
     move_id = payload.get("move_id")
     if not date:
         return {"ok": False, "error": "no date"}
+
+    def mins(hhmm):
+        try:
+            h, m = str(hhmm).split(":")
+            return int(h) * 60 + int(m)
+        except Exception:
+            return None
+
     with db() as conn:
         old_date = None
         if move_id:
             row = conn.execute("SELECT date FROM events WHERE id=?", (int(move_id),)).fetchone()
             old_date = row["date"] if row else None
             conn.execute("UPDATE events SET date=? WHERE id=?", (date, int(move_id)))
-        for i, eid in enumerate(ids):
-            conn.execute("UPDATE events SET position=? WHERE id=?", (i, eid))
+        for i, it in enumerate(items):
+            eid = int(it.get("id"))
+            new_time = (it.get("time") or "").strip()
+            cur = conn.execute("SELECT time, time_end FROM events WHERE id=?", (eid,)).fetchone()
+            if cur is None:
+                continue
+            old_time, old_end = (cur["time"] or ""), (cur["time_end"] or "")
+            end = old_end
+            if not new_time:
+                end = ""                       # «весь день» — конца не бывает
+            elif old_end and old_time and new_time != old_time:
+                a, b, c = mins(old_time), mins(old_end), mins(new_time)
+                if None not in (a, b, c):
+                    shifted = c + (b - a)      # длительность сохраняем
+                    end = "%02d:%02d" % (shifted // 60, shifted % 60) if shifted < 24 * 60 else "23:59"
+            conn.execute("UPDATE events SET time=?, time_end=?, position=? WHERE id=?",
+                         (new_time, end, i, eid))
         # В дне, ОТКУДА карточку унесли, остаются дыры в нумерации. Сами по себе они
-        # не вредят (сортировка по возрастанию), но новое событие создаётся с
-        # position=0 и молча встало бы выше всех. Поэтому перенумеровываем и его.
+        # не вредят, но новое событие создаётся с position=0 и молча встало бы выше
+        # всех «весь день». Поэтому перенумеровываем и его.
         if old_date and old_date != date:
             rest = conn.execute(
                 "SELECT id FROM events WHERE date=? AND COALESCE(time,'')='' "
@@ -1075,7 +1107,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .cell.tail{border-color:rgba(255,90,110,.35)}
 .cell.tail .cd{color:#ff9aa6}
 .tail-age{font-size:10px;font-weight:800;color:#ff9aa6;opacity:.85;margin-left:6px}
-.ev[data-drag="1"]{touch-action:pan-y}          /* тап и скролл живут как жили */
+.ev[data-drag="1"]{touch-action:pan-y}
+/* Черта между «по часам» и «весь день». Тонкая и красная: это граница смысла,
+   а не украшение — выше линии у дела есть место в сутках, ниже его нет. */
+.day-split{height:1px;background:rgba(255,90,110,.55);margin:7px 2px;border-radius:1px}
+.day-split.hot{background:rgba(255,90,110,.95);box-shadow:0 0 8px rgba(255,90,110,.6)}          /* тап и скролл живут как жили */
 /* Поднятая карточка: тень и лёгкий наклон — видно, что она «в руке». */
 .ev-ghost{box-shadow:0 18px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.14)!important;
   opacity:.97;transform-origin:12% 50%}
@@ -1384,6 +1420,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:23px;heigh
 .sh-picker select{flex:1;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:12px;color:var(--txt);padding:11px;font-size:15px;-webkit-appearance:none;text-align:center}
 .sh-picker input[type=date],.sh-picker input[type=time]{flex:1;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--rim);border-radius:11px;color:var(--txt);padding:9px 6px;font-size:13.5px;font-weight:700;font-family:inherit;text-align:center;-webkit-appearance:none}
 .sh-picker input[type=time]{flex:.8}
+.sh-allday{width:100%;margin:0 0 9px;padding:9px;border-radius:11px;cursor:pointer;
+  background:rgba(255,255,255,.06);border:1px solid var(--rim);color:var(--txt);
+  font-size:12.5px;font-weight:800;font-family:inherit}
+.sh-allday:active{background:rgba(255,255,255,.14);transform:scale(.98)}
 .sh-picker button{flex:1.2;background:linear-gradient(135deg,var(--blue),var(--violet));border:none;border-radius:11px;color:#fff;padding:9px 6px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
 .sh-pick-lbl{font-size:10.5px;color:var(--muted);font-weight:700;text-align:center;margin:1px 0 5px;letter-spacing:.3px}
 .sh-actions{display:flex;gap:9px;margin-top:3px;align-items:stretch}
@@ -1640,7 +1680,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
         </div>
         <button class="cal-add" onclick="openIdeaSheet()" title="Новая вводная" aria-label="Новая вводная">+</button></div>
       <div id="cal"></div>
-      <div class="addr" style="margin-top:9px;cursor:default">✋ удерживай карточку без времени — перетащи в другой день</div>
+      <div class="addr" style="margin-top:9px;cursor:default">✋ удерживай карточку и тащи: выше черты — время между соседями, ниже — весь день</div>
     </div>
   </div>
 
@@ -2192,6 +2232,25 @@ function renderCal(){
     DATA.cards.forEach(c=>{if(c.date&&c.date>=startISO&&c.date<endISO)dates.add(c.date);});
     sorted=[...dates].sort();
   }
+  // Разметка одной карточки. Вынесена из цикла: её теперь зовут в двух местах —
+  // до красной черты и после.
+  const evHtml=e=>{
+    const tdata={kind:e.kind,id:e.id,text:e.text};
+    if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;tdata.imp=e.importance||0;tdata.urg=e.urgency||0;}
+    const mbDot=e.morning_brief?'<span style="font-size:9px;opacity:.7;margin-left:4px">🌅</span>':'';
+    const cmtDot=e.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'';
+    let priDot='';
+    if(e.kind==='event'&&(e.importance||e.urgency)){
+      const q=quadClass(e.importance||0,e.urgency||0);
+      const col=({r:'#ff9aa6',a:'#ffd07a',b:'#86b8ff',g:'var(--muted)'})[q]||'var(--muted)';
+      priDot='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+col+';margin-left:5px;flex-shrink:0;vertical-align:middle"></span>';
+    }
+    const tBadge=e.time?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
+    // Перетаскиваются все события (напоминание живёт в своей таблице — его нет).
+    const drg=e.kind==='event'?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'"':'';
+    return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
+      tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
+  };
   let html='';
   let curMonth=-1,curYear=-1;
   if(_calRange==='tails'){
@@ -2208,9 +2267,12 @@ function renderCal(){
     // порядок внутри дня — хронологический: из базы карточки приходят в порядке
     // создания (а напоминания вообще после всех событий), поэтому сортируем сами.
     // «Без времени» — вверху дня, как полоса «без времени» в Mac-версии.
+    // Сначала дела со временем — по часам, потом «весь день» — в ручном порядке.
+    // Так день читается сверху вниз как расписание, а бессрочное лежит хвостом
+    // под чертой и не разрывает ленту времени.
     const evs=DATA.cards.filter(e=>e.date===ds).sort((a,b)=>{
       const ta=a.time||'',tb=b.time||'';
-      if(!ta!==!tb)return ta?1:-1;                  // бесвременные — выше
+      if(!ta!==!tb)return ta?-1:1;                  // со временем — выше
       if(!ta&&!tb){                                 // оба без времени — ручной порядок
         const pa=a.position||0,pb=b.position||0;
         if(pa!==pb)return pa-pb;
@@ -2235,24 +2297,19 @@ function renderCal(){
       (tailMode?'<span class="tail-age">'+_plur(_daysAgo(ds),'день','дня','дней')+' назад</span>':'');
     html+='<div class="cell glass-sm '+(today?'today':'')+' '+(past&&!tailMode?'past':'')+' '+(tailMode?'tail':'')+'" data-ds="'+ds+'">'+
       '<div class="cd"><span class="'+(today?'td':'')+'">'+label+'</span></div>'+
-      evs.map(e=>{
-        const tdata={kind:e.kind,id:e.id,text:e.text};
-        if(e.kind==='event'){tdata.mb=e.morning_brief||0;tdata.proj=e.project_id||null;tdata.imp=e.importance||0;tdata.urg=e.urgency||0;}
-        const mbDot=e.morning_brief?'<span style="font-size:9px;opacity:.7;margin-left:4px">🌅</span>':'';
-        const cmtDot=e.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'';
-        let priDot='';
-        if(e.kind==='event'&&(e.importance||e.urgency)){
-          const q=quadClass(e.importance||0,e.urgency||0);
-          const col=({r:'#ff9aa6',a:'#ffd07a',b:'#86b8ff',g:'var(--muted)'})[q]||'var(--muted)';
-          priDot='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+col+';margin-left:5px;flex-shrink:0;vertical-align:middle"></span>';
-        }
-        const tBadge=e.time?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
-        // Перетаскивать можно только события без времени: у события со временем
-        // порядок задаёт время, а напоминание живёт в своей таблице.
-        const drg=(e.kind==='event'&&!e.time)?' data-drag="1" data-id="'+e.id+'"':'';
-        return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
-          tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
-      }).join('')+'</div>';
+      (()=>{
+        // Красная черта — граница между «по часам» и «весь день». Она же граница
+        // зон при перетаскивании: бросил выше — получишь время, ниже — «весь день».
+        // Рисуем всегда, даже если одна из групп пуста: иначе бросать было бы некуда.
+        const parts=[];
+        let split=false;
+        evs.forEach(e=>{
+          if(!split&&!e.time){parts.push('<div class="day-split"></div>');split=true;}
+          parts.push(evHtml(e));
+        });
+        if(!split)parts.push('<div class="day-split"></div>');
+        return parts.join('');
+      })()+'</div>';
   }
   const emptyMsg={week:'в ближайшие 7 дней пусто',month:'в этом месяце пусто',
     year:'в этом году пусто',all:'в календаре пока ничего нет',
@@ -2294,19 +2351,33 @@ function _cdgFlip(nodes,mutate){
 
 function _cdgCards(){return [...document.querySelectorAll('#cal .ev')];}
 
-// Куда встанет карточка: день под пальцем + место среди его карточек без времени.
+// Куда встанет карточка: день под пальцем + место среди его карточек.
+// Красная черта делит день на две зоны: выше — «по часам», ниже — «весь день».
 function _cdgTarget(x,y){
   const els=document.elementsFromPoint(x,y);
   let cell=null;
   for(const el of els){const c=el.closest&&el.closest('#cal .cell');if(c){cell=c;break;}}
   if(!cell)return null;
-  const slots=[...cell.querySelectorAll('.ev')].filter(n=>n!==_cdg.src&&n.dataset.drag==='1');
-  let idx=slots.length;
-  for(let i=0;i<slots.length;i++){
-    const r=slots[i].getBoundingClientRect();
+  const nodes=[...cell.children].filter(n=>(n.classList.contains('ev')||n.classList.contains('day-split'))&&n!==_cdg.src);
+  let idx=nodes.length;
+  for(let i=0;i<nodes.length;i++){
+    const r=nodes[i].getBoundingClientRect();
     if(y<r.top+r.height/2){idx=i;break;}
   }
-  return {cell:cell,before:slots[idx]||null,ds:cell.dataset.ds};
+  return {cell:cell,before:nodes[idx]||null,ds:cell.dataset.ds};
+}
+
+// Время по соседям — ровно посередине между тем, что выше, и тем, что ниже.
+// Границы суток работают как виртуальные соседи, поэтому правило одно и то же
+// в середине списка и у краёв: сверху — половина пути от полуночи, снизу —
+// половина пути до полуночи, в пустом дне — полдень. Шаг 5 минут: «13:47» в
+// календаре выглядит как сбой, а не как решение.
+function _cdgMid(prevT,nextT){
+  const m=t=>{const p=String(t||'').split(':');return p.length===2?(+p[0])*60+(+p[1]):null;};
+  const a=m(prevT), b=m(nextT);
+  let v=Math.round(((a===null?0:a)+(b===null?1440:b))/2/5)*5;
+  v=Math.max(0,Math.min(1439,v));
+  return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
 }
 
 function _cdgMoveSlot(t){
@@ -2390,14 +2461,41 @@ function _cdgEnd(commit){
 function _cdgCommit(src){
   const cell=src.closest('.cell');if(!cell)return;
   const ds=cell.dataset.ds;
-  const ids=[...cell.querySelectorAll('.ev[data-drag="1"]')].map(n=>+n.dataset.id);
+  const nodes=[...cell.children].filter(n=>n.classList.contains('ev')||n.classList.contains('day-split'));
+  const splitAt=nodes.findIndex(n=>n.classList.contains('day-split'));
+  const srcAt=nodes.indexOf(src);
+  const timed=splitAt<0||srcAt<splitAt;
+
+  let newTime='';
+  if(timed){
+    // соседей ищем только среди карточек со временем; черта — стоп
+    let prevT=null,nextT=null;
+    for(let i=srcAt-1;i>=0;i--){const n=nodes[i];if(n.classList.contains('day-split'))break;
+      if(n.dataset.time){prevT=n.dataset.time;break;}}
+    for(let i=srcAt+1;i<nodes.length;i++){const n=nodes[i];if(n.classList.contains('day-split'))break;
+      if(n.dataset.time){nextT=n.dataset.time;break;}}
+    newTime=_cdgMid(prevT,nextT);
+  }
+
+  const items=[];let past=false;
+  nodes.forEach(n=>{
+    if(n.classList.contains('day-split')){past=true;return;}
+    if(!n.dataset.id)return;
+    items.push({id:+n.dataset.id, time:(n===src)?newTime:(past?'':(n.dataset.time||''))});
+  });
+
   const id=+src.dataset.id;
   const card=(DATA.cards||[]).find(c=>c.kind==='event'&&c.id===id);
   const moved=card&&card.date!==ds;
   mutate(()=>{
-    if(card)card.date=ds;
-    ids.forEach((eid,i)=>{const c=(DATA.cards||[]).find(x=>x.kind==='event'&&x.id===eid);if(c)c.position=i;});
-  },'/api/cards_order',{date:ds,ids:ids,move_id:moved?id:null});
+    items.forEach((it,i)=>{
+      const c=(DATA.cards||[]).find(x=>x.kind==='event'&&x.id===it.id);
+      if(!c)return;
+      if(c.time!==it.time)c.time_end='';      // время сдвинулось — конец пересчитает сервер
+      c.time=it.time;c.position=i;
+      if(it.id===id)c.date=ds;
+    });
+  },'/api/cards_order',{date:ds,items:items,move_id:moved?id:null});
 }
 
 document.addEventListener('pointerdown',e=>{
@@ -3336,6 +3434,7 @@ function openTask(t){
       '<input type="time" id="sh-time" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time)||'')+'" title="Начало">'+
       '<input type="time" id="sh-time2" value="'+((t.kind==='event'&&_card(t.id)&&_card(t.id).time_end)||'')+'" title="Конец">'+
       '<button id="sh-go">📅</button></div>'+
+    '<button class="sh-allday" id="sh-allday">🌤 весь день — убрать время</button>'+
     (t.kind==='event'?'<button class="sh-act sh-del" id="sh-evdel" style="margin:0 0 7px;width:100%;padding:10px;font-size:12px;border-radius:12px">🗑 Удалить навсегда</button>':'')+
     '<div class="sh-foot"><div class="sh-actions"><button class="sh-btn go" id="sh-done">✅ выполнено</button>'+
     '<button class="sh-btn danger" id="sh-del">'+(t.kind==='chaos'?'🗑 удалить':'↩️ на парковку')+'</button></div></div>';
@@ -3385,6 +3484,16 @@ function openTask(t){
     },'/api/move',t.kind==='reminder'?{kind:t.kind,id:t.id,date}:{kind:t.kind,id:t.id,date,time,time_end});
   }
   sheet.querySelectorAll('.sh-day').forEach(b=>b.onclick=()=>doMove(b.dataset.date));
+  // «Весь день»: снять привязку ко времени, не трогая дату. Карточка уедет под
+  // красную черту — туда, где лежат дела без часа.
+  const shAllDay=sheet.querySelector('#sh-allday');
+  if(shAllDay)shAllDay.onclick=()=>{
+    const dEl=sheet.querySelector('#sh-date');
+    const cur=(t.kind==='event'&&_card(t.id)&&_card(t.id).date)||(dEl&&dEl.value)||localISO(new Date());
+    const t1=sheet.querySelector('#sh-time'),t2=sheet.querySelector('#sh-time2');
+    if(t1)t1.value='';if(t2)t2.value='';
+    doMove(cur);
+  };
   // конец автоматически = начало + 1 час, если пуст или раньше начала
   const _t1=sheet.querySelector('#sh-time'),_t2=sheet.querySelector('#sh-time2');
   if(_t1&&_t2)_t1.addEventListener('change',()=>{
