@@ -2388,7 +2388,8 @@ function _cdgTarget(x,y){
 //   соседей нет вовсе — полдень.
 // Полтора часа, а не половина пути до полуночи: сосед в 09:00 означает «ставь
 // перед ним», а не «ставь в 04:30» — в пустую ночь дело никто не планирует.
-// Шаг 5 минут: «13:47» в календаре читается как сбой, а не как решение.
+// Шаг — одна минута: округление «для красоты» сдвигало бы карточку с реальной
+// середины окна, а середина здесь и есть смысл.
 const _CDG_GAP=90;
 function _cdgMid(prevT,nextT){
   const m=t=>{const p=String(t||'').split(':');return p.length===2?(+p[0])*60+(+p[1]):null;};
@@ -2398,7 +2399,7 @@ function _cdgMid(prevT,nextT){
   else if(a===null)v=b-_CDG_GAP;
   else if(b===null)v=a+_CDG_GAP;
   else v=(a>=b)?a:(a+b)/2;   // дела наложились — встаём там, где кончилось предыдущее
-  v=Math.max(0,Math.min(1439,Math.round(v/5)*5));
+  v=Math.max(0,Math.min(1439,Math.round(v)));
   return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
 }
 
