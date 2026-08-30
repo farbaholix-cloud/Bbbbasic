@@ -1312,6 +1312,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .stitle-row{display:flex;align-items:center;gap:8px;margin-bottom:3px}
 .stitle-row .stitle{flex:1;min-width:0;margin:0}
 .title-edit-spacer{width:30px;flex-shrink:0}
+/* Слева распорка на две кнопки + зазор — иначе заголовок перестаёт быть по центру. */
+.title-edit-spacer.wide{width:68px}
+.title-edit-btn.close{font-size:16px;color:rgba(235,240,250,.75)}
+.title-edit-btn.close:active{background:rgba(255,90,110,.22);color:#ff9aa6}
 .title-edit-btn{width:30px;height:30px;flex-shrink:0;border-radius:11px;border:1px solid var(--rim);
   background:rgba(255,255,255,.06);color:rgba(235,240,250,.6);font-size:15px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
@@ -3082,9 +3086,10 @@ function openTask(t){
   const commentBlock='<div class="sh-comment-wrap"><div class="sh-comment-lbl">💬 Комментарий</div>'+
     '<textarea id="sh-comment" class="sh-comment" rows="2" placeholder="заметка к карточке…">'+esc(curComment)+'</textarea></div>';
   sheet.innerHTML='<div class="grab"></div>'+
-    '<div class="stitle-row"><span class="title-edit-spacer"></span>'+
+    '<div class="stitle-row"><span class="title-edit-spacer wide"></span>'+
       '<div class="stitle">'+esc(t.text||'')+'</div>'+
-      '<button id="sh-ren" class="title-edit-btn" title="Переименовать">✏️</button></div>'+
+      '<button id="sh-ren" class="title-edit-btn" title="Переименовать">✏️</button>'+
+      '<button id="sh-close" class="title-edit-btn close" title="Закрыть" aria-label="Закрыть">✕</button></div>'+
     '<div class="ssub">'+(t.kind==='chaos'?'оцени — точка встанет на матрицу, или запланируй день':'оцени приоритет / перенести / закрыть')+'</div>'+
     rateBlock+
     projBlock+mbBlock+commentBlock+
@@ -3182,6 +3187,7 @@ function openTask(t){
     },'/api/unplan',{kind:t.kind,id:t.id});
   };
   // Delete event permanently (with linked chaos task)
+  sheet.querySelector('#sh-close').onclick=closeSheet;
   const shEvDel=sheet.querySelector('#sh-evdel');
   if(shEvDel)shEvDel.onclick=async()=>{
     if(!(await uiConfirm('Удалить событие навсегда?',{danger:true,ok:'Удалить'})))return;
