@@ -1965,7 +1965,7 @@ function projMenu(ev,id){
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
   const done=(p.steps||[]).filter(s=>s.done).length,total=(p.steps||[]).length;
   sheet.innerHTML='<div class="grab"></div>'+
-    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(AREAS[p.area]||'⚡')+' '+esc(p.name)+'</div><button class="title-edit-btn close" onclick="closeSheet()" title="Закрыть" aria-label="Закрыть">✕</button></div>'+
     '<div class="ssub">'+done+' из '+total+' шагов готово</div>'+
     '<div class="pm-move"><button id="pm-left" '+(idx<=0?'disabled':'')+'>◀ левее</button>'+
       '<button id="pm-right" '+(idx>=arr.length-1?'disabled':'')+'>правее ▶</button></div>'+
@@ -2005,7 +2005,7 @@ function openSGoal(id){
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
   const pct=Math.max(0,Math.min(100,g.progress||0));
   sheet.innerHTML='<div class="grab"></div>'+
-    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">🎯 '+esc(g.text)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">🎯 '+esc(g.text)+'</div><button class="title-edit-btn close" onclick="closeSheet()" title="Закрыть" aria-label="Закрыть">✕</button></div>'+
     '<div class="ssub">'+(g.target?'горизонт: '+esc(g.target):'горизонт не задан')+'</div>'+
     '<div class="slider-row" style="margin-top:14px"><div class="sl-top"><span>Прогресс</span><span class="val" id="sg-val">'+pct+'%</span></div>'+
     '<input type="range" min="0" max="100" step="5" value="'+pct+'" id="sg-prog" class="urg"></div>'+
@@ -2361,7 +2361,7 @@ function openPayment(id){
   const sub=when+(i.days!=null?' · '+(i.days<=0?'сегодня':i.days===1?'завтра':'через '+i.days+' дн'):'');
   const {bg,sheet}=_openSheet(
     '<div class="grab"></div>'+
-    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(p.icon||'💸')+' '+esc(p.title)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(p.icon||'💸')+' '+esc(p.title)+'</div><button class="title-edit-btn close" onclick="closeSheet()" title="Закрыть" aria-label="Закрыть">✕</button></div>'+
     '<div class="ssub">'+sub+' · '+eur(p.amount||0)+'</div>'+
     '<div class="sh-actions" style="flex-direction:column;gap:8px;margin-top:14px">'+
     '<button class="sh-btn" id="pay-name">✏️ Название</button>'+
@@ -2454,7 +2454,7 @@ function projIncome(id){
   const cur=base.amount||0;
   const stages=[['lead','🔵 Лид'],['agreed','🟡 Согласовано'],['invoiced','🟠 Счёт выставлен']];
   sheet.innerHTML='<div class="grab"></div>'+
-    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">💰 Ожидаемый профит</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">💰 Ожидаемый профит</div><button class="title-edit-btn close" onclick="closeSheet()" title="Закрыть" aria-label="Закрыть">✕</button></div>'+
     '<div class="ssub">'+esc(p.name)+'</div>'+
     '<input class="ui-input" id="pi-amt" type="number" inputmode="decimal" placeholder="Сумма €" value="'+(cur||'')+'" style="margin-top:12px">'+
     '<div class="bal-acc" id="pi-stage">'+stages.map(s=>'<button data-s="'+s[0]+'" class="'+(base.stage===s[0]?'on':'')+'">'+s[1]+'</button>').join('')+'</div>'+
@@ -2797,7 +2797,7 @@ function openDebt(id){
   const sub=u.paid?'✅ погашен полностью':('осталось '+eur(u.rem)+' из '+eur(x.total)+
     (u.pillText?' · '+u.pillText:''));
   sheet.innerHTML='<div class="grab"></div>'+
-    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(x.icon||'💳')+' '+esc(x.name)+'</div><span class="title-edit-spacer"></span></div>'+
+    '<div class="stitle-row"><span class="title-edit-spacer"></span><div class="stitle">'+(x.icon||'💳')+' '+esc(x.name)+'</div><button class="title-edit-btn close" onclick="closeSheet()" title="Закрыть" aria-label="Закрыть">✕</button></div>'+
     '<div class="ssub">'+sub+'</div>'+
     '<div class="lbar" style="margin:10px 0 4px"><div class="lfill" style="width:'+pct+'%"></div></div>'+
     (u.paid?'':'<div class="sh-comment-wrap"><div class="sh-comment-lbl">↩️ Возврат</div>'+
