@@ -2349,6 +2349,20 @@ function _cdgFlip(nodes,mutate){
   });
 }
 
+// Прокрутка страницы против перетаскивания.
+// Карточка объявлена touch-action:pan-y — иначе по списку нельзя было бы
+// скроллить пальцем. Но это же разрешение позволяет браузеру начать прокрутку
+// самому: он забирает жест, шлёт pointercancel, и поднятая карточка падает
+// обратно. preventDefault на pointermove тут бессилен — прокрутку отменяет
+// только touchmove, и только если слушатель НЕ passive.
+// Вешаем страж на время жеста (а не навсегда): постоянный non-passive слушатель
+// на документе отключил бы браузеру быструю прокрутку вообще везде.
+function _cdgTouchGuard(e){
+  if(_cdg&&_cdg.active&&e.cancelable)e.preventDefault();
+}
+function _cdgGuardOn(){document.addEventListener('touchmove',_cdgTouchGuard,{passive:false});}
+function _cdgGuardOff(){document.removeEventListener('touchmove',_cdgTouchGuard,{passive:false});}
+
 function _cdgCards(){return [...document.querySelectorAll('#cal .ev')];}
 
 // Куда встанет карточка: день под пальцем + место среди его карточек.
@@ -2423,6 +2437,7 @@ function _cdgStart(card,ev){
   _cdg.offX=ev.clientX-r.left;_cdg.offY=ev.clientY-r.top;
   card.classList.add('ev-src');
   card.style.height=r.height+'px';
+  card.style.touchAction='none';
   document.body.classList.add('dragging-now');
   if(navigator.vibrate)navigator.vibrate(12);
   _cdgGhostTo(ev.clientX,ev.clientY,true);
@@ -2437,13 +2452,14 @@ function _cdgGhostTo(x,y,first){
 function _cdgEnd(commit){
   if(!_cdg)return;
   const st=_cdg;_cdg=null;
+  _cdgGuardOff();
   if(st.scrollRAF)cancelAnimationFrame(st.scrollRAF);
   clearTimeout(st.timer);
   document.body.classList.remove('dragging-now');
   const src=st.src;
   const finish=()=>{
     if(st.ghost)st.ghost.remove();
-    if(src){src.classList.remove('ev-src');src.style.height='';src.style.transform='';src.style.transition='';}
+    if(src){src.classList.remove('ev-src');src.style.height='';src.style.transform='';src.style.transition='';src.style.touchAction='';}
   };
   if(!st.active){finish();return;}
   // «Примагничивание»: призрак долетает до гнезда, и только потом исчезает.
@@ -2502,6 +2518,7 @@ document.addEventListener('pointerdown',e=>{
   const card=e.target.closest&&e.target.closest('#cal .ev[data-drag="1"]');
   if(!card||e.button)return;
   _cdg={src:card,active:false,x0:e.clientX,y0:e.clientY,moved:false,lastCell:null,lastBefore:null,scrollV:0,scrollRAF:0};
+  _cdgGuardOn();
   _cdg.timer=setTimeout(()=>{
     if(!_cdg||_cdg.moved)return;                 // успел повести пальцем — это скролл
     _cdg.active=true;
@@ -2514,7 +2531,7 @@ document.addEventListener('pointermove',e=>{
   if(!_cdg)return;
   if(!_cdg.active){
     if(Math.abs(e.clientY-_cdg.y0)>8||Math.abs(e.clientX-_cdg.x0)>8){
-      _cdg.moved=true;clearTimeout(_cdg.timer);_cdg=null;   // отдаём жест скроллу
+      _cdg.moved=true;clearTimeout(_cdg.timer);_cdg=null;_cdgGuardOff();   // отдаём жест скроллу
     }
     return;
   }
