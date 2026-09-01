@@ -1691,9 +1691,6 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 /* Поток дохода на Мостике */
 .flow-per{display:flex;gap:4px;justify-content:center;margin-top:9px}
 #flowchart{width:100%;display:block}
-.tog.mini{width:44px;height:24px;flex-shrink:0}
-.tog.mini .tog-k{width:18px;height:18px}
-.tog.mini.on .tog-k{left:22px}
 .hchart-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;justify-content:center}
 .hcl{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);font-weight:600}
 .hcl .hcld{width:18px;height:3px;border-radius:2px}
@@ -1736,10 +1733,7 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
     <div class="block glass" id="flow-block" style="padding:14px 16px 12px">
       <div class="bh" style="margin-bottom:6px">
         <div class="t">⚡ Поток дохода <span class="sm">по выписке · пунктир: цель и ноль</span></div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="cnt" id="flow-total"></span>
-          <div class="tog mini" id="flow-anim" title="пульсация энергии"><div class="tog-k"></div></div>
-        </div>
+        <span class="cnt" id="flow-total"></span>
       </div>
       <canvas id="flowchart" height="130"></canvas>
       <div class="flow-per">
@@ -4580,8 +4574,9 @@ document.addEventListener('click',e=>{
 
 // ─── Поток дохода на Мостике: месячные суммы оплаченных инвойсов из архива Юриста ───
 let _flowPeriod=localStorage.getItem('flowPer')||'all';
-let _flowAnim=localStorage.getItem('flowAnim')!=='0';   // пульсация по умолчанию включена
-let _flowRAF=null;
+// Анимации у графика больше нет: он рисуется один раз и стоит. Пульсация ничего
+// не сообщала о деньгах, а кадр за кадром жгла батарею на телефоне, который висит
+// на этой вкладке весь день.
 const _YMM=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 function _ymNext(ym){let[y,m]=ym.split('-').map(Number);m++;if(m>12){m=1;y++;}return y+'-'+String(m).padStart(2,'0');}
 function _ymLabel(ym){const[y,m]=ym.split('-');return _YMM[+m-1]+' '+y.slice(2);}
@@ -4641,10 +4636,10 @@ function _flowFilled(){
   while(cur<=to&&guard++<400){out.push({ym:cur,total:map[cur]||0});cur=_ymNext(cur);}
   return out;
 }
-function drawFlowChart(phase){
+function drawFlowChart(){
   const canvas=document.getElementById('flowchart');if(!canvas)return;
   const realW=canvas.offsetWidth;
-  if(!realW){requestAnimationFrame(()=>drawFlowChart(phase));return;}
+  if(!realW){requestAnimationFrame(()=>drawFlowChart());return;}
   canvas.width=realW*2;canvas.height=260;
   const ctx=canvas.getContext('2d');
   const w=canvas.width,h=canvas.height,padL=14,padR=30,padT=34,padB=32;
@@ -4717,7 +4712,7 @@ function drawFlowChart(phase){
       ctx.fillStyle='rgba(255,213,128,.85)';
       ctx.fillText('цель '+eur(SC.target)+' · '+_ymLabel(SC.goalYm),padL+2,Math.max(padT+11,gy0-6));
       // пульсирующая цель на конце зелёной ветки — к ней и тянется линия
-      const pl=_flowAnim?(0.6+0.4*Math.sin(phase*2.4)):1;
+      const pl=1;                      // без пульсации: свечение постоянное
       const tx=X(n-1),ty=gy0;
       const tg=ctx.createRadialGradient(tx,ty,0,tx,ty,26*pl+10);
       tg.addColorStop(0,`rgba(82,224,138,${0.42*pl})`);tg.addColorStop(1,'rgba(82,224,138,0)');
@@ -4771,7 +4766,7 @@ function drawFlowChart(phase){
       return;
     }
     const x=X(i),y=Y(r.total),k=r.total/max;
-    const pulse=_flowAnim?(0.7+0.3*Math.sin(phase*2.2+i*0.9)):1;
+    const pulse=1;                     // без пульсации
     const rad=3.5+7*k;
     const glowR=(rad+8+26*k)*pulse;
     const col=i===maxIdx?'255,198,87':(k>0.55?'82,224,138':'91,157,255');
@@ -4793,26 +4788,13 @@ function drawFlowChart(phase){
   const rly=Math.max(Y(rows[maxIdx].total)-16,padT+14);
   ctx.fillText(rlabel,rlx,rly);
 }
-function _flowLoop(ts){
-  _flowRAF=null;
-  if(document.hidden){_flowRAF=requestAnimationFrame(_flowLoop);return;}
-  drawFlowChart((ts||0)/1000);
-  if(_flowAnim)_flowRAF=requestAnimationFrame(_flowLoop);
-}
-function _flowStop(){if(_flowRAF){cancelAnimationFrame(_flowRAF);_flowRAF=null;}}
+function _flowStop(){}
 function _flowStart(){
-  _flowStop();
   const pg=document.getElementById('page-plan');
   if(!pg||!pg.classList.contains('on'))return;   // рисуем только на Мостике
-  if(_flowAnim)_flowRAF=requestAnimationFrame(_flowLoop);
-  else drawFlowChart(1.2);
+  drawFlowChart();
 }
 (function(){
-  const tg=document.getElementById('flow-anim');
-  if(tg){
-    tg.classList.toggle('on',_flowAnim);
-    tg.onclick=()=>{_flowAnim=!_flowAnim;localStorage.setItem('flowAnim',_flowAnim?'1':'0');tg.classList.toggle('on',_flowAnim);_flowStart();};
-  }
   document.querySelectorAll('.flow-per .hper-btn').forEach(b=>{
     b.classList.toggle('on',b.dataset.fp===_flowPeriod);
     b.onclick=()=>{_flowPeriod=b.dataset.fp;localStorage.setItem('flowPer',_flowPeriod);
