@@ -1963,15 +1963,28 @@ function _reconcile(){
 }
 // Apply locally, repaint instantly, sync to server; then adopt the authoritative
 // snapshot the write returns (unless a newer mutation has already superseded it).
+// Перестройка innerHTML доски проектов (scroll-snap + reflow) роняет вертикальную
+// прокрутку в самый низ на iOS Safari. Защита от этого была внутри render(), но
+// mutate умеет рисовать и другой функцией (аргумент paint), а такие перерисовки
+// шли мимо защиты — и экран прыгал вниз.
+// Теперь позиция удерживается вокруг ЛЮБОЙ перерисовки: сразу и на следующем
+// кадре, потому что на iOS джамп случается уже после раскладки.
+function _keepScroll(fn){
+  const y=window.scrollY;
+  fn();
+  if(window.scrollY!==y)window.scrollTo(0,y);
+  requestAnimationFrame(()=>{if(window.scrollY!==y)window.scrollTo(0,y);});
+}
+
 function mutate(localFn,path,body,paint){
   try{if(localFn)localFn();}catch(_){}
   _mutSeq++; const mySeq=_mutSeq;
-  (paint||render)();
+  _keepScroll(paint||render);
   _pending++;
   Promise.resolve(api(path,body))
     .then(r=>r?r.json():null).catch(()=>null)
     .then(j=>{
-      if(j&&j.data&&_mutSeq===mySeq&&_revOK(j.data)){DATA=j.data;if(j.data.rev!==undefined)_rev=j.data.rev;if(!document.getElementById('sheet'))(paint||render)();}
+      if(j&&j.data&&_mutSeq===mySeq&&_revOK(j.data)){DATA=j.data;if(j.data.rev!==undefined)_rev=j.data.rev;if(!document.getElementById('sheet'))_keepScroll(paint||render);}
     })
     .finally(()=>{_pending--;});
 }
@@ -3732,7 +3745,36 @@ async function addPayment(){
 async function delPayment(id){if(await uiConfirm('Удалить платёж?',{danger:true,ok:'Удалить'})){mutate(()=>{DATA.payments=(DATA.payments||[]).filter(p=>p.id!==id);},'/api/payment_delete',{id});}}
 
 // ─── bottom sheet (rate / move) ───
-function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();const b=document.getElementById('sheet-bg');if(b)b.remove();}
+// Якорь прокрутки на время жизни шторки.
+// Зачем: шторка — position:fixed внизу экрана. Когда внутри неё фокусируется поле ввода,
+// Safari на iPhone поднимает клавиатуру и сам прокручивает ДОКУМЕНТ, пытаясь показать поле, —
+// страница уезжает в самый низ. Шторку закрыли, а прокрутка так и осталась внизу.
+// Поэтому запоминаем позицию в момент открытия и возвращаем её после закрытия,
+// повторяя несколько раз: клавиатура убирается не мгновенно и по пути ещё раз двигает страницу.
+let _sheetScroll=null,_sheetRestore=[];
+function _markSheetScroll(){if(_sheetScroll===null)_sheetScroll=window.scrollY;}
+function _cancelScrollRestore(){_sheetRestore.forEach(clearTimeout);_sheetRestore=[];}
+function _restoreScroll(y){
+  _cancelScrollRestore();
+  const go=()=>{if(Math.abs(window.scrollY-y)>1)window.scrollTo(0,y);};
+  go();requestAnimationFrame(go);
+  [60,140,260,420].forEach(t=>_sheetRestore.push(setTimeout(go,t)));
+}
+// Если пользователь сам взялся листать — не мешаем ему отложенными возвратами.
+document.addEventListener('touchstart',_cancelScrollRestore,{passive:true});
+document.addEventListener('wheel',_cancelScrollRestore,{passive:true});
+// Подстраховка для шторок, собранных вручную мимо _openSheet: ловим момент фокуса,
+// он наступает до того, как клавиатура сдвинет страницу.
+document.addEventListener('focusin',e=>{
+  const t=e.target;
+  if(t&&t.closest&&t.closest('#sheet'))_markSheetScroll();
+});
+function closeSheet(){
+  const s=document.getElementById('sheet');if(s)s.remove();
+  const b=document.getElementById('sheet-bg');if(b)b.remove();
+  const y=_sheetScroll;_sheetScroll=null;
+  if(s&&y!==null)_restoreScroll(y);
+}
 
 // Универсальное «смахивание вниз» для любой нижней панели. Вешается на «ручку» (.grab),
 // заголовок и саму панель (но не на интерактив — input/range/textarea/button/select),
@@ -3766,6 +3808,7 @@ function _swipeDismiss(sheet,closeFn){
 // Свои диалоги вместо prompt/confirm/alert — нативные отключены в standalone-PWA на iOS
 function _openSheet(html){
   closeSheet();
+  _markSheetScroll();
   const bg=document.createElement('div');bg.id='sheet-bg';document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
   sheet.innerHTML=html;document.body.appendChild(sheet);
