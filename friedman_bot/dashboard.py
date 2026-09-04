@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.37"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.38"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1711,6 +1711,52 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
 .drum-pad{height:55px}
 .drum-item{height:55px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:rgba(235,240,250,.25);transition:font-size .12s,color .12s,font-weight .12s;user-select:none}
 .drum-item.sel{font-size:32px;font-weight:900;color:#f4f6fb}
+
+/* ─── ☀️ МЕНТАЛЬНАЯ КАРТА ───────────────────────────────────────────────────
+   Шестая вкладка живёт отдельно от сегмент-контрола: кнопка-солнце в шапке
+   видна на всех пяти вкладках и не отнимает у них место в полоске. */
+.hdr-r{margin-left:auto;align-self:flex-start;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.hdr-r .ver{font-size:9px;color:rgba(235,240,250,.3);font-weight:700;line-height:1}
+.sunbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  width:52px;padding:5px 0 6px;border-radius:15px;cursor:pointer;
+  background:var(--glass);border:1px solid var(--rim);
+  box-shadow:inset 0 1px 0 var(--rim2),0 4px 14px rgba(0,0,0,.22);
+  transition:background .2s,border-color .2s,box-shadow .2s}
+.sunbtn .e{font-size:19px;line-height:1;filter:grayscale(.4) opacity(.72);transition:filter .2s}
+.sunbtn .l{font-size:9px;font-weight:800;letter-spacing:-.1px;line-height:1;color:var(--muted);transition:color .2s}
+.sunbtn.on{background:linear-gradient(135deg,rgba(255,198,87,.38),rgba(255,122,192,.2));
+  border-color:rgba(255,198,87,.55);box-shadow:0 6px 18px rgba(255,198,87,.3),inset 0 1px 0 rgba(255,255,255,.45)}
+.sunbtn.on .e{filter:none}
+.sunbtn.on .l{color:#fff}
+
+body.mind-on{padding-bottom:0;overflow:hidden}
+#mindwrap{position:relative;height:calc(100vh - 156px);height:calc(100dvh - 156px);min-height:380px;
+  border-radius:24px;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;
+  background:radial-gradient(120% 90% at 50% 0%,rgba(91,157,255,.12),transparent 62%),rgba(6,8,18,.5);
+  border:1px solid var(--rim);box-shadow:inset 0 1px 0 var(--rim2),0 8px 30px rgba(0,0,0,.32)}
+#mindstage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+#mindsvg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+#mindnodes{position:absolute;left:0;top:0}
+#mindhint{position:absolute;left:0;right:0;bottom:9px;text-align:center;font-size:10px;font-weight:700;
+  letter-spacing:.2px;color:rgba(235,240,250,.28);pointer-events:none;transition:opacity .6s}
+#mindhint.gone{opacity:0}
+/* width:max-content обязателен: узлы лежат в абсолютно спозиционированном слое
+   нулевой ширины, и без него каждый из них переносился бы по одному слову. */
+.mnode{position:absolute;left:0;top:0;width:-webkit-max-content;width:max-content;
+  max-width:200px;line-height:1.22;word-break:break-word}
+.mnode .mn-ic{margin-right:5px}
+.mnode .mn-sub{display:block;font-size:9.5px;font-weight:700;opacity:.62;margin-top:2px;letter-spacing:-.1px}
+.mn-root{padding:13px 20px;border-radius:22px;font-size:20px;font-weight:900;letter-spacing:-.4px;color:#fff;
+  background:linear-gradient(135deg,rgba(91,157,255,.95),rgba(177,139,255,.95));
+  box-shadow:0 10px 34px rgba(91,157,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+.mn-l1{padding:9px 14px;border-radius:17px;font-size:14px;font-weight:800;letter-spacing:-.2px;color:#fff;
+  border:1px solid transparent;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.mn-l2{padding:7px 11px;border-radius:13px;font-size:12px;font-weight:700;color:#eef2fb;
+  background:rgba(255,255,255,.07);border:1px solid transparent}
+.mn-l3{max-width:176px;padding:2px 4px 4px;font-size:11px;font-weight:600;color:rgba(235,240,250,.82);
+  border-bottom:2px solid transparent}
+.mn-l3.done{color:rgba(235,240,250,.34);text-decoration:line-through}
+.mn-l3 .mn-sub{opacity:.5}
 </style></head>
 <body>
 <div class="bgmesh"></div>
@@ -1719,7 +1765,10 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
   <div class="hdr">
     <div class="anchor" id="page-icon">⚓</div>
     <div><h1 id="page-title">Капитанский мостик</h1><div class="date" id="updated"></div></div>
-    <div style="margin-left:auto;font-size:9px;color:rgba(235,240,250,.3);font-weight:700;align-self:flex-start">v__VERSION__</div>
+    <div class="hdr-r">
+      <div class="ver">v__VERSION__</div>
+      <div class="sunbtn" id="sunbtn" onclick="toggleMind()"><span class="e">☀️</span><span class="l">Карта</span></div>
+    </div>
   </div>
   <div class="seg glass-sm" id="seg">
     <div class="s on" data-p="plan"><span class="e">🧭</span>Мостик</div>
@@ -1911,6 +1960,17 @@ input[type=range].hslider{width:100%;accent-color:var(--blue);height:6px}
       <div class="hchart-legend" id="hchart-legend"></div>
     </div>
   </div>
+
+  <!-- ☀️ шестая вкладка: ментальная карта. Только чтение — ни одной кнопки внутри. -->
+  <div class="page" id="page-mind">
+    <div id="mindwrap">
+      <div id="mindstage">
+        <svg id="mindsvg"></svg>
+        <div id="mindnodes"></div>
+      </div>
+      <div id="mindhint">один палец — двигать · два — масштаб</div>
+    </div>
+  </div>
   <div class="home-ind"></div>
 </div>
 
@@ -2014,7 +2074,8 @@ const PAGE_TITLES={
   cal :[null,'Прошивка календаря'],     // значок рисуется живым, см. setPageTitle
   fin :['💰','Финансы'],
   proj:['📁','Проекты'],
-  hap :['🤗','Счастье']
+  hap :['🤗','Счастье'],
+  mind:['☀️','Ментальная карта']
 };
 // Значки с датой обновляем при каждой отрисовке: приложение живёт на телефоне
 // сутками, и в полночь число должно смениться само, без перезагрузки.
@@ -2033,12 +2094,17 @@ function setPageTitle(p){
   document.title=t[1];
 }
 
-// segmented control
-document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
-  document.querySelectorAll('#seg .s').forEach(x=>x.classList.remove('on'));
-  s.classList.add('on');
-  const p=s.dataset.p;
-  ['plan','cal','fin','proj','hap'].forEach(n=>document.getElementById('page-'+n).classList.toggle('on',p===n));
+// segmented control + обособленная шестая вкладка (☀️ ментальная карта).
+// Карта не входит в полоску из пяти: её кнопка живёт в шапке и видна отовсюду.
+const PAGES=['plan','cal','fin','proj','hap','mind'];
+let _pagePrev='plan';
+function goPage(p){
+  const cur=PAGES.find(n=>{const el=document.getElementById('page-'+n);return el&&el.classList.contains('on');})||'plan';
+  if(cur!==p)_pagePrev=cur;
+  document.querySelectorAll('#seg .s').forEach(x=>x.classList.toggle('on',x.dataset.p===p));
+  const sun=document.getElementById('sunbtn');if(sun)sun.classList.toggle('on',p==='mind');
+  PAGES.forEach(n=>{const el=document.getElementById('page-'+n);if(el)el.classList.toggle('on',p===n);});
+  document.body.classList.toggle('mind-on',p==='mind');
   setPageTitle(p);
   window.scrollTo(0,0);
   if(p==='hap')requestAnimationFrame(()=>{updateHNodes();drawHLines();drawHChart(_hapHistory);});
@@ -2046,7 +2112,14 @@ document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>{
   // Открыли календарь — пересчитываем «что уже прошло»: со времени прошлой
   // отрисовки могло пройти сколько угодно, а граница привязана к часам.
   if(p==='cal')renderCal();
-});
+  if(p==='mind')requestAnimationFrame(()=>renderMind(DATA,true));
+}
+// Солнце — переключатель: второе нажатие возвращает туда, откуда пришли.
+function toggleMind(){
+  const on=document.getElementById('page-mind').classList.contains('on');
+  goPage(on?(_pagePrev==='mind'?'plan':_pagePrev):'mind');
+}
+document.querySelectorAll('#seg .s').forEach(s=>s.onclick=()=>goPage(s.dataset.p));
 
 function quadClass(imp,urg){
   if(imp>=6&&urg>=6)return 'r';
@@ -2111,6 +2184,9 @@ function render(){
   renderProjectBoard(d);
   renderFinance();
   renderHappiness(d);
+  // Ментальная карта — зеркало всех вкладок: пересобираем её, если она открыта.
+  // Положение и масштаб при этом не трогаем, чтобы карта не «прыгала» под рукой.
+  if(document.body.classList.contains('mind-on'))renderMind(d,false);
   _flowStart();   // поток дохода на Мостике (сам проверяет видимость вкладки)
   // вернуть прокрутку, если reflow её сбросил (см. комментарий в начале render)
   if(window.scrollY!==_scrollY){window.scrollTo(0,_scrollY);}
@@ -4918,6 +4994,333 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 
+// ─── ☀️ МЕНТАЛЬНАЯ КАРТА ─────────────────────────────────────────────────────
+// Только чтение: ни одной кнопки, ни одного обработчика правки. Карта — зеркало
+// всего дашборда, а не второй способ его менять. Любая правка на других вкладках
+// приезжает сюда сама: дерево собирается заново из DATA при каждой отрисовке.
+//
+// Центр — «я». Шесть ветвей — те же шесть элементов счастья, что и на пятой
+// вкладке (те же ключи, цвета и значки: один источник истины). Дальше к каждой
+// ветви подшивается то, что дашборд про неё знает: к «работе» — проекты со
+// своими шагами, к «благополучию» — деньги, ко всем — вводные из парковки,
+// ближайшие дела из календаря и недельная динамика оценки.
+const M_ICON={work:'💼',friendship:'🤝',health:'🌿',wellbeing:'💰',hobby:'🎨',love:'❤️'};
+// «Область» вводной/проекта → элемент счастья. Парковка по умолчанию кладёт
+// 'other', поэтому неразмеченные вводные считаются рабочими: так они и есть.
+const M_AREA2H={work:'work',other:'work',money:'wellbeing',home:'wellbeing',
+                health:'health',people:'friendship',self:'hobby'};
+// Карта — зеркало, а не выжимка: показываем всё. Предел стоит только как страховка
+// от вырожденного случая (список в сотни строк), и даже он не прячет данные молча —
+// вместо обрезанных появляется узел «…и ещё N».
+const M_MAXKIDS=60;
+let _mindTr={x:0,y:0,k:1};   // текущее положение и масштаб полотна
+let _mindSize={w:0,h:0};
+let _mindCenter={x:0,y:0};   // где на полотне стоит «я» — на него наводим при открытии
+let _mindMoved=false;        // трогал ли пользователь карту руками
+
+function _rgba(hex,a){
+  const n=parseInt(String(hex||'#8899aa').replace('#',''),16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+function _mn(label,o){return Object.assign({label:label,kids:[]},o||{});}
+function _mindYm(ym){const p=String(ym||'').split('-');return p.length>1?MONTHS[+p[1]-1]+' '+p[0]:String(ym||'');}
+function _mindWhen(ev){
+  const d=new Date(ev.date+'T00:00');
+  if(isNaN(d))return ev.date||'';
+  return DOW[(d.getDay()+6)%7]+' '+d.getDate()+' '+MONTHS[d.getMonth()]+(ev.time?' · '+ev.time:'');
+}
+// Недельная динамика: сравниваем сегодняшнюю оценку с самой свежей записью,
+// которой уже больше недели. Если такой нет — молчим, а не выдумываем ноль.
+function _hapTrend(hist,key){
+  if(!hist||hist.length<2)return null;
+  const cur=Number(hist[0][key]);
+  if(isNaN(cur))return null;
+  const cutoff=Date.now()-7*864e5;
+  let old=null;
+  for(const r of hist){
+    const t=Date.parse(String(r.logged_at||'').replace(' ','T')+'Z');
+    if(!isNaN(t)&&t<=cutoff){old=Number(r[key]);break;}
+  }
+  if(old==null||isNaN(old))return null;
+  const dd=Math.round((cur-old)*10)/10;
+  return dd>0?'▲ +'+dd+' за неделю':dd<0?'▼ '+dd+' за неделю':'без перемен за неделю';
+}
+
+function _mindWork(b,d,projs){
+  // Проекты — прямые подкатегории «работы», их шаги — следующий уровень.
+  projs.forEach(p=>{
+    const steps=p.steps||[];
+    const done=steps.filter(s=>s.done).length;
+    const bits=[steps.length?done+' / '+steps.length+' шагов':'без шагов'];
+    if(p.expected_income>0)bits.push('ожидание '+eur(p.expected_income));
+    const node=_mn(p.name,{icon:AREAS[p.area]||'⚡',sub:bits.join(' · ')});
+    node.kids=steps.slice(0,M_MAXKIDS).map(s=>_mn(s.text,{done:!!s.done}));
+    if(steps.length>M_MAXKIDS)node.kids.push(_mn('…и ещё '+(steps.length-M_MAXKIDS)));
+    b.kids.push(node);
+  });
+  const sg=d.sgoals||[];
+  if(sg.length)b.kids.push(_mn('Цели',{icon:'🎯',sub:sg.length+' в фокусе',
+    kids:sg.map(g=>_mn(g.text,{sub:(g.target?g.target+' · ':'')+Math.max(0,Math.min(100,g.progress||0))+' %'}))}));
+}
+
+function _mindMoney(b,d){
+  b.kids.push(_mn('Баланс',{icon:'💳',sub:eur(d.balance||0),kids:[
+    _mn('Наличные',{sub:eur(d.cash||0)}),
+    _mn('Карта',{sub:eur(d.card||0)})]}));
+  const debts=d.debts||[];
+  if(debts.length){
+    const rest=debts.reduce((s,x)=>s+Math.max(0,(x.total||0)-(x.paid||0)),0);
+    b.kids.push(_mn('Долги',{icon:'📉',sub:eur(rest)+' осталось',
+      kids:debts.map(x=>{
+        const bits=[eur(Math.max(0,(x.total||0)-(x.paid||0)))];
+        if(x.monthly)bits.push(eur(x.monthly)+' / мес');
+        if(x.kind==='long')bits.push('длинный');
+        return _mn((x.icon?x.icon+' ':'')+x.name,{sub:bits.join(' · ')});
+      })}));
+  }
+  const pays=d.payments||[];
+  if(pays.length){
+    const sum=pays.reduce((s,x)=>s+(x.amount||0),0);
+    b.kids.push(_mn('Регулярные платежи',{icon:'🔁',sub:pays.length+' · '+eur(sum),
+      kids:pays.slice(0,M_MAXKIDS).map(x=>_mn((x.icon?x.icon+' ':'')+x.title,
+        {sub:eur(x.amount||0)+(x.day?' · '+x.day+' числа':'')}))}));
+  }
+  b.kids.push(_mn('План трат',{icon:'🧾',kids:[
+    _mn('Сегодня',{sub:eur(d.spend_today||0)}),
+    _mn('Неделя',{sub:eur(d.spend_week||0)})]}));
+  const fl=d.income_flow||[],fc=d.income_forecast||{};
+  if(fl.length){
+    const node=_mn('Поток дохода',{icon:'⚡',sub:'по выписке'});
+    node.kids=fl.slice(-3).map(r=>_mn(_mindYm(r.ym),{sub:eur(r.total||0)}));
+    if(fc.open_total>0)node.kids.push(_mn('Ждут оплаты',{sub:eur(fc.open_total)}));
+    if(fc.goal&&fc.goal.target>0)node.kids.push(_mn('Цель · '+_mindYm(fc.goal.ym),{sub:eur(fc.goal.target)}));
+    b.kids.push(node);
+  }
+}
+
+function _mindTree(d){
+  const h=d.happiness||{},hist=d.happiness_history||[];
+  const projs=(d.projects||[]).filter(p=>!p.archived);
+  const today=localISO(new Date());
+  const chaosBy={},evBy={};
+  (d.chaos||[]).filter(c=>!c.done).forEach(c=>{
+    const k=M_AREA2H[c.area]||'work';(chaosBy[k]=chaosBy[k]||[]).push(c);});
+  (d.cards||[]).filter(c=>c.kind==='event'&&c.date>=today)
+    .sort((a,b)=>(a.date+' '+(a.time||'99:99')).localeCompare(b.date+' '+(b.time||'99:99')))
+    .forEach(ev=>{
+      let area=null;
+      const ch=ev.chaos_id?_byId(d.chaos,ev.chaos_id):null;
+      if(ch&&ch.area)area=ch.area;
+      if(!area&&ev.project_id){const p=_byId(projs,ev.project_id);if(p&&p.area)area=p.area;}
+      const k=M_AREA2H[area||'other']||'work';
+      (evBy[k]=evBy[k]||[]).push(ev);
+    });
+  const branches=H_KEYS.map(key=>{
+    const v=h[key]!=null?Number(h[key]):null;
+    const b=_mn(H_LABELS[key],{icon:M_ICON[key],color:H_COLORS[key],sub:v!=null?v+' / 5':''});
+    if(key==='work')_mindWork(b,d,projs);
+    if(key==='wellbeing')_mindMoney(b,d);
+    const cs=chaosBy[key]||[];
+    if(cs.length){
+      const g=_mn('Парковка',{icon:'⚡',sub:cs.length+' вводных'});
+      g.kids=cs.slice(0,M_MAXKIDS).map(c=>_mn(c.text,{sub:(c.importance||c.urgency)?'важность '+(c.importance||0)+' · срочность '+(c.urgency||0):'не оценено'}));
+      if(cs.length>M_MAXKIDS)g.kids.push(_mn('…и ещё '+(cs.length-M_MAXKIDS)));
+      b.kids.push(g);
+    }
+    const evs=evBy[key]||[];
+    if(evs.length){
+      const g=_mn('Ближайшее',{icon:'📅',sub:evs.length+' в календаре'});
+      g.kids=evs.slice(0,M_MAXKIDS).map(e=>_mn(e.text,{sub:_mindWhen(e)}));
+      if(evs.length>M_MAXKIDS)g.kids.push(_mn('…и ещё '+(evs.length-M_MAXKIDS)));
+      b.kids.push(g);
+    }
+    const tr=_hapTrend(hist,key);
+    if(tr)b.kids.push(_mn('Динамика',{icon:'📈',sub:tr}));
+    return b;
+  });
+  const tot=H_KEYS.reduce((s,k)=>s+(Number(h[k])||0),0);
+  return _mn('Я',{icon:'☀️',color:'#ffc657',
+    sub:tot?'счастье '+Math.round(tot/H_KEYS.length*10)/10+' / 5':'',kids:branches});
+}
+
+// ─── раскладка: аккуратное дерево влево-вправо, как в MindMaster ───
+function _mindWalk(n,f){f(n);(n.kids||[]).forEach(k=>_mindWalk(k,f));}
+function _mindPlaceSide(branches,dir,rootW){
+  if(!branches.length)return;
+  const GAPX=42,VG={1:18,2:13,3:7,4:6,5:6};
+  const colW={};
+  branches.forEach(b=>_mindWalk(b,n=>{colW[n.lvl]=Math.max(colW[n.lvl]||0,n.w);}));
+  const colX={};let x=rootW/2+GAPX;
+  for(let l=1;l<=6;l++){if(colW[l]==null)break;colX[l]=x;x+=colW[l]+GAPX;}
+  branches.forEach(b=>_mindWalk(b,n=>{n.x=dir>0?colX[n.lvl]:-colX[n.lvl]-n.w;n.dir=dir;}));
+  // Листья укладываются сверху вниз потоком, родитель встаёт ровно посередине
+  // между первым и последним ребёнком — так поддеревья не наезжают друг на друга.
+  let cur=0;
+  const place=n=>{
+    const g=VG[n.lvl]||6;
+    if(!n.kids||!n.kids.length){n.y=cur;cur+=n.h+g;return;}
+    n.kids.forEach(place);
+    const f=n.kids[0],l=n.kids[n.kids.length-1];
+    n.y=(f.y+l.y+l.h-n.h)/2;
+    if(cur<n.y+n.h+g)cur=n.y+n.h+g;
+  };
+  branches.forEach(place);
+  let minY=1e9,maxY=-1e9;
+  branches.forEach(b=>_mindWalk(b,n=>{minY=Math.min(minY,n.y);maxY=Math.max(maxY,n.y+n.h);}));
+  const shift=-(minY+maxY)/2;
+  branches.forEach(b=>_mindWalk(b,n=>{n.y+=shift;}));
+}
+
+function _mindApply(){
+  const s=document.getElementById('mindstage');
+  if(s)s.style.transform='translate('+_mindTr.x+'px,'+_mindTr.y+'px) scale('+_mindTr.k+')';
+}
+// Открываем так, чтобы было ЧТО ЧИТАТЬ. Если карта целиком влезает — показываем
+// её целиком. Если нет (а с десятками шагов так и будет), не сжимаем текст в
+// нечитаемую пыль, а наводим на «я»: остальное — двумя пальцами.
+const M_FITMIN=.28;   // ниже этого масштаба карта целиком уже не читается
+const M_OPENK=.42;    // с какого масштаба начинаем, когда целиком не влезает
+function _mindFit(){
+  const wrap=document.getElementById('mindwrap');
+  if(!wrap||!_mindSize.w||!_mindSize.h)return;
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  if(!W||!H)return;
+  const raw=Math.min(W/_mindSize.w,H/_mindSize.h)*.94;
+  if(raw>=M_FITMIN){
+    const k=Math.min(1.4,raw);
+    _mindTr.k=k;_mindTr.x=(W-_mindSize.w*k)/2;_mindTr.y=(H-_mindSize.h*k)/2;
+  }else{
+    _mindTr.k=M_OPENK;
+    _mindTr.x=W/2-_mindCenter.x*M_OPENK;
+    _mindTr.y=H/2-_mindCenter.y*M_OPENK;
+  }
+  _mindMoved=false;
+  _mindApply();
+}
+
+function renderMind(d,refit){
+  const wrap=document.getElementById('mindwrap');
+  if(!wrap||!d)return;
+  const svg=document.getElementById('mindsvg'),host=document.getElementById('mindnodes');
+  const root=_mindTree(d);
+  // 1. уровень, цвет и DOM для каждого узла — размеры меряем по-настоящему,
+  //    иначе линии будут приходить мимо текста.
+  const all=[];
+  (function mark(n,lvl,color,parent){
+    n.lvl=lvl;n.color=n.color||color;n.parent=parent;all.push(n);
+    (n.kids||[]).forEach(k=>mark(k,lvl+1,n.color,n));
+  })(root,0,'#8fa6c8',null);
+  host.innerHTML='';
+  all.forEach(n=>{
+    const el=document.createElement('div');
+    el.className='mnode '+(n.lvl===0?'mn-root':n.lvl===1?'mn-l1':n.lvl===2?'mn-l2':'mn-l3')+(n.done?' done':'');
+    if(n.lvl===1){el.style.background=_rgba(n.color,.26);el.style.borderColor=_rgba(n.color,.72);
+                  el.style.boxShadow='0 6px 20px '+_rgba(n.color,.24)+',inset 0 1px 0 rgba(255,255,255,.28)';}
+    else if(n.lvl===2){el.style.borderColor=_rgba(n.color,.5);}
+    else if(n.lvl>=3){el.style.borderBottomColor=_rgba(n.color,.7);}
+    el.innerHTML=(n.icon?'<span class="mn-ic">'+n.icon+'</span>':'')+esc(n.label)+
+      (n.sub?'<span class="mn-sub">'+esc(n.sub)+'</span>':'');
+    host.appendChild(el);
+    n.el=el;
+  });
+  all.forEach(n=>{n.w=n.el.offsetWidth;n.h=n.el.offsetHeight;});
+  // 2. Корень в центре, ветви по обе стороны. Раскладываем не через одну, а по
+  //    весу: каждая следующая по величине ветвь уходит на ту сторону, где сейчас
+  //    легче. Иначе «работа» с десятками шагов перевешивает карту вправо, и
+  //    половина полотна стоит пустой. Внутри стороны порядок остаётся прежним —
+  //    тем же, что и на вкладке «Счастье».
+  const weight=b=>{let n=0;_mindWalk(b,()=>n++);return n;};
+  const right=[],left=[];let wr=0,wl=0;
+  root.kids.map((b,i)=>({b:b,i:i,w:weight(b)}))
+    .sort((a,b)=>b.w-a.w)
+    .forEach(x=>{if(wr<=wl){right.push(x);wr+=x.w;}else{left.push(x);wl+=x.w;}});
+  right.sort((a,b)=>a.i-b.i);left.sort((a,b)=>a.i-b.i);
+  const rightB=right.map(x=>x.b),leftB=left.map(x=>x.b);
+  root.x=-root.w/2;root.y=-root.h/2;root.dir=0;
+  _mindPlaceSide(rightB,1,root.w);
+  _mindPlaceSide(leftB,-1,root.w);
+  // 3. переносим всё в положительные координаты
+  const PAD=40;
+  let minX=root.x,maxX=root.x+root.w,minY=root.y,maxY=root.y+root.h;
+  all.forEach(n=>{minX=Math.min(minX,n.x);maxX=Math.max(maxX,n.x+n.w);
+                  minY=Math.min(minY,n.y);maxY=Math.max(maxY,n.y+n.h);});
+  const ox=PAD-minX,oy=PAD-minY;
+  all.forEach(n=>{n.x+=ox;n.y+=oy;n.el.style.transform='translate('+n.x+'px,'+n.y+'px)';});
+  _mindSize={w:maxX-minX+PAD*2,h:maxY-minY+PAD*2};
+  _mindCenter={x:root.x+root.w/2,y:root.y+root.h/2};
+  const stage=document.getElementById('mindstage');
+  stage.style.width=_mindSize.w+'px';stage.style.height=_mindSize.h+'px';
+  // 4. связи — плавные кривые, толщина падает с глубиной. К листьям линия
+  //    приходит под текст, как в MindMaster: подчёркивание и есть её продолжение.
+  svg.setAttribute('width',_mindSize.w);svg.setAttribute('height',_mindSize.h);
+  svg.setAttribute('viewBox','0 0 '+_mindSize.w+' '+_mindSize.h);
+  const W={1:4.5,2:2.6,3:1.7,4:1.4,5:1.2};
+  svg.innerHTML=all.filter(n=>n.parent).map(n=>{
+    const p=n.parent,dir=n.dir||1;
+    const x1=dir>0?p.x+p.w:p.x, y1=p.y+p.h/2;
+    const leaf=n.lvl>=3;
+    const x2=dir>0?n.x:n.x+n.w, y2=leaf?n.y+n.h:n.y+n.h/2;
+    const dx=(x2-x1)*.5;
+    return '<path d="M'+x1+','+y1+' C'+(x1+dx)+','+y1+' '+(x2-dx)+','+y2+' '+x2+','+y2+
+      '" fill="none" stroke="'+_rgba(n.color,n.lvl===1?.85:.6)+'" stroke-width="'+(W[n.lvl]||1.2)+
+      '" stroke-linecap="round"/>';
+  }).join('');
+  if(refit||!_mindTr.k)_mindFit();else _mindApply();
+}
+
+// Жесты. Управления у карты нет — только пальцы: один двигает, два меняют масштаб.
+(function(){
+  const wrap=document.getElementById('mindwrap');
+  if(!wrap)return;
+  const hint=document.getElementById('mindhint');
+  let g=null,hidden=false;
+  const pt=t=>{const r=wrap.getBoundingClientRect();return{x:t.clientX-r.left,y:t.clientY-r.top};};
+  const hide=()=>{_mindMoved=true;if(!hidden&&hint){hidden=true;hint.classList.add('gone');}};
+  const grab=ts=>{
+    if(ts.length===1){const p=pt(ts[0]);return{n:1,x0:p.x,y0:p.y,tx:_mindTr.x,ty:_mindTr.y};}
+    const a=pt(ts[0]),b=pt(ts[1]);
+    return{n:2,mid:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},dist:Math.hypot(a.x-b.x,a.y-b.y)||1,
+           k0:_mindTr.k,tx:_mindTr.x,ty:_mindTr.y};
+  };
+  wrap.addEventListener('touchstart',e=>{hide();g=grab(e.touches);},{passive:true});
+  wrap.addEventListener('touchmove',e=>{
+    if(!g)return;
+    e.preventDefault();          // страница под картой не должна ехать вместе с ней
+    const ts=e.touches;
+    if(g.n===1&&ts.length===1){
+      const p=pt(ts[0]);_mindTr.x=g.tx+(p.x-g.x0);_mindTr.y=g.ty+(p.y-g.y0);
+    }else if(g.n===2&&ts.length>=2){
+      const a=pt(ts[0]),b=pt(ts[1]);
+      const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2},dist=Math.hypot(a.x-b.x,a.y-b.y)||1;
+      const k=Math.max(.12,Math.min(3.5,g.k0*(dist/g.dist)));
+      // точка карты под серединой пальцев остаётся под ней же
+      const px=(g.mid.x-g.tx)/g.k0,py=(g.mid.y-g.ty)/g.k0;
+      _mindTr.k=k;_mindTr.x=mid.x-px*k;_mindTr.y=mid.y-py*k;
+    }else{g=grab(ts);return;}
+    _mindApply();
+  },{passive:false});
+  const end=e=>{g=e.touches&&e.touches.length?grab(e.touches):null;};
+  wrap.addEventListener('touchend',end,{passive:true});
+  wrap.addEventListener('touchcancel',end,{passive:true});
+  // мышь и трекпад — чтобы карта была живой и на компьютере
+  wrap.addEventListener('wheel',e=>{
+    e.preventDefault();hide();
+    const r=wrap.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+    const k=Math.max(.12,Math.min(3.5,_mindTr.k*(e.deltaY<0?1.12:1/1.12)));
+    const px=(mx-_mindTr.x)/_mindTr.k,py=(my-_mindTr.y)/_mindTr.k;
+    _mindTr.k=k;_mindTr.x=mx-px*k;_mindTr.y=my-py*k;_mindApply();
+  },{passive:false});
+  let md=null;
+  wrap.addEventListener('mousedown',e=>{hide();md={x:e.clientX,y:e.clientY,tx:_mindTr.x,ty:_mindTr.y};});
+  window.addEventListener('mousemove',e=>{if(!md)return;_mindTr.x=md.tx+e.clientX-md.x;_mindTr.y=md.ty+e.clientY-md.y;_mindApply();});
+  window.addEventListener('mouseup',()=>{md=null;});
+  // Панель Safari то появляется, то прячется — это тоже resize. Пересобирать вид
+  // при каждом таком дрожании нельзя: карта выскакивала бы из-под пальца. Поэтому
+  // подгоняем только пока пользователь её не трогал.
+  window.addEventListener('resize',()=>{
+    if(document.body.classList.contains('mind-on')&&!_mindMoved)_mindFit();});
+})();
+
 // Потяни вниз для обновления (pull-to-refresh) — работает и в standalone-режиме
 (function(){
   const ptr=document.getElementById('ptr'),ind=ptr.querySelector('.i');
@@ -4929,6 +5332,9 @@ window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
     // отпускании срабатывал load()+render()+renderHappiness — он сбрасывал узлы свежим
     // снимком прямо посреди правки, и предыдущая оценка «возвращалась на место».
     if(busy||document.getElementById('sheet')||document.getElementById('drum-sheet'))return;
+    // На ментальной карте палец двигает саму карту — перехватывать его нельзя,
+    // иначе перетаскивание вниз превращалось бы в обновление страницы.
+    if(document.body.classList.contains('mind-on'))return;
     if(window.scrollY<=0){startY=e.touches[0].clientY;pulling=true;dist=0;}
   },{passive:true});
   window.addEventListener('touchmove',e=>{
