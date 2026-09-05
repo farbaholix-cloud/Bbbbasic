@@ -483,9 +483,13 @@ def get_context() -> str:
         open_items = conn.execute(
             "SELECT id, text, area, priority FROM chaos WHERE done=0 ORDER BY priority='high' DESC, created_at DESC LIMIT 30"
         ).fetchall()
+        # Берём с запасом: дословно покажем последние SECRETARY_WINDOW реплик, но
+        # если сворачивание почему-то отстало (модель недоступна, ошибка CLI), в окно
+        # добираются и несвёрнутые реплики постарше — иначе они пропали бы совсем:
+        # из сводки ещё не попали, из окна уже выпали.
         history = conn.execute(
-            "SELECT role, text FROM messages ORDER BY id DESC LIMIT 10"
-        ).fetchall()
+            "SELECT id, role, text FROM messages ORDER BY id DESC LIMIT ?",
+            (SECRETARY_WINDOW_MAX,)).fetchall()
         balance = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
         cash_bal = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='cash'").fetchone()[0]
         card_bal = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance WHERE account='card'").fetchone()[0]
@@ -551,10 +555,26 @@ def get_context() -> str:
         for r in reminders:
             lines.append(f"  {r['due_at']} — {r['text']}")
 
-    lines.append("\nПОСЛЕДНИЕ СООБЩЕНИЯ:")
+    summary = _settings_get("secretary_summary") or ""
+    upto = int(_settings_get("secretary_summary_upto_id") or 0)
+    # history пришла от новых к старым; оставляем окно, а сверх него — только то,
+    # что ещё не попало в сводку.
+    keep = [h for i, h in enumerate(history) if i < SECRETARY_WINDOW or h["id"] > upto]
+    history = keep
+
+    if summary:
+        lines.append("\nПАМЯТЬ О ПРЕДЫДУЩЕМ ОБЩЕНИИ (сводка того, что вышло за окно "
+                     "последних сообщений; это твоя память, а не догадки):")
+        lines.append(summary)
+
+    lines.append("\nПОСЛЕДНИЕ СООБЩЕНИЯ (дословно, по порядку — это продолжение того же "
+                 "разговора, отвечай с учётом сказанного раньше):")
     for h in reversed(history):
         who = "Человек" if h["role"] == "user" else "Ты"
-        lines.append(f"{who}: {h['text'][:200]}")
+        t = h["text"] or ""
+        if len(t) > SECRETARY_MSG_MAXLEN:
+            t = t[:SECRETARY_MSG_MAXLEN] + " …(обрезано)"
+        lines.append(f"{who}: {t}")
 
     return "\n".join(lines)
 
@@ -2330,10 +2350,75 @@ def apply_actions(actions: list) -> list:
     return results
 
 
+# ── Долгая память Секретаря ───────────────────────────────────────────────────
+# Было: в контекст шли последние 10 реплик, обрезанные до 200 символов. Обрезка и
+# убивала память: свой же ответ длиннее абзаца Секретарь видел огрызком в 200
+# знаков, а через пять обменов не видел вовсе — со стороны это выглядит как
+# «не помнит даже предыдущее сообщение».
+# Стало — та же схема, что у Юриста: последние SECRETARY_WINDOW реплик дословно,
+# всё, что вышло за окно, свёрнуто в постоянную сводку. Вся переписка в запрос
+# не едет никогда: свежее — дословно, старое — тезисами.
+SECRETARY_WINDOW = 20        # сколько последних реплик уходит в промпт дословно
+SECRETARY_FOLD_AFTER = 12    # реплики старше этого рубежа подлежат сворачиванию
+SECRETARY_FOLD_BATCH = 8     # но сворачиваем пачкой, а не после каждого сообщения
+SECRETARY_WINDOW_MAX = 44    # жёсткий потолок дословных реплик, если сворачивание отстало
+SECRETARY_MSG_MAXLEN = 1000  # макс. длина одной реплики в контексте
+SECRETARY_STORE_CAP = 2000   # потолок строк в messages (старое уже в сводке)
+# ВАЖНО: FOLD_AFTER + FOLD_BATCH <= WINDOW. Пачка нужна, чтобы не гонять модель
+# на сворачивание после каждого сообщения (это был бы лишний запрос к haiku на
+# каждую реплику). Но пока пачка копится, эти реплики ещё НЕ в сводке — и если бы
+# окно было короче, они провалились бы в дыру: из сводки выпали, в окно не попали.
+# Равенство 12 + 8 = 20 гарантирует, что дыры нет: всё, что не свёрнуто, дословно.
+
+
 def remember(role: str, text: str):
-    with db() as conn:
-        conn.execute("INSERT INTO messages (role, text) VALUES (?,?)", (role, text))
-        conn.execute("DELETE FROM messages WHERE id NOT IN (SELECT id FROM messages ORDER BY id DESC LIMIT 50)")
+    try:
+        with db() as conn:
+            conn.execute("INSERT INTO messages (role, text) VALUES (?,?)", (role, text))
+            conn.execute("DELETE FROM messages WHERE id NOT IN "
+                         "(SELECT id FROM messages ORDER BY id DESC LIMIT ?)", (SECRETARY_STORE_CAP,))
+    except Exception as e:
+        log.error(f"remember: {e}")
+
+
+def maybe_update_secretary_summary():
+    """Свернуть в сводку реплики старше рубежа SECRETARY_FOLD_AFTER — пачками по
+    SECRETARY_FOLD_BATCH, чтобы не звать модель после каждого сообщения.
+    Вызывается ПОСЛЕ отправки ответа, в отдельном потоке — ответ не задерживает."""
+    try:
+        with db() as conn:
+            newest = conn.execute("SELECT COALESCE(MAX(id),0) FROM messages").fetchone()[0]
+            if not newest:
+                return
+            cutoff = conn.execute(
+                "SELECT MIN(id) FROM (SELECT id FROM messages ORDER BY id DESC LIMIT ?)",
+                (SECRETARY_FOLD_AFTER,)).fetchone()[0]
+            upto = int(_settings_get("secretary_summary_upto_id") or 0)
+            if cutoff is None or cutoff - 1 <= upto:
+                return  # за рубеж ещё ничего нового не вышло
+            pending = conn.execute(
+                "SELECT role, text FROM messages WHERE id > ? AND id < ? ORDER BY id",
+                (upto, cutoff)).fetchall()
+        if len(pending) < SECRETARY_FOLD_BATCH:
+            return  # пачка ещё не набралась; эти реплики пока видны дословно
+        prev = _settings_get("secretary_summary") or "(пусто)"
+        block = "\n".join(
+            f"{'Человек' if r['role'] == 'user' else 'Секретарь'}: {r['text']}" for r in pending)
+        prompt = (
+            "Ты ведёшь долгую память личного секретаря одного человека.\n"
+            "Обнови сводку памяти: аккуратно впиши в неё новые обмены, сохранив ВСЕ факты, "
+            "договорённости, планы, суммы, сроки, имена и предпочтения. Убирай воду и "
+            "болтовню, не выдумывай, не теряй важное. Пиши по-русски, компактно, тезисами.\n\n"
+            f"ТЕКУЩАЯ СВОДКА:\n{prev}\n\nНОВЫЕ ОБМЕНЫ:\n{block}\n\n"
+            "Верни ТОЛЬКО обновлённый текст сводки, без пояснений.")
+        result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""], timeout=90)
+        new_summary = (result.stdout or "").strip()
+        if new_summary and not new_summary.startswith("Error:"):
+            _settings_set("secretary_summary", new_summary[:8000])
+            _settings_set("secretary_summary_upto_id", str(cutoff - 1))
+            log.info(f"secretary summary updated up to id {cutoff - 1}")
+    except Exception as e:
+        log.error(f"maybe_update_secretary_summary: {e}")
 
 
 # ── Долгая память Юриста ──────────────────────────────────────────────────────
@@ -2413,8 +2498,10 @@ def maybe_update_lawyer_summary():
 
 async def ai_converse(update: Update, user_text: str, source: str = "text"):
     save_chat_id(update.effective_chat.id)
-    remember("user", user_text)
 
+    # Запоминаем ПОСЛЕ ответа, а не до: get_context() читает ту же таблицу, и
+    # запись «вперёд» дублировала текущее сообщение — один раз в истории, второй
+    # раз как «НОВОЕ СООБЩЕНИЕ», занимая место в окне памяти впустую.
     resp = await asyncio.get_event_loop().run_in_executor(None, lambda: ask_claude_sync(user_text))
 
     reply = resp.get("reply", "")
@@ -2422,11 +2509,17 @@ async def ai_converse(update: Update, user_text: str, source: str = "text"):
     applied = apply_actions(actions)
 
     if not reply:
-        # Фоллбэк: старый механизм
+        # Фоллбэк: старый механизм. Раньше отсюда выходили молча — обмен целиком
+        # выпадал из памяти, и следующий вопрос Секретарь встречал с чистого листа.
+        remember("user", user_text)
+        remember("assistant", "(сохранила в парковку без ответа)")
         await save_and_reply(update, user_text, source=source)
         return
 
+    remember("user", user_text)
     remember("assistant", reply)
+    # Досворачиваем то, что вышло за окно, — в фоне, ответ уже ушёл человеку.
+    asyncio.get_event_loop().run_in_executor(None, maybe_update_secretary_summary)
 
     prefix = f"🎤 _{user_text}_\n\n" if source == "voice" else ""
 
