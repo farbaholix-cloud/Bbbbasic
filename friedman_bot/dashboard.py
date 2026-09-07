@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.38"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.39"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1097,7 +1097,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .cell.tail{border-color:rgba(255,90,110,.35)}
 .cell.tail .cd{color:#ff9aa6}
 .tail-age{font-size:10px;font-weight:800;color:#ff9aa6;opacity:.85;margin-left:6px}
-.ev[data-drag="1"]{touch-action:pan-y}
+/* pan-x ОБЯЗАТЕЛЕН, а не для симметрии: дни в календаре стоят колонками и листаются
+   вбок. С одним лишь pan-y браузер отказывался вести горизонтальную прокрутку, если
+   палец лёг на карточку, — доска листалась за шапки колонок и за пустоту, но не за
+   сами дела. Перетаскиванию это не мешает: оно включается долгим нажатием, а любое
+   движение раньше 200 мс отдаёт жест прокрутке (см. _cdg в pointermove). */
+.ev[data-drag="1"]{touch-action:pan-x pan-y}
 /* Черта между «по часам» и «весь день». Тонкая и красная: это граница смысла,
    а не украшение — выше линии у дела есть место в сутках, ниже его нет. */
 .day-split{height:1px;background:rgba(255,90,110,.55);margin:7px 2px;border-radius:1px}
