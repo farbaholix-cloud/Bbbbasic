@@ -8,3 +8,7 @@ friedman_bot/.env
 friedman_bot/.deployed_sha
 friedman_bot/.wisdom_cache.json
 friedman_bot/.claude_token
+
+# Ночной сторож: улики и журнал — сугубо локальные
+bedbug_watch/nights/
+bedbug_watch/.env

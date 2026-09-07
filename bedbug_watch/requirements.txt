@@ -1,0 +1,4 @@
+opencv-python-headless>=4.9   # захват кадров и разбор пятен (headless — на сервере без GUI)
+numpy>=1.24
+# Telegram шлём через urllib — отдельная библиотека не нужна.
+# Токен берётся из friedman_bot/.env (BOT_TOKEN) + BEDBUG_CHAT_ID.
