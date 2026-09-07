@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.39"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.40"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1250,8 +1250,11 @@ body.dragging-now .ev{cursor:grabbing}
 .tg-day{min-width:196px;max-width:196px;flex-shrink:0;scroll-snap-align:start}
 .tg-day.past{opacity:.72}
 .tg-day .cd{height:26px;margin:0;align-items:center}
+/* user-select и touch-callout сняты не для красоты: без них Safari на долгом
+   нажатии по сетке показывает лупу выделения текста и забирает жест себе. */
 .tg-hours{position:relative;border-radius:12px;background:rgba(255,255,255,.035);
-  border:1px solid var(--rim);overflow:hidden}
+  border:1px solid var(--rim);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .tg-day.today .tg-hours{border-color:rgba(91,157,255,.5);background:rgba(91,157,255,.05)}
 .tg-line{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.06)}
 .tg-ev{position:absolute;overflow:hidden}
@@ -1262,6 +1265,18 @@ body.dragging-now .ev{cursor:grabbing}
   box-shadow:0 0 6px rgba(255,90,110,.8)}
 .tg-now::before{content:'';position:absolute;left:0;top:-3px;width:7px;height:7px;
   border-radius:50%;background:#ff5a6e}
+/* Призрак будущего дела: появляется под пальцем на долгом нажатии по пустому
+   месту сетки и показывает, В КАКОЙ ЧАС попадёт задача, — раньше, чем откроется
+   шторка. Без него человек называет дело вслепую и только потом видит время. */
+.tg-newslot{position:absolute;left:2px;right:2px;z-index:7;border-radius:9px;
+  background:linear-gradient(180deg,rgba(91,157,255,.34),rgba(91,157,255,.16));
+  border:1px solid rgba(140,190,255,.75);box-shadow:0 6px 18px rgba(91,157,255,.3);
+  display:flex;align-items:flex-start;padding:5px 7px;pointer-events:none;
+  animation:slotpop .18s cubic-bezier(.2,.85,.25,1)}
+.tg-newslot span{font-size:11px;font-weight:800;color:#fff;letter-spacing:-.2px;
+  text-shadow:0 1px 3px rgba(0,0,0,.5)}
+@keyframes slotpop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tg-newslot{animation:none}}
 /* Закреплённая панель «весь день»: пятая часть экрана, поверх сетки, со своей
    прокруткой. Колонки в ней те же, что в сетке, и ездят синхронно. */
 /* ── Обзор месяца и года ── */
@@ -1301,7 +1316,8 @@ body.dragging-now .ev{cursor:grabbing}
   -webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:stretch}
 .tg-dock-days::-webkit-scrollbar{display:none}
 .tg-dock-day{min-width:196px;max-width:196px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;
-  overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-right:2px}
+  overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-right:2px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .tg-dock-day::-webkit-scrollbar{display:none}
 .tg-dock-day.today{border-left:2px solid rgba(91,157,255,.7);padding-left:6px;border-radius:2px}
 /* Календарь уезжает под панель — иначе последние часы дня под ней и не достать. */
@@ -2852,6 +2868,16 @@ function _cdgCards(){return [...document.querySelectorAll('#cal .ev')];}
 // это 1,25 минуты, то есть точнее пальца всё равно не получится, а круглые
 // значения предсказуемы.
 const TG_SNAP=5;
+// Вертикальная позиция внутри колонки часов -> минута суток, округлённая к шагу.
+// Формула одна на всех: и перетаскивание карточки, и долгое нажатие по пустому
+// месту считают время отсюда — иначе один и тот же пиксель давал бы два времени.
+function _tgHM(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
+function _tgMinAt(hours,y){
+  const r=hours.getBoundingClientRect();
+  const lo=+(hours.dataset.lo||0);
+  let m=Math.round((lo+(y-r.top)/TG_SLOT*60)/TG_SNAP)*TG_SNAP;
+  return {m:Math.max(0,Math.min(1439,m)),lo:lo,r:r};
+}
 function _cdgTargetGrid(x,y){
   const els=document.elementsFromPoint(x,y);
   let hours=null,dock=null,day=null;
@@ -2870,14 +2896,9 @@ function _cdgTargetGrid(x,y){
       return null;})()};
   if(!day)return null;
   if(hours){
-    const r=hours.getBoundingClientRect();
-    const lo=+(hours.dataset.lo||0);
-    let m=lo+(y-r.top)/TG_SLOT*60;
-    m=Math.round(m/TG_SNAP)*TG_SNAP;
-    m=Math.max(0,Math.min(1439,m));
-    return {grid:true,day:day,ds:day.dataset.ds,time:
-      String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'),
-      lineY:r.top+(m-lo)/60*TG_SLOT, left:r.left, right:r.right};
+    const s=_tgMinAt(hours,y);
+    return {grid:true,day:day,ds:day.dataset.ds,time:_tgHM(s.m),
+      lineY:s.r.top+(s.m-s.lo)/60*TG_SLOT, left:s.r.left, right:s.r.right};
   }
   const zone=day.querySelector('.tg-allday');
   if(!zone)return null;
@@ -3164,6 +3185,59 @@ document.addEventListener('pointerup',e=>{
   if(was){e.preventDefault();e.stopPropagation();}   // тап после переноса не открывает карточку
 },true);
 document.addEventListener('pointercancel',()=>{if(_cdg)_cdgEnd(false);},true);
+
+// ─── Долгое нажатие по пустому месту хроносетки: новое дело прямо на этот час ──
+// Тот же жест, что поднимает карточку, но по пустому месту. Смысл зеркальный:
+// длинное касание карточки говорит «беру это», длинное касание пустоты —
+// «здесь ничего нет, поставь сюда». Держим дольше (320 мс против 200): промах
+// мимо карточки не должен превращаться в диалог, а промах по пустоте при
+// перетаскивании — тем более.
+let _tgNew=null;
+const TG_HOLD=320;
+function _tgSlotGhost(hours,top,label){
+  _tgGhostOff();
+  const g=document.createElement('div');
+  g.className='tg-newslot';
+  g.style.top=top+'px';
+  g.style.height=(TG_SLOT-3)+'px';       // час — столько же, сколько займёт дело
+  g.innerHTML='<span>'+label+'</span>';
+  hours.appendChild(g);
+}
+function _tgGhostOff(){document.querySelectorAll('.tg-newslot').forEach(n=>n.remove());}
+function _tgHoldOff(){if(_tgNew){clearTimeout(_tgNew.timer);_tgNew=null;}}
+
+document.addEventListener('pointerdown',e=>{
+  if(e.button)return;
+  if(_calView!=='grid'||!document.getElementById('page-cal').classList.contains('on'))return;
+  const t=e.target;
+  if(!t.closest)return;
+  if(t.closest('.ev')||t.closest('.tg-ev'))return;      // по делу — это перетаскивание
+  const hours=t.closest('#cal .tg-hours');
+  const dock=t.closest('#cal .tg-dock-day');
+  if(!hours&&!dock)return;
+  const day=t.closest('.tg-day')||dock;
+  if(!day||!day.dataset.ds)return;
+  _tgNew={x0:e.clientX,y0:e.clientY,ds:day.dataset.ds,hours:hours,allDay:!hours};
+  _tgNew.timer=setTimeout(()=>{
+    if(!_tgNew)return;
+    const st=_tgNew;_tgNew=null;
+    if(st.allDay){
+      openIdeaSheet({date:st.ds,allDay:true});
+      return;
+    }
+    const s=_tgMinAt(st.hours,st.y0);
+    const time=_tgHM(s.m), end=_tgHM(Math.min(1439,s.m+60));
+    _tgSlotGhost(st.hours,(s.m-s.lo)/60*TG_SLOT,time);
+    openIdeaSheet({date:st.ds,time:time,time_end:end});
+  },TG_HOLD);
+},{passive:true});
+
+document.addEventListener('pointermove',e=>{
+  // Повёл пальцем — это прокрутка, а не «поставь сюда дело».
+  if(_tgNew&&(Math.abs(e.clientY-_tgNew.y0)>8||Math.abs(e.clientX-_tgNew.x0)>8))_tgHoldOff();
+},{passive:true});
+document.addEventListener('pointerup',_tgHoldOff,true);
+document.addEventListener('pointercancel',_tgHoldOff,true);
 
 function renderFinance(){
   const d=DATA;
@@ -3853,6 +3927,9 @@ document.addEventListener('focusin',e=>{
 function closeSheet(){
   const s=document.getElementById('sheet');if(s)s.remove();
   const b=document.getElementById('sheet-bg');if(b)b.remove();
+  // Призрак будущего дела живёт ровно столько, сколько открыта шторка:
+  // отменили — он уходит вместе с ней, сохранили — сетка перерисуется сама.
+  if(s&&typeof _tgGhostOff==='function')_tgGhostOff();
   const y=_sheetScroll;_sheetScroll=null;
   if(s&&y!==null)_restoreScroll(y);
 }
@@ -3900,19 +3977,26 @@ function _openSheet(html){
 }
 
 // ─── красивый «захват вводной»: вместо одной строки prompt — полноценная шторка ───
-function openIdeaSheet(){
+// preset — {date, time, time_end, allDay}: место, выбранное пальцем в календаре.
+// Без него шторка ведёт себя как раньше: просто «поймать мысль».
+function openIdeaSheet(preset){
   closeSheet();
   const bg=document.createElement('div');bg.id='sheet-bg';bg.onclick=closeSheet;document.body.appendChild(bg);
   const sheet=document.createElement('div');sheet.id='sheet';sheet.className='glass';
+  const pd=preset&&preset.date?new Date(preset.date+'T00:00'):null;
+  const sub=preset?
+    (pd&&!isNaN(pd)?DOW[(pd.getDay()+6)%7]+' '+pd.getDate()+' '+MONTHS[pd.getMonth()]:preset.date)+
+      (preset.allDay?' · весь день':(preset.time?' · '+preset.time:'')):
+    'лови мысль — разложим её позже';
   sheet.innerHTML='<div class="grab"></div>'+
-    '<div class="idea-h"><span class="idea-spark">💡</span><div>'+
-      '<div class="stitle" style="text-align:left;margin:0">Новая вводная</div>'+
-      '<div class="ssub" style="text-align:left">лови мысль — разложим её позже</div></div></div>'+
+    '<div class="idea-h"><span class="idea-spark">'+(preset?'📅':'💡')+'</span><div>'+
+      '<div class="stitle" style="text-align:left;margin:0">'+(preset?'Дело в календарь':'Новая вводная')+'</div>'+
+      '<div class="ssub" style="text-align:left">'+esc(sub)+'</div></div></div>'+
     '<textarea id="idea-txt" class="idea-txt" placeholder="Что пришло в голову?" rows="4"></textarea>'+
     '<div class="sched-row"><span class="sched-lbl">📅 Запланировать</span><div class="tog" id="sc-on"><div class="tog-k"></div></div></div>'+
     '<div id="sc-body" style="display:none">'+
       '<div class="sched-row"><span class="sched-lbl">Весь день</span><div class="tog" id="sc-allday"><div class="tog-k"></div></div></div>'+
-      '<div class="sched-row"><span class="sched-lbl">Начало</span><div class="sched-inps"><input type="date" id="sc-date" value="'+localISO(new Date())+'"><input type="time" id="sc-t1"></div></div>'+
+      '<div class="sched-row"><span class="sched-lbl">Начало</span><div class="sched-inps"><input type="date" id="sc-date" value="'+((preset&&preset.date)||localISO(new Date()))+'"><input type="time" id="sc-t1"></div></div>'+
       '<div class="sched-row" id="sc-endrow"><span class="sched-lbl">Конец</span><div class="sched-inps"><input type="time" id="sc-t2"></div></div>'+
     '</div>'+
     '<button class="big-add" id="idea-save" style="margin-top:18px"><span class="ic">📌</span>Припарковать</button>';
@@ -3930,6 +4014,14 @@ function openIdeaSheet(){
   const updLabel=()=>{saveBtn.innerHTML='<span class="ic">'+(schedOn?'📅':'📌')+'</span>'+(schedOn?'В календарь':'Припарковать');};
   scOn.onclick=()=>{schedOn=!schedOn;scOn.classList.toggle('on',schedOn);scBody.style.display=schedOn?'':'none';updLabel();};
   scAll.onclick=()=>{allDay=!allDay;scAll.classList.toggle('on',allDay);t1.style.display=allDay?'none':'';scEndRow.style.display=allDay?'none':'';};
+  // Пришли из календаря: планирование уже включено, время подставлено — человеку
+  // остаётся только назвать дело. Тумблеры при этом живые, всё можно поправить.
+  if(preset){
+    schedOn=true;scOn.classList.add('on');scBody.style.display='';
+    if(preset.allDay){allDay=true;scAll.classList.add('on');t1.style.display='none';scEndRow.style.display='none';}
+    else{t1.value=preset.time||'';t2.value=preset.time_end||'';}
+    updLabel();
+  }
   // конец автоматически = начало + 1 час (как в iOS), пока не задан вручную
   t1.addEventListener('change',()=>{
     if(!t1.value)return;
