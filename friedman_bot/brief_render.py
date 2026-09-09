@@ -23,6 +23,11 @@ H_BRIEF = [
 ]
 _HVB_W, _HVB_H = 300.0, 190.0  # система координат SVG-линий
 
+# Шкала уровня эскалации (те же четыре ступени, что в bot.py WAR_LEVELS).
+# Латинские slug'и нужны, чтобы уровень можно было положить в имя CSS-класса.
+_WAR_DOTS = {"фон": "🟢", "внимание": "🟡", "подготовка": "🟠", "тревога": "🔴"}
+_WAR_SLUG = {"фон": "calm", "внимание": "watch", "подготовка": "prep", "тревога": "alarm"}
+
 
 def _happiness_block(hap):
     """HTML «звезды счастья»: длина каждого луча ∝ √(оценка/5), как в дашборде."""
@@ -122,8 +127,20 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
 .hiphop .t{font-weight:800;color:#ffd07a}
 .legal{padding:13px 15px;border-radius:18px;
   background:linear-gradient(135deg,rgba(91,157,255,.16),rgba(65,227,212,.10));border:1px solid rgba(91,157,255,.34)}
-.legal .h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9dc0ff;margin-bottom:7px;display:flex;align-items:center;gap:7px}
+/* Цвет — от уровня эскалации, а не от тона текста: одинаковый уровень выглядит
+   одинаково каждое утро, и рост виден раньше, чем прочитан первый пункт. */
+.legal.lvl-calm{background:linear-gradient(135deg,rgba(82,224,138,.14),rgba(65,227,212,.08));border-color:rgba(82,224,138,.32)}
+.legal.lvl-calm .h{color:#8fe3b0}
+.legal.lvl-watch{background:linear-gradient(135deg,rgba(255,208,122,.16),rgba(255,198,87,.08));border-color:rgba(255,208,122,.34)}
+.legal.lvl-watch .h{color:#ffd07a}
+.legal.lvl-prep{background:linear-gradient(135deg,rgba(255,150,70,.18),rgba(255,120,60,.09));border-color:rgba(255,150,70,.4)}
+.legal.lvl-prep .h{color:#ffb07a}
+.legal.lvl-alarm{background:linear-gradient(135deg,rgba(255,90,110,.2),rgba(255,60,90,.1));border-color:rgba(255,90,110,.5)}
+.legal.lvl-alarm .h{color:#ff9aa6}
+.legal .h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9dc0ff;margin-bottom:7px;display:flex;align-items:center;gap:7px;justify-content:space-between}
+.legal .h .lvl{text-transform:none;letter-spacing:0;font-size:11.5px;opacity:.92;white-space:nowrap}
 .legal .body{font-size:13px;font-weight:600;line-height:1.5;color:#eef0f4}
+.legal .chg{font-size:12px;font-weight:700;color:rgba(235,240,250,.8);margin-top:7px;line-height:1.42}
 .legal .imp{font-size:12px;font-weight:600;color:rgba(235,240,250,.72);margin-top:7px;line-height:1.42}
 .legal .meta{font-size:10.5px;font-weight:700;color:rgba(235,240,250,.48);margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;gap:8px}
 .legal .meta .cf{color:#7fe0c4}
@@ -195,20 +212,27 @@ def build_html(d):
     if d.get("hiphop"):
         parts.append(f'<div class="hiphop"><span class="t">🎤 Хип-хоп календарь:</span> {_esc(d["hiphop"])}</div>')
 
-    # Свежие немецкие/ЕС правовые новости для украинцев призывного возраста
-    legal = d.get("ua_legal") or {}
-    if legal.get("summary"):
-        imp = (f'<div class="imp">🎯 {_esc(legal["importance"])}</div>' if legal.get("importance") else "")
+    # Признаки приближения войны РФ — ЕС/НАТО. Цвет рамки берётся от уровня, а не
+    # от настроения текста: одинаковый уровень выглядит одинаково каждое утро,
+    # и «стало хуже» видно раньше, чем прочитан первый пункт.
+    war = d.get("war_risk") or {}
+    if war.get("summary"):
+        lvl = (war.get("level") or "внимание").strip().lower()
+        if lvl not in _WAR_DOTS:
+            lvl = "внимание"
+        chg = (f'<div class="chg">↔ {_esc(war["changed"])}</div>' if war.get("changed") else "")
+        imp = (f'<div class="imp">🎯 {_esc(war["importance"])}</div>' if war.get("importance") else "")
         meta_bits = []
-        if legal.get("date"):
-            meta_bits.append(f'<span>🗓 {_esc(legal["date"])}</span>')
-        if legal.get("confidence"):
-            meta_bits.append(f'<span class="cf">✓ достоверность: {_esc(legal["confidence"])}</span>')
+        if war.get("date"):
+            meta_bits.append(f'<span>🗓 {_esc(war["date"])}</span>')
+        if war.get("confidence"):
+            meta_bits.append(f'<span class="cf">✓ достоверность: {_esc(war["confidence"])}</span>')
         meta = f'<div class="meta">{"".join(meta_bits)}</div>' if meta_bits else ""
         parts.append(
-            '<div class="legal">'
-            '<div class="h">🛂 Украинцы призывного возраста · DE/ЕС</div>'
-            f'<div class="body">{_esc(legal["summary"])}</div>{imp}{meta}</div>')
+            f'<div class="legal lvl-{_WAR_SLUG[lvl]}">'
+            f'<div class="h"><span>📡 РФ — ЕС · эскалация</span>'
+            f'<span class="lvl">{_WAR_DOTS[lvl]} {_esc(lvl)}</span></div>'
+            f'<div class="body">{_esc(war["summary"])}</div>{chg}{imp}{meta}</div>')
 
     # Внизу — «звезда счастья» (бывшая заглушка «Ж»), красиво вписанная в дизайн
     parts.append(_happiness_block(d.get("happiness")))
@@ -256,11 +280,13 @@ if __name__ == "__main__":
         "balance": 220, "cash": 340, "card": -120,
         "holiday": "Международный день уличного искусства — твой день, FARBAHOLIX 🎨",
         "hiphop": "Сегодня ДР у MF DOOM 🕊 — легенда андеграунда, мастер метафор.",
-        "ua_legal": {
-            "summary": "Временная защита §24 продлена до 04.03.2026 · BAMF: смена статуса на §24a возможна с 2025 · дискуссия в ЕС о правилах выезда мужчин 18–60 — решений пока нет",
-            "importance": "Касается напрямую: твой статус §24 продлён, срочных действий не требуется.",
-            "confidence": "высокая — источники BAMF и Bundesregierung",
-            "date": "новости за последние 3 недели",
+        "war_risk": {
+            "level": "подготовка",
+            "summary": "Бундесвер: Operationsplan Deutschland переведён в рабочую фазу (BMVg, 2.09) · Литва и Польша сообщили о нарушениях воздушного пространства дронами (NATO, 4.09) · Бундестаг обсуждает новый порядок Wehrdienst (tagesschau, 5.09)",
+            "changed": "к заявлениям добавились практические шаги — раньше были только оценки разведок",
+            "importance": "На повседневную жизнь и заказы во Франкфурте пока не влияет.",
+            "confidence": "высокая — официальные источники BMVg и НАТО",
+            "date": "новости за последние 2 недели",
         },
         "happiness": {"work": 4, "friendship": 3, "health": 5, "wellbeing": 2, "hobby": 4, "love": 3},
     }
