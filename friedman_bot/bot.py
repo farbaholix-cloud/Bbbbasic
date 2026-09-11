@@ -4232,6 +4232,9 @@ def planned_spend(d0, d1):
 # Тон даты дня. Памятная дата и праздник — разные вещи, и путать их нельзя:
 # «🎉 Праздник дня» над днём памяти оскорбителен. Модель возвращает одно слово,
 # от него зависят значок, подпись и оформление блока в постере.
+_DOW_RU = ["Понедельник", "Вторник", "Среда", "Четверг",
+           "Пятница", "Суббота", "Воскресенье"]
+
 CULTURE_MOODS = {
     "свято":  ("🎉", "Праздник дня"),
     "память": ("🕯", "День памяти"),
@@ -4258,12 +4261,16 @@ def culture_for_today_sync() -> dict:
         "его армией, правителями и деятелями, ни общих советских дат (вроде дня космонавтики), "
         "ни российских исполнителей. Если единственное событие дня связано с Россией — НЕ упоминай его "
         "вовсе и возьми другое. Молчание лучше, чем такая строка.\n\n"
-        "holiday — одна дата на сегодня, коротко, по-русски. Эмодзи в начале НЕ ставь: "
+        "holiday — одна дата на сегодня, по-русски, 8–16 слов. Эмодзи в начале НЕ ставь: "
         "значок подставит сама сводка по тону. Приоритет выбора: "
         "1) украинская дата: государственный праздник, памятный день, годовщина события или день рождения "
         "украинского деятеля культуры, науки, спорта; "
         "2) если на эту дату такой нет — всемирный день, интересный уличному художнику "
         "(искусство, культура, граффити, необычные мировые дни). "
+        "Строка обязана объяснять себя сама: что за дата И почему она существует — год, событие или человек. "
+        "Голое название без содержания («День памяти библиотек») не годится: по нему ничего не понять. "
+        "Если проверяемой даты на сегодня нет — верни holiday пустым, это нормально; выдуманная дата хуже, "
+        "чем её отсутствие. "
         "Памятные и траурные даты формулируй сдержанно и уважительно, без поздравлений и без восклицаний.\n\n"
         "mood — РОВНО одно слово: свято | память | мир. "
         "свято — это праздник, можно поздравить. "
@@ -4325,6 +4332,32 @@ WAR_LEVELS = {
 }
 
 
+def _war_shape(data: dict) -> dict:
+    """Привести ответ монитора к одной форме: уровень из шкалы, максимум три
+    тезиса, длина под телефон.
+
+    Применяется И к свежему ответу, И к прочитанному из кэша — иначе получается
+    ровно то, что и получилось однажды: утром блок лёг в кэш в старом формате
+    (одна строка summary), днём выехал новый код, который ищет points, — и блок
+    молча исчез из сводки на весь день. Старый формат теперь разбирается по
+    разделителю « · », а не выбрасывается."""
+    data = dict(data or {})
+    pts = data.get("points")
+    if not pts and data.get("summary"):
+        pts = [x.strip() for x in str(data["summary"]).split("·")]
+    if isinstance(pts, str):
+        pts = [x.strip() for x in pts.split("·")]
+    pts = [str(p).strip() for p in (pts or []) if str(p).strip()][:3]
+    # Режем в коде, а не надеемся на послушание модели: сводку читают с телефона.
+    data["points"] = [(p[:110].rstrip() + "…") if len(p) > 112 else p for p in pts]
+    # Уровень вне шкалы — не уровень, а самодеятельность модели.
+    lvl = str(data.get("level", "")).strip().lower()
+    data["level"] = lvl if lvl in WAR_LEVELS else "внимание"
+    ch = str(data.get("changed") or "").strip()
+    data["changed"] = "" if ch.lower() in ("", "без изменений") else ch[:90]
+    return data
+
+
 def war_risk_signals_sync() -> dict:
     """Признаки приближения войны Россия — ЕС/НАТО: наблюдаемые индикаторы из
     официальных источников, а не сводка мнений.
@@ -4338,7 +4371,7 @@ def war_risk_signals_sync() -> dict:
     cached = _settings_get(cache_key)
     if cached:
         try:
-            return jsonlib.loads(cached)
+            return _war_shape(jsonlib.loads(cached))
         except Exception:
             pass
     today = datetime.now().strftime("%d.%m.%Y")
@@ -4397,22 +4430,8 @@ def war_risk_signals_sync() -> dict:
         raw = result.stdout.strip()
         s, e = raw.find("{"), raw.rfind("}")
         if s >= 0 and e > s:
-            data = jsonlib.loads(raw[s:e + 1])
-            # Длину режем здесь, а не надеемся на послушание модели: сводку
-            # читают с телефона утром, и разъехавшийся блок — это не мелочь.
-            pts = data.get("points")
-            if isinstance(pts, str):
-                pts = [x.strip() for x in pts.split("·") if x.strip()]
-            pts = [str(p).strip() for p in (pts or []) if str(p).strip()][:3]
-            pts = [(p[:110].rstrip() + "…") if len(p) > 112 else p for p in pts]
-            if pts:
-                # Уровень приводим к шкале: слово не из списка — не уровень, а
-                # самодеятельность модели, и на экране оно всё сломает.
-                lvl = str(data.get("level", "")).strip().lower()
-                data["level"] = lvl if lvl in WAR_LEVELS else "внимание"
-                data["points"] = pts
-                ch = str(data.get("changed") or "").strip()
-                data["changed"] = "" if ch.lower() in ("", "без изменений") else ch[:90]
+            data = _war_shape(jsonlib.loads(raw[s:e + 1]))
+            if data.get("points"):
                 _settings_set(cache_key, jsonlib.dumps(data, ensure_ascii=False))
                 return data
     except Exception as ex:
@@ -4554,6 +4573,10 @@ async def render_owner_brief(bot, chat_id: int, verbose: bool = False):
             lines.append(f"• {p}")
         if war_risk.get("changed"):
             lines.append(f"_↔ {war_risk['changed']}_")
+    else:
+        # Молчание вместо блока однажды уже стоило полдня разбирательств: со
+        # стороны не отличить «новостей нет» от «монитор упал». Одна строка.
+        lines.append("\n📡 _РФ — ЕС: сводка не собралась (сеть или веб-поиск)._")
 
     hap_reminder = ""
     if _hap_days >= 3:
@@ -4563,7 +4586,9 @@ async def render_owner_brief(bot, chat_id: int, verbose: bool = False):
     # Сначала пробуем красивую JPEG-сводку (постер под iPhone), иначе — текст
     urgent = [h["text"] for h in high] if high else ([m["text"] for m in mid] if mid else [])
     brief_data = {
-        "date_str": datetime.now().strftime("%A, %d.%m · %H:%M"),
+        # %A даёт день недели по локали системы, а на сервере она C — в шапке
+        # сводки по-русски стояло «Friday». Собираем сами.
+        "date_str": _DOW_RU[datetime.now().weekday()] + datetime.now().strftime(", %d.%m · %H:%M"),
         "wisdom": today_wisdom(),
         "urgent": urgent,
         "reminders": [(t["due_at"][11:16], t["text"]) for t in todays],
