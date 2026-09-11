@@ -28,6 +28,14 @@ _HVB_W, _HVB_H = 300.0, 190.0  # система координат SVG-лини�
 _WAR_DOTS = {"фон": "🟢", "внимание": "🟡", "подготовка": "🟠", "тревога": "🔴"}
 _WAR_SLUG = {"фон": "calm", "внимание": "watch", "подготовка": "prep", "тревога": "alarm"}
 
+# Тон даты дня (те же слова, что в bot.py CULTURE_MOODS). Памятная дата не может
+# выглядеть празднично: у неё своя, приглушённая раскраска.
+_MOODS = {
+    "свято":  ("🎉", "Праздник дня", ""),
+    "память": ("🕯", "День памяти", "mourn"),
+    "мир":    ("🌍", "Дата дня", "plain"),
+}
+
 
 def _happiness_block(hap):
     """HTML «звезды счастья»: длина каждого луча ∝ √(оценка/5), как в дашборде."""
@@ -122,6 +130,11 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
 .fest{padding:12px 15px;border-radius:18px;font-size:13px;font-weight:600;line-height:1.42;
   background:linear-gradient(135deg,rgba(255,122,192,.18),rgba(177,139,255,.13));border:1px solid rgba(255,122,192,.32)}
 .fest .t{font-weight:800;color:#ff9ed4}
+/* Памятная дата — сдержанно, без праздничного розового. */
+.fest.mourn{background:linear-gradient(135deg,rgba(235,240,250,.09),rgba(140,160,190,.06));border-color:rgba(235,240,250,.2)}
+.fest.mourn .t{color:rgba(235,240,250,.82)}
+.fest.plain{background:linear-gradient(135deg,rgba(65,227,212,.13),rgba(91,157,255,.09));border-color:rgba(65,227,212,.28)}
+.fest.plain .t{color:#7fe0d4}
 .hiphop{padding:12px 15px;border-radius:18px;font-size:13px;font-weight:600;line-height:1.42;
   background:linear-gradient(135deg,rgba(255,198,87,.16),rgba(255,107,125,.11));border:1px solid rgba(255,198,87,.32)}
 .hiphop .t{font-weight:800;color:#ffd07a}
@@ -208,7 +221,9 @@ def build_html(d):
                  f'<div class="split">💵 {d.get("cash",0):.0f} · 💳 {d.get("card",0):.0f}</div></div>')
 
     if d.get("holiday"):
-        parts.append(f'<div class="fest"><span class="t">🎉 Праздник дня:</span> {_esc(d["holiday"])}</div>')
+        mood = (d.get("holiday_mood") or "мир").strip().lower()
+        ico, cap, cls = _MOODS.get(mood, _MOODS["мир"])
+        parts.append(f'<div class="fest {cls}"><span class="t">{ico} {cap}:</span> {_esc(d["holiday"])}</div>')
     if d.get("hiphop"):
         parts.append(f'<div class="hiphop"><span class="t">🎤 Хип-хоп календарь:</span> {_esc(d["hiphop"])}</div>')
 
