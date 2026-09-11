@@ -127,9 +127,14 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
 .bal .big{font-size:24px;font-weight:900;letter-spacing:-.6px}
 .bal .split{font-size:13px;font-weight:700;color:rgba(235,240,250,.62)}
 .pos{color:#52e08a}.neg{color:#ff6b7d}
-.fest{padding:12px 15px;border-radius:18px;font-size:13px;font-weight:600;line-height:1.42;
+.fest{padding:10px 14px;border-radius:16px;font-size:12.5px;font-weight:600;line-height:1.38;
   background:linear-gradient(135deg,rgba(255,122,192,.18),rgba(177,139,255,.13));border:1px solid rgba(255,122,192,.32)}
 .fest .t{font-weight:800;color:#ff9ed4}
+/* Две строки одной карточки. Раскладка flex, а не висячий отступ: с text-indent
+   значок наезжал на первую букву. */
+.fest .row{display:flex;gap:8px;align-items:flex-start;text-align:left}
+.fest .row .i{flex:none;line-height:1.38}
+.fest .row + .row{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.1)}
 /* Памятная дата — сдержанно, без праздничного розового. */
 .fest.mourn{background:linear-gradient(135deg,rgba(235,240,250,.09),rgba(140,160,190,.06));border-color:rgba(235,240,250,.2)}
 .fest.mourn .t{color:rgba(235,240,250,.82)}
@@ -150,13 +155,12 @@ body{font-family:-apple-system,'Inter','Helvetica Neue','Noto Sans',sans-serif;c
 .legal.lvl-prep .h{color:#ffb07a}
 .legal.lvl-alarm{background:linear-gradient(135deg,rgba(255,90,110,.2),rgba(255,60,90,.1));border-color:rgba(255,90,110,.5)}
 .legal.lvl-alarm .h{color:#ff9aa6}
-.legal .h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9dc0ff;margin-bottom:7px;display:flex;align-items:center;gap:7px;justify-content:space-between}
+.legal .h{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9dc0ff;margin-bottom:6px;display:flex;align-items:center;gap:7px;justify-content:space-between}
 .legal .h .lvl{text-transform:none;letter-spacing:0;font-size:11.5px;opacity:.92;white-space:nowrap}
-.legal .body{font-size:13px;font-weight:600;line-height:1.5;color:#eef0f4}
-.legal .chg{font-size:12px;font-weight:700;color:rgba(235,240,250,.8);margin-top:7px;line-height:1.42}
-.legal .imp{font-size:12px;font-weight:600;color:rgba(235,240,250,.72);margin-top:7px;line-height:1.42}
-.legal .meta{font-size:10.5px;font-weight:700;color:rgba(235,240,250,.48);margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;gap:8px}
-.legal .meta .cf{color:#7fe0c4}
+/* Тезисы: маркер висит в отступе, чтобы вторая строка шла ровно под первой. */
+.legal .p{font-size:12.5px;font-weight:600;line-height:1.38;color:#eef0f4;padding-left:11px;text-indent:-11px;margin-top:4px}
+.legal .p:before{content:'• ';opacity:.55}
+.legal .chg{font-size:11.5px;font-weight:700;color:rgba(235,240,250,.62);margin-top:7px;line-height:1.35}
 /* Баланс счастья — «звезда Ж» из вкладки Счастье, внизу сводки */
 .hap{margin-top:auto;padding:12px 15px 13px}
 .hap .h{margin-bottom:2px}
@@ -220,34 +224,37 @@ def build_html(d):
                  f'<div class="big">{bal:.0f}€</div></div>'
                  f'<div class="split">💵 {d.get("cash",0):.0f} · 💳 {d.get("card",0):.0f}</div></div>')
 
+    # Дата дня и хип-хоп — одна карточка на двоих. Раньше это были два отдельных
+    # блока с собственными полями и рамками: две строки текста занимали треть
+    # экрана телефона.
+    culture = []
     if d.get("holiday"):
         mood = (d.get("holiday_mood") or "мир").strip().lower()
-        ico, cap, cls = _MOODS.get(mood, _MOODS["мир"])
-        parts.append(f'<div class="fest {cls}"><span class="t">{ico} {cap}:</span> {_esc(d["holiday"])}</div>')
+        ico, _cap, cls = _MOODS.get(mood, _MOODS["мир"])
+        culture.append(f'<div class="row"><span class="i">{ico}</span>{_esc(d["holiday"])}</div>')
+    else:
+        cls = "plain"
     if d.get("hiphop"):
-        parts.append(f'<div class="hiphop"><span class="t">🎤 Хип-хоп календарь:</span> {_esc(d["hiphop"])}</div>')
+        culture.append(f'<div class="row"><span class="i">🎤</span>{_esc(d["hiphop"])}</div>')
+    if culture:
+        parts.append(f'<div class="fest {cls}">{"".join(culture)}</div>')
 
     # Признаки приближения войны РФ — ЕС/НАТО. Цвет рамки берётся от уровня, а не
     # от настроения текста: одинаковый уровень выглядит одинаково каждое утро,
     # и «стало хуже» видно раньше, чем прочитан первый пункт.
     war = d.get("war_risk") or {}
-    if war.get("summary"):
+    pts = war.get("points") or []
+    if pts:
         lvl = (war.get("level") or "внимание").strip().lower()
         if lvl not in _WAR_DOTS:
             lvl = "внимание"
+        body = "".join(f'<div class="p">{_esc(p)}</div>' for p in pts[:3])
         chg = (f'<div class="chg">↔ {_esc(war["changed"])}</div>' if war.get("changed") else "")
-        imp = (f'<div class="imp">🎯 {_esc(war["importance"])}</div>' if war.get("importance") else "")
-        meta_bits = []
-        if war.get("date"):
-            meta_bits.append(f'<span>🗓 {_esc(war["date"])}</span>')
-        if war.get("confidence"):
-            meta_bits.append(f'<span class="cf">✓ достоверность: {_esc(war["confidence"])}</span>')
-        meta = f'<div class="meta">{"".join(meta_bits)}</div>' if meta_bits else ""
         parts.append(
             f'<div class="legal lvl-{_WAR_SLUG[lvl]}">'
-            f'<div class="h"><span>📡 РФ — ЕС · эскалация</span>'
+            f'<div class="h"><span>📡 РФ — ЕС · 5 дней</span>'
             f'<span class="lvl">{_WAR_DOTS[lvl]} {_esc(lvl)}</span></div>'
-            f'<div class="body">{_esc(war["summary"])}</div>{chg}{imp}{meta}</div>')
+            f'{body}{chg}</div>')
 
     # Внизу — «звезда счастья» (бывшая заглушка «Ж»), красиво вписанная в дизайн
     parts.append(_happiness_block(d.get("happiness")))
@@ -297,11 +304,12 @@ if __name__ == "__main__":
         "hiphop": "Сегодня ДР у MF DOOM 🕊 — легенда андеграунда, мастер метафор.",
         "war_risk": {
             "level": "подготовка",
-            "summary": "Бундесвер: Operationsplan Deutschland переведён в рабочую фазу (BMVg, 2.09) · Литва и Польша сообщили о нарушениях воздушного пространства дронами (NATO, 4.09) · Бундестаг обсуждает новый порядок Wehrdienst (tagesschau, 5.09)",
-            "changed": "к заявлениям добавились практические шаги — раньше были только оценки разведок",
-            "importance": "На повседневную жизнь и заказы во Франкфурте пока не влияет.",
-            "confidence": "высокая — официальные источники BMVg и НАТО",
-            "date": "новости за последние 2 недели",
+            "points": [
+                "Дроны над аэропортом Вильнюса, рейсы остановлены на 3 часа (Reuters, 09.09)",
+                "МИД РФ пригрозил ответом на конфискацию активов — заявление (ТАСС, 08.09)",
+                "Бундестаг принял новый порядок Wehrdienst в первом чтении (tagesschau, 10.09)",
+            ],
+            "changed": "к заявлениям добавились практические шаги",
         },
         "happiness": {"work": 4, "friendship": 3, "health": 5, "wellbeing": 2, "hobby": 4, "love": 3},
     }
