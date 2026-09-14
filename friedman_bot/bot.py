@@ -7,7 +7,7 @@ import asyncio
 import calendar as _calendar
 from datetime import datetime, time, date, timedelta
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InputMediaPhoto
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, filters, JobQueue
@@ -2822,6 +2822,12 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             )
         return
 
+    # Просьба о своде — детерминированный путь, без модели: «выдай все вводные»
+    # должно срабатывать одинаково каждый раз, а не по настроению разбора.
+    if looks_like_svod_request(text):
+        await send_svod(update, ctx)
+        return
+
     # Всё остальное — живой разговор через Claude
     await ai_converse(update, text)
 
@@ -4708,6 +4714,84 @@ async def cmd_brief(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await morning_focus(ctx, verbose=True)
 
 
+# ─── Свод вводных на печать: списки, таблицы, ментальная карта ────────────────
+# «Выдай все вводные» — просьба не о сообщении в чате, а о материале, который
+# раскладывают на столе. Поэтому ответ — стопка пронумерованных A4-страниц
+# картинками, а не простыня текста. Работа идёт двумя проходами (актуализация,
+# потом анализ), см. report_pages.py.
+SVOD_RE = re.compile(
+    r"(выдай|покажи|собери|сделай|дай)\b.{0,40}\b(вводн|хаос|всю базу|всё из базы|все задачи)"
+    r"|свод\w*\s+(вводн|базы|задач)"
+    r"|(ментальн\w+\s+карт\w+|таблиц\w+|списк\w+).{0,40}(вводн|хаос|проект|календар)",
+    re.IGNORECASE)
+
+
+def looks_like_svod_request(text: str) -> bool:
+    return bool(SVOD_RE.search(text or ""))
+
+
+async def send_svod(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Собрать свод и прислать страницы картинками. Обе фазы — в отдельном
+    потоке: Playwright синхронный и заблокировал бы весь бот."""
+    chat_id = update.effective_chat.id
+    save_chat_id(chat_id)
+    msg = await ctx.bot.send_message(
+        chat_id, "🗂 Актуализирую базу, потом соберу свод…")
+    d = os.path.dirname(os.path.abspath(__file__))
+    out_dir = os.path.join(d, "svod_out")
+
+    def work():
+        import report_pages
+        return report_pages.build_and_render(DB, out_dir)
+
+    try:
+        files, act, g = await asyncio.get_event_loop().run_in_executor(None, work)
+    except Exception as e:
+        log.error(f"svod: {e}")
+        await ctx.bot.send_message(chat_id, f"Не собралось: {str(e)[:200]}")
+        return
+
+    # Сначала — что сделала актуализация. Это первая фаза, и её результат
+    # важнее картинок: он говорит, чему в своде можно верить.
+    head = ["🗂 *Свод вводных готов*", ""]
+    head.append("*Актуализация:*")
+    head += [f"• {x}" for x in act["fixed"]] or ["• править было нечего"]
+    if act["review"]:
+        head.append("\n*Требует твоего решения:*")
+        head += [f"• {t} — {n}" for t, n, _ in act["review"]]
+    c = act["counts"]
+    head.append(f"\n_Вводных {c['chaos']} · проектов {len(g['projects'])} · "
+                f"шагов {c['steps']} · страниц {len(files)}_")
+    await ctx.bot.send_message(chat_id, "\n".join(head), parse_mode="Markdown")
+
+    # Страницы — альбомами по 10: столько влезает в один media group, и порядок
+    # внутри альбома телеграм сохраняет, а значит нумерация не перепутается.
+    for start in range(0, len(files), 10):
+        batch = files[start:start + 10]
+        media, handles = [], []
+        try:
+            for i, path in enumerate(batch, start + 1):
+                f = open(path, "rb")
+                handles.append(f)
+                media.append(InputMediaPhoto(f, caption=f"стр. {i} из {len(files)}"))
+            await ctx.bot.send_media_group(chat_id, media)
+        finally:
+            for f in handles:
+                try:
+                    f.close()
+                except Exception:
+                    pass
+    try:
+        await msg.delete()
+    except Exception:
+        pass
+
+
+async def cmd_svod(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/svod — свод вводных страницами A4 под печать."""
+    await send_svod(update, ctx)
+
+
 # ─── Юрист: проактивные напоминания о немецких сроках/отчётах ──────────────────
 # (месяц, день, ярлык, [за сколько дней предупредить], пояснение)
 LEGAL_DEADLINES = [
@@ -5506,7 +5590,7 @@ REPO = "farbaholix-cloud/Bbbbasic"
 BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
-UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_biz.py", "dashboard_mac.py", "brief_render.py", "wisdom.py", "tts.py", "voicelive.py",
+UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_biz.py", "dashboard_mac.py", "brief_render.py", "report_pages.py", "wisdom.py", "tts.py", "voicelive.py",
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -7165,6 +7249,7 @@ def main():
     # /start оставлен как точка входа Telegram (инфраструктура, не фича-команда).
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("brief", cmd_brief))
+    app.add_handler(CommandHandler("svod", cmd_svod))
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))

@@ -8,3 +8,5 @@ friedman_bot/.env
 friedman_bot/.deployed_sha
 friedman_bot/.wisdom_cache.json
 friedman_bot/.claude_token
+friedman_bot/svod_out/
+friedman_bot/brief_sample.jpg
