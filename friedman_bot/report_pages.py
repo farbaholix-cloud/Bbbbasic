@@ -625,29 +625,31 @@ def b_archive(g):
 
 
 # ─── МЕНТАЛЬНЫЕ КАРТЫ ─────────────────────────────────────────────────────────
-# Настоящее дерево, а не звезда по сетке. Три вещи делают его читаемым:
+# Карта из одного корня и длинных ветвей на бумаге не живёт: ветвь с семью
+# десятками листьев вытягивается в ленту высотой в два листа, а две трети
+# ширины остаются белыми. Поэтому карта здесь — НЕ одно дерево, а МОЗАИКА
+# маленьких: каждая ветвь превращается в самостоятельную мини-карту со своим
+# корнем, мини-карты мостятся по листу в две колонки и укладываются по высоте.
 #
-# 1. КОЛОНКИ ПО ГЛУБИНЕ. Корень, ветви и листья стоят каждый в своей вертикальной
-#    полосе. Между полосами — пустой промежуток, и ТОЛЬКО в нём рисуются линии.
-#    Поэтому связь физически не может пересечь текст: там, где идут линии, текста
-#    нет. Прежняя звезда тянула луч из центра напрямую к ветви — через всё, что
-#    попадалось по дороге.
-# 2. ПЕРЕНОС СЧИТАЕТСЯ ЗАРАНЕЕ. Ширина колонки известна, поэтому число строк в
-#    подписи считается до раскладки, и высота узла — не догадка.
-# 3. РОДИТЕЛЬ ПО ЦЕНТРУ ДЕТЕЙ. Классическая укладка: листья идут потоком сверху
-#    вниз, ветвь встаёт посередине между первым и последним своим листом.
+# Что это даёт:
+#   · лист заполняется целиком, потому что плитки кладутся и вширь, и вниз;
+#   · связи не пересекают текст — внутри плитки те же колонки-полосы, а плитки
+#     между собой не связаны вовсе и потому не могут пересечься;
+#   · длинная ветвь не рвётся посреди смысла: если её листьев больше, чем влезает
+#     в колонку плитки, они продолжаются во второй колонке ТОЙ ЖЕ плитки.
 
-MAP_COLS = [(150, 11.5), (215, 10.5), (415, 9.5)]   # (ширина, кегль) по глубине
-MAP_GAP = 38          # промежуток между колонками — в нём и только в нём линии
-MAP_LH = {0: 15, 1: 13.5, 2: 12.5}
-MAP_PADY = {0: 9, 1: 6, 2: 3}
-MAP_VGAP = {1: 11, 2: 5}
+TILE_ROOT_W, TILE_ROOT_FS = 152, 11.0
+TILE_LEAF_W, TILE_LEAF_FS = 232, 9.3
+TILE_GAP = 26            # промежуток корень→листья, в нём и только в нём линии
+TILE_COL_GAP = 12        # между колонками листьев внутри плитки
+TILE_PAD_X, TILE_PAD_Y = 26, 20      # между плитками
+LEAF_LH, NOTE_LH = 12.2, 10.6
 
 
 def _wrap(text, width, fs):
-    """Разбить подпись по ширине колонки. Оценка ширины глифа 0.52 кегля —
-    для кириллицы в системном гротеске держится в пределах пары процентов, а
-    нам нужна высота узла, а не типографская точность."""
+    """Разбить подпись по ширине колонки. Оценка ширины глифа 0.52 кегля — для
+    кириллицы в системном гротеске держится в пределах пары процентов, а нам
+    нужна высота узла, а не типографская точность."""
     cpl = max(6, int(width / (fs * 0.52)))
     out, cur = [], ""
     for w in str(text or "").split():
@@ -658,7 +660,7 @@ def _wrap(text, width, fs):
         else:
             out.append(cur)
             cur = w
-        while len(cur) > cpl:            # одно слово длиннее строки — рвём
+        while len(cur) > cpl:
             out.append(cur[:cpl])
             cur = cur[cpl:]
     if cur:
@@ -666,125 +668,172 @@ def _wrap(text, width, fs):
     return out or [""]
 
 
-def _mk(text, depth, color=None, note=""):
-    w, fs = MAP_COLS[min(depth, 2)]
-    lines = _wrap(text, w - 16, fs)
-    h = len(lines) * MAP_LH[min(depth, 2)] + MAP_PADY[min(depth, 2)] * 2
-    # Примечание — отдельная строка ВНУТРИ узла, и её высоту надо считать здесь.
-    # Пока не считалась, узлы налезали друг на друга: раскладка исходила из одной
-    # высоты, а браузер рисовал другую.
-    nlines = _wrap(note, w - 16, 8.5) if note else []
-    h += len(nlines) * 11
-    return {"lines": lines, "h": h, "w": w, "fs": fs, "depth": depth,
-            "color": color, "note": note, "kids": []}
+def _leaf(text, note):
+    lines = _wrap(text, TILE_LEAF_W - 14, TILE_LEAF_FS)
+    nl = _wrap(note, TILE_LEAF_W - 14, 8.4) if note else []
+    return {"lines": lines, "note": nl,
+            "h": len(lines) * LEAF_LH + len(nl) * NOTE_LH + 7}
 
 
-def _layout(node, cursor):
-    """Уложить поддерево сверху вниз. Возвращает (центр узла, новый курсор)."""
-    if not node["kids"]:
-        node["cy"] = cursor + node["h"] / 2
-        return node["cy"], cursor + node["h"] + MAP_VGAP.get(node["depth"], 4)
-    start = cursor
-    centers = []
-    for k in node["kids"]:
-        cy, cursor = _layout(k, cursor)
-        centers.append(cy)
-    node["cy"] = (centers[0] + centers[-1]) / 2
-    # ветвь выше своих детей — раздвигаем, иначе её текст налезет на соседей
-    need = node["h"] + MAP_VGAP.get(node["depth"], 4)
-    if cursor - start < need:
-        cursor = start + need
-    return node["cy"], cursor + MAP_VGAP.get(node["depth"], 4)
+def build_tile(label, color, note, items, max_h):
+    """Мини-карта: корень слева, листья справа одной или несколькими колонками.
+
+    Колонок ровно столько, сколько нужно, чтобы уложиться в max_h — высоту
+    полосы набора. Так ветвь любой длины остаётся в пределах листа и при этом
+    не рвётся: её продолжение стоит рядом, а не на следующей странице.
+    """
+    leaves = [_leaf(t, n) for t, n in items]
+    total = sum(l["h"] for l in leaves)
+    ncols = max(1, math.ceil(total / max_h)) if total else 1
+    # раскладываем по колонкам «поровну по высоте», а не поровну по числу:
+    # иначе колонка с длинными подписями уезжает вниз, а соседняя пустует
+    target = total / ncols if ncols else total
+    cols, cur, ch = [], [], 0
+    for l in leaves:
+        if cur and ch + l["h"] > target and len(cols) < ncols - 1:
+            cols.append(cur)
+            cur, ch = [], 0
+        cur.append(l)
+        ch += l["h"]
+    if cur:
+        cols.append(cur)
+    col_h = [sum(l["h"] for l in c) for c in cols] or [0]
+
+    rl = _wrap(label, TILE_ROOT_W - 18, TILE_ROOT_FS)
+    rn = _wrap(note, TILE_ROOT_W - 18, 8.6) if note else []
+    root_h = len(rl) * 13.6 + len(rn) * 10.4 + 16
+
+    h = max(root_h, max(col_h))
+    w = TILE_ROOT_W + TILE_GAP + len(cols) * TILE_LEAF_W + (len(cols) - 1) * TILE_COL_GAP
+    return {"label": rl, "note": rn, "color": color, "cols": cols,
+            "w": w, "h": h, "root_h": root_h}
 
 
-def _subtree_h(node):
-    _layout(node, 0)
-    mx = [0]
-
-    def walk(n):
-        mx[0] = max(mx[0], n["cy"] + n["h"] / 2)
-        for k in n["kids"]:
-            walk(k)
-    walk(node)
-    return mx[0]
-
-
-def _draw(root, width):
-    """HTML одной карты: SVG со связями + абсолютно спозиционированные подписи."""
-    xs = []
-    x = 0
-    for w, _ in MAP_COLS:
-        xs.append(x)
-        x += w + MAP_GAP
-    total_h = _subtree_h(root)
-    nat_w = xs[-1] + MAP_COLS[-1][0]
-    nodes, links = [], []
-
-    def walk(n, parent):
-        d = min(n["depth"], 2)
-        nx = xs[d]
-        top = n["cy"] - n["h"] / 2
-        cls = {0: "mroot", 1: "mbr", 2: "mlf"}[d]
-        style = f'left:{nx}px;top:{top:.1f}px;width:{n["w"]}px'
-        if d == 0 and n["color"]:
-            style += f';background:{n["color"]}'
-        elif d == 1 and n["color"]:
-            style += f';border-left-color:{n["color"]}'
-        note = f'<span class="mnote">{_esc(n["note"])}</span>' if n["note"] else ""
-        nodes.append(f'<div class="{cls}" style="{style}">'
-                     + "<br>".join(_esc(l) for l in n["lines"]) + note + "</div>")
-        if parent is not None:
-            # линия живёт строго в промежутке между колонками
-            x1 = xs[min(parent["depth"], 2)] + parent["w"]
-            x2 = nx
-            y1, y2 = parent["cy"], n["cy"]
-            mid = (x1 + x2) / 2
-            col = n["color"] or parent["color"] or "#9aa4ae"
-            links.append(f'<path d="M{x1},{y1:.1f} C{mid},{y1:.1f} {mid},{y2:.1f} '
-                         f'{x2},{y2:.1f}" fill="none" stroke="{col}" '
-                         f'stroke-width="{2.2 if d == 1 else 1.2}" opacity="'
-                         f'{.75 if d == 1 else .45}"/>')
-        for k in n["kids"]:
-            walk(k, n)
-    walk(root, None)
-    # Масштаб «до края»: по меньшей из двух посадок, не мельче единицы и не
-    # крупнее полутора — дальше подписи выглядят плакатом, а не картой.
-    k = min(width / nat_w, BODY_H / max(total_h, 1)) if total_h else 1
-    k = max(1.0, min(1.5, k))
-    return (f'<div class="mapwrap" style="height:{total_h * k:.0f}px">'
-            f'<div style="transform:scale({k:.3f});transform-origin:0 0;'
-            f'width:{nat_w}px;height:{total_h:.0f}px;position:relative">'
-            f'<svg viewBox="0 0 {nat_w} {total_h:.0f}" width="{nat_w}" '
-            f'height="{total_h:.0f}">{"".join(links)}</svg>'
-            f'{"".join(nodes)}</div></div>')
+def tile_html(t, ox, oy):
+    """HTML плитки со смещением. Линии рисуются только в промежутке между
+    корнем и первой колонкой листьев — там текста нет по построению."""
+    out = []
+    ry = oy + (t["h"] - t["root_h"]) / 2
+    out.append(f'<div class="mroot" style="left:{ox}px;top:{ry:.1f}px;'
+               f'width:{TILE_ROOT_W}px;background:{t["color"]}">'
+               + "<br>".join(_esc(l) for l in t["label"])
+               + (f'<span class="mnote">{_esc(" ".join(t["note"]))}</span>' if t["note"] else "")
+               + "</div>")
+    x1 = ox + TILE_ROOT_W
+    links = []
+    for ci, col in enumerate(t["cols"]):
+        cx = ox + TILE_ROOT_W + TILE_GAP + ci * (TILE_LEAF_W + TILE_COL_GAP)
+        y = oy
+        for li, l in enumerate(col):
+            out.append(f'<div class="mlf" style="left:{cx}px;top:{y:.1f}px;'
+                       f'max-width:{TILE_LEAF_W}px">'
+                       + "<br>".join(_esc(x) for x in l["lines"])
+                       + (f'<span class="mnote">{_esc(" ".join(l["note"]))}</span>'
+                          if l["note"] else "") + "</div>")
+            if li == 0:
+                # одна дуга от корня к вершине колонки
+                y2 = y + l["h"] / 2
+                y1 = ry + t["root_h"] / 2
+                mid = (x1 + cx) / 2
+                links.append(f'<path d="M{x1},{y1:.1f} C{mid},{y1:.1f} {mid},{y2:.1f} '
+                             f'{cx},{y2:.1f}" fill="none" stroke="{t["color"]}" '
+                             f'stroke-width="1.9" opacity=".7"/>')
+            y += l["h"]
+        # вертикальный «ствол» колонки связывает её листья между собой
+        if col:
+            top = oy + col[0]["h"] / 2
+            bot = y - col[-1]["h"] / 2
+            links.append(f'<path d="M{cx - 5},{top:.1f} L{cx - 5},{bot:.1f}" '
+                         f'fill="none" stroke="{t["color"]}" stroke-width="1.1" '
+                         f'opacity=".35"/>')
+    return "".join(out), "".join(links)
 
 
-def map_pages(root_text, root_color, branches, sec, sub):
-    """Карта, разложенная по листам: ветви пакуются по высоте, корень повторяется
-    на каждом листе. Резать ветвь между листами нельзя — распадается смысл."""
+def map_tiles(root_text, root_color, branches, sec, sub):
+    """Ветви → плитки, помеченные названием своей карты.
+
+    root_text и root_color остались от прежней схемы с общим корнем: теперь
+    корень у каждой плитки свой, общий не рисуется — заголовок листа говорит то
+    же самое и не занимает места. Подпись карты кладём в SUBTITLES, чтобы лист
+    из одной карты подписывался ею.
+    """
+    SUBTITLES.setdefault(sec, sub)
+    avail = BODY_H
+    return [(build_tile(label, color or "#6b7683", note, items, avail * 0.94), sec)
+            for label, color, note, items in branches]
+
+
+def tile_pages(tiles, when_sub=""):
+    """Мозаика: плитки РАЗНЫХ карт мостятся на общие листы.
+
+    Три правила, и каждое появилось из конкретной пустоты на бумаге:
+
+    1. Карта не требует своего листа. «Люди» из двух ветвей и «Архив» из трёх
+       по отдельности занимали по трети листа каждая; вместе они его закрывают.
+    2. Число колонок ПОДБИРАЕТСЯ, а не задаётся. Шесть небольших плиток в две
+       колонки занимают треть высоты, те же шесть в одну — растягиваются до низа
+       и читаются крупнее. Перебираем варианты и берём тот, где мозаика плотнее
+       ложится на лист при том же числе листов.
+    3. Плитка идёт в самую низкую колонку. Жадная укладка по высоте выравнивает
+       колонки, и лист заканчивается ровным низом, а не лесенкой.
+    """
+    if not tiles:
+        return []
     W = A4_W - PAD * 2
     avail = BODY_H
-    built = []
-    for label, color, note, kids in branches:
-        b = _mk(label, 1, color, note)
-        b["kids"] = [_mk(t, 2, color, n) for t, n in kids]
-        built.append((_subtree_h(b), b))
-    pages, cur, used = [], [], 0
-    for h, b in built:
-        if cur and used + h > avail:
+    tw = max(t["w"] for t, _ in tiles)
+    maxcols = max(1, int((W + TILE_PAD_X) // (tw + TILE_PAD_X)))
+
+    def lay(ncols):
+        step = (W + TILE_PAD_X) / ncols
+        pages, cur = [], {"items": [], "secs": [], "y": [0.0] * ncols}
+        for t, sec in tiles:
+            i = min(range(ncols), key=lambda k: cur["y"][k])
+            if cur["y"][i] + t["h"] > avail and cur["items"]:
+                pages.append(cur)
+                cur = {"items": [], "secs": [], "y": [0.0] * ncols}
+                i = 0
+            cur["items"].append((t, i * step, cur["y"][i]))
+            if sec not in cur["secs"]:
+                cur["secs"].append(sec)
+            cur["y"][i] += t["h"] + TILE_PAD_Y
+        if cur["items"]:
             pages.append(cur)
-            cur, used = [], 0
-        cur.append(b)
-        used += h
-    if cur:
-        pages.append(cur)
-    out = []
-    for i, group in enumerate(pages, 1):
-        root = _mk(root_text, 0, root_color)
-        root["kids"] = group
-        subt = sub + (f" · лист {i} из {len(pages)}" if len(pages) > 1 else "")
-        out.append((sec, subt, _draw(root, W)))
-    return out
+        return pages
+
+    best = None
+    for nc in range(1, maxcols + 1):
+        pgs = lay(nc)
+        mx = max((ox + t["w"] for pg in pgs for t, ox, _ in pg["items"]), default=1)
+        my = max((oy + t["h"] for pg in pgs for t, _, oy in pg["items"]), default=1)
+        k = max(1.0, min(1.7, min(W / mx, avail / my)))
+        fill = (mx * k) * (my * k) / (W * avail)
+        score = (len(pgs), -fill)
+        if best is None or score < best[0]:
+            best = (score, pgs, k)
+    pages, scale = best[1], best[2]
+
+    res = []
+    for i, pg in enumerate(pages, 1):
+        nodes, links, maxy, maxx = [], [], 0, 0
+        for t, ox, oy in pg["items"]:
+            n, l = tile_html(t, ox, oy)
+            nodes.append(n)
+            links.append(l)
+            maxy = max(maxy, oy + t["h"])
+            maxx = max(maxx, ox + t["w"])
+        secs = pg["secs"]
+        title = " · ".join(secs) if len(secs) <= 2 else "Карты"
+        sub = (SUBTITLES.get(secs[0], "") if len(secs) == 1
+               else ", ".join(x.lower() for x in secs))
+        res.append((title, sub,
+                    f'<div class="mapwrap" style="height:{maxy * scale:.0f}px">'
+                    f'<div style="transform:scale({scale:.3f});transform-origin:0 0;'
+                    f'position:relative;width:{maxx:.0f}px;height:{maxy:.0f}px">'
+                    f'<svg viewBox="0 0 {maxx:.0f} {maxy:.0f}" width="{maxx:.0f}" '
+                    f'height="{maxy:.0f}">{"".join(links)}</svg>'
+                    f'{"".join(nodes)}</div></div>'))
+    return res
 
 
 def _insight_sync(g, act):
@@ -845,13 +894,14 @@ def build(conn, fix=True, insight=True):
     pal = ["#2f6fd0", "#1f7a4d", "#c2871b", "#8b4fc9", "#c0392f", "#27808f", "#6b7683"]
 
     sheets = [("Пульт", "состояние на сегодня", p_pult(g, act, note))]
+    tiles = []
 
     # ─ Свод состоит в основном из карт: у каждого среза жизни своё дерево,
     #   где видно не только «что есть», но и из чего это состоит. Списком
     #   осталась только Лента — у хронологии нет ветвления, и дерево из дат
     #   было бы карту ради карты.
     if g["projects"]:
-        sheets += map_pages(
+        tiles += map_tiles(
             f'Проекты · {len(g["projects"])}', "#161a1f",
             [(p["name"], pal[i % len(pal)],
               f'{p["done_n"]}/{p["total_n"]} · {p["pct"]}%',
@@ -860,7 +910,7 @@ def build(conn, fix=True, insight=True):
             "Карта проектов", "цели и их шаги")
 
     if g["chaos"]:
-        sheets += map_pages(
+        tiles += map_tiles(
             f'Внимание · {len(g["chaos"])}', "#161a1f",
             [(nm, col, f'{sub} · {len(g["quads"][k])}',
               [(c["text"], f'{AREA_RU.get(c.get("area") or "other", "")} · '
@@ -868,7 +918,7 @@ def build(conn, fix=True, insight=True):
                for c in g["quads"][k]])
              for k, nm, sub, col in QUADS if g["quads"][k]],
             "Карта внимания", "матрица важность/срочность")
-        sheets += map_pages(
+        tiles += map_tiles(
             f'Области жизни · {len(g["chaos"])}', "#161a1f",
             [(f'{AREA_ICON.get(a, "⚡")} {AREA_RU.get(a, a)}', pal[i % len(pal)],
               f'{len(v)} вводных',
@@ -908,7 +958,7 @@ def build(conn, fix=True, insight=True):
                                  + (f' · {_eur(x["budget_est"])}' if x.get("budget_est") else ""))
                                 for x in g["leads"]]))
     if money_branches:
-        sheets += map_pages(
+        tiles += map_tiles(
             f'Деньги · {_eur(g["balance"])}', "#161a1f", money_branches,
             "Карта денег", "обязательства и ожидания")
 
@@ -924,7 +974,7 @@ def build(conn, fix=True, insight=True):
                       + (f' · до {str(x.get("due_date"))[:10]}' if x.get("due_date") else ""))
                      for x in g["cases"]]))
     if ppl:
-        sheets += map_pages("Люди и дела", "#161a1f", ppl,
+        tiles += map_tiles("Люди и дела", "#161a1f", ppl,
                             "Карта людей и дел", "кто есть кто и что висит")
 
     arch = []
@@ -940,8 +990,12 @@ def build(conn, fix=True, insight=True):
         arch.append(("Закрытые дела", "#79838f", f'{len(g["done_cases"])}',
                      [(str(x.get("title") or x.get("topic") or ""), "") for x in g["done_cases"]]))
     if arch:
-        sheets += map_pages("Архив", "#161a1f", arch,
+        tiles += map_tiles("Архив", "#161a1f", arch,
                             "Карта архива", "закрытое и заархивированное")
+
+    # Все карты — одной мозаикой: короткая карта не занимает лист целиком,
+    # а делит его с соседней.
+    sheets += tile_pages(tiles)
 
     # Лента остаётся списком: хронология не ветвится.
     flow = b_line(g["past"], "Хвосты", g["today"], past=True) + \
