@@ -349,16 +349,18 @@ h3{font-size:11.5px;font-weight:800;margin:0 0 2px}
 .bar{height:3px;background:#eef1f4;border-radius:2px;overflow:hidden;margin-top:3px}
 .bar i{display:block;height:100%;background:#161a1f}
 
-/* карта */
-.map{position:relative;width:100%}
-.map svg{position:absolute;inset:0;width:100%;height:100%}
-.nd{position:absolute;transform:translate(-50%,-50%);text-align:center}
-.root{font-size:15px;font-weight:800;background:#161a1f;color:#fff;
-  padding:8px 15px;border-radius:18px;display:inline-block}
-.br{font-size:11px;font-weight:800;padding:4px 9px;border-radius:11px;color:#fff;
-  display:inline-block;white-space:nowrap}
-.lf{font-size:9.5px;font-weight:600;color:#454e58;text-align:left;margin-top:4px;
-  line-height:1.32}
+/* ментальная карта: колонки по глубине, линии — только в промежутках */
+.mapwrap{position:relative;width:100%}
+.mapwrap svg{position:absolute;left:0;top:0}
+.mroot,.mbr,.mlf{position:absolute;box-sizing:border-box}
+.mroot{font-size:11.5px;font-weight:800;color:#fff;background:#161a1f;
+  border-radius:9px;padding:9px 10px;line-height:1.3}
+.mbr{font-size:10.5px;font-weight:800;color:#161a1f;background:#f4f6f8;
+  border-left:3px solid #9aa4ae;border-radius:0 6px 6px 0;padding:6px 8px;line-height:1.29}
+.mlf{font-size:9.5px;font-weight:600;color:#3d4650;padding:3px 6px;line-height:1.32;
+  border-bottom:1px solid #e6eaee;width:max-content !important;max-width:415px}
+.mnote{display:block;font-weight:700;color:#98a2ac;font-size:8.5px;margin-top:1px}
+.mroot .mnote{color:rgba(255,255,255,.62)}
 """
 CSS = (CSS.replace("__W__", str(A4_W)).replace("__H__", str(A4_H))
           .replace("__P__", str(PAD))
@@ -622,43 +624,167 @@ def b_archive(g):
     return blocks
 
 
-def p_map(g):
-    """Карта: центр и до восьми ветвей по сетке 3×3. Геометрия известна заранее,
-    поэтому линии считаются точно и ничего не наезжает."""
+# ─── МЕНТАЛЬНЫЕ КАРТЫ ─────────────────────────────────────────────────────────
+# Настоящее дерево, а не звезда по сетке. Три вещи делают его читаемым:
+#
+# 1. КОЛОНКИ ПО ГЛУБИНЕ. Корень, ветви и листья стоят каждый в своей вертикальной
+#    полосе. Между полосами — пустой промежуток, и ТОЛЬКО в нём рисуются линии.
+#    Поэтому связь физически не может пересечь текст: там, где идут линии, текста
+#    нет. Прежняя звезда тянула луч из центра напрямую к ветви — через всё, что
+#    попадалось по дороге.
+# 2. ПЕРЕНОС СЧИТАЕТСЯ ЗАРАНЕЕ. Ширина колонки известна, поэтому число строк в
+#    подписи считается до раскладки, и высота узла — не догадка.
+# 3. РОДИТЕЛЬ ПО ЦЕНТРУ ДЕТЕЙ. Классическая укладка: листья идут потоком сверху
+#    вниз, ветвь встаёт посередине между первым и последним своим листом.
+
+MAP_COLS = [(150, 11.5), (215, 10.5), (415, 9.5)]   # (ширина, кегль) по глубине
+MAP_GAP = 38          # промежуток между колонками — в нём и только в нём линии
+MAP_LH = {0: 15, 1: 13.5, 2: 12.5}
+MAP_PADY = {0: 9, 1: 6, 2: 3}
+MAP_VGAP = {1: 11, 2: 5}
+
+
+def _wrap(text, width, fs):
+    """Разбить подпись по ширине колонки. Оценка ширины глифа 0.52 кегля —
+    для кириллицы в системном гротеске держится в пределах пары процентов, а
+    нам нужна высота узла, а не типографская точность."""
+    cpl = max(6, int(width / (fs * 0.52)))
+    out, cur = [], ""
+    for w in str(text or "").split():
+        if not cur:
+            cur = w
+        elif len(cur) + 1 + len(w) <= cpl:
+            cur += " " + w
+        else:
+            out.append(cur)
+            cur = w
+        while len(cur) > cpl:            # одно слово длиннее строки — рвём
+            out.append(cur[:cpl])
+            cur = cur[cpl:]
+    if cur:
+        out.append(cur)
+    return out or [""]
+
+
+def _mk(text, depth, color=None, note=""):
+    w, fs = MAP_COLS[min(depth, 2)]
+    lines = _wrap(text, w - 16, fs)
+    h = len(lines) * MAP_LH[min(depth, 2)] + MAP_PADY[min(depth, 2)] * 2
+    # Примечание — отдельная строка ВНУТРИ узла, и её высоту надо считать здесь.
+    # Пока не считалась, узлы налезали друг на друга: раскладка исходила из одной
+    # высоты, а браузер рисовал другую.
+    nlines = _wrap(note, w - 16, 8.5) if note else []
+    h += len(nlines) * 11
+    return {"lines": lines, "h": h, "w": w, "fs": fs, "depth": depth,
+            "color": color, "note": note, "kids": []}
+
+
+def _layout(node, cursor):
+    """Уложить поддерево сверху вниз. Возвращает (центр узла, новый курсор)."""
+    if not node["kids"]:
+        node["cy"] = cursor + node["h"] / 2
+        return node["cy"], cursor + node["h"] + MAP_VGAP.get(node["depth"], 4)
+    start = cursor
+    centers = []
+    for k in node["kids"]:
+        cy, cursor = _layout(k, cursor)
+        centers.append(cy)
+    node["cy"] = (centers[0] + centers[-1]) / 2
+    # ветвь выше своих детей — раздвигаем, иначе её текст налезет на соседей
+    need = node["h"] + MAP_VGAP.get(node["depth"], 4)
+    if cursor - start < need:
+        cursor = start + need
+    return node["cy"], cursor + MAP_VGAP.get(node["depth"], 4)
+
+
+def _subtree_h(node):
+    _layout(node, 0)
+    mx = [0]
+
+    def walk(n):
+        mx[0] = max(mx[0], n["cy"] + n["h"] / 2)
+        for k in n["kids"]:
+            walk(k)
+    walk(node)
+    return mx[0]
+
+
+def _draw(root, width):
+    """HTML одной карты: SVG со связями + абсолютно спозиционированные подписи."""
+    xs = []
+    x = 0
+    for w, _ in MAP_COLS:
+        xs.append(x)
+        x += w + MAP_GAP
+    total_h = _subtree_h(root)
+    nat_w = xs[-1] + MAP_COLS[-1][0]
+    nodes, links = [], []
+
+    def walk(n, parent):
+        d = min(n["depth"], 2)
+        nx = xs[d]
+        top = n["cy"] - n["h"] / 2
+        cls = {0: "mroot", 1: "mbr", 2: "mlf"}[d]
+        style = f'left:{nx}px;top:{top:.1f}px;width:{n["w"]}px'
+        if d == 0 and n["color"]:
+            style += f';background:{n["color"]}'
+        elif d == 1 and n["color"]:
+            style += f';border-left-color:{n["color"]}'
+        note = f'<span class="mnote">{_esc(n["note"])}</span>' if n["note"] else ""
+        nodes.append(f'<div class="{cls}" style="{style}">'
+                     + "<br>".join(_esc(l) for l in n["lines"]) + note + "</div>")
+        if parent is not None:
+            # линия живёт строго в промежутке между колонками
+            x1 = xs[min(parent["depth"], 2)] + parent["w"]
+            x2 = nx
+            y1, y2 = parent["cy"], n["cy"]
+            mid = (x1 + x2) / 2
+            col = n["color"] or parent["color"] or "#9aa4ae"
+            links.append(f'<path d="M{x1},{y1:.1f} C{mid},{y1:.1f} {mid},{y2:.1f} '
+                         f'{x2},{y2:.1f}" fill="none" stroke="{col}" '
+                         f'stroke-width="{2.2 if d == 1 else 1.2}" opacity="'
+                         f'{.75 if d == 1 else .45}"/>')
+        for k in n["kids"]:
+            walk(k, n)
+    walk(root, None)
+    # Масштаб «до края»: по меньшей из двух посадок, не мельче единицы и не
+    # крупнее полутора — дальше подписи выглядят плакатом, а не картой.
+    k = min(width / nat_w, BODY_H / max(total_h, 1)) if total_h else 1
+    k = max(1.0, min(1.5, k))
+    return (f'<div class="mapwrap" style="height:{total_h * k:.0f}px">'
+            f'<div style="transform:scale({k:.3f});transform-origin:0 0;'
+            f'width:{nat_w}px;height:{total_h:.0f}px;position:relative">'
+            f'<svg viewBox="0 0 {nat_w} {total_h:.0f}" width="{nat_w}" '
+            f'height="{total_h:.0f}">{"".join(links)}</svg>'
+            f'{"".join(nodes)}</div></div>')
+
+
+def map_pages(root_text, root_color, branches, sec, sub):
+    """Карта, разложенная по листам: ветви пакуются по высоте, корень повторяется
+    на каждом листе. Резать ветвь между листами нельзя — распадается смысл."""
     W = A4_W - PAD * 2
-    H = BODY_H
-    cw, ch = W / 3.0, H / 3.0
-    slots = [(0, 0), (1, 0), (2, 0), (0, 1), (2, 1), (0, 2), (1, 2), (2, 2)]
-    palette = ["#2f6fd0", "#1f7a4d", "#c2871b", "#8b4fc9", "#c0392f", "#27808f", "#6b7683"]
-
-    branches = []
-    if g["projects"]:
-        branches.append(("Проекты", "#161a1f",
-                         [f'{p["name"]} · {p["pct"]}%' for p in g["projects"]]))
-    for i, (a, items) in enumerate(sorted(g["by_area"].items(), key=lambda kv: -len(kv[1]))[:7]):
-        branches.append((f'{AREA_ICON.get(a, "⚡")} {AREA_RU.get(a, a)}',
-                         palette[i % len(palette)],
-                         [str(c.get("text") or "") for c in items]))
-    branches = branches[:8]
-
-    cx, cy = W / 2.0, H / 2.0
-    lines, nodes = [], []
-    for i, (title, color, items) in enumerate(branches):
-        gx, gy = slots[i]
-        x, y = cw * (gx + .5), ch * (gy + .5)
-        lines.append(f'<line x1="{cx:.0f}" y1="{cy:.0f}" x2="{x:.0f}" y2="{y:.0f}" '
-                     f'stroke="{color}" stroke-width="2" opacity=".5"/>')
-        lis = "".join(f'<div>· {_esc(t)}</div>' for t in items)
-        wide = ' style="column-count:2;column-gap:10px"' if len(items) > 8 else ""
-        nodes.append(
-            f'<div class="nd" style="left:{x:.0f}px;top:{y:.0f}px;width:{cw - 22:.0f}px">'
-            f'<div class="br" style="background:{color}">{_esc(title)} · {len(items)}</div>'
-            f'<div class="lf"{wide}>{lis}</div></div>')
-    nodes.append(f'<div class="nd" style="left:{cx:.0f}px;top:{cy:.0f}px">'
-                 f'<div class="root">Вводные · {len(g["chaos"])}</div></div>')
-    return (f'<div class="map" style="height:{H}px">'
-            f'<svg viewBox="0 0 {W:.0f} {H:.0f}" preserveAspectRatio="none">'
-            f'{"".join(lines)}</svg>{"".join(nodes)}</div>')
+    avail = BODY_H
+    built = []
+    for label, color, note, kids in branches:
+        b = _mk(label, 1, color, note)
+        b["kids"] = [_mk(t, 2, color, n) for t, n in kids]
+        built.append((_subtree_h(b), b))
+    pages, cur, used = [], [], 0
+    for h, b in built:
+        if cur and used + h > avail:
+            pages.append(cur)
+            cur, used = [], 0
+        cur.append(b)
+        used += h
+    if cur:
+        pages.append(cur)
+    out = []
+    for i, group in enumerate(pages, 1):
+        root = _mk(root_text, 0, root_color)
+        root["kids"] = group
+        subt = sub + (f" · лист {i} из {len(pages)}" if len(pages) > 1 else "")
+        out.append((sec, subt, _draw(root, W)))
+    return out
 
 
 def _insight_sync(g, act):
@@ -716,32 +842,114 @@ def build(conn, fix=True, insight=True):
     g = analyze(conn)
     when = datetime.now().strftime("%d.%m.%Y · %H:%M")
     note = _insight_sync(g, act) if insight else ""
-
-    # Всё содержимое — один сквозной поток блоков. Разделы не требуют
-    # собственных листов: короткие «Деньги» и «Люди» лягут на один, и его
-    # заголовок перечислит оба. Отдельные листы только у Пульта (своя раскладка
-    # в три колонки) и у Карты (своя геометрия).
-    flow = []
-    flow += b_line(g["past"], "Хвосты", g["today"], past=True)
-    flow += b_line(g["future"], "Лента", g["today"])
-    flow += b_projects(g)
-    flow += b_quads(g)
-    flow += b_money(g)
-    flow += b_people(g)
-    flow += b_archive(g)
+    pal = ["#2f6fd0", "#1f7a4d", "#c2871b", "#8b4fc9", "#c0392f", "#27808f", "#6b7683"]
 
     sheets = [("Пульт", "состояние на сегодня", p_pult(g, act, note))]
+
+    # ─ Свод состоит в основном из карт: у каждого среза жизни своё дерево,
+    #   где видно не только «что есть», но и из чего это состоит. Списком
+    #   осталась только Лента — у хронологии нет ветвления, и дерево из дат
+    #   было бы карту ради карты.
+    if g["projects"]:
+        sheets += map_pages(
+            f'Проекты · {len(g["projects"])}', "#161a1f",
+            [(p["name"], pal[i % len(pal)],
+              f'{p["done_n"]}/{p["total_n"]} · {p["pct"]}%',
+              [(("✓ " if s["done"] else "") + str(s["text"]), "") for s in p["steps"]])
+             for i, p in enumerate(g["projects"])],
+            "Карта проектов", "цели и их шаги")
+
+    if g["chaos"]:
+        sheets += map_pages(
+            f'Внимание · {len(g["chaos"])}', "#161a1f",
+            [(nm, col, f'{sub} · {len(g["quads"][k])}',
+              [(c["text"], f'{AREA_RU.get(c.get("area") or "other", "")} · '
+                           f'в{c.get("importance") or 0}/с{c.get("urgency") or 0}')
+               for c in g["quads"][k]])
+             for k, nm, sub, col in QUADS if g["quads"][k]],
+            "Карта внимания", "матрица важность/срочность")
+        sheets += map_pages(
+            f'Области жизни · {len(g["chaos"])}', "#161a1f",
+            [(f'{AREA_ICON.get(a, "⚡")} {AREA_RU.get(a, a)}', pal[i % len(pal)],
+              f'{len(v)} вводных',
+              [(c["text"], f'в{c.get("importance") or 0}/с{c.get("urgency") or 0}')
+               for c in v])
+             for i, (a, v) in enumerate(sorted(g["by_area"].items(), key=lambda kv: -len(kv[1])))],
+            "Карта областей", "куда уходит внимание")
+
+    money_branches = []
+    if g["debts"]:
+        money_branches.append(("Долги", "#c0392f",
+                               _eur(sum(max(0, (x.get("total") or 0) - (x.get("paid") or 0))
+                                        for x in g["debts"])),
+                               [((x.get("icon") or "") + " " + str(x.get("name") or ""),
+                                 _eur(max(0, (x.get("total") or 0) - (x.get("paid") or 0)))
+                                 + (f' · {_eur(x["monthly"])}/мес' if x.get("monthly") else ""))
+                                for x in g["debts"]]))
+    if g["payments"]:
+        money_branches.append(("Регулярные платежи", "#c2871b",
+                               _eur(sum(abs(x.get("amount") or 0) for x in g["payments"]))
+                               + " / мес",
+                               [((x.get("icon") or "") + " " + str(x.get("title") or ""),
+                                 _eur(abs(x.get("amount") or 0))
+                                 + (f' · {x["day"]} числа' if x.get("day") else ""))
+                                for x in g["payments"]]))
+    if g["invoices"]:
+        money_branches.append(("Счета", "#1f7a4d", f'{len(g["invoices"])} шт.',
+                               [(str(x.get("client_name") or ""),
+                                 f'{_eur(x.get("gross") or 0)} · '
+                                 f'{"оплачен" if x.get("paid") else "ждёт"} · '
+                                 f'{str(x.get("inv_date") or "")[:10]}')
+                                for x in g["invoices"]]))
+    if g["leads"]:
+        money_branches.append(("Лиды", "#2f6fd0", f'{len(g["leads"])} шт.',
+                               [(str(x.get("name") or ""),
+                                 f'{x.get("stage") or ""} · {x.get("city") or ""}'
+                                 + (f' · {_eur(x["budget_est"])}' if x.get("budget_est") else ""))
+                                for x in g["leads"]]))
+    if money_branches:
+        sheets += map_pages(
+            f'Деньги · {_eur(g["balance"])}', "#161a1f", money_branches,
+            "Карта денег", "обязательства и ожидания")
+
+    ppl = []
+    if g["contacts"]:
+        ppl.append(("Люди", "#8b4fc9", f'{len(g["contacts"])}',
+                    [(str(x.get("name") or ""), str(x.get("note") or ""))
+                     for x in g["contacts"]]))
+    if g["cases"]:
+        ppl.append(("Бюрократия", "#27808f", f'{len(g["cases"])}',
+                    [(str(x.get("title") or x.get("topic") or ""),
+                      f'{x.get("status")} · {x.get("next_step") or ""}'
+                      + (f' · до {str(x.get("due_date"))[:10]}' if x.get("due_date") else ""))
+                     for x in g["cases"]]))
+    if ppl:
+        sheets += map_pages("Люди и дела", "#161a1f", ppl,
+                            "Карта людей и дел", "кто есть кто и что висит")
+
+    arch = []
+    if g["done_chaos"]:
+        arch.append(("Закрытые вводные", "#79838f", f'{len(g["done_chaos"])}',
+                     [(str(x.get("text") or ""), AREA_RU.get(x.get("area") or "other", ""))
+                      for x in g["done_chaos"]]))
+    if g["arch_projects"]:
+        arch.append(("Архив проектов", "#79838f", f'{len(g["arch_projects"])}',
+                     [(str(x.get("name") or ""), str(x.get("archived_at") or "")[:10])
+                      for x in g["arch_projects"]]))
+    if g["done_cases"]:
+        arch.append(("Закрытые дела", "#79838f", f'{len(g["done_cases"])}',
+                     [(str(x.get("title") or x.get("topic") or ""), "") for x in g["done_cases"]]))
+    if arch:
+        sheets += map_pages("Архив", "#161a1f", arch,
+                            "Карта архива", "закрытое и заархивированное")
+
+    # Лента остаётся списком: хронология не ветвится.
+    flow = b_line(g["past"], "Хвосты", g["today"], past=True) + \
+        b_line(g["future"], "Лента", g["today"])
     for body, used, secs in pack(flow):
-        # До трёх разделов перечисляем в заголовке — это подсказка, что на листе.
-        # Больше трёх перечислять бессмысленно: строка длиннее самого заголовка
-        # и читается хуже, чем честное «Свод» с расшифровкой в подзаголовке.
-        if len(secs) <= 3:
-            title = " · ".join(secs) or "Свод"
-            sub = SUBTITLES.get(secs[0], "") if len(secs) == 1 else ""
-        else:
-            title, sub = "Свод", ", ".join(s.lower() for s in secs)
+        title = " · ".join(secs) or "Лента"
+        sub = SUBTITLES.get(secs[0], "") if len(secs) == 1 else "прошлое и будущее одним потоком"
         sheets.append((title, sub, sheet_body(body, used)))
-    sheets.append(("Карта", "как всё связано", p_map(g)))
 
     total = len(sheets)
     pages = [_page(t, s, b, i, total, when) for i, (t, s, b) in enumerate(sheets, 1)]
