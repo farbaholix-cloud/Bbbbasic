@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import sqlite3
 import logging
@@ -4741,7 +4742,16 @@ async def send_svod(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     out_dir = os.path.join(d, "svod_out")
 
     def work():
-        import report_pages
+        # Модуль мог не доехать: коммит, который его добавляет, доставить себя
+        # не может (см. ensure_legal_kb). Не падаем с «No module named», а
+        # тянем файл с ветки и пробуем снова — прямо сейчас, без перезапуска.
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        try:
+            import report_pages
+        except ImportError:
+            ensure_legal_kb()
+            import report_pages
         return report_pages.build_and_render(DB, out_dir)
 
     try:
@@ -5697,20 +5707,22 @@ def _download_code(d, sha):
 
 
 def ensure_legal_kb():
-    """Самолечение Юриста: если файлы legal_kb или сам jurist_bot.py отсутствуют (первый
-    запуск новой версии до того, как авто-деплой подтянет подпапку/файл) — тянем с ветки."""
+    """Самолечение: докачать с ветки всё, чего нет на диске.
+
+    Зачем это вообще нужно. Авто-деплой качает файлы по списку UPDATE_FILES из
+    ТОГО кода, который сейчас в памяти. Значит коммит, добавляющий новый модуль,
+    доставить его не может: старый список про него не знает, а новый список
+    приезжает вместе с bot.py уже после скачивания — и следующего повода тянуть
+    файлы не будет, пока не появится ещё один коммит. Новый модуль так и остаётся
+    на гитхабе, а бот падает с «No module named …».
+
+    Раньше лечилось списком, который велся руками, — и каждый новый файл в него
+    забывали дописать. Теперь список берётся из UPDATE_FILES целиком: что есть на
+    диске — пропускается, чего нет — качается. Ни одного файла вручную помнить
+    больше не надо."""
     import urllib.request
     d = os.path.dirname(os.path.abspath(__file__))
-    # + seed-файлы: при первом деплое /update качает по СТАРОМУ списку UPDATE_FILES,
-    # поэтому новые файлы доезжают только самолечением
-    need = (["jurist_bot.py", "sales_bot.py", "dashboard_biz.py", "invoice.py", "finance_report.py", "invoices_seed.json", "bank_seed.json",
-             # Финансист: доезжает только самолечением — у развёрнутого бота в
-             # UPDATE_FILES ещё старый список, где этих файлов нет
-             "finance_core.py", "finance_bot.py", "finance_backup.py",
-             "finance_kb/SKILL.md", "finance_inbox/README.md",
-             "finance_overrides.json", "finance_inbox/invoices_2026H2.json",
-             "finance_inbox/bank_2026-07.json", "finance_inbox/bank_2026-08.json"]
-            + [x for x in UPDATE_FILES if x.startswith("legal_kb/")])
+    need = list(UPDATE_FILES)
     for f in need:
         dest = os.path.join(d, f)
         if os.path.exists(dest):
@@ -5726,9 +5738,9 @@ def ensure_legal_kb():
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             with open(dest, "wb") as out:
                 out.write(data)
-            log.info(f"legal_kb fetched: {f}")
+            log.info(f"самолечение: докачан {f}")
         except Exception as e:
-            log.error(f"legal_kb fetch {f}: {e}")
+            log.error(f"самолечение, не скачался {f}: {e}")
 
     # Разовая ПРИНУДИТЕЛЬНАЯ замена шаблона счёта. Старый invoice.py мог уже лежать
     # на диске (клался руками, до git), поэтому обычное «если нет — скачать» его не
@@ -7234,7 +7246,8 @@ def main():
     except Exception as e:
         log.error(f"goals seed: {e}")
     try:
-        ensure_legal_kb()  # подтянуть базу знаний Юриста, если её ещё нет на диске
+        ensure_legal_kb()  # докачать всё из UPDATE_FILES, чего нет на диске
+                           # (имя историческое: функцию зовут по нему три других бота)
     except Exception as e:
         log.error(f"ensure_legal_kb: {e}")
     try:
