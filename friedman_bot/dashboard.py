@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.40"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.41"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2005,6 +2005,13 @@ const openProjects=new Set();
 
 function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// JSON, пригодный для HTML-атрибута. Раньше объект карточки вставлялся в
+// onclick='openTask({...})' как есть, и ОДИНАРНАЯ КАВЫЧКА в тексте («Café
+// Sa'Sis») обрывала значение атрибута: onclick становился синтаксически битым,
+// карточка переставала открываться — а значит, и переименовываться. Экранируем
+// под двойные кавычки атрибута; апостроф внутри JSON-строки законен и так.
+function jsat(o){return JSON.stringify(o).replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+  .replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function localISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 async function api(path,body){const r=await fetch(path+'?_t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(r.status===401||r.status===403){location.reload();}return r;}
 
@@ -2179,12 +2186,12 @@ function render(){
   // chaos parking — skip DOM rebuild while drag is in progress to preserve drag state
   if(!_dg){
     document.getElementById('chaos').innerHTML=parking.length?parking.map(c=>{
-      const td=JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
+      const td=jsat({kind:"chaos",id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
       return '<div class="task glass-sm" data-cid="'+c.id+'">'+
         '<span class="drag-h" ontouchstart="_startDrag(event,'+c.id+')" onmousedown="_startDrag(event,'+c.id+')"><i></i><i></i><i></i></span>'+
         '<span class="pdot '+priClass(c)+'"></span>'+
-        '<span class="tx" onclick=\'openTask('+td+')\'>'  +esc(c.text)+(c.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'')+'</span>'+
-        '<span class="chev" onclick=\'openTask('+td+')\'>›</span></div>';
+        '<span class="tx" onclick="openTask('+td+')">'  +esc(c.text)+(c.comment?'<span class="cmt-dot" title="есть комментарий">💬</span>':'')+'</span>'+
+        '<span class="chev" onclick="openTask('+td+')">›</span></div>';
     }).join(''):'<div class="empty">парковка пуста — всё запланировано 🎉</div>';
   }
   // calendar
@@ -2234,7 +2241,7 @@ function renderProjectBoard(d){
         '<span class="pdel" onclick="event.stopPropagation();stepDelete('+s.id+')" title="Удалить">🗑</span>'+
       '</div>').join('');
     const ideaCards=linkedIdeas.map(c=>
-      '<div class="kcard pidea" onclick=\'openTask('+JSON.stringify({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')\'>'+
+      '<div class="kcard pidea" onclick="openTask('+jsat({kind:"chaos",id:c.id,text:c.text,imp:c.importance||0,urg:c.urgency||0,proj:p.id})+')">'+
       '💡 '+esc(c.text)+'</div>').join('');
     const incM=(p.expected_income||0)>0&&p.income_status!=='paid'?(INCOME_META[p.income_status||'lead']||INCOME_META.lead):null;
     const incBadge=incM?'<div class="pinc" style="background:'+incM.bg+';color:'+incM.chip+'" onclick="event.stopPropagation();projIncome('+p.id+')">💰 '+eur(p.expected_income||0)+' · '+incM.label+'</div>':'';
@@ -2413,9 +2420,9 @@ function openQuadrant(q){
   const cards=(DATA.chaos||[]).filter(c=>!c.done&&(c.importance||c.urgency)&&quadClass(c.importance||0,c.urgency||0)===q);
   const planned=new Set((DATA.cards||[]).filter(c=>c.chaos_id).map(c=>c.chaos_id));
   const rows=cards.length?cards.map(c=>{
-    const td=JSON.stringify({kind:'chaos',id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
+    const td=jsat({kind:'chaos',id:c.id,text:c.text,imp:c.importance,urg:c.urgency});
     const badge=planned.has(c.id)?'<span class="q-plan">в календаре</span>':'';
-    return '<div class="q-row" onclick=\'closeSheet();openTask('+td+')\'>'+
+    return '<div class="q-row" onclick="closeSheet();openTask('+td+')">'+
       '<span class="q-tx">'+esc(c.text)+'</span>'+badge+
       '<span class="q-iu">'+(c.importance||0)+'·'+(c.urgency||0)+'</span></div>';
   }).join(''):'<div class="empty">в этой четверти пусто</div>';
@@ -2717,7 +2724,7 @@ function renderCal(){
     // значит съедать и без того узкую колонку.
     const tBadge=(e.time&&!inGrid)?'<span class="t">'+e.time+(e.time_end?'–'+e.time_end:'')+'</span> ':'';
     const drg=e.kind==='event'?' data-drag="1" data-id="'+e.id+'" data-time="'+(e.time||'')+'" data-tend="'+(e.time_end||'')+'"':'';
-    return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick=\'openTask('+JSON.stringify(tdata)+')\'>'+
+    return '<div class="ev '+(e.kind==='reminder'?'rem':'')+'"'+drg+' onclick="openTask('+jsat(tdata)+')">'+
       tBadge+esc(e.text)+mbDot+cmtDot+priDot+'</div>';
   };
   let html='';        // колонки дней

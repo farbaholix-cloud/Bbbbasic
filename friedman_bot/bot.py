@@ -460,7 +460,9 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
 6. СМЕТЫ: «стена 6 на 3, сколько краски/цена» → посчитай: грунт ~1л/5м², баллон 400мл ~1-1.5м²/слой, обычно 2 слоя фон + детали. Работа стрит-арт в Германии ориентир 50-150€/м² по сложности.
 6в. СЧЕТА (RECHNUNG): «выстави счёт», «сделай инвойс», «Rechnung для X на сумму Y за работу Z» -> action invoice. Извлеки: recipient (получатель: название + адрес, каждая часть с новой строки через \n), items (позиции: desc — описание работы НА НЕМЕЦКОМ профессионально с правильными умляутами ä ö ü ß, напр. «Künstlerische Gestaltung der Fassade ...», price — сумма в евро числом), salutation (обращение если знаешь: «Frau Kluegling» / «Herr Schmidt»), customer_no (если назван), intro (вводная фраза счёта НА НЕМЕЦКОМ, если из просьбы ясен повод/проект — напр. «Hiermit berechne ich Ihnen wie vorab besprochen für die Gestaltung ... folgende Vorauszahlung:»; иначе пусто). Если не хватает получателя или суммы — спроси одним вопросом, не выдумывай.
 7. Отвечай по-человечески: коротко, тепло. Максимум один уточняющий вопрос.
+7а. ПЕРЕИМЕНОВАНИЕ: «переименуй X в Y», «назови это иначе», «исправь название» → action rename. Ставь id, если он есть в контексте (в списках он в квадратных скобках); не знаешь id — заполни old текстом того, что переименовываем. НИКОГДА не отвечай «готово», «переименовал», «сделано», если не вернул action — без действия НИЧЕГО не происходит, и такой ответ просто обманывает. Не уверен, какую именно карточку переименовать, — спроси, а не угадывай.
 8. Не выдумывай данные которых нет в контексте.
+8а. НЕ ОТЧИТЫВАЙСЯ О ТОМ, ЧЕГО НЕ СДЕЛАЛ. Всё, что меняет базу, делается ТОЛЬКО через actions. Если нужного действия в списке нет — честно скажи, что этого не умеешь, и предложи сделать в дашборде. Ложное «всё готово» дороже любого отказа: человек уходит уверенный, что дело сделано.
 9. ВЕБ: если в промпте есть блок «ВЕБ (актуальные данные из интернета):» — используй его данные для ответа. Это свежие данные из поиска, они надёжнее твоих внутренних знаний. Приводи конкретные цифры/факты из блока.
 
 Области: work, health, money, people, home, self, other. Приоритеты: high, mid, low.
@@ -469,6 +471,7 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
 {"reply": "ответ человеку", "actions": [
  {"type": "save", "text": "...", "area": "...", "priority": "...", "importance": 8, "urgency": 5},
  {"type": "done", "id": 5},
+ {"type": "rename", "id": 5, "old": "эскиз Хорц", "text": "Эскиз фасада Хорц — финал"},
  {"type": "finance", "amount": -40, "comment": "баллоны", "account": "cash"},
  {"type": "remind", "when": "2026-06-13 09:00", "text": "страховка"},
  {"type": "contact", "name": "Роберт", "note": "должен 500€"},
@@ -2230,6 +2233,64 @@ def ensure_invoices_seed():
     log.info(f"invoices_seed: залито {n} счетов в архив")
 
 
+def _rename_item(item_id, old_text, new_text):
+    """Переименовать вводную или событие календаря.
+
+    Ищем по id, а если его нет — по тексту: человек говорит «переименуй „эскиз
+    Хорц“», а не «переименуй id 214». Поиск по тексту нарочно строгий: сначала
+    точное совпадение, потом вхождение, и если под описание подходит НЕСКОЛЬКО
+    записей — не переименовываем ничего. Молча переименовать не ту карточку
+    хуже, чем сказать «уточни, какую».
+
+    Вводная и порождённое ею событие держат один текст, поэтому правим оба:
+    иначе в парковке одно название, а в календаре другое.
+    """
+    with db() as conn:
+        rows = []
+        if item_id:
+            r = conn.execute("SELECT id, text FROM chaos WHERE id=?", (item_id,)).fetchone()
+            if r:
+                rows = [("chaos", r["id"], r["text"])]
+            else:
+                r = conn.execute("SELECT id, text FROM events WHERE id=?", (item_id,)).fetchone()
+                if r:
+                    rows = [("event", r["id"], r["text"])]
+        if not rows and old_text:
+            q = " ".join(old_text.lower().split())
+            cand = []
+            for kind, tbl in (("chaos", "chaos"), ("event", "events")):
+                where = "WHERE done=0" if tbl == "chaos" else ""
+                for r in conn.execute(f"SELECT id, text FROM {tbl} {where}").fetchall():
+                    t = " ".join(str(r["text"] or "").lower().split())
+                    if t == q:
+                        cand.append((0, kind, r["id"], r["text"]))
+                    elif q and q in t:
+                        cand.append((1, kind, r["id"], r["text"]))
+            exact = [c for c in cand if c[0] == 0]
+            pick = exact or cand
+            # Событие, порождённое вводной, найдётся дважды — это не двусмысленность
+            uniq = {(c[1], c[2]) for c in pick}
+            if len(uniq) == 1:
+                rows = [(pick[0][1], pick[0][2], pick[0][3])]
+            elif len(pick) > 1:
+                names = "; ".join(sorted({c[3] for c in pick})[:4])
+                return [("rename_fail", 0,
+                         f"под «{old_text}» подходит несколько: {names}", "", "")]
+        if not rows:
+            return [("rename_fail", 0, f"не нашёл «{old_text or item_id}»", "", "")]
+
+        kind, rid, was = rows[0]
+        if kind == "chaos":
+            conn.execute("UPDATE chaos SET text=? WHERE id=?", (new_text, rid))
+            conn.execute("UPDATE events SET text=? WHERE chaos_id=?", (new_text, rid))
+        else:
+            conn.execute("UPDATE events SET text=? WHERE id=?", (new_text, rid))
+            r = conn.execute("SELECT chaos_id FROM events WHERE id=?", (rid,)).fetchone()
+            if r and r["chaos_id"]:
+                conn.execute("UPDATE chaos SET text=? WHERE id=?", (new_text, r["chaos_id"]))
+    return [("rename", rid, f"{was} → {new_text}", "", "")]
+
+
 def apply_actions(actions: list) -> list:
     results = []
     for a in actions:
@@ -2256,6 +2317,18 @@ def apply_actions(actions: list) -> list:
                     conn.execute("UPDATE chaos SET done=1 WHERE id=?", (a["id"],))
                 if row:
                     results.append(("done", a["id"], row["text"], "", ""))
+            elif a.get("type") == "rename":
+                # Переименование не было предусмотрено вовсе, и это хуже, чем
+                # «не умеет»: модель уверенно отвечала «готово», потому что
+                # отказать ей было нечем — действия с таким типом просто
+                # проваливались в тишину. Теперь оно есть и, главное, возвращает
+                # результат: не нашлось, что переименовывать, — человек об этом
+                # узнает, а не получит ложное «сделано».
+                new_text = (a.get("text") or "").strip()
+                if not new_text:
+                    results.append(("rename_fail", 0, "пустое новое название", "", ""))
+                else:
+                    results.extend(_rename_item(a.get("id"), a.get("old"), new_text))
             elif a.get("type") == "finance":
                 amount = float(a["amount"])
                 comment = a.get("comment", "")
@@ -2556,6 +2629,12 @@ async def ai_converse(update: Update, user_text: str, source: str = "text"):
             extras.append(f"📌 {area_emoji(area)} _{text}_")
         elif kind == "done":
             extras.append(f"✅ закрыто: _{text}_")
+        elif kind == "rename":
+            extras.append(f"✏️ _{text}_")
+        elif kind == "rename_fail":
+            # Неудача должна быть видна человеку. Именно её отсутствие и
+            # породило бодрое «всё готово» там, где не произошло ничего.
+            extras.append(f"⚠️ переименовать не вышло: {text}")
         elif kind == "finance":
             extras.append(f"💰 _{text}_")
         elif kind == "remind":
