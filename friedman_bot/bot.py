@@ -455,6 +455,9 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
 1а. ЦЕЛИ/ПРОЕКТЫ: если человек говорит слово «цель» («добавь цель...», «новая цель...», «цель — ...») или называет большое дело (не разовую задачу: «хочу выпустить книгу», «сделать сайт») → ОБЯЗАТЕЛЬНО action project (НЕ save!): придумай 4-8 конкретных шагов (декомпозиция по Фридману) и перечисли их в reply. Если человек сообщает о прогрессе по существующему проекту («продвинулся по книге», «сделал эскиз для выставки») → action progress с project_id из контекста и count (сколько шагов закрыть, обычно 1). Не создавай проект повторно если он уже есть в контексте.
 2. ДЕНЬГИ: «получил 300 от Роберта» → action finance amount=300. «потратил 40 на баллоны» → amount=-40. Поле account: "cash" если наличные/кэш/cash, "card" если карта/перевод/счёт/банк/Überweisung (по умолчанию card). Спросят баланс — он в контексте (наличные, карта, всего).
 3. НАПОМИНАНИЯ: «напомни завтра в 9 про страховку» → action remind, when в формате YYYY-MM-DD HH:MM. Сегодня: {today}.
+3а. КАЛЕНДАРЬ — action plan, НЕ save. «Добавь в календарь», «поставь на четверг», «запланируй», «внеси матчи/встречи», а также любая фраза, где названа дата или день недели → plan. save кладёт карточку в ПАРКОВКУ (хаос), и на просьбу про календарь это прямая ошибка: человек просил календарь, а получил список вводных. Разница простая: есть дата — plan; даты нет и не подразумевается — save.
+   Несколько дел за раз — несколько действий plan подряд или одно plan с массивом items: {"type":"plan","items":[{"text":"...","date":"2026-09-26","time":"18:30"},{...}]}. Пять матчей = пять записей, а не одна строка с перечислением.
+   date обязательна, формат YYYY-MM-DD. Нет даты — не выдумывай: спроси. time и time_end — «18:30», необязательны (дело на весь день — без них).
 4. КОНТАКТЫ: важная информация о человеке («Роберт должен 500», «Стефан — контакт по фасадам») → action contact. Спросят про человека — собери всё из контекста.
 5. ПИСЬМА НА НЕМЕЦКОМ: попросят письмо/ответ для немецкого заказчика, фирмы, ведомства — напиши готовый текст письма на немецком прямо в reply (профессиональный тон), плюс 1 строка по-русски о чём оно.
 6. СМЕТЫ: «стена 6 на 3, сколько краски/цена» → посчитай: грунт ~1л/5м², баллон 400мл ~1-1.5м²/слой, обычно 2 слоя фон + детали. Работа стрит-арт в Германии ориентир 50-150€/м² по сложности.
@@ -464,6 +467,7 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
 8. Не выдумывай данные которых нет в контексте.
 8а. НЕ ОТЧИТЫВАЙСЯ О ТОМ, ЧЕГО НЕ СДЕЛАЛ. Всё, что меняет базу, делается ТОЛЬКО через actions. Если нужного действия в списке нет — честно скажи, что этого не умеешь, и предложи сделать в дашборде. Ложное «всё готово» дороже любого отказа: человек уходит уверенный, что дело сделано.
 9. ВЕБ: если в промпте есть блок «ВЕБ (актуальные данные из интернета):» — используй его данные для ответа. Это свежие данные из поиска, они надёжнее твоих внутренних знаний. Приводи конкретные цифры/факты из блока.
+9а. ТЫ УМЕЕШЬ ИСКАТЬ В ИНТЕРНЕТЕ. Если для ответа нужны факты, которых нет ни в контексте, ни у тебя (расписание матчей, даты событий, адреса, часы работы, цены, курсы, новости) — НЕ отвечай «я не умею искать». Верни ОДНО действие: {"type": "web", "query": "что искать, коротко и конкретно"} и короткий reply вроде «Секунду, посмотрю». Тебя спросят заново, уже с результатами поиска, и тогда ты ответишь и создашь нужные действия. Действие web возвращай ОДНО и без других действий — остальное сделаешь во втором заходе.
 
 Области: work, health, money, people, home, self, other. Приоритеты: high, mid, low.
 
@@ -472,6 +476,9 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
  {"type": "save", "text": "...", "area": "...", "priority": "...", "importance": 8, "urgency": 5},
  {"type": "done", "id": 5},
  {"type": "rename", "id": 5, "old": "эскиз Хорц", "text": "Эскиз фасада Хорц — финал"},
+ {"type": "plan", "text": "FSV — Ulm, домашний матч", "date": "2026-09-26", "time": "14:00"},
+ {"type": "plan", "items": [{"text": "матч 1", "date": "2026-09-26", "time": "14:00"}, {"text": "матч 2", "date": "2026-10-03", "time": "13:30"}]},
+ {"type": "web", "query": "FSV Frankfurt ближайшие домашние матчи расписание"},
  {"type": "finance", "amount": -40, "comment": "баллоны", "account": "cash"},
  {"type": "remind", "when": "2026-06-13 09:00", "text": "страховка"},
  {"type": "contact", "name": "Роберт", "note": "должен 500€"},
@@ -618,6 +625,10 @@ _WEB_RE = re.compile(
     r'как добраться|маршрут до|как доехать|'
     r'переведи с|перевод слова|как по-немецки|как по-русски|'
     r'последние|актуальн|свежи|обновлени|только что|прямо сейчас|'
+    # Спорт и афиша: «пять следующих домашних игр» не содержало ни одного слова
+    # из списка выше, поиск не включался, и Секретарь отвечал «не умею искать».
+    r'матч|матчи|игра клуба|домашн\w* игр|календарь игр|тур |афиш|концерт|'
+    r'следующ\w+ (игр|матч|встреч)|когда играет|во сколько играет|'
     r'wikipedia|wiki|ближайш|в интернете|в сети|search|google)\b',
     re.IGNORECASE
 )
@@ -666,38 +677,66 @@ def _web_research_sync(query: str) -> str:
         return ""
 
 
-def ask_claude_sync(user_text: str) -> dict:
-    context = get_context()
+def _ask_once(user_text: str, web_block: str) -> dict:
+    prompt = f"{get_context()}{web_block}\n\nНОВОЕ СООБЩЕНИЕ ОТ ЧЕЛОВЕКА:\n{user_text}"
+    sys_prompt = SECRETARY_PROMPT.replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A"))
+    result = _claude_exec([CLAUDE_BIN, "-p", prompt,
+         "--append-system-prompt", sys_prompt,
+         "--model", "haiku",
+         "--max-turns", "8",
+         "--tools", ""], timeout=120)
+    raw = result.stdout.strip()
+    if not raw or raw.startswith("Error:"):
+        log.error(f"Secretary CLI пусто/ошибка: rc={result.returncode} "
+                  f"out={raw[:200]!r} err={(result.stderr or '')[:300]!r}")
+    start, end = raw.find("{"), raw.rfind("}")
+    if start >= 0 and end > start:
+        return jsonlib.loads(raw[start:end + 1])
+    if raw.startswith("Error:") or "max turns" in raw.lower() or not raw:
+        return {"reply": "", "actions": []}
+    return {"reply": raw, "actions": []}
 
+
+def ask_claude_sync(user_text: str) -> dict:
+    """Ответ Секретаря. При необходимости — с заходом в интернет.
+
+    Раньше поиск включался ТОЛЬКО по регулярке из списка слов, и просьба
+    «добавь пять ближайших домашних игр клуба» в него не попадала: ни «найди»,
+    ни «погода», ни «расписание» там не звучит. Веб-блок не подставлялся, и
+    Секретарь честно отвечал, что искать не умеет — хотя умеет.
+
+    Теперь у него есть второй путь: он сам может попросить поиск, вернув action
+    web с запросом. Тогда мы ищем и спрашиваем его ЗАНОВО, уже с результатами.
+    Регулярку оставляем — она ловит очевидные случаи без лишнего круга.
+    """
     web_block = ""
     if _needs_web(user_text):
         web_data = _web_research_sync(user_text)
         if web_data:
             web_block = f"\n\nВЕБ (актуальные данные из интернета):\n{web_data}"
-            log.info(f"web injected: {len(web_data)} chars")
-
-    prompt = f"{context}{web_block}\n\nНОВОЕ СООБЩЕНИЕ ОТ ЧЕЛОВЕКА:\n{user_text}"
-    sys_prompt = SECRETARY_PROMPT.replace("{today}", datetime.now().strftime("%Y-%m-%d %H:%M, %A"))
+            log.info(f"web injected by regex: {len(web_data)} chars")
     try:
-        result = _claude_exec([CLAUDE_BIN, "-p", prompt,
-             "--append-system-prompt", sys_prompt,
-             "--model", "haiku",
-             "--max-turns", "8",
-             "--tools", ""], timeout=120)
-        raw = result.stdout.strip()
-        if not raw or raw.startswith("Error:"):
-            log.error(f"Secretary CLI пусто/ошибка: rc={result.returncode} "
-                      f"out={raw[:200]!r} err={(result.stderr or '')[:300]!r}")
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start >= 0 and end > start:
-            return jsonlib.loads(raw[start:end+1])
-        if raw.startswith("Error:") or "max turns" in raw.lower() or not raw:
-            return {"reply": "", "actions": []}
-        return {"reply": raw, "actions": []}
+        resp = _ask_once(user_text, web_block)
     except Exception as e:
         log.error(f"Claude CLI: {e}")
         return {"reply": "", "actions": []}
+
+    if web_block:
+        return resp
+    query = next((a.get("query") for a in (resp.get("actions") or [])
+                  if isinstance(a, dict) and a.get("type") == "web" and a.get("query")), None)
+    if not query:
+        return resp
+    log.info(f"web requested by model: {query[:120]}")
+    try:
+        web_data = _web_research_sync(query)
+        if not web_data:
+            return {"reply": "Не получилось найти это в интернете — попробуй позже "
+                             "или дай данные сам.", "actions": []}
+        return _ask_once(user_text, f"\n\nВЕБ (актуальные данные из интернета):\n{web_data}")
+    except Exception as e:
+        log.error(f"web round-trip: {e}")
+        return resp
 
 
 # ─── Юрист: налогово-правовой консультант (DE, Freiberufler/§24) ───────────────
@@ -2233,6 +2272,57 @@ def ensure_invoices_seed():
     log.info(f"invoices_seed: залито {n} счетов в архив")
 
 
+def _plan_event(it):
+    """Положить одно дело прямо в календарь (таблица events).
+
+    Возвращает результат — в том числе отказ. Событие без даты в календарь не
+    кладётся: «когда-нибудь» — это парковка, а не календарь, и тихо подставлять
+    сегодняшнее число значило бы придумывать за человека.
+
+    Вводную при этом НЕ заводим: просьба «добавь в календарь» означает карточку
+    в календаре, а не вторую запись в парковке с тем же текстом.
+    """
+    text = (it.get("text") or "").strip()
+    day = (it.get("date") or "").strip()[:10]
+    if not text:
+        return [("plan_fail", 0, "пустое название", "", "")]
+    try:
+        date.fromisoformat(day)
+    except ValueError:
+        return [("plan_fail", 0, f"нет внятной даты для «{text}»", "", "")]
+
+    def _hm(v):
+        v = (v or "").strip()
+        m = re.match(r"^(\d{1,2})[:.](\d{2})$", v)
+        return f"{int(m.group(1)):02d}:{m.group(2)}" if m else ""
+
+    t1, t2 = _hm(it.get("time")), _hm(it.get("time_end"))
+    with db() as conn:
+        # Повтор той же строки в тот же день — почти всегда второй заход одной
+        # просьбы, а не два одинаковых дела. Не плодим близнецов.
+        dup = conn.execute("SELECT id FROM events WHERE date=? AND text=? AND "
+                           "COALESCE(time,'')=?", (day, text, t1)).fetchone()
+        if dup:
+            return [("plan_dup", dup["id"], f"{_ru_date(day)}{' ' + t1 if t1 else ''} — {text}",
+                     "", "")]
+        cur = conn.execute(
+            "INSERT INTO events (text, date, time, time_end, position) VALUES (?,?,?,?,0)",
+            (text, day, t1, t2))
+        eid = cur.lastrowid
+    return [("plan", eid, f"{_ru_date(day)}{' ' + t1 if t1 else ''} — {text}", "", "")]
+
+
+def _ru_date(iso):
+    try:
+        d = date.fromisoformat(iso)
+    except Exception:
+        return iso
+    mon = ["янв", "фев", "мар", "апр", "май", "июн",
+           "июл", "авг", "сен", "окт", "ноя", "дек"][d.month - 1]
+    dow = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"][d.weekday()]
+    return f"{d.day} {mon} ({dow})"
+
+
 def _rename_item(item_id, old_text, new_text):
     """Переименовать вводную или событие календаря.
 
@@ -2339,6 +2429,16 @@ def apply_actions(actions: list) -> list:
                     total = conn.execute("SELECT COALESCE(SUM(amount),0) FROM finance").fetchone()[0]
                 acc_ru = "наличные" if account == "cash" else "карта"
                 results.append(("finance", 0, f"{amount:+.0f}€ {comment} ({acc_ru}) · всего {total:+.2f}€", "", ""))
+            elif a.get("type") == "plan":
+                # Календаря у Секретаря не было вовсе: из действий он умел только
+                # save (в парковку) и remind (в напоминания). Поэтому на «добавь в
+                # календарь» он клал карточку в хаос — не из упрямства, а потому
+                # что положить в календарь было нечем. Теперь есть.
+                items = a.get("items") if isinstance(a.get("items"), list) else [a]
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    results.extend(_plan_event(it))
             elif a.get("type") == "remind":
                 with db() as conn:
                     conn.execute("INSERT INTO reminders (due_at, text) VALUES (?,?)",
@@ -2631,6 +2731,12 @@ async def ai_converse(update: Update, user_text: str, source: str = "text"):
             extras.append(f"✅ закрыто: _{text}_")
         elif kind == "rename":
             extras.append(f"✏️ _{text}_")
+        elif kind == "plan":
+            extras.append(f"📅 в календарь: _{text}_")
+        elif kind == "plan_dup":
+            extras.append(f"📅 уже было: _{text}_")
+        elif kind == "plan_fail":
+            extras.append(f"⚠️ в календарь не положил: {text}")
         elif kind == "rename_fail":
             # Неудача должна быть видна человеку. Именно её отсутствие и
             # породило бодрое «всё готово» там, где не произошло ничего.
