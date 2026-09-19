@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.41"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.42"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1852,7 +1852,7 @@ body.mind-on{padding-bottom:0;overflow:hidden}
           <button class="cs on" data-r="all" onclick="setCalRange('all')">всё</button>
         </div>
         <button class="cal-view" id="cal-view" onclick="toggleCalView()" title="Список / хроносетка">🕐</button>
-        <button class="cal-add" onclick="openIdeaSheet()" title="Новая вводная" aria-label="Новая вводная">+</button></div>
+        <button class="cal-add" onclick="openIdeaSheet({date:_calFocusDate()})" title="Добавить в этот день" aria-label="Добавить в этот день">+</button></div>
       <div id="cal"></div>
       <div class="addr" id="cal-hint" style="margin-top:9px;cursor:default"></div>
     </div>
@@ -2499,6 +2499,28 @@ function syncTailsBtn(){
 // Apple: месяц — сетка недель, год — двенадцать мини-месяцев. Тап углубляет
 // обзор: месяц → неделя с этого дня, год → этот месяц.
 let _calAnchor=null;                     // какой месяц/год показываем; null = текущий
+let _calShown=[];                        // дни, которые сейчас на доске (для кнопки «+»)
+
+// Какой день предложить в шторке «+». Раньше всегда подставлялось сегодня, и
+// это ломало самый частый сценарий: открыл 12 октября, нажал «+» — а дело
+// уезжало на сегодня, потому что кнопка не знала, куда человек смотрит.
+// Правило: сегодня, если оно на доске (обычно добавляют на сегодня); иначе —
+// первый день того, что открыто.
+function _calFocusDate(){
+  const t=localISO(new Date());
+  if(_calRange==='month'||_calRange==='year'){
+    const a=_anchorDate(), now=new Date();
+    const same=_calRange==='month'
+      ? (a.getFullYear()===now.getFullYear()&&a.getMonth()===now.getMonth())
+      : (a.getFullYear()===now.getFullYear());
+    if(same)return t;                        // смотрим на период с сегодняшним днём
+    return localISO(_calRange==='month'
+      ? new Date(a.getFullYear(),a.getMonth(),1)
+      : new Date(a.getFullYear(),0,1));
+  }
+  if(_calShown.indexOf(t)>=0)return t;
+  return _calShown[0]||t;
+}
 function _anchorDate(){return _calAnchor?new Date(_calAnchor+'T00:00'):new Date();}
 let _calGoing=false;
 function _calGo(range,iso){
@@ -2707,6 +2729,7 @@ function renderCal(){
     DATA.cards.forEach(c=>{if(c.date&&c.date>=startISO&&c.date<endISO)dates.add(c.date);});
     sorted=[...dates].sort();
   }
+  _calShown=sorted.slice();      // запомнили доску — по ней «+» поймёт, куда добавлять
   // Разметка одной карточки. Вынесена из цикла: её теперь зовут в двух местах —
   // до красной черты и после.
   const evHtml=(e,inGrid)=>{
