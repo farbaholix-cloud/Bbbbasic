@@ -86,6 +86,12 @@ const CASES = [
     for (let i = 0; i < 12; i++) { f.push(bug(sheet(), x, 160, 25)); x += 4 * PX_MM; }
     return f;
   }],
+  ['быстрая тень', false, () => {          // мошка, штора, блик — клоп так не бегает
+    const f = warmup();
+    const step = (250 / FPS) * PX_MM;      // 25 см/с, втрое выше потолка
+    for (let x = 30; x < W - 30; x += step) f.push(bug(sheet(), x, 160));
+    return f;
+  }],
   ['волос на простыне', false, () => {
     const f = warmup(); let x = 180;
     for (let i = 0; i < 12; i++) {

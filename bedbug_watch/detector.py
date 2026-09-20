@@ -37,8 +37,8 @@ class DetectorConfig:
     settle_frames: int = 15          # столько кадров после шевеления не верим себе
     min_hits: int = 4                # пятно должно прожить столько кадров
     min_travel_mm: float = 2.0       # и уползти на столько от точки старта
-    speed_mm_s: Tuple[float, float] = (0.2, 90.0)  # правдоподобная скорость ползания
-    match_radius_mm: float = 12.0    # на столько пятно может сместиться за кадр
+    speed_mm_s: Tuple[float, float] = (0.2, 130.0)  # ползёт 1–4 см/с, вспугнутый — до 12
+    match_radius_mm: float = 18.0    # на столько пятно может сместиться за кадр
     miss_limit: int = 5              # столько кадров без пятна — трек закрыт
 
 
@@ -105,6 +105,7 @@ class BugDetector:
         self.last_blobs: List[_Blob] = field(default_factory=list)  # type: ignore[assignment]
         self.last_blobs = []
         self.last_change_frac = 0.0
+        self.last_reason = ""      # почему самый живучий кандидат не стал тревогой
 
     # ── публичный вход ────────────────────────────────────────────────────────
 
@@ -208,18 +209,33 @@ class BugDetector:
         return self._verdict(ts)
 
     def _verdict(self, ts: float) -> Optional[Detection]:
-        """Трек считается клопом, только если он прожил и реально сместился."""
+        """Трек считается клопом, только если он прожил и реально сместился.
+
+        Заодно запоминаем, на чём споткнулся самый живучий кандидат: без этого
+        «вижу пятно, но молчу» не отладить ни на столе, ни ночью.
+        """
+        best, best_why = None, ""
         for tr in self._tracks:
-            if tr.fired or tr.hits < self.cfg.min_hits:
+            if tr.fired:
                 continue
             net_mm = float(np.hypot(tr.x - tr.start_x, tr.y - tr.start_y)) / self.px_per_mm
-            if net_mm < self.cfg.min_travel_mm:
-                continue                                  # дрожит на месте — не ползёт
             dt = max(tr.last_ts - tr.first_ts, 1e-6)
             speed = tr.path_mm / dt
             lo, hi = self.cfg.speed_mm_s
-            if not (lo <= speed <= hi):
-                continue                                  # телепорт или ледник — не клоп
+            why = ""
+            if tr.hits < self.cfg.min_hits:
+                why = f"видно кадров: {tr.hits} из {self.cfg.min_hits}"
+            elif net_mm < self.cfg.min_travel_mm:
+                why = f"проползло {net_mm:.1f} из {self.cfg.min_travel_mm} мм"
+            elif speed > hi:
+                why = f"скорость {speed:.0f} мм/с — быстрее потолка {hi:.0f}"
+            elif speed < lo:
+                why = f"скорость {speed:.2f} мм/с — медленнее порога {lo}"
+            if why:
+                if best is None or tr.hits > best.hits:
+                    best, best_why = tr, why
+                continue
+            self.last_reason = ""
             tr.fired = True
             x, y, w, h = tr.box
             return Detection(
@@ -230,6 +246,7 @@ class BugDetector:
                 frames=tr.hits,
                 score=self._score(tr, net_mm),
             )
+        self.last_reason = best_why
         return None
 
     def _score(self, tr: _Track, net_mm: float) -> float:

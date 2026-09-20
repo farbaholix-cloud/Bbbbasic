@@ -18,6 +18,7 @@ import { BugDetector, toGray } from './detector.js';
 const PROC_W = 640, PROC_H = 360;      // рабочее разрешение: тянет даже iPhone 6s
 const TARGET_FPS = 8;
 const COOLDOWN_MS = 90_000;            // пауза между тревогами
+const TEST_COOLDOWN_MS = 5_000;        // в режиме проверки — чтобы не ждать полторы минуты
 const JOURNAL_KEY = 'bedbug.journal';
 const JOURNAL_CAP = 60;
 
@@ -29,6 +30,7 @@ let POST = 'без имени';
 let detector, stream, video, ctx, imgData, gray;
 let running = false, wakeLock = null;
 let frames = 0, alerts = 0, lastAlert = -1e9, lastFrameAt = 0;
+let cooldownMs = COOLDOWN_MS, muffled = 0;   // muffled — когда поймал, но пауза
 let audio = null, siren = null;
 
 // ── настройки ────────────────────────────────────────────────────────────────
@@ -36,6 +38,7 @@ let audio = null, siren = null;
 function loadSettings() {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
   $('post-input').value = saved.post || params.get('post') || '';
+  $('testmode').checked = !!saved.testmode;
   $('fov').value = saved.fov || params.get('fov') || 90;
   $('sens').value = saved.sens || 18;
   $('tg-token').value = saved.token || '';
@@ -46,6 +49,7 @@ function loadSettings() {
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({
     post: $('post-input').value.trim(),
+    testmode: $('testmode').checked,
     fov: +$('fov').value, sens: +$('sens').value,
     token: $('tg-token').value.trim(), chat: $('tg-chat').value.trim(),
   }));
@@ -148,7 +152,8 @@ async function start() {
     darkThreshold: +$('sens').value,
   });
 
-  frames = 0; alerts = 0; lastAlert = -1e9; running = true;
+  frames = 0; alerts = 0; lastAlert = -1e9; muffled = 0; running = true;
+  cooldownMs = $('testmode').checked ? TEST_COOLDOWN_MS : COOLDOWN_MS;
   $('setup').classList.add('hidden');
   $('journal').classList.add('hidden');
   $('watch').classList.remove('hidden');
@@ -171,11 +176,14 @@ function tick(now) {
   frames++;
   paintBoxes(hit);
   paintStats();
+  paintWhy(now);
 
-  if (hit && now - lastAlert > COOLDOWN_MS) {
+  if (hit && now - lastAlert > cooldownMs) {
     lastAlert = now;
     alerts++;
     fire(hit);
+  } else if (hit) {
+    muffled = now;          // поймал, но ещё идёт пауза — об этом надо сказать вслух
   }
 }
 
@@ -188,6 +196,19 @@ function paintBoxes(hit) {
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#ff2b2b';
     ctx.strokeRect(hit.box[0] - 8, hit.box[1] - 8, hit.box[2] + 16, hit.box[3] + 16);
+  }
+}
+
+/* Самый частый вопрос к такой штуке — «вижу рамку, почему молчишь». Пока
+ * причина не написана на экране, отладка превращается в гадание. */
+function paintWhy(now) {
+  const left = Math.ceil((cooldownMs - (now - lastAlert)) / 1000);
+  if (muffled && now - muffled < 3000 && left > 0) {
+    $('why').textContent = `Поймал, но пауза после прошлой тревоги — ещё ${left} с`;
+  } else if (detector.lastReason) {
+    $('why').textContent = `Вижу пятно, но ${detector.lastReason}`;
+  } else {
+    $('why').textContent = '';
   }
 }
 

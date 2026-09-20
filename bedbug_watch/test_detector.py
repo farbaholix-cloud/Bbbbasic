@@ -110,6 +110,16 @@ def case_moth():
     return run(frames), False
 
 
+def case_fast_shadow():
+    """Быстрая тень через кадр: мошка, штора, блик. Клоп так не бегает."""
+    frames = warmup()
+    x, step = 30.0, 250.0 / FPS * PX_MM        # 25 см/с — втрое выше потолка
+    while x < W - 30:
+        frames.append(crawl(sheet(), x, 250))
+        x += step
+    return run(frames), False
+
+
 def case_hair():
     """Волос: длинный и тонкий. Размер по длине подходит, форма — нет."""
     frames = warmup()
@@ -129,6 +139,7 @@ CASES = [
     ("упавшая крошка",           case_crumb_dropped),
     ("спящий повернулся",        case_sleeper_turns),
     ("крупная моль",             case_moth),
+    ("быстрая тень",             case_fast_shadow),
     ("волос на простыне",        case_hair),
 ]
 

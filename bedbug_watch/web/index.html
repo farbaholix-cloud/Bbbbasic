@@ -42,6 +42,11 @@
   <label>chat_id (узнать у @userinfobot)</label>
   <input type="text" id="tg-chat" placeholder="12345678" autocomplete="off">
 
+  <label style="display:flex;align-items:center;gap:10px;margin-top:18px">
+    <input type="checkbox" id="testmode" style="width:auto">
+    Режим проверки: пауза между тревогами 5 секунд вместо 90
+  </label>
+
   <div class="warn hidden" id="selftest-out"></div>
   <button id="selftest" class="ghost">Проверить телефон и браузер</button>
   <button id="start">НАЧАТЬ ДЕЖУРСТВО</button>
@@ -62,6 +67,7 @@
     <span>пятен в кадре <b id="s-blobs">0</b></span>
     <span>масштаб <b id="s-scale">—</b></span>
   </div>
+  <p class="sub" id="why"></p>
   <button id="stop" class="ghost">Закончить дежурство</button>
 </section>
 
