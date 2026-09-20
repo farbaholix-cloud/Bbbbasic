@@ -308,3 +308,100 @@ $('post-name').textContent = $('post-input').value ? `· ${$('post-input').value
 $('post-input').oninput = () => {
   $('post-name').textContent = $('post-input').value ? `· ${$('post-input').value}` : '';
 };
+
+// ── самопроверка ─────────────────────────────────────────────────────────────
+
+/* Отвечает на вопрос «а этот браузер вообще потянет?» прямо на телефоне.
+ * Главное здесь — вторая проверка: браузеры с защитой от слежки (Brave и
+ * подобные) подмешивают шум в чтение кадра с canvas, а детектор читает кадры
+ * именно так. Если шум есть, сторож начнёт видеть клопов там, где их нет. */
+/** Русские окончания: 1 уровень, 2 уровня, 5 уровней. */
+function plural(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  return b === 1 ? one : many;
+}
+
+async function runSelfTest() {
+  const out = $('selftest-out');
+  const rows = [];
+  out.classList.remove('hidden');
+  out.innerHTML = 'Проверяю…';
+
+  // 1. Чтение кадра без подмешанного шума
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 1;
+  const cx = c.getContext('2d', { willReadFrequently: true });
+  for (let i = 0; i < 64; i++) { cx.fillStyle = `rgb(${i * 4},${i * 4},${i * 4})`; cx.fillRect(i, 0, 1, 1); }
+  const px = cx.getImageData(0, 0, 64, 1).data;
+  let dev = 0;
+  for (let i = 0; i < 64; i++) dev = Math.max(dev, Math.abs(px[i * 4] - i * 4));
+  rows.push(dev === 0
+    ? ['✓', 'Кадр читается точно, без подмешанного шума']
+    : ['✗', `Браузер искажает кадр на ${dev} ${plural(dev, 'уровень', 'уровня', 'уровней')} ` +
+            'яркости — это защита от ' +
+            'слежки. Выключи её для этого сайта или открой страницу в Safari']);
+
+  // 2. Камера: даёт ли она кадры и какого размера
+  let cam = null;
+  try {
+    cam = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' },
+               width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    const t = cam.getVideoTracks()[0].getSettings();
+    const v = document.createElement('video');
+    v.srcObject = cam; v.muted = true; v.playsInline = true;
+    v.setAttribute('playsinline', ''); await v.play();
+    await new Promise((r) => setTimeout(r, 600));
+    const pc = document.createElement('canvas');
+    pc.width = 160; pc.height = 90;
+    const pctx = pc.getContext('2d', { willReadFrequently: true });
+    pctx.drawImage(v, 0, 0, 160, 90);
+    const d = pctx.getImageData(0, 0, 160, 90).data;
+    let mean = 0;
+    for (let i = 0; i < d.length; i += 4) mean += d[i];
+    mean /= d.length / 4;
+    rows.push(mean > 4
+      ? ['✓', `Камера даёт картинку, ${t.width}×${t.height}`]
+      : ['✗', 'Камера открылась, но кадр чёрный — сними крышку или добавь света']);
+    if (t.width && t.width < 1280) {
+      rows.push(['!', `Разрешение всего ${t.width} точек по ширине: масштаб ` +
+                      'мельче, клопа разглядеть труднее']);
+    }
+  } catch (e) {
+    rows.push(['✗', 'Камера не открылась: ' + e.name +
+                    '. Разреши доступ в настройках браузера']);
+  } finally {
+    cam?.getTracks().forEach((t) => t.stop());
+  }
+
+  // 3. Wake Lock: удержит ли страница экран
+  rows.push('wakeLock' in navigator
+    ? ['✓', 'Страница сможет держать экран включённым']
+    : ['!', 'Этот браузер экран не удержит — поставь Автоблокировку на «Никогда»']);
+
+  render(rows, out);
+
+  // 4. Звук — последним, потому что ответить может только человек
+  if (!audio) unlockAudio();
+  sirenOn();
+  await new Promise((r) => setTimeout(r, 1200));
+  sirenOff();
+  rows.push(confirm('Слышал сирену?')
+    ? ['✓', 'Сирена слышна — разбудит']
+    : ['✗', 'Сирены не было: переключатель звонка НЕ на беззвучном, громкость на максимум']);
+
+  const bad = rows.filter((r) => r[0] === '✗').length;
+  rows.push(bad
+    ? ['', `<b>Дежурить пока нельзя: сначала почини ${bad} ` +
+           `${plural(bad, 'пункт', 'пункта', 'пунктов')} выше.</b>`]
+    : ['', '<b>Всё готово. Можно дежурить.</b>']);
+  render(rows, out);
+}
+
+function render(rows, out) {
+  out.innerHTML = rows.map(([m, t]) => (m ? `${m} ${t}` : t)).join('<br>');
+}
+
+$('selftest').onclick = runSelfTest;
