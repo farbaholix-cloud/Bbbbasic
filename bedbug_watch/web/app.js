@@ -102,24 +102,27 @@ function updateFireLabel() {
 
 // ── звук ─────────────────────────────────────────────────────────────────────
 
-/* Тревога — шум моря, бьющего в камни: девятисекундная петля, входящая мягко.
+/* Тревога — цвириканье птицы: девятисекундная петля, входящая мягко.
  * Ночью важнее не напугать, а разбудить, поэтому громкость поднимается сама:
  * первые секунды еле слышно, а если ты не проснулся — за полминуты выходит на
  * полную. Файл может не загрузиться (нет сети в три часа ночи), и тогда
- * включается прежний вой на осцилляторе: сигнализация не имеет права молчать.
+ * включается запасной вой на осцилляторе: сигнализация не имеет права молчать.
+ *
+ * Имя переменной нарочно без названия звука: поменять птицу на что угодно
+ * другое — это правка одной строки ниже, а не переименование половины файла.
  */
-const WAVES_URL = 'sound/waves.mp3';
+const ALARM_SOUND_URL = 'sound/birds.mp3';
 const GENTLE_LEVEL = 0.30;    // громкость, до которой доходим мягко
 const GENTLE_S = 3.0;         // за сколько секунд
 const FULL_S = 30.0;          // и за сколько выходим на полную, если не проснулся
 
-let audio = null, wavesRaw = null, waves = null;
+let audio = null, soundRaw = null, soundBuf = null;
 let sirenSrc = null, sirenGain = null, beeper = null;
 
 // Байты тянем сразу при открытии страницы: вечером сеть обычно есть, а ночью
 // может не быть. Раскодируем позже — для этого нужен звуковой контекст.
-fetch(WAVES_URL).then((r) => (r.ok ? r.arrayBuffer() : null))
-  .then((b) => { wavesRaw = b; }).catch(() => { wavesRaw = null; });
+fetch(ALARM_SOUND_URL).then((r) => (r.ok ? r.arrayBuffer() : null))
+  .then((b) => { soundRaw = b; }).catch(() => { soundRaw = null; });
 
 /** Разбудить аудио нужно тем же касанием, что включает камеру, — иначе iOS
  *  откажет в звуке посреди ночи, когда касаться уже некому. */
@@ -131,19 +134,19 @@ function unlockAudio() {
   blip.connect(g).connect(audio.destination);
   blip.start();
   blip.stop(audio.currentTime + 0.05);
-  decodeWaves();
+  decodeAlarmSound();
 }
 
-function decodeWaves() {
-  if (waves || !wavesRaw || !audio) return;
-  const raw = wavesRaw.slice(0);          // decodeAudioData забирает буфер себе
+function decodeAlarmSound() {
+  if (soundBuf || !soundRaw || !audio) return;
+  const raw = soundRaw.slice(0);          // decodeAudioData забирает буфер себе
   try {
-    const p = audio.decodeAudioData(raw, (b) => { waves = b; }, () => {});
-    if (p && p.then) p.then((b) => { waves = b; }, () => {});
+    const p = audio.decodeAudioData(raw, (b) => { soundBuf = b; }, () => {});
+    if (p && p.then) p.then((b) => { soundBuf = b; }, () => {});
   } catch { /* останется запасной вой */ }
 }
 
-/** Прежний вой на осцилляторе — запасной вариант, если моря нет. */
+/** Вой на осцилляторе — запасной вариант, если файл не загрузился. */
 function startBeeper() {
   const osc = audio.createOscillator();
   const sweep = audio.createOscillator();
@@ -164,11 +167,11 @@ function startBeeper() {
 function sirenOn(fast = false) {
   if (!audio || sirenSrc || beeper) return;
   audio.resume();
-  decodeWaves();
-  if (!waves) { beeper = startBeeper(); return; }
+  decodeAlarmSound();
+  if (!soundBuf) { beeper = startBeeper(); return; }
 
   const src = audio.createBufferSource();
-  src.buffer = waves;
+  src.buffer = soundBuf;
   src.loop = true;
   const g = audio.createGain();
   const now = audio.currentTime;
@@ -536,8 +539,9 @@ async function runSelfTest() {
   sirenOn(true);                         // в проверке — сразу в полный голос
   await new Promise((r) => setTimeout(r, 3500));
   sirenOff();
-  rows.push(confirm('Слышал шум моря?')
-    ? ['✓', (waves ? 'Шум моря слышен' : 'Звук слышен (моря нет — играет запасной вой)')
+  rows.push(confirm('Слышал птицу?')
+    ? ['✓', (soundBuf ? 'Птица слышна'
+                      : 'Звук слышен (файл не загрузился — играет запасной вой)')
              + ' — разбудит']
     : ['✗', 'Звука не было: переключатель звонка НЕ на беззвучном, громкость на максимум']);
 
