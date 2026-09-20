@@ -140,6 +140,7 @@ def watch(args) -> int:
     last_alert = -1e9
     frames = alerts = 0
     sizes: list = []
+    peak = 0.0
 
     mode = "КАЛИБРОВКА (тревог не будет)" if args.calibrate else "ОХРАНА"
     ch = "есть" if alert.configured() else "нет — сигнал только в журнал и папку"
@@ -172,8 +173,10 @@ def watch(args) -> int:
         d = det.feed(frame, now)
         if args.calibrate:
             sizes += [b.length_mm for b in det.last_blobs]
+            if det.best:
+                peak = max(peak, det.best.score)
             if frames % int(args.fps * 20) == 0:
-                _calib_line(frames, sizes, det)
+                _calib_line(frames, sizes, det, peak=peak)
             continue
 
         if not d or now - last_alert < args.cooldown:
@@ -207,7 +210,7 @@ def watch(args) -> int:
     hours = (time.time() - started) / 3600
     print(f"\nОтработано {hours:.1f} ч, кадров {frames}, сработок {alerts}.")
     if args.calibrate:
-        _calib_line(frames, sizes, det, final=True)
+        _calib_line(frames, sizes, det, final=True, peak=peak)
     elif alerts:
         print(f"Улики в {args.out}. Разбор: python3 watcher.py --report")
     else:
@@ -216,8 +219,10 @@ def watch(args) -> int:
     return 0
 
 
-def _calib_line(frames: int, sizes: list, det: BugDetector, final: bool = False) -> None:
-    """В калибровке важно одно: попадают ли пятна в диапазон 1.5–9 мм."""
+def _calib_line(frames: int, sizes: list, det: BugDetector,
+                final: bool = False, peak: float = 0.0) -> None:
+    """В калибровке важны две вещи: попадают ли пятна в диапазон 1.5–9 мм
+    и до какой вероятности они дотягивают — то же число, что в браузере."""
     tag = "ИТОГ" if final else f"кадр {frames}"
     if not sizes:
         print(f"  [{tag}] пятен подходящего размера не видно. "
@@ -227,7 +232,9 @@ def _calib_line(frames: int, sizes: list, det: BugDetector, final: bool = False)
     arr = np.array(sizes)
     print(f"  [{tag}] пятен {len(arr)}, длина тела: "
           f"мин {arr.min():.1f} / медиана {np.median(arr):.1f} / макс {arr.max():.1f} мм; "
-          f"шум кадра {det.last_change_frac:.3%}")
+          f"лучшая вероятность {peak:.0%}; шум кадра {det.last_change_frac:.3%}")
+    if peak and det.last_reason:
+        print(f"         разбор последнего кандидата: {det.last_reason}")
 
 
 def main() -> int:

@@ -5,6 +5,17 @@
  * клоп ползёт 1–4 см/с, крошка лежит. Всё считаем в миллиметрах, поэтому
  * настройка одна — сколько миллиметров простыни влезает в кадр по ширине.
  *
+ * Каждому пятну в каждом кадре выставляется вероятность 0–100 %:
+ *
+ *     вероятность = внешность × движение
+ *     внешность = размер тела и форма (овал, а не нитка)
+ *     движение  = живучесть × (путь + скорость)
+ *
+ * Произведение выбрано не случайно: неподвижная крошка правильного размера
+ * получает честный ноль, а не «половину за внешность». Тревога поднимается,
+ * когда вероятность дотянула до порога (fireScore) — его и крутит ползунок
+ * чувствительности.
+ *
  * Работает на сыром массиве яркости, без зависимостей: на iPhone 6s должно
  * тянуть ~8 кадров в секунду при рабочем разрешении 640×360.
  */
@@ -13,6 +24,7 @@ export const DEFAULTS = {
   fovWidthMm: 90,         // ширина кадра на простыне, мм
   bugLenMin: 1.5,         // личинка
   bugLenMax: 9.0,         // взрослый клоп
+  bugLenBest: [3.0, 6.0], // тело обычного взрослого — тут размер даёт полный балл
   minShortRatio: 0.25,    // тело овальное: отсекает волосы и складки
   minFill: 0.30,          // заполненность рамки: отсекает нитки и царапины
   darkThreshold: 18,      // насколько пятно темнее фона (0..255)
@@ -21,12 +33,14 @@ export const DEFAULTS = {
   warmupFrames: 20,       // кадры на построение фона
   maxChangeFrac: 0.02,    // >2% кадра изменилось — это ты повернулся
   settleFrames: 15,       // столько кадров после шевеления себе не верим
-  minHits: 4,             // пятно должно прожить столько кадров
-  minTravelMm: 2.0,       // и уползти на столько от точки старта
+  minHits: 4,             // столько кадров пятно должно прожить на полный балл
+  minTravelMm: 2.0,       // столько проползти на полный балл
   speedMinMmS: 0.2,       // медленнее — это не ползание, а дрейф фона
-  speedMaxMmS: 130.0,     // ползёт 1–4 см/с, вспугнутый — до 12; выше блик или помеха
+  speedBestMmS: [3, 45],  // обычный шаг клопа — тут скорость даёт полный балл
+  speedMaxMmS: 130.0,     // быстрее — блик, мошка или рука проверяющего
   matchRadiusMm: 18.0,    // на столько пятно может сместиться за кадр
   missLimit: 5,           // столько кадров без пятна — трек закрыт
+  fireScore: 0.70,        // с какой вероятности будить
 };
 
 export function toGray(rgba, out) {
@@ -34,6 +48,15 @@ export function toGray(rgba, out) {
     out[p] = (rgba[i] * 77 + rgba[i + 1] * 150 + rgba[i + 2] * 29) >> 8;
   }
   return out;
+}
+
+const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** Трапеция: 0 вне [lo,hi], 1 внутри [bestLo,bestHi], плавный переход между. */
+function band(v, lo, bestLo, bestHi, hi) {
+  if (v <= lo || v >= hi) return 0;
+  if (v >= bestLo && v <= bestHi) return 1;
+  return v < bestLo ? (v - lo) / (bestLo - lo) : (hi - v) / (hi - bestHi);
 }
 
 export class BugDetector {
@@ -53,7 +76,8 @@ export class BugDetector {
     this.settleLeft = 0;
     this.changeFrac = 0;
     this.blobs = [];
-    this.lastReason = '';   // почему самый живучий кандидат не стал тревогой
+    this.candidates = [];   // что сейчас в кадре, с вероятностью и разбором
+    this.best = null;       // самый вероятный кандидат этого кадра
   }
 
   setFov(mm) {
@@ -64,6 +88,8 @@ export class BugDetector {
   reset() {
     this.bg = null;
     this.tracks = [];
+    this.candidates = [];
+    this.best = null;
     this.frameIdx = 0;
     this.settleLeft = 0;
   }
@@ -98,6 +124,8 @@ export class BugDetector {
       this.settleLeft = cfg.settleFrames;
       this.tracks = [];
       this.blobs = [];
+      this.candidates = [];
+      this.best = null;
     }
 
     const alpha = this.settleLeft > 0 ? cfg.settleAlpha : cfg.bgAlpha;
@@ -181,11 +209,13 @@ export class BugDetector {
       const bw = maxX - minX + 1, bh = maxY - minY + 1;
       const longMm = Math.max(bw, bh) / pxPerMm;
       const shortMm = Math.min(bw, bh) / pxPerMm;
+      const ratio = shortMm / longMm;
+      const fill = area / (bw * bh);
       if (longMm < cfg.bugLenMin || longMm > cfg.bugLenMax) continue;   // крошка или рука
-      if (shortMm < cfg.minShortRatio * longMm) continue;               // волос или складка
-      if (area < cfg.minFill * bw * bh) continue;                       // нитка или царапина
+      if (ratio < cfg.minShortRatio) continue;                          // волос или складка
+      if (fill < cfg.minFill) continue;                                 // нитка или царапина
       out.push({ x: minX + bw / 2, y: minY + bh / 2, lengthMm: longMm,
-                 box: [minX, minY, bw, bh] });
+                 ratio, fill, box: [minX, minY, bw, bh] });
     }
     return out;
   }
@@ -195,6 +225,10 @@ export class BugDetector {
   _track(blobs, ts) {
     const radius = this.cfg.matchRadiusMm * this.pxPerMm;
     const free = blobs.slice();
+    // Где пятна были в прошлом кадре — чтобы отличить «новое пятно» от «то же
+    // самое, но прыгнувшее слишком далеко». Иначе быстрый объект каждый кадр
+    // заводит новый трек, и разбор врёт про «стоит на месте».
+    const prev = this.tracks.map((t) => ({ x: t.x, y: t.y }));
     for (const tr of this.tracks) {
       let best = null, bestD = radius;
       for (const b of free) {
@@ -206,51 +240,94 @@ export class BugDetector {
       tr.pathMm += bestD / this.pxPerMm;
       tr.x = best.x; tr.y = best.y;
       tr.box = best.box; tr.lengthMm = best.lengthMm;
+      tr.ratio = best.ratio; tr.fill = best.fill;
       tr.lastTs = ts; tr.hits++; tr.misses = 0;
     }
     this.tracks = this.tracks.filter((t) => t.misses <= this.cfg.missLimit);
     for (const b of free) {
+      let jumpMm = 0;
+      let near = Infinity;
+      for (const q of prev) near = Math.min(near, Math.hypot(b.x - q.x, b.y - q.y));
+      if (near > radius && near < radius * 8) jumpMm = near / this.pxPerMm;
       this.tracks.push({ x: b.x, y: b.y, startX: b.x, startY: b.y, firstTs: ts,
-                         lastTs: ts, lengthMm: b.lengthMm, box: b.box,
-                         hits: 1, misses: 0, pathMm: 0, fired: false });
+                         lastTs: ts, lengthMm: b.lengthMm, ratio: b.ratio, fill: b.fill,
+                         box: b.box, hits: 1, misses: 0, pathMm: 0, fired: false, jumpMm });
     }
-    return this._verdict();
+    return this._evaluate();
   }
 
-  /** Трек — клоп, только если прожил достаточно кадров и реально сместился.
-   *  Заодно запоминаем, на чём споткнулся самый живучий кандидат: без этого
-   *  «вижу пятно, но молчу» не отладить ни на столе, ни ночью. */
-  _verdict() {
+  /** Вероятность для одного трека плюс разбор, чего ему не хватает. */
+  _rate(tr) {
     const cfg = this.cfg;
-    let best = null, bestWhy = '';
-    for (const tr of this.tracks) {
-      if (tr.fired) continue;
-      const netMm = Math.hypot(tr.x - tr.startX, tr.y - tr.startY) / this.pxPerMm;
-      const dt = Math.max(tr.lastTs - tr.firstTs, 1e-6);
-      const speed = tr.pathMm / dt;
-      let why = '';
-      if (tr.hits < cfg.minHits) why = `видно кадров: ${tr.hits} из ${cfg.minHits}`;
-      else if (netMm < cfg.minTravelMm)
-        why = `проползло ${netMm.toFixed(1)} из ${cfg.minTravelMm} мм`;
-      else if (speed > cfg.speedMaxMmS)
-        why = `скорость ${speed.toFixed(0)} мм/с — быстрее потолка ${cfg.speedMaxMmS}`;
-      else if (speed < cfg.speedMinMmS)
-        why = `скорость ${speed.toFixed(2)} мм/с — медленнее порога ${cfg.speedMinMmS}`;
-      if (why) {
-        if (!best || tr.hits > best.hits) { best = tr; bestWhy = why; }
-        continue;
-      }
-      this.lastReason = '';
-      tr.fired = true;
-      const byLife = Math.min(tr.hits / Math.max(cfg.minHits * 3, 1), 1);
-      const byTravel = Math.min(netMm / Math.max(cfg.minTravelMm * 4, 0.5), 1);
-      return {
-        ts: tr.lastTs, box: tr.box, lengthMm: tr.lengthMm, travelMm: netMm,
-        speedMmS: speed, frames: tr.hits,
-        score: Math.round((0.35 + 0.65 * (0.5 * byLife + 0.5 * byTravel)) * 100) / 100,
-      };
+    const netMm = Math.hypot(tr.x - tr.startX, tr.y - tr.startY) / this.pxPerMm;
+    const dt = Math.max(tr.lastTs - tr.firstTs, 1e-6);
+    const speed = tr.hits > 1 ? tr.pathMm / dt : 0;
+
+    const fSize = band(tr.lengthMm, cfg.bugLenMin, cfg.bugLenBest[0],
+                       cfg.bugLenBest[1], cfg.bugLenMax);
+    const fRatio = clamp01((tr.ratio - cfg.minShortRatio) / (0.55 - cfg.minShortRatio));
+    const fFill = clamp01((tr.fill - cfg.minFill) / (0.70 - cfg.minFill));
+    const fShape = 0.5 * fRatio + 0.5 * fFill;
+    const fLife = Math.min(tr.hits / cfg.minHits, 1);
+    const fTravel = Math.min(netMm / cfg.minTravelMm, 1);
+    const fSpeed = band(speed, cfg.speedMinMmS, cfg.speedBestMmS[0],
+                        cfg.speedBestMmS[1], cfg.speedMaxMmS);
+
+    const look = 0.6 * fSize + 0.4 * fShape;
+    const move = fLife * (0.5 * fTravel + 0.5 * fSpeed);
+    const score = look * move;
+
+    // Разбор пишем от самого слабого: именно он и держит вероятность внизу.
+    const speedWord = speed >= cfg.speedMaxMmS
+      ? `скорость ${speed.toFixed(0)} мм/с — выше потолка ${cfg.speedMaxMmS}`
+      : speed <= cfg.speedMinMmS
+        ? 'стоит на месте'
+        : `скорость ${speed.toFixed(1)} мм/с`;
+    // Пятно, прыгнувшее дальше радиуса сшивки, выглядит как новорождённый трек.
+    // Говорим правду: дело не в том, что оно стоит, а в том, что оно летит.
+    if (tr.hits <= 2 && tr.jumpMm > 0) {
+      return { score, why: `прыгает ${tr.jumpMm.toFixed(0)} мм за кадр — ` +
+                           `быстрее, чем детектор успевает сшить (предел ` +
+                           `${cfg.matchRadiusMm} мм). Веди медленнее`,
+               netMm, speed, fLife, fTravel, fSpeed, fSize, fShape };
     }
-    this.lastReason = bestWhy;
-    return null;
+    const parts = [
+      [`живёт ${tr.hits} из ${cfg.minHits} кадров`, fLife],
+      [`проползло ${netMm.toFixed(1)} из ${cfg.minTravelMm} мм`, fTravel],
+      [speedWord, fSpeed],
+      [`тело ${tr.lengthMm.toFixed(1)} мм`, fSize],
+      ['форма пятна', fShape],
+    ].filter(([, f]) => f < 0.9).sort((a, b) => a[1] - b[1]);
+
+    const why = parts.slice(0, 2)
+      .map(([t, f]) => `${t} (${Math.round(f * 100)}%)`).join(', ');
+    return { score, why, netMm, speed, fLife, fTravel, fSpeed, fSize, fShape };
+  }
+
+  /** Считаем всех, показываем всех, будим — того, кто дотянул до порога. */
+  _evaluate() {
+    const cfg = this.cfg;
+    this.candidates = [];
+    let hit = null;
+    for (const tr of this.tracks) {
+      const r = this._rate(tr);
+      tr.score = r.score;
+      this.candidates.push({
+        box: tr.box, score: r.score, why: r.why, lengthMm: tr.lengthMm,
+        travelMm: r.netMm, speedMmS: r.speed, frames: tr.hits, fired: tr.fired,
+        jumpMm: tr.jumpMm || 0,
+      });
+      if (!tr.fired && r.score >= cfg.fireScore && !hit) {
+        tr.fired = true;
+        hit = { ts: tr.lastTs, box: tr.box, lengthMm: tr.lengthMm, travelMm: r.netMm,
+                speedMmS: r.speed, frames: tr.hits, score: Math.round(r.score * 100) / 100,
+                why: r.why };
+      }
+    }
+    // При равной вероятности вперёд пускаем того, кто прыгнул: его разбор
+    // объясняет причину, а «стоит на месте» у соседнего нуля — нет.
+    this.candidates.sort((a, b) => (b.score - a.score) || (b.jumpMm - a.jumpMm));
+    this.best = this.candidates[0] || null;
+    return hit;
   }
 }

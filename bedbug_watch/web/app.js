@@ -41,24 +41,39 @@ function loadSettings() {
   $('testmode').checked = !!saved.testmode;
   $('fov').value = saved.fov || params.get('fov') || 90;
   $('sens').value = saved.sens || 18;
+  $('fire').value = saved.fire || 70;
   $('tg-token').value = saved.token || '';
   $('tg-chat').value = saved.chat || '';
   updateSensLabel();
+  updateFireLabel();
 }
 
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({
     post: $('post-input').value.trim(),
     testmode: $('testmode').checked,
-    fov: +$('fov').value, sens: +$('sens').value,
+    fov: +$('fov').value, sens: +$('sens').value, fire: +$('fire').value,
     token: $('tg-token').value.trim(), chat: $('tg-chat').value.trim(),
   }));
 }
 
 function updateSensLabel() {
   const v = +$('sens').value;
-  $('sens-label').textContent = v <= 14 ? 'высокая — ловит слабый контраст'
-    : v >= 24 ? 'низкая — только явные пятна' : 'обычная';
+  $('sens-label').textContent = v <= 14 ? 'ловит еле заметные'
+    : v >= 24 ? 'только явно тёмные' : 'обычный';
+}
+
+/* Порог решает, с какой вероятности будить. Это и есть та самая
+ * чувствительность: контрастом выше решается лишь, что вообще попадёт
+ * в кандидаты, а разбудит тебя именно этот ползунок. */
+function updateFireLabel() {
+  const v = +$('fire').value;
+  $('fire-label').textContent = v + '%';
+  $('fire-hint').textContent = v <= 45
+    ? 'Очень чутко: разбудит и сомнительное пятно. Для проверки днём, не для ночи.'
+    : v >= 85 ? 'Строго: разбудит только безупречного клопа, слабые проходы пропустит.'
+    : 'Разумно: клоп в норме набирает 90–100%, лежачая крошка — единицы.';
+  if (detector) detector.cfg.fireScore = v / 100;   // крутится прямо во время дежурства
 }
 
 // ── звук ─────────────────────────────────────────────────────────────────────
@@ -150,6 +165,7 @@ async function start() {
   detector = new BugDetector(PROC_W, PROC_H, {
     fovWidthMm: +$('fov').value,
     darkThreshold: +$('sens').value,
+    fireScore: +$('fire').value / 100,
   });
 
   frames = 0; alerts = 0; lastAlert = -1e9; muffled = 0; running = true;
@@ -174,9 +190,9 @@ function tick(now) {
 
   const hit = detector.feed(gray, now / 1000);
   frames++;
-  paintBoxes(hit);
-  paintStats();
-  paintWhy(now);
+  // Рамки рисуем до тревоги — чтобы они попали в миниатюру улики, а счётчики
+  // после неё, иначе на экране они отстают от происходящего на кадр.
+  paintBoxes();
 
   if (hit && now - lastAlert > cooldownMs) {
     lastAlert = now;
@@ -185,17 +201,35 @@ function tick(now) {
   } else if (hit) {
     muffled = now;          // поймал, но ещё идёт пауза — об этом надо сказать вслух
   }
+
+  paintStats();
+  paintWhy(now);
 }
 
-function paintBoxes(hit) {
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(255,90,90,.55)';
-  for (const b of detector.blobs) ctx.strokeRect(b.box[0] - 4, b.box[1] - 4,
-                                                 b.box[2] + 8, b.box[3] + 8);
-  if (hit) {
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#ff2b2b';
-    ctx.strokeRect(hit.box[0] - 8, hit.box[1] - 8, hit.box[2] + 16, hit.box[3] + 16);
+/* Рядом с каждым пятном пишем его вероятность. Без цифры рамка ничего не
+ * объясняет: непонятно, это «почти клоп» или «мимо на порядок». */
+function paintBoxes() {
+  const fire = detector.cfg.fireScore;
+  ctx.font = '600 13px -apple-system, system-ui, sans-serif';
+  ctx.textBaseline = 'bottom';
+  for (const c of detector.candidates) {
+    const [x, y, w, h] = c.box;
+    const hot = c.score >= fire;
+    ctx.lineWidth = hot ? 3 : 2;
+    ctx.strokeStyle = hot ? '#ff2b2b'
+                          : `rgba(255,120,120,${(0.3 + 0.6 * c.score).toFixed(2)})`;
+    const pad = hot ? 8 : 4;
+    ctx.strokeRect(x - pad, y - pad, w + pad * 2, h + pad * 2);
+
+    const text = Math.round(c.score * 100) + '%';
+    const tw = ctx.measureText(text).width;
+    let tx = x - pad, ty = y - pad - 3;
+    if (ty < 16) ty = y + h + pad + 16;               // у верхнего края — подпись снизу
+    if (tx + tw + 8 > PROC_W) tx = PROC_W - tw - 8;
+    ctx.fillStyle = hot ? '#ff2b2b' : 'rgba(0,0,0,.65)';
+    ctx.fillRect(tx - 3, ty - 13, tw + 6, 15);
+    ctx.fillStyle = hot ? '#ffffff' : `rgba(255,160,160,${(0.5 + 0.5 * c.score).toFixed(2)})`;
+    ctx.fillText(text, tx, ty);
   }
 }
 
@@ -203,19 +237,24 @@ function paintBoxes(hit) {
  * причина не написана на экране, отладка превращается в гадание. */
 function paintWhy(now) {
   const left = Math.ceil((cooldownMs - (now - lastAlert)) / 1000);
+  const best = detector.best;
   if (muffled && now - muffled < 3000 && left > 0) {
     $('why').textContent = `Поймал, но пауза после прошлой тревоги — ещё ${left} с`;
-  } else if (detector.lastReason) {
-    $('why').textContent = `Вижу пятно, но ${detector.lastReason}`;
-  } else {
-    $('why').textContent = '';
+    return;
   }
+  if (!best) { $('why').textContent = ''; return; }
+  const pct = Math.round(best.score * 100);
+  $('why').textContent = best.score >= detector.cfg.fireScore
+    ? `${pct}% — этого хватает, поднимаю тревогу`
+    : `${pct}% — не хватает: ${best.why || 'чуть-чуть до порога'}`;
 }
 
 function paintStats() {
   $('s-frames').textContent = frames;
   $('s-alerts').textContent = alerts;
-  $('s-blobs').textContent = detector.blobs.length;
+  $('s-blobs').textContent = detector.candidates.length;
+  $('s-best').textContent = detector.best
+    ? Math.round(detector.best.score * 100) + '%' : '—';
   $('s-noise').textContent = (detector.changeFrac * 100).toFixed(2) + '%';
   const warming = detector.frameIdx <= detector.cfg.warmupFrames;
   const shaky = detector.changeFrac > detector.cfg.maxChangeFrac;
@@ -314,6 +353,7 @@ function stop() {
 $('start').onclick = start;
 $('stop').onclick = stop;
 $('sens').oninput = updateSensLabel;
+$('fire').oninput = updateFireLabel;
 $('alarm-off').onclick = () => { sirenOff(); $('alarm').classList.add('hidden'); };
 $('show-journal').onclick = showJournal;
 $('journal-back').onclick = () => {
