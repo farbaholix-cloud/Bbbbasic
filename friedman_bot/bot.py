@@ -481,6 +481,8 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
    Поля: title (коротко, попадёт НА полосу — обычно одно слово заглавными), from и to (YYYY-MM-DD; один день — to равен from), bg (фон полосы), fg (цвет надписи), font: impact | sans, pattern: none | crosses | snow | stars, pattern_color, anim: none | pulse | fall | twinkle.
    Переводи образ в эти поля сам. «Снежинки, падающие сквозь ячейку» → pattern snow, anim fall, bg тёмно-синий, pattern_color белёсый. «Амстердам» → три красных косых креста (герб города): pattern crosses, anim pulse, bg чёрный, fg белый, font impact. «Праздник, звёзды» → pattern stars, anim twinkle.
    Дат не знаешь — НЕ выдумывай: посмотри в контексте (календарь и парковка даны выше) и, если там нет, спроси одним вопросом.
+   ПЕРЕСТАВИТЬ. «Амстердам не 14-го, а 16–18», «перенеси отпуск» → снова decor с ТЕМ ЖЕ title и новыми датами. Полоса с такой надписью уже есть — она переедет, вторая не заведётся.
+   УБРАТЬ — action decor_delete: {"type":"decor_delete","id":3} либо {"type":"decor_delete","title":"AMSTERDAM"}. Список того, что сейчас стоит, дан в контексте блоком «ОФОРМЛЕНИЕ КАЛЕНДАРЯ» вместе с id — бери id оттуда. Подходит несколько полос — не удаляй наугад: вернётся список кандидатов, переспроси.
 4. КОНТАКТЫ: важная информация о человеке («Роберт должен 500», «Стефан — контакт по фасадам») → action contact. Спросят про человека — собери всё из контекста.
 5. ПИСЬМА НА НЕМЕЦКОМ: попросят письмо/ответ для немецкого заказчика, фирмы, ведомства — напиши готовый текст письма на немецком прямо в reply (профессиональный тон), плюс 1 строка по-русски о чём оно.
 6. СМЕТЫ: «стена 6 на 3, сколько краски/цена» → посчитай: грунт ~1л/5м², баллон 400мл ~1-1.5м²/слой, обычно 2 слоя фон + детали. Работа стрит-арт в Германии ориентир 50-150€/м² по сложности.
@@ -503,6 +505,7 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
  {"type": "plan", "items": [{"text": "матч 1", "date": "2026-09-26", "time": "14:00"}, {"text": "матч 2", "date": "2026-10-03", "time": "13:30"}]},
  {"type": "web", "query": "FSV Frankfurt ближайшие домашние матчи расписание"},
  {"type": "decor", "title": "AMSTERDAM", "from": "2026-10-09", "to": "2026-10-11", "bg": "#000000", "fg": "#ffffff", "font": "impact", "pattern": "crosses", "pattern_color": "#e2001a", "anim": "pulse"},
+ {"type": "decor_delete", "title": "AMSTERDAM"},
  {"type": "decor", "title": "НОВЫЙ ГОД", "from": "2027-01-01", "to": "2027-01-01", "bg": "#0d1b3e", "fg": "#ffffff", "font": "sans", "pattern": "snow", "pattern_color": "#dff1ff", "anim": "fall"},
  {"type": "finance", "amount": -40, "comment": "баллоны", "account": "cash"},
  {"type": "remind", "when": "2026-06-13 09:00", "text": "страховка"},
@@ -561,6 +564,11 @@ def get_context() -> str:
         reminders = conn.execute(
             "SELECT due_at, text FROM reminders WHERE sent=0 ORDER BY due_at LIMIT 10"
         ).fetchall()
+        try:
+            decors = conn.execute(
+                "SELECT * FROM cal_decor ORDER BY date_from").fetchall()
+        except sqlite3.OperationalError:
+            decors = []
 
     with db() as conn:
         planned = {r["chaos_id"]: (r["date"], r["time"]) for r in conn.execute(
@@ -613,6 +621,13 @@ def get_context() -> str:
         lines.append("\nНАПОМИНАНИЯ:")
         for r in reminders:
             lines.append(f"  {r['due_at']} — {r['text']}")
+
+    if decors:
+        lines.append("\nОФОРМЛЕНИЕ КАЛЕНДАРЯ (полосы в обзоре «Месяц»):")
+        for d in decors:
+            rng = d["date_from"] + ("…" + d["date_to"] if d["date_to"] != d["date_from"] else "")
+            lines.append(f"  [{d['id']}] {d['title'] or 'без надписи'} — {rng}"
+                         f" · узор {d['pattern']}")
 
     summary = _settings_get("secretary_summary") or ""
     upto = int(_settings_get("secretary_summary_upto_id") or 0)
@@ -2301,6 +2316,52 @@ DECOR_PATTERNS = ("none", "crosses", "snow", "stars")
 DECOR_ANIMS = ("none", "pulse", "fall", "twinkle")
 
 
+def _decor_find(conn, a):
+    """Найти оформление по id, по надписи или по дате. Возвращает (строки, беда).
+
+    Та же строгость, что при переименовании: если под описание подходит
+    несколько полос — не трогаем ни одну, а называем кандидатов. Убрать не ту
+    метку молча хуже, чем попросить уточнить.
+    """
+    if a.get("id"):
+        r = conn.execute("SELECT * FROM cal_decor WHERE id=?", (a["id"],)).fetchone()
+        return ([r], None) if r else ([], f"нет оформления с id {a['id']}")
+    rows = conn.execute("SELECT * FROM cal_decor").fetchall()
+    q = " ".join(str(a.get("title") or a.get("what") or "").lower().split())
+    day = (a.get("from") or a.get("date") or "").strip()[:10]
+    cand = []
+    for r in rows:
+        t = " ".join(str(r["title"] or "").lower().split())
+        if q and (t == q or (q in t and t)):
+            cand.append(r)
+        elif day and r["date_from"] <= day <= r["date_to"]:
+            cand.append(r)
+    exact = [r for r in cand if " ".join(str(r["title"] or "").lower().split()) == q]
+    pick = exact or cand
+    if len(pick) == 1:
+        return (pick, None)
+    if len(pick) > 1:
+        return ([], "подходит несколько: " + "; ".join(
+            f"[{r['id']}] {r['title'] or '—'} {r['date_from']}" for r in pick[:4]))
+    return ([], f"не нашёл «{a.get('title') or day or a.get('id')}»")
+
+
+def _decor_delete(a):
+    with db() as conn:
+        rows, err = _decor_find(conn, a)
+        if err:
+            return [("decor_fail", 0, err, "", "")]
+        r = rows[0]
+        conn.execute("DELETE FROM cal_decor WHERE id=?", (r["id"],))
+        # Автопометку Амстердама больше не восстанавливаем: владелец её снял
+        # осознанно, и возвращать её при следующем запуске было бы навязчиво.
+        if r["tag"]:
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES "
+                         "(?, 'removed')", (r["tag"] + "_decor_done",))
+    return [("decor_del", r["id"], f"{r['title'] or 'оформление'} · {r['date_from']}",
+             "", "")]
+
+
 def _decor_add(a):
     """Пометить дни в обзоре месяца: полоса с надписью и узором.
 
@@ -2328,6 +2389,21 @@ def _decor_add(a):
                            "AND COALESCE(title,'')=?", (d1, d2, title)).fetchone()
         if dup:
             return [("decor_dup", dup["id"], f"{title} · {d1}…{d2}", "", "")]
+        # Полоса с той же надписью уже есть на других днях — значит просьба
+        # «обозначь Амстердам 16–18» означает ПЕРЕСТАВИТЬ, а не завести вторую.
+        same = conn.execute("SELECT id, date_from, date_to FROM cal_decor "
+                            "WHERE COALESCE(title,'')=? AND title<>''",
+                            (title,)).fetchone() if title else None
+        if same:
+            conn.execute(
+                """UPDATE cal_decor SET date_from=?, date_to=?, bg=?, fg=?, font=?,
+                       pattern=?, pattern_color=?, anim=? WHERE id=?""",
+                (d1, d2, a.get("bg") or "#000000", a.get("fg") or "#ffffff",
+                 a.get("font") if a.get("font") in ("impact", "sans") else "impact",
+                 pat, a.get("pattern_color") or "#e2001a", anim, same["id"]))
+            return [("decor_move", same["id"],
+                     f"{title}: {_ru_date(same['date_from'])} → {_ru_date(d1)}" +
+                     (f" — {_ru_date(d2)}" if d2 != d1 else ""), "", "")]
         cur = conn.execute(
             """INSERT INTO cal_decor (title, date_from, date_to, bg, fg, font,
                                       pattern, pattern_color, anim, tag)
@@ -2550,6 +2626,8 @@ def apply_actions(actions: list) -> list:
                     results.extend(_plan_event(it))
             elif a.get("type") == "decor":
                 results.extend(_decor_add(a))
+            elif a.get("type") == "decor_delete":
+                results.extend(_decor_delete(a))
             elif a.get("type") == "remind":
                 with db() as conn:
                     conn.execute("INSERT INTO reminders (due_at, text) VALUES (?,?)",
@@ -2850,6 +2928,10 @@ async def ai_converse(update: Update, user_text: str, source: str = "text"):
             extras.append(f"⚠️ в календарь не положил: {text}")
         elif kind == "decor":
             extras.append(f"🎨 оформил в календаре: _{text}_")
+        elif kind == "decor_move":
+            extras.append(f"🎨 переставил: _{text}_")
+        elif kind == "decor_del":
+            extras.append(f"🧹 убрал оформление: _{text}_")
         elif kind == "decor_dup":
             extras.append(f"🎨 уже оформлено: _{text}_")
         elif kind == "decor_fail":
