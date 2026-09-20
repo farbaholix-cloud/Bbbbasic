@@ -24,8 +24,8 @@ export const DEFAULTS = {
   minHits: 4,             // пятно должно прожить столько кадров
   minTravelMm: 2.0,       // и уползти на столько от точки старта
   speedMinMmS: 0.2,       // медленнее — это не ползание, а дрейф фона
-  speedMaxMmS: 90.0,      // быстрее — это блик или помеха
-  matchRadiusMm: 12.0,    // на столько пятно может сместиться за кадр
+  speedMaxMmS: 130.0,     // ползёт 1–4 см/с, вспугнутый — до 12; выше блик или помеха
+  matchRadiusMm: 18.0,    // на столько пятно может сместиться за кадр
   missLimit: 5,           // столько кадров без пятна — трек закрыт
 };
 
@@ -53,6 +53,7 @@ export class BugDetector {
     this.settleLeft = 0;
     this.changeFrac = 0;
     this.blobs = [];
+    this.lastReason = '';   // почему самый живучий кандидат не стал тревогой
   }
 
   setFov(mm) {
@@ -216,16 +217,30 @@ export class BugDetector {
     return this._verdict();
   }
 
-  /** Трек — клоп, только если прожил достаточно кадров и реально сместился. */
+  /** Трек — клоп, только если прожил достаточно кадров и реально сместился.
+   *  Заодно запоминаем, на чём споткнулся самый живучий кандидат: без этого
+   *  «вижу пятно, но молчу» не отладить ни на столе, ни ночью. */
   _verdict() {
     const cfg = this.cfg;
+    let best = null, bestWhy = '';
     for (const tr of this.tracks) {
-      if (tr.fired || tr.hits < cfg.minHits) continue;
+      if (tr.fired) continue;
       const netMm = Math.hypot(tr.x - tr.startX, tr.y - tr.startY) / this.pxPerMm;
-      if (netMm < cfg.minTravelMm) continue;              // дрожит на месте — не ползёт
       const dt = Math.max(tr.lastTs - tr.firstTs, 1e-6);
       const speed = tr.pathMm / dt;
-      if (speed < cfg.speedMinMmS || speed > cfg.speedMaxMmS) continue;
+      let why = '';
+      if (tr.hits < cfg.minHits) why = `видно кадров: ${tr.hits} из ${cfg.minHits}`;
+      else if (netMm < cfg.minTravelMm)
+        why = `проползло ${netMm.toFixed(1)} из ${cfg.minTravelMm} мм`;
+      else if (speed > cfg.speedMaxMmS)
+        why = `скорость ${speed.toFixed(0)} мм/с — быстрее потолка ${cfg.speedMaxMmS}`;
+      else if (speed < cfg.speedMinMmS)
+        why = `скорость ${speed.toFixed(2)} мм/с — медленнее порога ${cfg.speedMinMmS}`;
+      if (why) {
+        if (!best || tr.hits > best.hits) { best = tr; bestWhy = why; }
+        continue;
+      }
+      this.lastReason = '';
       tr.fired = true;
       const byLife = Math.min(tr.hits / Math.max(cfg.minHits * 3, 1), 1);
       const byTravel = Math.min(netMm / Math.max(cfg.minTravelMm * 4, 0.5), 1);
@@ -235,6 +250,7 @@ export class BugDetector {
         score: Math.round((0.35 + 0.65 * (0.5 * byLife + 0.5 * byTravel)) * 100) / 100,
       };
     }
+    this.lastReason = bestWhy;
     return null;
   }
 }
