@@ -1,0 +1,62 @@
+/* Ночной интерфейс: почти чёрный фон и тусклый красный текст.
+   Красный выбран не для красоты: клопы уходят от белого света, а экран
+   всю ночь светит в метре от простыни. */
+:root {
+  --bg: #07060a;
+  --ink: #ff5c5c;
+  --dim: #8a4a4a;
+  --line: #2a1414;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 -apple-system, system-ui, sans-serif;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  min-height: 100vh;
+}
+h1 { font-size: 20px; margin: 18px 0 4px; letter-spacing: .02em; }
+.sub { color: var(--dim); font-size: 13px; margin: 0 0 18px; }
+.hidden { display: none !important; }
+
+label { display: block; margin: 14px 0 4px; font-size: 13px; color: var(--dim); }
+input, select {
+  width: 100%; padding: 11px 12px; font-size: 16px;
+  background: #120c10; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+input[type=range] { padding: 0; background: none; border: none; }
+
+button {
+  width: 100%; padding: 16px; margin-top: 16px; font-size: 17px; font-weight: 600;
+  background: #1c0d0d; color: var(--ink);
+  border: 1px solid var(--ink); border-radius: 12px;
+}
+button.ghost { border-color: var(--line); color: var(--dim); font-weight: 400; }
+
+.warn {
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; margin: 16px 0; font-size: 13px; color: var(--dim);
+}
+.warn b { color: var(--ink); }
+
+#preview { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
+.stats { display: flex; gap: 18px; font-size: 13px; color: var(--dim); margin: 12px 0 0; }
+.stats b { color: var(--ink); font-weight: 600; }
+
+/* Тревога: экран мигает во весь размер — если звук не пробьётся, разбудит свет */
+#alarm {
+  position: fixed; inset: 0; z-index: 9; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  background: #4a0000; color: #fff; text-align: center; padding: 24px;
+  animation: blink .5s steps(2, end) infinite;
+}
+@keyframes blink { 50% { background: #b00000; } }
+#alarm h2 { font-size: 30px; margin: 0 0 8px; }
+#alarm p { margin: 4px 0; font-size: 15px; }
+#alarm button { max-width: 320px; background: #fff; color: #7a0000; border-color: #fff; }
+
+.event { display: flex; gap: 12px; align-items: center;
+         border-bottom: 1px solid var(--line); padding: 10px 0; }
+.event img { width: 84px; border-radius: 6px; border: 1px solid var(--line); }
+.event .when { font-size: 15px; }
+.event .what { font-size: 12px; color: var(--dim); }

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#07060a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Телефон смотрит на простыню и будит сиреной, если по ней кто-то ползёт">
+<title>Ночной сторож</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛏</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2307060a'/><text y='.9em' font-size='64' x='18'>🛏</text></svg>">
+</head>
+<body>
+
+<!-- ЭКРАН 1: настройка поста -->
+<section id="setup">
+  <h1>Ночной сторож <span id="post-name"></span></h1>
+  <p class="sub">Телефон смотрит на простыню и будит сиреной, если по ней кто-то ползёт.</p>
+
+  <div class="warn" id="checklist">
+    <b>Перед сном проверь:</b><br>
+    1. Боковой переключатель звонка — <b>НЕ на беззвучном</b>, иначе сирены не будет.<br>
+    2. Громкость на максимум.<br>
+    3. Настройки → Экран → Автоблокировка → <b>Никогда</b>.<br>
+    4. Телефон на зарядке.<br>
+    5. Свет в комнате — <b>тусклый красный</b>, не белый.
+  </div>
+
+  <label>Чем светит кадр по ширине, мм (измерь линейкой)</label>
+  <input type="number" id="fov" min="20" max="400" step="5" value="90">
+
+  <label>Чувствительность: <span id="sens-label">обычная</span></label>
+  <input type="range" id="sens" min="10" max="30" step="2" value="18">
+
+  <label>Токен бота для Telegram — не обязательно, остаётся только в этом телефоне</label>
+  <input type="text" id="tg-token" placeholder="123456:AA…" autocomplete="off">
+  <label>chat_id (узнать у @userinfobot)</label>
+  <input type="text" id="tg-chat" placeholder="12345678" autocomplete="off">
+
+  <button id="start">НАЧАТЬ ДЕЖУРСТВО</button>
+  <button id="show-journal" class="ghost">Что было прошлой ночью</button>
+</section>
+
+<!-- ЭКРАН 2: дежурство -->
+<section id="watch" class="hidden">
+  <h1 id="watch-title">Дежурю</h1>
+  <p class="sub" id="watch-sub">Учу фон — не шевели камеру…</p>
+  <canvas id="preview"></canvas>
+  <div class="stats">
+    <span>кадров <b id="s-frames">0</b></span>
+    <span>тревог <b id="s-alerts">0</b></span>
+    <span>шум <b id="s-noise">—</b></span>
+  </div>
+  <div class="stats">
+    <span>пятен в кадре <b id="s-blobs">0</b></span>
+    <span>масштаб <b id="s-scale">—</b></span>
+  </div>
+  <button id="stop" class="ghost">Закончить дежурство</button>
+</section>
+
+<!-- ЭКРАН 3: утренний разбор -->
+<section id="journal" class="hidden">
+  <h1>Журнал</h1>
+  <p class="sub" id="journal-sub"></p>
+  <div id="events"></div>
+  <button id="journal-back" class="ghost">Назад</button>
+  <button id="journal-clear" class="ghost">Очистить журнал</button>
+</section>
+
+<!-- ТРЕВОГА -->
+<section id="alarm" class="hidden">
+  <h2>🛏 ПОЛЗЁТ</h2>
+  <p id="alarm-detail"></p>
+  <p id="alarm-post"></p>
+  <button id="alarm-off">ОТБОЙ — я посмотрел</button>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
