@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.42"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.43"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -200,6 +200,19 @@ def ensure_schema(conn):
     if kc_cols and "comment" not in kc_cols:
         conn.execute("ALTER TABLE kanban_cards ADD COLUMN comment TEXT")
     # goals: стратегические цели на «Мостике» — ручной прогресс + горизонт
+    conn.execute("""CREATE TABLE IF NOT EXISTS cal_decor (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        date_from TEXT NOT NULL,
+        date_to TEXT NOT NULL,
+        bg TEXT DEFAULT '#000000',
+        fg TEXT DEFAULT '#ffffff',
+        font TEXT DEFAULT 'impact',
+        pattern TEXT DEFAULT 'none',
+        pattern_color TEXT DEFAULT '#e2001a',
+        anim TEXT DEFAULT 'none',
+        tag TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS goals (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         text TEXT NOT NULL, area TEXT DEFAULT 'work', period TEXT DEFAULT 'week',
@@ -449,6 +462,13 @@ def get_data():
         except Exception as _e:
             # молчать нельзя: пустой график без причины невозможно чинить
             income_reason = "finance_core недоступен: %s" % str(_e)[:120]
+        # Оформление дней в обзоре месяца (таблица может ещё не существовать —
+        # база старше этой возможности, и свод от этого падать не должен).
+        try:
+            decor = [dict(r) for r in conn.execute(
+                "SELECT * FROM cal_decor ORDER BY date_from").fetchall()]
+        except sqlite3.OperationalError:
+            decor = []
         rev = _read_rev(conn)
     return {"chaos": chaos, "projects": projects, "archived_projects": archived_projects, "cards": cards, "sgoals": sgoals,
             "income_flow": income_flow, "income_covered_to": income_covered_to,
@@ -459,6 +479,7 @@ def get_data():
             "kanban_cols": kanban_cols, "kanban_cards": kanban_cards,
             "kanban_archived": kanban_archived,
             "happiness": happiness, "happiness_history": happiness_history,
+            "decor": decor,
             "wisdom": today_wisdom(), "rev": rev}
 
 
@@ -982,6 +1003,27 @@ def api_event_update(payload):
     return {"ok": True}
 
 
+def api_decor_add(payload):
+    """Оформление дней: полоса с надписью и узором поверх ячеек месяца."""
+    with db() as conn:
+        conn.execute(
+            """INSERT INTO cal_decor (title, date_from, date_to, bg, fg, font,
+                                      pattern, pattern_color, anim, tag)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (payload.get("title", ""), payload["date_from"], payload["date_to"],
+             payload.get("bg", "#000000"), payload.get("fg", "#ffffff"),
+             payload.get("font", "impact"), payload.get("pattern", "none"),
+             payload.get("pattern_color", "#e2001a"), payload.get("anim", "none"),
+             payload.get("tag")))
+    return {"ok": True}
+
+
+def api_decor_delete(payload):
+    with db() as conn:
+        conn.execute("DELETE FROM cal_decor WHERE id=?", (payload["id"],))
+    return {"ok": True}
+
+
 def api_card_comment(payload):
     """Универсальный комментарий для любой карточки: chaos | event | step | kcard."""
     kind = payload.get("kind")
@@ -1297,6 +1339,42 @@ body.dragging-now .ev{cursor:grabbing}
 .mv-dots{display:flex;align-items:center;gap:2px;height:5px}
 .mv-dots i{width:4px;height:4px;border-radius:50%;background:#86b8ff}
 .mv-dots u{font-size:7px;font-weight:900;color:var(--faint);text-decoration:none;margin-left:1px}
+
+/* ── Оформление дней: полоса поверх ячеек обзора месяца ──────────────────────
+   Слой отдельный и абсолютный: сетка дней — обычный grid, и вставить в неё
+   элемент «на три ячейки» значило бы сдвинуть остальные дни. Поэтому полоса
+   лежит НАД сеткой, а её геометрия снимается с самих ячеек — тогда она держится
+   при любой ширине экрана и любом числе строк в месяце. */
+.mv-wrap{position:relative}
+.mv-ovl{position:absolute;inset:0;pointer-events:none;z-index:3}
+.decor{position:absolute;border-radius:10px;overflow:hidden;pointer-events:auto;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.decor .dc-pat{position:absolute;inset:0;pointer-events:none}
+.decor .dc-ttl{position:relative;z-index:2;white-space:nowrap;line-height:1;
+  text-transform:uppercase;font-weight:400;display:inline-block}
+.decor.f-impact .dc-ttl{font-family:Impact,Haettenschweiler,'Arial Narrow Bold',
+  'Franklin Gothic Bold',sans-serif;letter-spacing:1ch;padding:0 1ch;margin-right:-1ch}
+.decor.f-sans .dc-ttl{font-family:-apple-system,'Inter',sans-serif;font-weight:900;
+  letter-spacing:.6ch;padding:0 .8ch;margin-right:-.6ch}
+/* Крест Андрея Первозванного — герб Амстердама. Три креста в ряд под надписью. */
+.dc-cross{position:absolute;top:50%;transform:translateY(-50%) rotate(45deg)}
+.dc-cross:before,.dc-cross:after{content:'';position:absolute;background:currentColor;
+  border-radius:1px}
+.dc-cross:before{left:50%;top:0;bottom:0;width:22%;transform:translateX(-50%)}
+.dc-cross:after{top:50%;left:0;right:0;height:22%;transform:translateY(-50%)}
+/* «плавно появляются — исчезают», полный цикл 3 секунды */
+@keyframes decorPulse{0%,100%{opacity:.12}50%{opacity:1}}
+.a-pulse .dc-cross{animation:decorPulse 3s ease-in-out infinite}
+@keyframes decorFall{0%{transform:translateY(-30%) rotate(0deg);opacity:0}
+  12%{opacity:.95}88%{opacity:.95}100%{transform:translateY(130%) rotate(220deg);opacity:0}}
+.dc-flake{position:absolute;top:0;color:inherit;font-size:9px;line-height:1;
+  animation:decorFall linear infinite}
+@keyframes decorTwinkle{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.dc-star{position:absolute;font-size:9px;line-height:1;animation:decorTwinkle ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){
+  .a-pulse .dc-cross,.dc-flake,.dc-star{animation:none;opacity:.8}
+}
 .yv-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .yv-m{background:rgba(255,255,255,.045);border-radius:12px;padding:7px 6px 8px;cursor:pointer}
 .yv-m:active{transform:scale(.96)}
@@ -2568,7 +2646,130 @@ function _calMonthView(){
       '<span class="mv-n">'+d.getDate()+'</span><div class="mv-dots">'+dots+'</div></div>';
   }
   const dow=['пн','вт','ср','чт','пт','сб','вс'].map(x=>'<div class="mv-dow">'+x+'</div>').join('');
-  return _calNav(MONTHS_FULL[mo]+' '+y)+'<div class="mv-grid">'+dow+cells+'</div>';
+  return _calNav(MONTHS_FULL[mo]+' '+y)+
+    '<div class="mv-wrap"><div class="mv-grid">'+dow+cells+'</div>'+
+    '<div class="mv-ovl" id="mv-ovl"></div></div>';
+}
+
+// ─── Оформление дней в обзоре месяца ─────────────────────────────────────────
+// Полоса на несколько дней (поездка, праздник) рисуется ОТДЕЛЬНЫМ слоем поверх
+// сетки: вставить её внутрь grid'а нельзя — сдвинет дни. Геометрию берём с
+// самих ячеек через getBoundingClientRect, поэтому полоса держится при любой
+// ширине экрана. Если дни разорваны переносом недели, полоса режется на куски
+// по строкам — каждый кусок по своей неделе, без «прыжка» через край.
+function _calDecorPaint(){
+  const ovl=document.getElementById('mv-ovl');
+  if(!ovl)return;
+  ovl.innerHTML='';
+  const list=(DATA&&DATA.decor)||[];
+  if(!list.length)return;
+  const wrap=ovl.parentElement, wr=wrap.getBoundingClientRect();
+  const cells=[...wrap.querySelectorAll('.mv-cell')];
+  if(!cells.length)return;
+  // дата → индекс ячейки: читаем из onclick, который и так знает свой день
+  const idx={};
+  cells.forEach((c,i)=>{
+    const m=/_calGo\(.\w+.,.([\d-]+)./.exec(c.getAttribute('onclick')||'');
+    if(m)idx[m[1]]=i;
+  });
+  list.forEach(d=>{
+    const from=idx[d.date_from], to=idx[d.date_to];
+    if(from===undefined&&to===undefined)return;        // месяц не тот
+    const a=Math.min(from===undefined?to:from, to===undefined?from:to);
+    const b=Math.max(from===undefined?to:from, to===undefined?from:to);
+    for(let row=Math.floor(a/7);row<=Math.floor(b/7);row++){
+      const s=Math.max(a,row*7), e=Math.min(b,row*7+6);
+      const r1=cells[s].getBoundingClientRect(), r2=cells[e].getBoundingClientRect();
+      const el=document.createElement('div');
+      el.className='decor f-'+(d.font==='impact'?'impact':'sans')+
+                   (d.anim==='pulse'?' a-pulse':'');
+      el.style.left=(r1.left-wr.left)+'px';
+      el.style.top=(r1.top-wr.top)+'px';
+      el.style.width=(r2.right-r1.left)+'px';
+      el.style.height=r1.height+'px';
+      el.style.background=d.bg||'#000';
+      el.style.color=d.pattern_color||'#e2001a';
+      el.innerHTML=_decorPattern(d,(r2.right-r1.left),r1.height)+
+        (d.title?'<span class="dc-ttl" style="color:'+(d.fg||'#fff')+'">'+
+          esc(d.title)+'</span>':'');
+      el.onclick=()=>openDecorSheet(d);
+      ovl.appendChild(el);
+      // Кегль подбираем под реальную коробку: надпись должна пройти через все
+      // дни, а не упереться в край. Учитываем и разрядку, и поля по букве.
+      const t=el.querySelector('.dc-ttl');
+      if(t){
+        // Мерим getBoundingClientRect, а НЕ scrollWidth: у инлайнового элемента
+        // scrollWidth равен нулю, и подбор кегля молча не срабатывал —
+        // надпись вылезала за края полосы.
+        const box=el.clientWidth-2;
+        const fit=()=>t.getBoundingClientRect().width<=box;
+        let fs=Math.round(r1.height*0.62);
+        t.style.fontSize=fs+'px';
+        for(let i=0;i<40&&!fit()&&fs>6;i++){fs-=1;t.style.fontSize=fs+'px';}
+        // Однодневная полоса шириной в одну ячейку длинное слово не вместит ни
+        // при каком кегле. Тогда сначала жертвуем разрядкой и полями (они —
+        // украшение, а слово — смысл), и только если и это не спасло, убираем
+        // надпись совсем: узор сам по себе день обозначит, а обрезанные буквы
+        // выглядят поломкой.
+        if(!fit()){
+          t.style.letterSpacing='normal';t.style.padding='0 2px';t.style.marginRight='0';
+          for(let i=0;i<20&&!fit()&&fs>6;i++){fs-=1;t.style.fontSize=fs+'px';}
+        }
+        if(!fit())t.style.display='none';
+      }
+    }
+  });
+}
+
+function _decorPattern(d,w,h){
+  const p=d.pattern||'none';
+  if(p==='crosses'){
+    // Три косых креста — герб Амстердама. Ровно по ширине полосы, под текстом.
+    const n=3, sz=Math.round(Math.min(h*0.66,w/5));
+    let out='';
+    for(let i=0;i<n;i++){
+      const x=(i+0.5)/n*100;
+      out+='<i class="dc-cross" style="left:'+x.toFixed(2)+'%;margin-left:'+(-sz/2)+
+        'px;width:'+sz+'px;height:'+sz+'px;animation-delay:'+(i*0.25)+'s"></i>';
+    }
+    return '<div class="dc-pat">'+out+'</div>';
+  }
+  if(p==='snow'){
+    let out='';
+    for(let i=0;i<14;i++){
+      const x=(i*7.3+3)%96;
+      out+='<span class="dc-flake" style="left:'+x.toFixed(1)+'%;color:'+
+        (d.pattern_color||'#dff1ff')+';animation-duration:'+(3+(i%4)*1.1).toFixed(1)+
+        's;animation-delay:'+(i*0.37).toFixed(2)+'s;font-size:'+(7+(i%3)*3)+'px">❄</span>';
+    }
+    return '<div class="dc-pat">'+out+'</div>';
+  }
+  if(p==='stars'){
+    let out='';
+    for(let i=0;i<12;i++){
+      out+='<span class="dc-star" style="left:'+((i*8.7+4)%94).toFixed(1)+'%;top:'+
+        ((i*29)%70+10)+'%;color:'+(d.pattern_color||'#ffd97a')+
+        ';animation-duration:'+(2+(i%3)).toFixed(1)+'s;animation-delay:'+
+        (i*0.3).toFixed(2)+'s">✦</span>';
+    }
+    return '<div class="dc-pat">'+out+'</div>';
+  }
+  return '';
+}
+
+function openDecorSheet(d){
+  const {sheet}=_openSheet('<div class="grab"></div>'+
+    '<div class="stitle">'+esc(d.title||'Оформление')+'</div>'+
+    '<div class="ssub">'+esc(d.date_from)+' — '+esc(d.date_to)+'</div>'+
+    '<div class="sh-actions" style="margin-top:16px">'+
+    '<button class="sh-btn" id="dc-cancel">Оставить</button>'+
+    '<button class="sh-btn danger" id="dc-del">Убрать</button></div>');
+  sheet.querySelector('#dc-cancel').onclick=closeSheet;
+  sheet.querySelector('#dc-del').onclick=()=>{
+    closeSheet();
+    mutate(()=>{DATA.decor=(DATA.decor||[]).filter(x=>x.id!==d.id);},
+      '/api/decor_delete',{id:d.id});
+  };
 }
 
 function _calYearView(){
@@ -2700,6 +2901,9 @@ function renderCal(){
   if(overview){
     document.getElementById('cal').innerHTML=
       _calRange==='month'?_calMonthView():_calYearView();
+    // Полосу оформления рисуем ПОСЛЕ вставки сетки: её геометрия снимается с
+    // готовых ячеек, до вставки измерять нечего.
+    if(_calRange==='month')requestAnimationFrame(_calDecorPaint);
     if(hint0)hint0.textContent=_calRange==='month'
       ? '📅 обзор месяца: точки — дела в дне, тап по дню откроет его неделю'
       : '📅 обзор года: тап по месяцу углубит обзор';
@@ -5824,6 +6028,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/proj_set_morning": api_proj_set_morning,
             "/api/proj_income": api_proj_income,
             "/api/card_comment": api_card_comment,
+            "/api/decor_add": api_decor_add, "/api/decor_delete": api_decor_delete,
             "/api/sgoal_add": api_sgoal_add, "/api/sgoal_update": api_sgoal_update,
             "/api/sgoal_delete": api_sgoal_delete,
         }

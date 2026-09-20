@@ -201,6 +201,25 @@ def init_db():
         );
         -- Бюрократические «дела» (права, §24, паспорт, KSK…): статус, следующий шаг,
         -- срок. Юрист обновляет через action "case"; раз в неделю бот шлёт сводку.
+        -- Оформление дней в обзоре месяца: чёрная полоса «AMSTERDAM» на три дня
+        -- поездки, снежинки на Новый год и прочее. Живёт отдельно от событий
+        -- намеренно: это не дело, которое можно сделать или отменить, а метка на
+        -- бумаге календаря. Держать её среди events значило бы засорять и
+        -- матрицу, и ленту, и свод тем, что делом не является.
+        CREATE TABLE IF NOT EXISTS cal_decor (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            date_from TEXT NOT NULL,
+            date_to TEXT NOT NULL,
+            bg TEXT DEFAULT '#000000',
+            fg TEXT DEFAULT '#ffffff',
+            font TEXT DEFAULT 'impact',
+            pattern TEXT DEFAULT 'none',
+            pattern_color TEXT DEFAULT '#e2001a',
+            anim TEXT DEFAULT 'none',
+            tag TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS bureau_cases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             topic TEXT UNIQUE,
@@ -458,6 +477,10 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
 3а. КАЛЕНДАРЬ — action plan, НЕ save. «Добавь в календарь», «поставь на четверг», «запланируй», «внеси матчи/встречи», а также любая фраза, где названа дата или день недели → plan. save кладёт карточку в ПАРКОВКУ (хаос), и на просьбу про календарь это прямая ошибка: человек просил календарь, а получил список вводных. Разница простая: есть дата — plan; даты нет и не подразумевается — save.
    Несколько дел за раз — несколько действий plan подряд или одно plan с массивом items: {"type":"plan","items":[{"text":"...","date":"2026-09-26","time":"18:30"},{...}]}. Пять матчей = пять записей, а не одна строка с перечислением.
    date обязательна, формат YYYY-MM-DD. Нет даты — не выдумывай: спроси. time и time_end — «18:30», необязательны (дело на весь день — без них).
+3б. ОФОРМЛЕНИЕ ДНЕЙ В КАЛЕНДАРЕ — action decor. «Обозначь поездку в Амстердам», «выдели дни отпуска», «обозначь Новый год снежинками, падающими сквозь ячейку дня», «пометь фестиваль красным» → decor. Это НЕ событие и НЕ задача: это метка на бумаге календаря, видна только в обзоре «Месяц» полосой поверх дней.
+   Поля: title (коротко, попадёт НА полосу — обычно одно слово заглавными), from и to (YYYY-MM-DD; один день — to равен from), bg (фон полосы), fg (цвет надписи), font: impact | sans, pattern: none | crosses | snow | stars, pattern_color, anim: none | pulse | fall | twinkle.
+   Переводи образ в эти поля сам. «Снежинки, падающие сквозь ячейку» → pattern snow, anim fall, bg тёмно-синий, pattern_color белёсый. «Амстердам» → три красных косых креста (герб города): pattern crosses, anim pulse, bg чёрный, fg белый, font impact. «Праздник, звёзды» → pattern stars, anim twinkle.
+   Дат не знаешь — НЕ выдумывай: посмотри в контексте (календарь и парковка даны выше) и, если там нет, спроси одним вопросом.
 4. КОНТАКТЫ: важная информация о человеке («Роберт должен 500», «Стефан — контакт по фасадам») → action contact. Спросят про человека — собери всё из контекста.
 5. ПИСЬМА НА НЕМЕЦКОМ: попросят письмо/ответ для немецкого заказчика, фирмы, ведомства — напиши готовый текст письма на немецком прямо в reply (профессиональный тон), плюс 1 строка по-русски о чём оно.
 6. СМЕТЫ: «стена 6 на 3, сколько краски/цена» → посчитай: грунт ~1л/5м², баллон 400мл ~1-1.5м²/слой, обычно 2 слоя фон + детали. Работа стрит-арт в Германии ориентир 50-150€/м² по сложности.
@@ -479,6 +502,8 @@ SECRETARY_PROMPT = """Ты — личный секретарь-ассистен�
  {"type": "plan", "text": "FSV — Ulm, домашний матч", "date": "2026-09-26", "time": "14:00"},
  {"type": "plan", "items": [{"text": "матч 1", "date": "2026-09-26", "time": "14:00"}, {"text": "матч 2", "date": "2026-10-03", "time": "13:30"}]},
  {"type": "web", "query": "FSV Frankfurt ближайшие домашние матчи расписание"},
+ {"type": "decor", "title": "AMSTERDAM", "from": "2026-10-09", "to": "2026-10-11", "bg": "#000000", "fg": "#ffffff", "font": "impact", "pattern": "crosses", "pattern_color": "#e2001a", "anim": "pulse"},
+ {"type": "decor", "title": "НОВЫЙ ГОД", "from": "2027-01-01", "to": "2027-01-01", "bg": "#0d1b3e", "fg": "#ffffff", "font": "sans", "pattern": "snow", "pattern_color": "#dff1ff", "anim": "fall"},
  {"type": "finance", "amount": -40, "comment": "баллоны", "account": "cash"},
  {"type": "remind", "when": "2026-06-13 09:00", "text": "страховка"},
  {"type": "contact", "name": "Роберт", "note": "должен 500€"},
@@ -2272,6 +2297,90 @@ def ensure_invoices_seed():
     log.info(f"invoices_seed: залито {n} счетов в архив")
 
 
+DECOR_PATTERNS = ("none", "crosses", "snow", "stars")
+DECOR_ANIMS = ("none", "pulse", "fall", "twinkle")
+
+
+def _decor_add(a):
+    """Пометить дни в обзоре месяца: полоса с надписью и узором.
+
+    Это не дело и не напоминание, а метка на бумаге календаря — поэтому живёт в
+    своей таблице и не засоряет ни матрицу, ни ленту, ни свод.
+
+    Значения узора и анимации приводим к известному списку: слово вне его —
+    не стиль, а фантазия модели, и на экране оно обернулось бы пустой полосой.
+    """
+    title = (a.get("title") or "").strip()
+    d1 = (a.get("from") or a.get("date_from") or "").strip()[:10]
+    d2 = (a.get("to") or a.get("date_to") or d1).strip()[:10]
+    try:
+        date.fromisoformat(d1)
+        date.fromisoformat(d2)
+    except ValueError:
+        return [("decor_fail", 0, f"нужны даты: «{title or 'оформление'}»", "", "")]
+    if d2 < d1:
+        d1, d2 = d2, d1
+    pat = a.get("pattern") if a.get("pattern") in DECOR_PATTERNS else "none"
+    anim = a.get("anim") if a.get("anim") in DECOR_ANIMS else (
+        "pulse" if pat == "crosses" else ("fall" if pat == "snow" else "none"))
+    with db() as conn:
+        dup = conn.execute("SELECT id FROM cal_decor WHERE date_from=? AND date_to=? "
+                           "AND COALESCE(title,'')=?", (d1, d2, title)).fetchone()
+        if dup:
+            return [("decor_dup", dup["id"], f"{title} · {d1}…{d2}", "", "")]
+        cur = conn.execute(
+            """INSERT INTO cal_decor (title, date_from, date_to, bg, fg, font,
+                                      pattern, pattern_color, anim, tag)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (title, d1, d2, a.get("bg") or "#000000", a.get("fg") or "#ffffff",
+             a.get("font") if a.get("font") in ("impact", "sans") else "impact",
+             pat, a.get("pattern_color") or "#e2001a", anim, a.get("tag")))
+    return [("decor", cur.lastrowid,
+             f"{title or 'оформление'} · {_ru_date(d1)}" +
+             (f" — {_ru_date(d2)}" if d2 != d1 else ""), "", "")]
+
+
+def seed_amsterdam_decor():
+    """Разовая отметка поездки в Амстердам в обзоре месяца.
+
+    Даты не зашиты: их НЕТ у того, кто писал этот код, — они есть только в базе
+    владельца. Поэтому ищем в календаре октябрьские дела со словами «Амстердам»
+    или «Кудесник» и берём их размах: первый день и последний. Ничего не
+    нашлось — ничего и не делаем; придумывать поездку хуже, чем её не отметить.
+
+    Метка ставится один раз (по tag), поэтому перезапуски её не плодят, а
+    удаление из дашборда не воскрешает.
+    """
+    try:
+        with db() as conn:
+            if conn.execute("SELECT 1 FROM cal_decor WHERE tag='amsterdam'").fetchone():
+                return
+            if conn.execute("SELECT 1 FROM settings WHERE key='amsterdam_decor_done'").fetchone():
+                return          # уже искали и/или владелец метку убрал
+            # Сравнение регистров делаем в Python, а НЕ в SQL: sqlite-функция
+            # lower() складывает только латиницу, и «Амстердам» никогда не
+            # совпал бы с «%амстердам%» — поиск молча возвращал пустоту.
+            rows = conn.execute(
+                "SELECT date, text FROM events WHERE substr(date,6,2)='10'").fetchall()
+            needles = ("амстердам", "amsterdam", "кудесник")
+            days = sorted({r["date"] for r in rows if r["date"] and
+                           any(n in str(r["text"] or "").lower() for n in needles)})
+            if not days:
+                log.info("amsterdam decor: в октябре ничего не нашлось — пропускаю")
+                return
+            conn.execute(
+                """INSERT INTO cal_decor (title, date_from, date_to, bg, fg, font,
+                                          pattern, pattern_color, anim, tag)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                ("AMSTERDAM", days[0], days[-1], "#000000", "#ffffff", "impact",
+                 "crosses", "#e2001a", "pulse", "amsterdam"))
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES "
+                         "('amsterdam_decor_done', ?)", (days[0] + ".." + days[-1],))
+        log.info(f"amsterdam decor: отмечено {days[0]}…{days[-1]} ({len(days)} дн.)")
+    except Exception as e:
+        log.error(f"seed_amsterdam_decor: {e}")
+
+
 def _plan_event(it):
     """Положить одно дело прямо в календарь (таблица events).
 
@@ -2439,6 +2548,8 @@ def apply_actions(actions: list) -> list:
                     if not isinstance(it, dict):
                         continue
                     results.extend(_plan_event(it))
+            elif a.get("type") == "decor":
+                results.extend(_decor_add(a))
             elif a.get("type") == "remind":
                 with db() as conn:
                     conn.execute("INSERT INTO reminders (due_at, text) VALUES (?,?)",
@@ -2737,6 +2848,12 @@ async def ai_converse(update: Update, user_text: str, source: str = "text"):
             extras.append(f"📅 уже было: _{text}_")
         elif kind == "plan_fail":
             extras.append(f"⚠️ в календарь не положил: {text}")
+        elif kind == "decor":
+            extras.append(f"🎨 оформил в календаре: _{text}_")
+        elif kind == "decor_dup":
+            extras.append(f"🎨 уже оформлено: _{text}_")
+        elif kind == "decor_fail":
+            extras.append(f"⚠️ оформить не вышло: {text}")
         elif kind == "rename_fail":
             # Неудача должна быть видна человеку. Именно её отсутствие и
             # породило бодрое «всё готово» там, где не произошло ничего.
@@ -7431,6 +7548,7 @@ def main():
     except Exception as e:
         log.error(f"goals seed: {e}")
     try:
+        seed_amsterdam_decor()   # разовая отметка поездки, если она есть в календаре
         ensure_legal_kb()  # докачать всё из UPDATE_FILES, чего нет на диске
                            # (имя историческое: функцию зовут по нему три других бота)
     except Exception as e:
