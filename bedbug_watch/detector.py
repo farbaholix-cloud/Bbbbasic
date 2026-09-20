@@ -42,7 +42,8 @@ class DetectorConfig:
     bug_len_mm: Tuple[float, float] = (1.5, 9.0)    # личинка … взрослый клоп
     bug_len_best: Tuple[float, float] = (3.0, 6.0)  # тело взрослого — полный балл
     min_short_ratio: float = 0.25    # тело овальное; отсекает волосы и складки
-    min_fill: float = 0.30           # заполненность рамки: отсекает нитки и царапины
+    min_fill: float = 0.45           # заполненность рамки: отсекает нитки и царапины
+    #  у овального тела ~0.78, у диагональной полосы-волоса ~0.37
     dark_threshold: int = 18         # насколько пятно темнее фона (0..255)
     bg_alpha: float = 0.02           # скорость забывания фона в покое
     settle_alpha: float = 0.35       # ускоренное забывание после шевеления
@@ -59,6 +60,22 @@ class DetectorConfig:
     match_radius_mm: float = 18.0    # на столько пятно может сместиться за кадр
     miss_limit: int = 16             # столько кадров без пятна — трек закрыт
     fire_score: float = 0.70         # с какой вероятности будить
+
+    # Пороги в ПИКСЕЛЯХ. Всё, что выше, задано в миллиметрах, и это удобно,
+    # пока в миллиметре хватает точек. На широком кадре «проползти 2 мм»
+    # превращается в полтора пикселя — столько же даёт дыхание под одеялом,
+    # и сторож честно срабатывает на дрожь ткани. Поэтому снизу стоят упоры,
+    # ниже которых миллиметрам верить нельзя.
+    min_len_px: int = 8              # короче — тело не разрешается камерой
+    min_short_px: int = 4            # тоньше — это волос или нитка, а не тело
+    min_travel_px: float = 5.0       # меньше — это дрожь, а не переползание
+
+    # Что в кадре, кроме клопа
+    max_candidates: int = 8          # больше пятен — фактура ткани, а не насекомые
+    big_blob_frac: float = 0.01      # объект крупнее доли кадра — кот или ты сам
+    big_blob_hold_s: float = 3.0     # столько секунд молчим после крупного объекта
+    coherent_min: int = 3            # столько согласованно ползущих пятен = ткань
+    coherent_ratio: float = 0.6      # насколько единодушно они должны двигаться
 
 
 @dataclass
@@ -161,25 +178,31 @@ class BugDetector:
         self.last_change_frac = 0.0
         self.candidates: List[Candidate] = []
         self.best: Optional[Candidate] = None
+        self.big_area = 0.0        # площадь самого крупного пятна в кадре
+        self.veto_until = 0.0      # до какого времени тревоги запрещены
+        self.veto_why = ""         # и почему
 
     # ── публичный вход ────────────────────────────────────────────────────────
 
     def feed(self, frame: np.ndarray, ts: float) -> Optional[Detection]:
         """Один кадр (BGR или серый) и его время в секундах."""
         gray = frame if frame.ndim == 2 else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (3, 3), 0)
+        # Коробочное размытие 3×3, а не гауссово: ровно то же, что делает
+        # браузерная версия. Разные фильтры дают разную форму пятна, и
+        # вероятности у двух реализаций начинают расходиться.
+        gray = cv2.blur(gray, (3, 3))
 
         if self._bg is None:
             self.px_per_mm = gray.shape[1] / self.cfg.fov_width_mm
             self._bg = gray.astype(np.float32)
 
         self.frame_idx += 1
-        bg_u8 = cv2.convertScaleAbs(self._bg)
 
         # Клоп темнее простыни, поэтому берём только «потемнения», а не любой diff:
         # так блик от фонаря или засветка экрана телефона не считаются насекомым.
-        dark = cv2.subtract(bg_u8, gray)
-        _, mask = cv2.threshold(dark, self.cfg.dark_threshold, 255, cv2.THRESH_BINARY)
+        # Фон вычитаем как есть, без округления до целых: браузер делает так же.
+        dark = self._bg - gray.astype(np.float32)
+        mask = (dark > self.cfg.dark_threshold).astype(np.uint8) * 255
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
         self.last_mask = mask
 
@@ -210,6 +233,13 @@ class BugDetector:
         # Иначе замерший клоп через десяток секунд впитывается в фон и пропадает
         # с экрана — а они именно так и ходят: пополз, замер, снова пополз.
         self._update_bg(gray_f, self.cfg.bg_alpha, blobs)
+
+        # Кот на кровати или твоё плечо дают пятно в сотни раз крупнее клопа.
+        # Само по себе оно отсеивается по размеру, но рядом с ним шевелится всё:
+        # складки, тени, шерсть. Поэтому на такие секунды тревоги запрещаем.
+        if self.big_area > self.cfg.big_blob_frac * mask.size:
+            self._veto(ts, self.cfg.big_blob_hold_s,
+                       "в кадре крупный объект — кот или ты сам")
         return self._track(blobs, ts)
 
     def _update_bg(self, gray_f: np.ndarray, alpha: float,
@@ -228,6 +258,11 @@ class BugDetector:
                  max(0, x - pad):min(w, x + bw + pad)] = slow
         self._bg += amap * (gray_f - self._bg)
 
+    def _veto(self, ts: float, secs: float, why: str) -> None:
+        """Запретить тревоги на несколько секунд и запомнить, из-за чего."""
+        self.veto_until = max(self.veto_until, ts + secs)
+        self.veto_why = why
+
     def reset(self) -> None:
         self._bg = None
         self._tracks.clear()
@@ -240,21 +275,33 @@ class BugDetector:
 
     def _blobs(self, mask: np.ndarray) -> List[_Blob]:
         """Пятна подходящего размера и формы. Всё лишнее отсеиваем здесь."""
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Связные компоненты, а не контуры: площадь считаем в пикселях — ровно
+        # так же, как браузерная версия, иначе заполненность рамки у них
+        # расходится и вероятности перестают совпадать.
+        count, _, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
         out: List[_Blob] = []
         lo, hi = self.cfg.bug_len_mm
-        for c in contours:
-            x, y, w, h = cv2.boundingRect(c)
-            long_mm = max(w, h) / self.px_per_mm
+        self.big_area = 0.0
+        for i in range(1, count):
+            x = int(stats[i, cv2.CC_STAT_LEFT])
+            y = int(stats[i, cv2.CC_STAT_TOP])
+            w = int(stats[i, cv2.CC_STAT_WIDTH])
+            h = int(stats[i, cv2.CC_STAT_HEIGHT])
+            area = float(stats[i, cv2.CC_STAT_AREA])
+            self.big_area = max(self.big_area, area)
+            long_px = max(w, h)
+            if long_px < self.cfg.min_len_px or min(w, h) < self.cfg.min_short_px:
+                continue                        # не разрешается камерой либо нитка
+            long_mm = long_px / self.px_per_mm
             short_mm = min(w, h) / self.px_per_mm
             ratio = short_mm / long_mm if long_mm else 0.0
-            fill = cv2.contourArea(c) / (w * h) if w and h else 0.0
+            fill = area / (w * h) if w and h else 0.0
             if not (lo <= long_mm <= hi):
-                continue                                  # крошка или рука — мимо
+                continue                              # крошка или рука — мимо
             if ratio < self.cfg.min_short_ratio:
-                continue                                  # волос или складка простыни
+                continue                              # волос или складка простыни
             if fill < self.cfg.min_fill:
-                continue                                  # нитка, царапина, контур тени
+                continue                              # нитка, царапина, контур тени
             out.append(_Blob(x + w / 2, y + h / 2, long_mm, ratio, fill, (x, y, w, h)))
         return out
 
@@ -265,6 +312,7 @@ class BugDetector:
         # Где пятна были в прошлом кадре — чтобы отличить «новое пятно» от «то же
         # самое, но прыгнувшее слишком далеко».
         prev = [(t.x, t.y) for t in self._tracks]
+        moves: List[Tuple[float, float]] = []   # смещение каждого пятна за кадр
 
         for tr in self._tracks:
             best, best_d = None, radius
@@ -276,6 +324,8 @@ class BugDetector:
                 tr.misses += 1
                 continue
             free.remove(best)
+            if best_d > 0.3:
+                moves.append((best.x - tr.x, best.y - tr.y))
             tr.x, tr.y = best.x, best.y
             tr.hist.append((ts, best.x, best.y))
             tr.box = best.box
@@ -296,9 +346,19 @@ class BugDetector:
                        motion_ts=ts, hist=[(ts, b.x, b.y)])
             )
 
+        # Клоп ползёт сам по себе. Если сразу несколько пятен поехали в одну
+        # сторону — это не стая клопов, это дрогнуло одеяло под дышащим хозяином.
+        if len(moves) >= self.cfg.coherent_min:
+            sx = sum(m[0] for m in moves)
+            sy = sum(m[1] for m in moves)
+            total = sum(float(np.hypot(*m)) for m in moves)
+            if total > 0 and float(np.hypot(sx, sy)) / total > self.cfg.coherent_ratio:
+                self._veto(ts, self.cfg.big_blob_hold_s,
+                           "ткань поехала целиком — дыхание или поворот")
+
         for tr in self._tracks:
             self._motion(tr, ts)
-        return self._evaluate()
+        return self._evaluate(ts)
 
     def _motion(self, tr: _Track, ts: float) -> None:
         """Скорость меряем по последним полутора секундам, а не в среднем за всю
@@ -334,10 +394,11 @@ class BugDetector:
         f_size = _band(tr.length_mm, cfg.bug_len_mm[0], cfg.bug_len_best[0],
                        cfg.bug_len_best[1], cfg.bug_len_mm[1])
         f_ratio = _clamp01((tr.ratio - cfg.min_short_ratio) / (0.55 - cfg.min_short_ratio))
-        f_fill = _clamp01((tr.fill - cfg.min_fill) / (0.70 - cfg.min_fill))
+        f_fill = _clamp01((tr.fill - cfg.min_fill) / (0.75 - cfg.min_fill))
         f_shape = 0.5 * f_ratio + 0.5 * f_fill
         f_life = min(tr.hits / cfg.min_hits, 1.0)
-        f_travel = min(net_mm / cfg.min_travel_mm, 1.0)
+        net_px = net_mm * self.px_per_mm
+        f_travel = min(net_mm / cfg.min_travel_mm, net_px / cfg.min_travel_px, 1.0)
         f_speed = _band(speed, cfg.speed_mm_s[0], cfg.speed_best_mm_s[0],
                         cfg.speed_best_mm_s[1], cfg.speed_mm_s[1])
 
@@ -360,7 +421,9 @@ class BugDetector:
             speed_word = f"двигалось {speed:.1f} мм/с"
         parts = [
             (f"живёт {tr.hits} из {cfg.min_hits} кадров", f_life),
-            (f"проползло {net_mm:.1f} из {cfg.min_travel_mm} мм", f_travel),
+            (f"сместилось {net_px:.1f} из {cfg.min_travel_px:.0f} точек — это дрожь"
+             if net_px < cfg.min_travel_px
+             else f"проползло {net_mm:.1f} из {cfg.min_travel_mm} мм", f_travel),
             (speed_word, f_speed),
             (f"тело {tr.length_mm:.1f} мм", f_size),
             ("форма пятна", f_shape),
@@ -369,7 +432,7 @@ class BugDetector:
         why = ", ".join(f"{t} ({f:.0%})" for t, f in weak[:2])
         return score, why, net_mm, speed
 
-    def _evaluate(self) -> Optional[Detection]:
+    def _evaluate(self, ts: float) -> Optional[Detection]:
         """Считаем всех, показываем всех, будим — того, кто дотянул до порога."""
         self.candidates = []
         hit: Optional[Detection] = None
@@ -379,7 +442,8 @@ class BugDetector:
             self.candidates.append(Candidate(
                 box=tr.box, score=score, why=why, length_mm=tr.length_mm,
                 travel_mm=net_mm, speed_mm_s=speed, frames=tr.hits, jump_mm=tr.jump_mm))
-            if not tr.fired and score >= self.cfg.fire_score and hit is None:
+            if (not tr.fired and score >= self.cfg.fire_score and hit is None
+                    and ts > self.veto_until):
                 tr.fired = True
                 x, y, w, h = tr.box
                 hit = Detection(ts=tr.last_ts, x=x, y=y, w=w, h=h,
@@ -390,6 +454,12 @@ class BugDetector:
         # объясняет причину, а «стоит на месте» у соседнего нуля — нет.
         self.candidates.sort(key=lambda c: (-c.score, -c.jump_mm))
         self.best = self.candidates[0] if self.candidates else None
+
+        # Столько пятен разом бывает только на фактурной ткани. Чистая простыня
+        # даёт единицы — значит камера смотрит не туда, и верить кадру нельзя.
+        if len(self.candidates) > self.cfg.max_candidates:
+            self._veto(ts, self.cfg.big_blob_hold_s,
+                       f"пятен в кадре {len(self.candidates)} — это фактура, а не клопы")
         return hit
 
     @property

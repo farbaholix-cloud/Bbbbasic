@@ -46,6 +46,42 @@ function bug(g, cx, cy, lenMm = 5) {       // тело клопа: тёмный 
   return g;
 }
 
+/* Одеяло со складками: именно они дают пятна размером с клопа, когда ткань
+   чуть смещается от дыхания. Генерируем один раз и сдвигаем целиком. */
+const FOLD_W = W + 80, FOLD_H = H + 80;
+const fold = new Float32Array(FOLD_W * FOLD_H);
+{
+  const r = rng(2024);
+  for (let k = 0; k < 160; k++) {
+    const cx = r() * FOLD_W, cy = r() * FOLD_H;
+    const len = 6 + r() * 90, ang = r() * Math.PI, amp = 8 + r() * 34;
+    for (let t = 0; t < len; t++) {
+      const x = Math.round(cx + Math.cos(ang) * t), y = Math.round(cy + Math.sin(ang) * t);
+      if (x >= 0 && y >= 0 && x < FOLD_W && y < FOLD_H) fold[y * FOLD_W + x] -= amp;
+    }
+  }
+}
+
+/** Кадр одеяла, сдвинутого на (dx,dy); cat — крупное тёмное пятно или null. */
+function blanket(seed, dx, dy, cat) {
+  const g = new Uint8Array(W * H), r = rng(seed);
+  const ox = Math.round(40 + dx), oy = Math.round(40 + dy);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      g[y * W + x] = Math.max(0, Math.min(255,
+        150 + fold[(y + oy) * FOLD_W + (x + ox)] + (r() - 0.5) * 20));
+    }
+  }
+  if (cat) {
+    for (let y = Math.floor(cat.cy - cat.ry); y <= cat.cy + cat.ry; y++)
+      for (let x = Math.floor(cat.cx - cat.rx); x <= cat.cx + cat.rx; x++)
+        if (x >= 0 && y >= 0 && x < W && y < H &&
+            ((x - cat.cx) / cat.rx) ** 2 + ((y - cat.cy) / cat.ry) ** 2 <= 1)
+          g[y * W + x] = Math.max(0, g[y * W + x] - 70);
+  }
+  return g;
+}
+
 function run(frames) {
   const det = new BugDetector(W, H, { fovWidthMm: FOV_MM });
   let hit = null;
@@ -73,6 +109,44 @@ const CASES = [
     for (let b = 0; b < 3; b++) {
       for (let i = 0; i < 2; i++) { f.push(bug(sheet(), x, 160)); x += 2 * PX_MM; }
       for (let i = 0; i < 40; i++) f.push(bug(sheet(), x, 160));   // стоит 4 с
+    }
+    return f;
+  }],
+  ['кот прошёл по кровати', false, () => {
+    const f = [];
+    for (let i = 0; i < 30; i++) f.push(blanket(i, 0, 0, null));
+    for (let i = 0; i < 60; i++) {                 // кот идёт через весь кадр
+      f.push(blanket(100 + i, 0, 0, { cx: (i / 60) * W, cy: 180, rx: 70, ry: 45 }));
+    }
+    for (let i = 0; i < 30; i++) f.push(blanket(200 + i, 0, 0, null));
+    return f;
+  }],
+  ['одеяло дышит', false, () => {
+    const f = [];
+    for (let i = 0; i < 240; i++) {                // ±1.5 точки с периодом 4 с
+      const t = i / FPS;
+      f.push(blanket(300 + i, Math.sin(t * Math.PI / 2) * 1.5,
+                              Math.cos(t * Math.PI / 2) * 1.0, null));
+    }
+    return f;
+  }],
+  ['клоп на дышащем одеяле', true, () => {
+    const f = [];
+    for (let i = 0; i < 40; i++) {
+      const t = i / FPS;
+      f.push(blanket(400 + i, Math.sin(t * Math.PI / 2) * 1.5, 0, null));
+    }
+    let x = 200;
+    for (let i = 0; i < 24; i++) {                 // ползёт сам, пока ткань дышит
+      const t = (40 + i) / FPS;
+      const g = blanket(500 + i, Math.sin(t * Math.PI / 2) * 1.5, 0, null);
+      const a = 2.5 * PX_MM, b = a * 0.62;
+      for (let y = Math.floor(120 - a); y <= 120 + a; y++)
+        for (let xx = Math.floor(x - a); xx <= x + a; xx++)
+          if (((xx - x) / a) ** 2 + ((y - 120) / b) ** 2 <= 1 &&
+              xx >= 0 && y >= 0 && xx < W && y < H)
+            g[y * W + xx] = Math.max(0, g[y * W + xx] - 60);
+      f.push(g); x += 1.2 * PX_MM;
     }
     return f;
   }],

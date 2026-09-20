@@ -26,7 +26,7 @@ export const DEFAULTS = {
   bugLenMax: 9.0,         // взрослый клоп
   bugLenBest: [3.0, 6.0], // тело обычного взрослого — тут размер даёт полный балл
   minShortRatio: 0.25,    // тело овальное: отсекает волосы и складки
-  minFill: 0.30,          // заполненность рамки: отсекает нитки и царапины
+  minFill: 0.45,          // заполненность рамки: у тела ~0.78, у волоса ~0.37
   darkThreshold: 18,      // насколько пятно темнее фона (0..255)
   bgAlpha: 0.02,          // скорость забывания фона в покое
   settleAlpha: 0.35,      // ускоренное забывание после шевеления
@@ -44,6 +44,22 @@ export const DEFAULTS = {
   matchRadiusMm: 18.0,    // на столько пятно может сместиться за кадр
   missLimit: 16,          // столько кадров без пятна — трек закрыт
   fireScore: 0.70,        // с какой вероятности будить
+
+  // ── Пороги в ПИКСЕЛЯХ. Всё, что выше, задано в миллиметрах, и это удобно,
+  // пока в миллиметре хватает точек. На широком кадре «проползти 2 мм»
+  // превращается в полтора пикселя — столько же даёт дыхание под одеялом,
+  // и сторож честно срабатывает на дрожь ткани. Поэтому снизу стоят упоры,
+  // ниже которых миллиметрам верить нельзя.
+  minLenPx: 8,            // короче — тело не разрешается камерой
+  minShortPx: 4,          // тоньше — это волос или нитка, а не тело
+  minTravelPx: 5,         // меньше — это дрожь, а не переползание
+
+  // ── Что в кадре, кроме клопа ───────────────────────────────────────────
+  maxCandidates: 8,       // больше пятен — это фактура ткани, а не насекомые
+  bigBlobFrac: 0.01,      // объект крупнее доли кадра — кот или ты сам
+  bigBlobHoldS: 3.0,      // столько секунд молчим после крупного объекта
+  coherentMin: 3,         // столько согласованно ползущих пятен = ткань поехала
+  coherentRatio: 0.6,     // насколько единодушно они должны двигаться
 };
 
 export function toGray(rgba, out) {
@@ -82,6 +98,9 @@ export class BugDetector {
     this.blobs = [];
     this.candidates = [];   // что сейчас в кадре, с вероятностью и разбором
     this.best = null;       // самый вероятный кандидат этого кадра
+    this.bigArea = 0;       // площадь самого крупного пятна в кадре
+    this.vetoUntil = 0;     // до какого времени тревоги запрещены
+    this.vetoWhy = '';      // и почему
   }
 
   setFov(mm) {
@@ -96,6 +115,12 @@ export class BugDetector {
     this.best = null;
     this.frameIdx = 0;
     this.settleLeft = 0;
+  }
+
+  /** Запретить тревоги на несколько секунд и запомнить, из-за чего. */
+  _veto(ts, secs, why) {
+    this.vetoUntil = Math.max(this.vetoUntil, ts + secs);
+    this.vetoWhy = why;
   }
 
   /** gray — Uint8Array яркости, ts — время в секундах. Вернёт находку или null. */
@@ -148,6 +173,13 @@ export class BugDetector {
     // Иначе замерший клоп через десяток секунд впитывается в фон и пропадает
     // с экрана — а они именно так и ходят: пополз, замер, снова пополз.
     this._updateBg(cfg.bgAlpha, this.blobs);
+
+    // Кот на кровати или твоё плечо дают пятно в сотни раз крупнее клопа.
+    // Само по себе оно отсеивается по размеру, но рядом с ним шевелится всё:
+    // складки, тени, шерсть. Поэтому на такие секунды тревоги запрещаем.
+    if (this.bigArea > cfg.bigBlobFrac * n) {
+      this._veto(ts, cfg.bigBlobHoldS, 'в кадре крупный объект — кот или ты сам');
+    }
     return this._track(this.blobs, ts);
   }
 
@@ -218,6 +250,7 @@ export class BugDetector {
     const { w, h, cfg, mask, labelStack, pxPerMm } = this;
     const seen = this.tmp;
     seen.fill(0);
+    this.bigArea = 0;
     const out = [];
     for (let i = 0, n = w * h; i < n; i++) {
       if (!mask[i] || seen[i]) continue;
@@ -243,7 +276,12 @@ export class BugDetector {
         }
       }
       const bw = maxX - minX + 1, bh = maxY - minY + 1;
-      const longMm = Math.max(bw, bh) / pxPerMm;
+      const longPx = Math.max(bw, bh);
+      if (area > this.bigArea) this.bigArea = area;
+      // Не разрешается камерой либо слишком тонкое: размытие дробит волос на
+      // фрагменты, и отдельный кусок выглядит компактным, как тело.
+      if (longPx < cfg.minLenPx || Math.min(bw, bh) < cfg.minShortPx) continue;
+      const longMm = longPx / pxPerMm;
       const shortMm = Math.min(bw, bh) / pxPerMm;
       const ratio = shortMm / longMm;
       const fill = area / (bw * bh);
@@ -265,6 +303,7 @@ export class BugDetector {
     // самое, но прыгнувшее слишком далеко». Иначе быстрый объект каждый кадр
     // заводит новый трек, и разбор врёт про «стоит на месте».
     const prev = this.tracks.map((t) => ({ x: t.x, y: t.y }));
+    const moves = [];   // куда и насколько сместилось каждое пятно за этот кадр
     for (const tr of this.tracks) {
       let best = null, bestD = radius;
       for (const b of free) {
@@ -273,6 +312,7 @@ export class BugDetector {
       }
       if (!best) { tr.misses++; continue; }
       free.splice(free.indexOf(best), 1);
+      if (bestD > 0.3) moves.push({ dx: best.x - tr.x, dy: best.y - tr.y });
       tr.x = best.x; tr.y = best.y;
       tr.hist.push({ ts, x: best.x, y: best.y });
       tr.box = best.box; tr.lengthMm = best.lengthMm;
@@ -290,8 +330,18 @@ export class BugDetector {
                          box: b.box, hits: 1, misses: 0, fired: false, jumpMm,
                          hist: [{ ts, x: b.x, y: b.y }], motion: 0, motionTs: ts });
     }
+    // Клоп ползёт сам по себе. Если сразу несколько пятен поехали в одну
+    // сторону — это не стая клопов, это дрогнуло одеяло под дышащим хозяином.
+    if (moves.length >= this.cfg.coherentMin) {
+      let sx = 0, sy = 0, sum = 0;
+      for (const m of moves) { sx += m.dx; sy += m.dy; sum += Math.hypot(m.dx, m.dy); }
+      if (sum > 0 && Math.hypot(sx, sy) / sum > this.cfg.coherentRatio) {
+        this._veto(ts, this.cfg.bigBlobHoldS, 'ткань поехала целиком — дыхание или поворот');
+      }
+    }
+
     for (const tr of this.tracks) this._motion(tr, ts);
-    return this._evaluate();
+    return this._evaluate(ts);
   }
 
   /* Скорость меряем по последним полутора секундам, а не в среднем за всю
@@ -328,10 +378,11 @@ export class BugDetector {
     const fSize = band(tr.lengthMm, cfg.bugLenMin, cfg.bugLenBest[0],
                        cfg.bugLenBest[1], cfg.bugLenMax);
     const fRatio = clamp01((tr.ratio - cfg.minShortRatio) / (0.55 - cfg.minShortRatio));
-    const fFill = clamp01((tr.fill - cfg.minFill) / (0.70 - cfg.minFill));
+    const fFill = clamp01((tr.fill - cfg.minFill) / (0.75 - cfg.minFill));
     const fShape = 0.5 * fRatio + 0.5 * fFill;
     const fLife = Math.min(tr.hits / cfg.minHits, 1);
-    const fTravel = Math.min(netMm / cfg.minTravelMm, 1);
+    const netPx = netMm * this.pxPerMm;
+    const fTravel = Math.min(netMm / cfg.minTravelMm, netPx / cfg.minTravelPx, 1);
     const fSpeed = band(speed, cfg.speedMinMmS, cfg.speedBestMmS[0],
                         cfg.speedBestMmS[1], cfg.speedMaxMmS);
 
@@ -355,7 +406,9 @@ export class BugDetector {
     }
     const parts = [
       [`живёт ${tr.hits} из ${cfg.minHits} кадров`, fLife],
-      [`проползло ${netMm.toFixed(1)} из ${cfg.minTravelMm} мм`, fTravel],
+      [netPx < cfg.minTravelPx
+        ? `сместилось ${netPx.toFixed(1)} из ${cfg.minTravelPx} точек — это дрожь`
+        : `проползло ${netMm.toFixed(1)} из ${cfg.minTravelMm} мм`, fTravel],
       [speedWord, fSpeed],
       [`тело ${tr.lengthMm.toFixed(1)} мм`, fSize],
       ['форма пятна', fShape],
@@ -367,7 +420,7 @@ export class BugDetector {
   }
 
   /** Считаем всех, показываем всех, будим — того, кто дотянул до порога. */
-  _evaluate() {
+  _evaluate(ts) {
     const cfg = this.cfg;
     this.candidates = [];
     let hit = null;
@@ -379,7 +432,7 @@ export class BugDetector {
         travelMm: r.netMm, speedMmS: r.speed, frames: tr.hits, fired: tr.fired,
         jumpMm: tr.jumpMm || 0,
       });
-      if (!tr.fired && r.score >= cfg.fireScore && !hit) {
+      if (!tr.fired && r.score >= cfg.fireScore && !hit && ts > this.vetoUntil) {
         tr.fired = true;
         hit = { ts: tr.lastTs, box: tr.box, lengthMm: tr.lengthMm, travelMm: r.netMm,
                 speedMmS: r.speed, frames: tr.hits, score: Math.round(r.score * 100) / 100,
@@ -390,6 +443,13 @@ export class BugDetector {
     // объясняет причину, а «стоит на месте» у соседнего нуля — нет.
     this.candidates.sort((a, b) => (b.score - a.score) || (b.jumpMm - a.jumpMm));
     this.best = this.candidates[0] || null;
+
+    // Столько пятен разом бывает только на фактурной ткани. Чистая простыня
+    // даёт единицы — значит камера смотрит не туда, и верить кадру нельзя.
+    if (this.candidates.length > cfg.maxCandidates) {
+      this._veto(ts, cfg.bigBlobHoldS,
+                 `пятен в кадре ${this.candidates.length} — это фактура, а не клопы`);
+    }
     return hit;
   }
 }
