@@ -37,9 +37,11 @@ let audio = null, siren = null;
 
 function loadSettings() {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-  $('post-input').value = saved.post || params.get('post') || '';
+  // Что пришло в ссылке — главнее сохранённого: иначе телефон, на котором уже
+  // дежурили, молча оставит старое имя поста, и в журнале смешаются два места.
+  $('post-input').value = params.get('post') || saved.post || '';
   $('testmode').checked = !!saved.testmode;
-  $('fov').value = saved.fov || params.get('fov') || 90;
+  $('fov').value = params.get('fov') || saved.fov || 90;
   $('sens').value = saved.sens || 18;
   $('fire').value = saved.fire || 70;
   $('tg-token').value = saved.token || '';
