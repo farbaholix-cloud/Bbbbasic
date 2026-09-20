@@ -48,6 +48,7 @@ function loadSettings() {
   $('tg-chat').value = saved.chat || '';
   updateSensLabel();
   updateFireLabel();
+  updateFovLabel();
 }
 
 function saveSettings() {
@@ -57,6 +58,28 @@ function saveSettings() {
     fov: +$('fov').value, sens: +$('sens').value, fire: +$('fire').value,
     token: $('tg-token').value.trim(), chat: $('tg-chat').value.trim(),
   }));
+}
+
+/* Самая дорогая ошибка установки — повесить телефон слишком высоко. На кадре
+ * шириной 800 мм клоп занимает 4 точки: это ниже всякого разрешения, и сторож
+ * честно не увидит ничего. Пусть об этом говорит экран, а не тишина ночью. */
+function updateFovLabel() {
+  const fov = +$('fov').value || 1;
+  const bugPx = (5 * PROC_W) / fov;
+  const el = $('fov-hint');
+  const n = Math.round(bugPx);
+  const dots = `~${n} ${plural(n, 'точку', 'точки', 'точек')}`;
+  if (bugPx >= 12) {
+    el.textContent = `Клоп займёт ${dots} — с запасом.`;
+  } else if (bugPx >= 8) {
+    el.textContent = `Клоп займёт ${dots} — впритык. ` +
+                     'Слабые проходы будет пропускать, опусти камеру ниже.';
+  } else {
+    el.textContent = `Клоп займёт ${dots} — этого мало, ` +
+                     'детектор его не увидит. Нужен кадр не шире 400 мм: ' +
+                     'опусти камеру к самой простыне.';
+  }
+  if (detector) detector.setFov(fov);
 }
 
 function updateSensLabel() {
@@ -244,6 +267,12 @@ function paintWhy(now) {
     $('why').textContent = `Поймал, но пауза после прошлой тревоги — ещё ${left} с`;
     return;
   }
+  // Кот, плечо или поехавшее одеяло — пусть будет видно, что сторож не спит,
+  // а сознательно молчит, и по какой причине.
+  if (now / 1000 < detector.vetoUntil) {
+    $('why').textContent = `Молчу: ${detector.vetoWhy}`;
+    return;
+  }
   if (!best) { $('why').textContent = ''; return; }
   const pct = Math.round(best.score * 100);
   $('why').textContent = best.score >= detector.cfg.fireScore
@@ -356,6 +385,7 @@ $('start').onclick = start;
 $('stop').onclick = stop;
 $('sens').oninput = updateSensLabel;
 $('fire').oninput = updateFireLabel;
+$('fov').oninput = updateFovLabel;
 $('alarm-off').onclick = () => { sirenOff(); $('alarm').classList.add('hidden'); };
 $('show-journal').onclick = showJournal;
 $('journal-back').onclick = () => {
