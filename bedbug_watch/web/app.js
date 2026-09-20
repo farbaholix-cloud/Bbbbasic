@@ -1,8 +1,9 @@
 /* Ночной сторож в браузере телефона.
  *
  * Весь разбор кадров идёт прямо на телефоне: видео никуда не уходит, интернет
- * нужен только если включён Telegram. Один телефон — один пост наблюдения,
- * имя поста берётся из ссылки: index.html?post=Изголовье&fov=90
+ * нужен только если включён Telegram. Один телефон — один пост наблюдения:
+ * имя вписывается на самом телефоне и запоминается, так что ссылка на все
+ * телефоны одна. Можно подставить и из ссылки: index.html?post=Изголовье&fov=90
  *
  * Подводные камни iOS, из-за которых это ломается чаще всего:
  *   • боковой переключатель «беззвучно» глушит ЛЮБОЙ звук со страницы —
@@ -22,8 +23,8 @@ const JOURNAL_CAP = 60;
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const POST = params.get('post') || 'без имени';
-const SETTINGS_KEY = `bedbug.settings.${POST}`;
+const SETTINGS_KEY = 'bedbug.settings';   // один телефон — один пост, ключ общий
+let POST = 'без имени';
 
 let detector, stream, video, ctx, imgData, gray;
 let running = false, wakeLock = null;
@@ -34,6 +35,7 @@ let audio = null, siren = null;
 
 function loadSettings() {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  $('post-input').value = saved.post || params.get('post') || '';
   $('fov').value = saved.fov || params.get('fov') || 90;
   $('sens').value = saved.sens || 18;
   $('tg-token').value = saved.token || '';
@@ -43,6 +45,7 @@ function loadSettings() {
 
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+    post: $('post-input').value.trim(),
     fov: +$('fov').value, sens: +$('sens').value,
     token: $('tg-token').value.trim(), chat: $('tg-chat').value.trim(),
   }));
@@ -123,7 +126,9 @@ document.addEventListener('visibilitychange', () => {
 // ── дежурство ────────────────────────────────────────────────────────────────
 
 async function start() {
+  POST = $('post-input').value.trim() || 'без имени';
   saveSettings();
+  document.title = POST === 'без имени' ? 'Ночной сторож' : `Сторож: ${POST}`;
   try {
     await startCamera();
   } catch (e) {
@@ -298,6 +303,8 @@ $('journal-clear').onclick = () => {
   if (confirm('Стереть журнал целиком?')) { localStorage.removeItem(JOURNAL_KEY); showJournal(); }
 };
 
-$('post-name').textContent = POST === 'без имени' ? '' : `· ${POST}`;
-document.title = POST === 'без имени' ? 'Ночной сторож' : `Сторож: ${POST}`;
 loadSettings();
+$('post-name').textContent = $('post-input').value ? `· ${$('post-input').value}` : '';
+$('post-input').oninput = () => {
+  $('post-name').textContent = $('post-input').value ? `· ${$('post-input').value}` : '';
+};
