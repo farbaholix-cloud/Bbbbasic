@@ -31,7 +31,6 @@ let detector, stream, video, ctx, imgData, gray;
 let running = false, wakeLock = null;
 let frames = 0, alerts = 0, lastAlert = -1e9, lastFrameAt = 0;
 let cooldownMs = COOLDOWN_MS, muffled = 0;   // muffled — когда поймал, но пауза
-let audio = null, siren = null;
 
 // ── настройки ────────────────────────────────────────────────────────────────
 
@@ -103,6 +102,25 @@ function updateFireLabel() {
 
 // ── звук ─────────────────────────────────────────────────────────────────────
 
+/* Тревога — шум моря, бьющего в камни: девятисекундная петля, входящая мягко.
+ * Ночью важнее не напугать, а разбудить, поэтому громкость поднимается сама:
+ * первые секунды еле слышно, а если ты не проснулся — за полминуты выходит на
+ * полную. Файл может не загрузиться (нет сети в три часа ночи), и тогда
+ * включается прежний вой на осцилляторе: сигнализация не имеет права молчать.
+ */
+const WAVES_URL = 'sound/waves.mp3';
+const GENTLE_LEVEL = 0.30;    // громкость, до которой доходим мягко
+const GENTLE_S = 3.0;         // за сколько секунд
+const FULL_S = 30.0;          // и за сколько выходим на полную, если не проснулся
+
+let audio = null, wavesRaw = null, waves = null;
+let sirenSrc = null, sirenGain = null, beeper = null;
+
+// Байты тянем сразу при открытии страницы: вечером сеть обычно есть, а ночью
+// может не быть. Раскодируем позже — для этого нужен звуковой контекст.
+fetch(WAVES_URL).then((r) => (r.ok ? r.arrayBuffer() : null))
+  .then((b) => { wavesRaw = b; }).catch(() => { wavesRaw = null; });
+
 /** Разбудить аудио нужно тем же касанием, что включает камеру, — иначе iOS
  *  откажет в звуке посреди ночи, когда касаться уже некому. */
 function unlockAudio() {
@@ -113,30 +131,67 @@ function unlockAudio() {
   blip.connect(g).connect(audio.destination);
   blip.start();
   blip.stop(audio.currentTime + 0.05);
+  decodeWaves();
 }
 
-function sirenOn() {
-  if (!audio || siren) return;
-  audio.resume();
+function decodeWaves() {
+  if (waves || !wavesRaw || !audio) return;
+  const raw = wavesRaw.slice(0);          // decodeAudioData забирает буфер себе
+  try {
+    const p = audio.decodeAudioData(raw, (b) => { waves = b; }, () => {});
+    if (p && p.then) p.then((b) => { waves = b; }, () => {});
+  } catch { /* останется запасной вой */ }
+}
+
+/** Прежний вой на осцилляторе — запасной вариант, если моря нет. */
+function startBeeper() {
   const osc = audio.createOscillator();
   const sweep = audio.createOscillator();
   const depth = audio.createGain();
   const vol = audio.createGain();
   osc.type = 'sawtooth';
   osc.frequency.value = 760;
-  sweep.frequency.value = 3.2;              // вой «вверх-вниз», а не ровный писк
+  sweep.frequency.value = 3.2;
   depth.gain.value = 320;
   vol.gain.value = 0.85;
   sweep.connect(depth).connect(osc.frequency);
   osc.connect(vol).connect(audio.destination);
   osc.start(); sweep.start();
-  siren = { osc, sweep };
+  return { osc, sweep };
+}
+
+/** fast — для дневной проверки: там нужно услышать сразу, а не через полминуты. */
+function sirenOn(fast = false) {
+  if (!audio || sirenSrc || beeper) return;
+  audio.resume();
+  decodeWaves();
+  if (!waves) { beeper = startBeeper(); return; }
+
+  const src = audio.createBufferSource();
+  src.buffer = waves;
+  src.loop = true;
+  const g = audio.createGain();
+  const now = audio.currentTime;
+  const rise = fast ? 1.0 : GENTLE_S;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(fast ? 0.8 : GENTLE_LEVEL, now + rise);
+  if (!fast) g.gain.exponentialRampToValueAtTime(1.0, now + FULL_S);
+  src.connect(g).connect(audio.destination);
+  src.start();
+  sirenSrc = src; sirenGain = g;
 }
 
 function sirenOff() {
-  if (!siren) return;
-  siren.osc.stop(); siren.sweep.stop();
-  siren = null;
+  if (beeper) { beeper.osc.stop(); beeper.sweep.stop(); beeper = null; }
+  if (!sirenSrc) return;
+  const src = sirenSrc, g = sirenGain;
+  sirenSrc = null; sirenGain = null;
+  const now = audio.currentTime;
+  // Обрыв на полуслове щёлкает — уводим за треть секунды.
+  g.gain.cancelScheduledValues(now);
+  g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+  try { src.stop(now + 0.4); } catch { /* уже остановлен */ }
 }
 
 // ── камера ───────────────────────────────────────────────────────────────────
@@ -478,12 +533,13 @@ async function runSelfTest() {
 
   // 4. Звук — последним, потому что ответить может только человек
   if (!audio) unlockAudio();
-  sirenOn();
-  await new Promise((r) => setTimeout(r, 1200));
+  sirenOn(true);                         // в проверке — сразу в полный голос
+  await new Promise((r) => setTimeout(r, 3500));
   sirenOff();
-  rows.push(confirm('Слышал сирену?')
-    ? ['✓', 'Сирена слышна — разбудит']
-    : ['✗', 'Сирены не было: переключатель звонка НЕ на беззвучном, громкость на максимум']);
+  rows.push(confirm('Слышал шум моря?')
+    ? ['✓', (waves ? 'Шум моря слышен' : 'Звук слышен (моря нет — играет запасной вой)')
+             + ' — разбудит']
+    : ['✗', 'Звука не было: переключатель звонка НЕ на беззвучном, громкость на максимум']);
 
   const bad = rows.filter((r) => r[0] === '✗').length;
   rows.push(bad
