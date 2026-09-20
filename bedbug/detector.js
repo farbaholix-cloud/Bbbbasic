@@ -38,8 +38,11 @@ export const DEFAULTS = {
   speedMinMmS: 0.2,       // медленнее — это не ползание, а дрейф фона
   speedBestMmS: [3, 45],  // обычный шаг клопа — тут скорость даёт полный балл
   speedMaxMmS: 130.0,     // быстрее — блик, мошка или рука проверяющего
+  speedWindowS: 1.5,      // за сколько секунд меряем текущую скорость
+  motionHalfLifeS: 4.0,   // за столько забывается недавнее движение
+  holdFactor: 0.08,       // во столько раз медленнее фон съедает отслеживаемое пятно
   matchRadiusMm: 18.0,    // на столько пятно может сместиться за кадр
-  missLimit: 5,           // столько кадров без пятна — трек закрыт
+  missLimit: 16,          // столько кадров без пятна — трек закрыт
   fireScore: 0.70,        // с какой вероятности будить
 };
 
@@ -71,6 +74,7 @@ export class BugDetector {
     this.mask = new Uint8Array(n);
     this.tmp = new Uint8Array(n);
     this.labelStack = new Int32Array(n);
+    this.holdBuf = new Uint8Array(n);
     this.tracks = [];
     this.frameIdx = 0;
     this.settleLeft = 0;
@@ -128,15 +132,47 @@ export class BugDetector {
       this.best = null;
     }
 
-    const alpha = this.settleLeft > 0 ? cfg.settleAlpha : cfg.bgAlpha;
-    for (let i = 0; i < n; i++) this.bg[i] += alpha * (this.blur[i] - this.bg[i]);
-
-    if (this.settleLeft > 0) { this.settleLeft--; return null; }
-    if (this.frameIdx <= cfg.warmupFrames || disturbed) return null;
+    if (this.settleLeft > 0) {
+      this._updateBg(cfg.settleAlpha, null);
+      this.settleLeft--;
+      return null;
+    }
+    if (this.frameIdx <= cfg.warmupFrames) {
+      this._updateBg(cfg.bgAlpha, null);
+      return null;
+    }
 
     this._open(this.mask, this.tmp);
     this.blobs = this._blobs();
+    // Фон обновляем в последнюю очередь и ПРИДЕРЖИВАЕМ под найденными пятнами.
+    // Иначе замерший клоп через десяток секунд впитывается в фон и пропадает
+    // с экрана — а они именно так и ходят: пополз, замер, снова пополз.
+    this._updateBg(cfg.bgAlpha, this.blobs);
     return this._track(this.blobs, ts);
+  }
+
+  /** Фон ползёт к текущему кадру; под отслеживаемыми пятнами — заметно медленнее. */
+  _updateBg(alpha, blobs) {
+    const { w, h, bg, blur, cfg } = this;
+    const n = w * h;
+    if (!blobs || !blobs.length) {
+      for (let i = 0; i < n; i++) bg[i] += alpha * (blur[i] - bg[i]);
+      return;
+    }
+    const hold = this.holdBuf;
+    hold.fill(0);
+    const pad = 2;
+    for (const b of blobs) {
+      const [bx, by, bw, bh] = b.box;
+      const x0 = Math.max(0, bx - pad), y0 = Math.max(0, by - pad);
+      const x1 = Math.min(w - 1, bx + bw + pad), y1 = Math.min(h - 1, by + bh + pad);
+      for (let y = y0; y <= y1; y++) {
+        const row = y * w;
+        for (let x = x0; x <= x1; x++) hold[row + x] = 1;
+      }
+    }
+    const slow = alpha * cfg.holdFactor;
+    for (let i = 0; i < n; i++) bg[i] += (hold[i] ? slow : alpha) * (blur[i] - bg[i]);
   }
 
   // ── обработка кадра ───────────────────────────────────────────────────────
@@ -237,8 +273,8 @@ export class BugDetector {
       }
       if (!best) { tr.misses++; continue; }
       free.splice(free.indexOf(best), 1);
-      tr.pathMm += bestD / this.pxPerMm;
       tr.x = best.x; tr.y = best.y;
+      tr.hist.push({ ts, x: best.x, y: best.y });
       tr.box = best.box; tr.lengthMm = best.lengthMm;
       tr.ratio = best.ratio; tr.fill = best.fill;
       tr.lastTs = ts; tr.hits++; tr.misses = 0;
@@ -251,17 +287,43 @@ export class BugDetector {
       if (near > radius && near < radius * 8) jumpMm = near / this.pxPerMm;
       this.tracks.push({ x: b.x, y: b.y, startX: b.x, startY: b.y, firstTs: ts,
                          lastTs: ts, lengthMm: b.lengthMm, ratio: b.ratio, fill: b.fill,
-                         box: b.box, hits: 1, misses: 0, pathMm: 0, fired: false, jumpMm });
+                         box: b.box, hits: 1, misses: 0, fired: false, jumpMm,
+                         hist: [{ ts, x: b.x, y: b.y }], motion: 0, motionTs: ts });
     }
+    for (const tr of this.tracks) this._motion(tr, ts);
     return this._evaluate();
+  }
+
+  /* Скорость меряем по последним полутора секундам, а не в среднем за всю
+   * жизнь трека: иначе остановка задним числом обнуляет заслуги предыдущего
+   * проползания, и клоп, который прошёл и замер, скатывается в проценты
+   * неподвижной крошки. Свежий рывок запоминается и затухает вдвое за
+   * motionHalfLifeS — «двигался только что» остаётся уликой ещё несколько
+   * секунд, а «лежит с прошлой недели» перестаёт ею быть. */
+  _motion(tr, ts) {
+    const cfg = this.cfg;
+    const dt = ts - tr.motionTs;
+    if (dt > 0) {
+      tr.motion *= Math.pow(0.5, dt / cfg.motionHalfLifeS);
+      tr.motionTs = ts;
+    }
+    while (tr.hist.length > 1 && ts - tr.hist[0].ts > cfg.speedWindowS) tr.hist.shift();
+    if (tr.hist.length > 1) {
+      let path = 0;
+      for (let i = 1; i < tr.hist.length; i++) {
+        path += Math.hypot(tr.hist[i].x - tr.hist[i - 1].x,
+                           tr.hist[i].y - tr.hist[i - 1].y);
+      }
+      const elapsed = tr.hist[tr.hist.length - 1].ts - tr.hist[0].ts;
+      if (elapsed > 0.05) tr.motion = Math.max(tr.motion, path / this.pxPerMm / elapsed);
+    }
   }
 
   /** Вероятность для одного трека плюс разбор, чего ему не хватает. */
   _rate(tr) {
     const cfg = this.cfg;
     const netMm = Math.hypot(tr.x - tr.startX, tr.y - tr.startY) / this.pxPerMm;
-    const dt = Math.max(tr.lastTs - tr.firstTs, 1e-6);
-    const speed = tr.hits > 1 ? tr.pathMm / dt : 0;
+    const speed = tr.motion;     // недавнее движение, а не среднее за всю жизнь
 
     const fSize = band(tr.lengthMm, cfg.bugLenMin, cfg.bugLenBest[0],
                        cfg.bugLenBest[1], cfg.bugLenMax);
@@ -281,8 +343,8 @@ export class BugDetector {
     const speedWord = speed >= cfg.speedMaxMmS
       ? `скорость ${speed.toFixed(0)} мм/с — выше потолка ${cfg.speedMaxMmS}`
       : speed <= cfg.speedMinMmS
-        ? 'стоит на месте'
-        : `скорость ${speed.toFixed(1)} мм/с`;
+        ? 'не двигалось ни разу'
+        : `двигалось ${speed.toFixed(1)} мм/с`;
     // Пятно, прыгнувшее дальше радиуса сшивки, выглядит как новорождённый трек.
     // Говорим правду: дело не в том, что оно стоит, а в том, что оно летит.
     if (tr.hits <= 2 && tr.jumpMm > 0) {
