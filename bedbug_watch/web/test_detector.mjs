@@ -67,6 +67,15 @@ const CASES = [
     return f;
   }],
   ['тихая ночь', false, () => warmup(200)],
+  ['пополз, замер, пополз', true, () => {   // так они и ходят на самом деле
+    const f = warmup();
+    let x = 180;
+    for (let b = 0; b < 3; b++) {
+      for (let i = 0; i < 2; i++) { f.push(bug(sheet(), x, 160)); x += 2 * PX_MM; }
+      for (let i = 0; i < 40; i++) f.push(bug(sheet(), x, 160));   // стоит 4 с
+    }
+    return f;
+  }],
   ['упавшая крошка', false, () => {
     const f = warmup();
     for (let i = 0; i < 40; i++) f.push(bug(sheet(), 330, 170));
@@ -104,6 +113,24 @@ const CASES = [
   }],
 ];
 
+/* Отдельная проверка: замерший клоп не должен пропадать с экрана. Раньше фон
+ * съедал его за 13 секунд, и пятно исчезало из кандидатов совсем. */
+function checkStaysVisible() {
+  const det = new BugDetector(W, H, { fovWidthMm: FOV_MM });
+  warmup().forEach((f, i) => det.feed(f, i / FPS));
+  let x = 200;
+  for (let i = 0; i < 4; i++) { det.feed(bug(sheet(), x, 160), (30 + i) / FPS); x += 2 * PX_MM; }
+  let goneAt = null;
+  for (let i = 0; i < 400 && goneAt === null; i++) {
+    det.feed(bug(sheet(), x, 160), (34 + i) / FPS);
+    if (!det.candidates.length) goneAt = i / FPS;
+  }
+  const ok = goneAt === null;
+  console.log(` ${ok ? '✓' : '✗'} ${'замерший не пропадает'.padEnd(22)} ` +
+    (ok ? 'виден все 50 с простоя' : `ПРОПАЛ через ${goneAt.toFixed(1)} с`));
+  return ok ? 0 : 1;
+}
+
 let bad = 0;
 for (const [name, want, build] of CASES) {
   const hit = run(build());
@@ -116,5 +143,6 @@ for (const [name, want, build] of CASES) {
   const miss = ok ? '' : `   ← ожидали ${want ? 'тревогу' : 'тишину'}`;
   console.log(` ${ok ? '✓' : '✗'} ${name.padEnd(22)} ${detail}${miss}`);
 }
+bad += checkStaysVisible();
 console.log(bad ? `\nПровалено сценариев: ${bad}` : '\nВсе сценарии прошли.');
 process.exit(bad ? 1 : 0);

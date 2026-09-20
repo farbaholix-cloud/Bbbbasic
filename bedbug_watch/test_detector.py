@@ -76,6 +76,18 @@ def case_nymph_crawls():
     return run(frames), True
 
 
+def case_stop_and_go():
+    """Пополз — замер — пополз. Так они и ходят на самом деле."""
+    frames = warmup()
+    x = 300.0
+    for _ in range(3):
+        for _ in range(2):
+            frames.append(crawl(sheet(), x, 250))
+            x += 2.0 * PX_MM
+        frames += [crawl(sheet(), x, 250) for _ in range(40)]   # стоит 4 с
+    return run(frames), True
+
+
 def case_quiet_night():
     """Просто шум и неподвижные крошки — ни одной тревоги за 200 кадров."""
     return run(warmup(200)), False
@@ -136,12 +148,36 @@ CASES = [
     ("клоп ползёт",              case_bug_crawls),
     ("личинка ползёт",           case_nymph_crawls),
     ("тихая ночь",               case_quiet_night),
+    ("пополз, замер, пополз",    case_stop_and_go),
     ("упавшая крошка",           case_crumb_dropped),
     ("спящий повернулся",        case_sleeper_turns),
     ("крупная моль",             case_moth),
     ("быстрая тень",             case_fast_shadow),
     ("волос на простыне",        case_hair),
 ]
+
+
+def check_stays_visible() -> int:
+    """Замерший клоп не должен пропадать с экрана. Раньше фон съедал его за
+    13 секунд, и пятно исчезало из кандидатов совсем."""
+    det = BugDetector(CFG)
+    for i, f in enumerate(warmup()):
+        det.feed(f, i / FPS)
+    x = 400.0
+    for i in range(4):
+        det.feed(crawl(sheet(), x, 250), (30 + i) / FPS)
+        x += 2.0 * PX_MM
+    gone = None
+    for i in range(400):
+        det.feed(crawl(sheet(), x, 250), (34 + i) / FPS)
+        if not det.candidates:
+            gone = i / FPS
+            break
+    ok = gone is None
+    mark = "✓" if ok else "✗"
+    detail = "виден все 50 с простоя" if ok else f"ПРОПАЛ через {gone:.1f} с"
+    print(f" {mark} {'замерший не пропадает':22} {detail}")
+    return 0 if ok else 1
 
 
 def main() -> int:
@@ -154,6 +190,7 @@ def main() -> int:
         detail = hit.describe() if hit else "тихо"
         expect = "" if ok else f"   ← ожидали {'тревогу' if want else 'тишину'}"
         print(f" {mark} {name:22} {detail}{expect}")
+    bad += check_stays_visible()
     print()
     print("Все сценарии прошли." if not bad else f"Провалено сценариев: {bad}")
     return 1 if bad else 0

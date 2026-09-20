@@ -53,8 +53,11 @@ class DetectorConfig:
     min_travel_mm: float = 2.0       # столько проползти на полный балл
     speed_mm_s: Tuple[float, float] = (0.2, 130.0)  # ползёт 1–4 см/с, вспугнутый — до 12
     speed_best_mm_s: Tuple[float, float] = (3.0, 45.0)  # обычный шаг — полный балл
+    speed_window_s: float = 1.5      # за сколько секунд меряем текущую скорость
+    motion_half_life_s: float = 4.0  # за столько забывается недавнее движение
+    hold_factor: float = 0.08        # во столько раз медленнее фон съедает пятно
     match_radius_mm: float = 18.0    # на столько пятно может сместиться за кадр
-    miss_limit: int = 5              # столько кадров без пятна — трек закрыт
+    miss_limit: int = 16             # столько кадров без пятна — трек закрыт
     fire_score: float = 0.70         # с какой вероятности будить
 
 
@@ -97,8 +100,10 @@ class _Track:
     fill: float = 0.0
     hits: int = 1
     misses: int = 0
-    path_mm: float = 0.0
     jump_mm: float = 0.0
+    motion: float = 0.0
+    motion_ts: float = 0.0
+    hist: List[Tuple[float, float, float]] = field(default_factory=list)
     box: Tuple[int, int, int, int] = (0, 0, 0, 0)
     fired: bool = False
     score: float = 0.0
@@ -190,18 +195,38 @@ class BugDetector:
             self.candidates = []
             self.best = None
 
-        alpha = self.cfg.settle_alpha if self.settle_left > 0 else self.cfg.bg_alpha
-        cv2.accumulateWeighted(gray.astype(np.float32), self._bg, alpha)
-
+        gray_f = gray.astype(np.float32)
         if self.settle_left > 0:
+            self._update_bg(gray_f, self.cfg.settle_alpha, None)
             self.settle_left -= 1
             return None
-        if self.frame_idx <= self.cfg.warmup_frames or disturbed:
+        if self.frame_idx <= self.cfg.warmup_frames:
+            self._update_bg(gray_f, self.cfg.bg_alpha, None)
             return None
 
         blobs = self._blobs(mask)
         self.last_blobs = blobs
+        # Фон обновляем в последнюю очередь и ПРИДЕРЖИВАЕМ под найденными пятнами.
+        # Иначе замерший клоп через десяток секунд впитывается в фон и пропадает
+        # с экрана — а они именно так и ходят: пополз, замер, снова пополз.
+        self._update_bg(gray_f, self.cfg.bg_alpha, blobs)
         return self._track(blobs, ts)
+
+    def _update_bg(self, gray_f: np.ndarray, alpha: float,
+                   blobs: Optional[List["_Blob"]]) -> None:
+        """Фон ползёт к кадру; под отслеживаемыми пятнами — заметно медленнее."""
+        if not blobs:
+            self._bg += alpha * (gray_f - self._bg)
+            return
+        amap = np.full(self._bg.shape, alpha, np.float32)
+        slow = alpha * self.cfg.hold_factor
+        h, w = self._bg.shape
+        pad = 2
+        for b in blobs:
+            x, y, bw, bh = b.box
+            amap[max(0, y - pad):min(h, y + bh + pad),
+                 max(0, x - pad):min(w, x + bw + pad)] = slow
+        self._bg += amap * (gray_f - self._bg)
 
     def reset(self) -> None:
         self._bg = None
@@ -251,8 +276,8 @@ class BugDetector:
                 tr.misses += 1
                 continue
             free.remove(best)
-            tr.path_mm += best_d / self.px_per_mm
             tr.x, tr.y = best.x, best.y
+            tr.hist.append((ts, best.x, best.y))
             tr.box = best.box
             tr.length_mm = best.length_mm
             tr.ratio, tr.fill = best.ratio, best.fill
@@ -267,10 +292,36 @@ class BugDetector:
             jump = near / self.px_per_mm if radius < near < radius * 8 else 0.0
             self._tracks.append(
                 _Track(b.x, b.y, b.x, b.y, ts, ts, b.length_mm,
-                       ratio=b.ratio, fill=b.fill, box=b.box, jump_mm=jump)
+                       ratio=b.ratio, fill=b.fill, box=b.box, jump_mm=jump,
+                       motion_ts=ts, hist=[(ts, b.x, b.y)])
             )
 
+        for tr in self._tracks:
+            self._motion(tr, ts)
         return self._evaluate()
+
+    def _motion(self, tr: _Track, ts: float) -> None:
+        """Скорость меряем по последним полутора секундам, а не в среднем за всю
+        жизнь трека: иначе остановка задним числом обнуляет заслуги предыдущего
+        проползания, и клоп, который прошёл и замер, скатывается в проценты
+        неподвижной крошки. Свежий рывок запоминается и затухает вдвое за
+        motion_half_life_s — «двигался только что» остаётся уликой ещё несколько
+        секунд, а «лежит с прошлой недели» перестаёт ею быть.
+        """
+        cfg = self.cfg
+        dt = ts - tr.motion_ts
+        if dt > 0:
+            tr.motion *= 0.5 ** (dt / cfg.motion_half_life_s)
+            tr.motion_ts = ts
+        while len(tr.hist) > 1 and ts - tr.hist[0][0] > cfg.speed_window_s:
+            tr.hist.pop(0)
+        if len(tr.hist) > 1:
+            path = sum(float(np.hypot(tr.hist[i][1] - tr.hist[i - 1][1],
+                                      tr.hist[i][2] - tr.hist[i - 1][2]))
+                       for i in range(1, len(tr.hist)))
+            elapsed = tr.hist[-1][0] - tr.hist[0][0]
+            if elapsed > 0.05:
+                tr.motion = max(tr.motion, path / self.px_per_mm / elapsed)
 
     # ── вероятность ───────────────────────────────────────────────────────────
 
@@ -278,8 +329,7 @@ class BugDetector:
         """Вероятность для трека плюс разбор, чего ему не хватает."""
         cfg = self.cfg
         net_mm = float(np.hypot(tr.x - tr.start_x, tr.y - tr.start_y)) / self.px_per_mm
-        dt = max(tr.last_ts - tr.first_ts, 1e-6)
-        speed = tr.path_mm / dt if tr.hits > 1 else 0.0
+        speed = tr.motion      # недавнее движение, а не среднее за всю жизнь
 
         f_size = _band(tr.length_mm, cfg.bug_len_mm[0], cfg.bug_len_best[0],
                        cfg.bug_len_best[1], cfg.bug_len_mm[1])
@@ -305,9 +355,9 @@ class BugDetector:
         if speed >= cfg.speed_mm_s[1]:
             speed_word = f"скорость {speed:.0f} мм/с — выше потолка {cfg.speed_mm_s[1]:.0f}"
         elif speed <= cfg.speed_mm_s[0]:
-            speed_word = "стоит на месте"
+            speed_word = "не двигалось ни разу"
         else:
-            speed_word = f"скорость {speed:.1f} мм/с"
+            speed_word = f"двигалось {speed:.1f} мм/с"
         parts = [
             (f"живёт {tr.hits} из {cfg.min_hits} кадров", f_life),
             (f"проползло {net_mm:.1f} из {cfg.min_travel_mm} мм", f_travel),
