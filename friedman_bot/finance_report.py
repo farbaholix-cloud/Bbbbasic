@@ -294,7 +294,8 @@ def _build_html(d):
         NAME = {"groceries": "Продукты/быт", "cash": "Наличные", "rent_utilities": "Аренда/коммуналка",
                 "subcontractor_artists": "Субподряд-художники", "art_supplies": "Арт-материалы",
                 "health": "Здоровье", "klarna": "Klarna/рассрочки", "phone_internet": "Связь",
-                "transport": "Транспорт", "other_expense": "Прочее"}
+                "transport": "Транспорт", "equipment": "Техника/оборудование",
+                "other_expense": "Прочее"}
         items = sorted(((NAME.get(k, k), abs(v["total"])) for k, v in cats.items()
                         if v["total"] < 0), key=lambda x: -x[1])[:9]
         svg5 = hbars(items)

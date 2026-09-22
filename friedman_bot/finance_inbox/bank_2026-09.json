@@ -1,12 +1,14 @@
 {
  "_": [
-  "СЕНТЯБРЬ 2026 — ЧАСТИЧНЫЕ ДАННЫЕ по 21.09. Источник: 10 скриншотов банковского приложения.",
-  "Построчно — все приходы и заметные расходы, которые видны. Остальные расходы — строкой на",
-  "отрезок между остатками из шапки приложения: 31.08 1 823,51 → 01.09 1 743,47 → 03.09 1 480,60 →",
-  "07.09 1 305,34 → 09.09 1 281,29 → 11.09 330,45 → 15.09 139,82 → 17.09 119,92 → 21.09 1 519,71 €.",
-  "Сумма строк = движению остатка копейка в копейку. Невидимый на скриншотах приход сидел бы",
-  "внутри строки «прочие расходы» (занижая её).",
-  "Kreiskasse Kreis Offenbach 1 487,50 € — происхождение не подтверждено, пока other_income.",
+  "СЕНТЯБРЬ 2026 — ЧАСТИЧНЫЕ ДАННЫЕ по 22.09. Источник: 11 скриншотов банковского приложения",
+  "+ документы: Angebot 2026-09-11-01 (Kreis Offenbach) и Rechnung 2026-0910 (дрон, Privatverkauf).",
+  "Построчно — все приходы и заметные расходы. Остальные расходы — строкой на отрезок между",
+  "остатками из шапки приложения: 31.08 1 823,51 → 01.09 1 743,47 → 03.09 1 480,60 → 07.09 1 305,34 →",
+  "09.09 1 281,29 → 11.09 330,45 → 15.09 139,82 → 17.09 119,92 → 21.09 1 519,71 → 22.09 1 337,16 €.",
+  "Сумма строк = движению остатка копейка в копейку. С 10.09 по 22.09 сводные строки совпадают",
+  "с видимыми покупками до цента (скрытых приходов нет).",
+  "Kreis Offenbach: 1 487,50 € = 50 % Anzahlung от 2 975,00 € брутто (2 500 netto + 19 % USt);",
+  "вторые 1 487,50 € — в течение 3 дней после сдачи работы.",
   "PDF-выписка Naspa за сентябрь ЗАМЕНИТ этот файл целиком (импорт замещает прежнюю версию)."
  ],
  "transactions": [
@@ -49,8 +51,8 @@
   {
    "date": "2026-09-11",
    "amount": -750.0,
-   "party": "PayPal Europe S.a.r.l. et Cie S.C.A 1052963831470/PP.5747.PP/. Ihr Einkauf bei (продавец не указан)",
-   "category": "other_expense"
+   "party": "PayPal Europe S.a.r.l. et Cie S.C.A 1052963831470/PP.5747.PP/. Dominik Laugell — DJI Mavic Air Quadcopter Drohne mit Zubehör (Rechnung 2026-0910 vom 10.09.2026, Privatverkauf, ohne USt)",
+   "category": "equipment"
   },
   {
    "date": "2026-09-11",
@@ -61,7 +63,8 @@
   {
    "date": "2026-09-11",
    "amount": -57.35,
-   "party": "Telefonica Germany GmbH + Co. OHG Rg-Nr.: 1658717308/8 Ihre Tarifrechnung"
+   "party": "Telefonica Germany GmbH + Co. OHG Rg-Nr.: 1658717308/8 Ihre Tarifrechnung",
+   "category": "phone_internet"
   },
   {
    "date": "2026-09-14",
@@ -84,14 +87,44 @@
   {
    "date": "2026-09-21",
    "amount": 1487.5,
-   "party": "Kreiskasse Kreis Offenbach 2026-09-11-01 100000195136 260411792 (проводка 18–21.09)",
-   "category": "other_income"
+   "party": "Kreiskasse Kreis Offenbach 2026-09-11-01 100000195136 260411792 — Anzahlung 50 % zu Angebot 2026-09-11-01 (Fassade GEWOBAU Alicestr. 111 Neu-Isenburg, ENSO)",
+   "category": "client_income"
   },
   {
    "date": "2026-09-21",
-   "amount": -87.71,
+   "amount": -75.25,
    "party": "ПРОЧИЕ РАСХОДЫ 18–21.09 ОДНОЙ СТРОКОЙ (остаток 119.92 → 1519.71 минус видимые строки; заменить выпиской)",
    "category": "other_expense"
+  },
+  {
+   "date": "2026-09-21",
+   "amount": -12.46,
+   "party": "hostinger.com/Lord Byron 61 Lumiel (Original 14,27 USD)",
+   "category": "other_expense"
+  },
+  {
+   "date": "2026-09-22",
+   "amount": -116.54,
+   "party": "Klarna Bank AB Purchase at Rex Technologies (on behalf or Rex Operations)",
+   "category": "klarna"
+  },
+  {
+   "date": "2026-09-22",
+   "amount": -52.42,
+   "party": "Klarna Bank AB Purchase at Rex Technologies (on behalf or Rex Operations)",
+   "category": "klarna"
+  },
+  {
+   "date": "2026-09-22",
+   "amount": -8.99,
+   "party": "PayPal Europe S.a.r.l. et Cie S.C.A 1053174846834/PP.5747.PP/. Namecheap, Inc",
+   "category": "other_expense"
+  },
+  {
+   "date": "2026-09-22",
+   "amount": -4.6,
+   "party": "REWE SAGT DANKE. 44652442/Wittel",
+   "category": "groceries"
   }
  ]
 }
