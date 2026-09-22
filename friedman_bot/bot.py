@@ -841,7 +841,7 @@ def _kb_inline(path: str, cap: int = 7000) -> str:
     except Exception:
         return ""
 
-LAWYER_PROMPT = """Ты — «Юрист», личный налогово-правовой консультант Вячеслава (Slavik): украинец в Германии со статусом §24 AufenthG (временная защита), работает как художник-фрилансер (Freiberufler Künstler, бренд FARBAHOLIX), Kleinunternehmer §19 UStG, gesetzlich krankenversichert, в KSK пока не состоит.
+LAWYER_PROMPT = """Ты — «Юрист», личный налогово-правовой консультант Вячеслава (Slavik): украинец в Германии со статусом §24 AufenthG (временная защита), работает как художник-фрилансер (Freiberufler Künstler, бренд FARBAHOLIX), с 01.01.2026 — Regelbesteuerung (обязательная, письмо Finanzamt от 16.09.2026; до 2025 был Kleinunternehmer §19 UStG), gesetzlich krankenversichert, в KSK пока не состоит.
 
 ТВОЯ БАЗА ЗНАНИЙ — каталог файлов: {kb}
 SKILL.md (карта тем) уже вшит в конец этого промпта — НЕ читай его инструментом Read. В references/*.md лежат детали: Freiberufler vs Gewerbe, Kleinunternehmer, ELSTER/EÜR/Steuererklärung, KSK, IHK/Handwerk, Sozialversicherung, письма в инстанции — читай Read'ом ТОЛЬКО нужный файл по карте тем, когда ответ требует деталей/цифр оттуда. Не выдумывай факты, которых там нет.
@@ -851,7 +851,7 @@ SKILL.md (карта тем) уже вшит в конец этого промп
 ТВОИ ЗАДАЧИ:
 1. Анализ финансов: тебе дан баланс, счета (Rechnungen) с оборотом по годам, долги, расходы. Оцени налогово-правовую картину, предупреди о рисках: превышение порога Kleinunternehmer (оборот), переквалификация Freiberufler→Gewerbe, обязанность Künstlersozialabgabe как Verwerter при выплатах другим художникам сверх Bagatellgrenze.
 2. Сроки: напоминай о подаче деклараций (ESt + Anlage EÜR + Anlage S, обычно к 31 июля) и ежегодных обновлениях. Если просят — поставь напоминание (action remind).
-3. Инвойсы (СЧЕТА): когда просят выставить/сделать счёт или PDF-Rechnung — твоя ЕДИНСТВЕННАЯ задача вернуть action invoice с данными (recipient — получатель: название + адрес, каждая часть с новой строки \\n; items — позиции, desc на немецком профессионально с умляутами, price числом; salutation — обращение если известно; intro — вводная фраза на немецком если ясен повод). PDF собирает САМ БОТ по фиксированному шаблону. Ты НЕ рисуешь и НЕ меняешь дизайн счёта, НЕ редактируешь файлы, НЕ пишешь и НЕ запускаешь код, НЕ просишь никаких разрешений/«Allow», НЕ утверждай, что ты обновил дизайн или отредактировал invoice.py — у тебя нет такой возможности и это не нужно. Просто верни action invoice и короткий reply вроде «Готовлю счёт для … на …€». Если не хватает получателя или суммы — спроси одним вопросом. ВАЖНО по НДС: ВСЕГДА по умолчанию — оговорка Kleinunternehmer §19 UStG (без НДС), vat_rate НЕ ставь. Даже если оборот прошлого года превысил порог — НЕ переключай на 19% USt сам: решение отложено до Steuerberater. "vat_rate": 19 только если пользователь прямо скажет, что Steuerberater подтвердил переход.
+3. Инвойсы (СЧЕТА): когда просят выставить/сделать счёт или PDF-Rechnung — твоя ЕДИНСТВЕННАЯ задача вернуть action invoice с данными (recipient — получатель: название + адрес, каждая часть с новой строки \\n; items — позиции, desc на немецком профессионально с умляутами, price числом; salutation — обращение если известно; intro — вводная фраза на немецком если ясен повод). PDF собирает САМ БОТ по фиксированному шаблону. Ты НЕ рисуешь и НЕ меняешь дизайн счёта, НЕ редактируешь файлы, НЕ пишешь и НЕ запускаешь код, НЕ просишь никаких разрешений/«Allow», НЕ утверждай, что ты обновил дизайн или отредактировал invoice.py — у тебя нет такой возможности и это не нужно. Просто верни action invoice и короткий reply вроде «Готовлю счёт для … на …€». Если не хватает получателя или суммы — спроси одним вопросом. ВАЖНО по НДС: с 01.01.2026 — ОБЯЗАТЕЛЬНАЯ Regelbesteuerung (письмо Finanzamt Frankfurt от 16.09.2026: оборот 2025 превысил порог §19 UStG). Kleinunternehmer-оговорку §19 больше НЕ ставить. Каждый счёт — с НДС: "vat_rate": 19 (бот и сам подставит 19, если поле пустое). Другую ставку (7 %) — только если пользователь прямо её назовёт. Счета 2026 года, выставленные ещё по §19, можно исправить по §31 Abs. 5 UStDV — это открытое дело [ust], см. бюрократические дела.
 4. Письма/заявления: по reference letters.md составь готовый текст письма на немецком (Finanzamt, KSK, Krankenkasse, Handwerkskammer, Jobcenter) прямо в reply.
 3б. УДАЛЕНИЕ СЧЕТОВ ИЗ АРХИВА: если пользователь просит убрать счёт/дубль из таблицы («удали инвойс Cosmopop на 5000», «в архиве дубль — убери один») — НЕ отвечай просто «ок», а верни action delete_invoice с максимально точными критериями из просьбы и контекста (АРХИВ ИНВОЙСОВ выше): {"type":"delete_invoice","number":"","client":"Cosmopop","amount":5000,"date":"YYYY-MM-DD","all":false}. all=false удаляет ОДНУ последнюю совпавшую запись (для дубля из двух одинаковых — ровно то, что нужно); all=true — все совпавшие (только если пользователь явно просит убрать все). Если критериев мало и можно зацепить не тот счёт — сначала уточни одним вопросом.
 4б. ДОКУМЕНТЫ/БЮРОКРАТИЯ (права Führerschein-Umtausch, §24, паспорт, термины в ведомства): по reference buerokratie.md. В контексте тебе даны открытые «дела» (БЮРОКРАТИЧЕСКИЕ ДЕЛА) — когда пользователь сообщает новость по делу («записался на термин 15.08», «подал заявление», «получил права»), ОБНОВИ дело через action case: {"type":"case","topic":"fuehrerschein","status":"open|waiting|done","next_step":"...","due":"YYYY-MM-DD","note":"..."} (topic из списка в контексте; новую тему заводи с коротким латинским topic). Для актуальных процедур/правил делай web_search.
@@ -869,7 +869,7 @@ SKILL.md (карта тем) уже вшит в конец этого промп
 ВСЕГДА отвечай строго в JSON:
 {"reply": "ответ человеку (может содержать текст письма на немецком)", "actions": [
  {"type": "remind", "when": "2026-07-20 09:00", "text": "подать Einkommensteuererklärung"},
- {"type": "invoice", "recipient": "Galerie X\\nStraße 1\\n60311 Frankfurt", "items": [{"desc": "Künstlerische Wandgestaltung", "price": 1200}], "salutation": "", "customer_no": "", "intro": "", "vat_rate": null},
+ {"type": "invoice", "recipient": "Galerie X\\nStraße 1\\n60311 Frankfurt", "items": [{"desc": "Künstlerische Wandgestaltung", "price": 1200}], "salutation": "", "customer_no": "", "intro": "", "vat_rate": 19},
  {"type": "case", "topic": "fuehrerschein", "status": "waiting", "next_step": "термин в Führerscheinstelle 15.08", "due": "2026-08-15", "note": ""},
  {"type": "delete_invoice", "number": "", "client": "Cosmopop", "amount": 5000, "date": "", "all": false},
  {"type": "contact", "name": "Steuerberater Müller", "note": "ведёт ESt 2025"}
@@ -2449,6 +2449,35 @@ def _decor_add(a):
              (f" — {_ru_date(d2)}" if d2 != d1 else ""), "", "")]
 
 
+def seed_ust_case():
+    """Разово завести дело [ust]: переход на Regelbesteuerung.
+
+    Основание — письмо Finanzamt Frankfurt am Main от 16.09.2026 (копия у
+    владельца): оборот 2025 превысил порог §19 UStG, поэтому с 01.01.2026
+    Regelbesteuerung обязательна. До письма это было «скорее всего» — теперь
+    это факт, и все счета идут с 19 % USt. Номера (Steuernummer, IdNr) сюда
+    нарочно не пишутся — они есть в письме и у владельца.
+    Флаг в settings: дело создаётся один раз и не воскресает после закрытия."""
+    if _settings_get("ust_case_2026_seeded"):
+        return
+    upsert_bureau_case(
+        "ust", "Umsatzsteuer: обязательная Regelbesteuerung с 01.01.2026",
+        "open",
+        "1) Выбрать период USt-Voranmeldung: месяц или квартал (Wahlrecht, письмо FA 16.09.2026). "
+        "2) Подать Voranmeldungen за 2026 задним числом через ELSTER. "
+        "3) Исправить счета 2026, выставленные по §19 (§31 Abs. 5 UStDV). "
+        "4) Лучше всего — со Steuerberater.",
+        "2026-10-10",
+        "Письмо Finanzamt Frankfurt am Main от 16.09.2026 (Bearbeitung: Herr Schmid): оборот 2025 "
+        "выше порога §19 UStG → Regelbesteuerung с 01.01.2026 обязательна. Счета 2026 года по §19 "
+        "(без НДС): 070126, 260126, 270126, 230226, 260326, 090426, 270426, 080526, 20260629-1, "
+        "110726, 190726, 270726 — всего 18 370 €; 190226 аннулирован. Если доплату НДС с клиентов не "
+        "получить, НДС вычитается из полученного: 18 370 × 19/119 ≈ 2 933 €. С НДС уже выставлены: "
+        "290726 (FSV), 270826 (Hanauer FC), Angebot Kreis Offenbach 2026-09-11-01. Плюс: с 2026 можно "
+        "вычитать Vorsteuer с деловых покупок (краска, материалы, техника) — нужны чеки с НДС.")
+    _settings_set("ust_case_2026_seeded", "1")
+
+
 def seed_amsterdam_decor():
     """Разовая отметка поездки в Амстердам в обзоре месяца.
 
@@ -2684,6 +2713,14 @@ def apply_actions(actions: list) -> list:
                         recipient = c["recipient_full"]
                         salutation = salutation or c["salutation"]
                         customer_no = customer_no or c["customer_no"] or ""
+                # С 01.01.2026 — обязательная Regelbesteuerung (Finanzamt, 16.09.2026):
+                # §19 без НДС больше нельзя. Пусто/0 → 19 %; другая ставка — только явно.
+                try:
+                    vat_rate = float(a.get("vat_rate") or 0)
+                except (TypeError, ValueError):
+                    vat_rate = 0.0
+                if vat_rate <= 0:
+                    vat_rate = STANDARD_VAT
                 if recipient and items:
                     path, total, number = generate_invoice(
                         recipient=recipient, items=items,
@@ -2691,11 +2728,11 @@ def apply_actions(actions: list) -> list:
                         customer_no=customer_no,
                         number=next_invoice_number(),
                         intro=a.get("intro") or None,
-                        vat_rate=a.get("vat_rate") or None,
+                        vat_rate=vat_rate,
                     )
                     desc = "; ".join(it.get("desc", "") for it in items)
                     register_own_invoice(number, recipient, customer_no, desc, total,
-                                         path, a.get("vat_rate"))
+                                         path, vat_rate)
                     upsert_client(recipient, salutation or "", customer_no)  # запомнить клиента целиком
                     results.append(("invoice", 0, f"Rechnung {number} · {total:.2f}€", path, ""))
             elif a.get("type") == "case":
@@ -5222,6 +5259,8 @@ async def cmd_svod(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── Юрист: проактивные напоминания о немецких сроках/отчётах ──────────────────
 # (месяц, день, ярлык, [за сколько дней предупредить], пояснение)
+STANDARD_VAT = 19   # Regelbesteuerung с 01.01.2026 — см. seed_ust_case()
+
 LEGAL_DEADLINES = [
     (7, 31, "Einkommensteuererklärung (ESt + Anlage EÜR + Anlage S)",
      [45, 14, 3, 0],
@@ -5232,6 +5271,19 @@ LEGAL_DEADLINES = [
      [10, 0],
      "Годовая оценка дохода от художественной деятельности на следующий год. "
      "Актуально только если ты член KSK. Если ещё думаешь о вступлении — спроси Юриста."),
+    # USt-Voranmeldung — с 2026 обязательна (Regelbesteuerung). Выбран ли месяц или
+    # квартал, ещё не решено (Wahlrecht по письму Finanzamt); квартальные сроки
+    # действуют в обоих случаях, при помесячной сдаче срок — 10-е каждого месяца.
+    (1, 10, "USt-Voranmeldung за IV квартал (или декабрь)", [7, 2, 0],
+     "Декларация НДС через ELSTER до 10-го числа. НДС = 19 % с полученных платежей минус "
+     "Vorsteuer с деловых покупок. Цифры по приходам — у Финансиста."),
+    (4, 10, "USt-Voranmeldung за I квартал (или март)", [7, 2, 0],
+     "Декларация НДС через ELSTER до 10-го числа. Цифры по приходам — у Финансиста."),
+    (7, 10, "USt-Voranmeldung за II квартал (или июнь)", [7, 2, 0],
+     "Декларация НДС через ELSTER до 10-го числа. Цифры по приходам — у Финансиста."),
+    (10, 10, "USt-Voranmeldung за III квартал (или сентябрь)", [7, 2, 0],
+     "Декларация НДС через ELSTER до 10-го числа. В III квартал 2026 входит предоплата "
+     "Kreis Offenbach 1 487,50 € (в ней 237,50 € НДС)."),
     (1, 15, "Новый налоговый год: пороги и ставки обновились",
      [0],
      "Ставки KSK/Künstlersozialabgabe, порог Kleinunternehmer и правила §24 пересматриваются ежегодно. "
@@ -8053,6 +8105,7 @@ def main():
         log.error(f"goals seed: {e}")
     try:
         seed_amsterdam_decor()   # разовая отметка поездки, если она есть в календаре
+        seed_ust_case()          # разовое дело [ust]: Regelbesteuerung с 2026
         ensure_legal_kb()  # докачать всё из UPDATE_FILES, чего нет на диске
                            # (имя историческое: функцию зовут по нему три других бота)
     except Exception as e:

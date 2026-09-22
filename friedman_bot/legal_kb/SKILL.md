@@ -71,10 +71,13 @@ description: >
 ## Текущий контекст пользователя (если не сказано иное)
 
 - Freiberufler, статус подтверждён Finanzamt (Tätigkeit: художник/Wandkünstler).
-- Kleinunternehmer по §19 UStG — **внимание**: оборот-2025 (34 387 €) превысил
-  порог прошлого года 25 000 €, поэтому с 01.01.2026 статус, скорее всего,
-  утрачен (см. `references/kleinunternehmer.md`); счета 2026 выставлялись ещё
-  с §19 — риск доначисления USt, финал подтвердить со Steuerberater.
+- **С 01.01.2026 — обязательная Regelbesteuerung. ПОДТВЕРЖДЕНО Finanzamt**
+  (письмо Finanzamt Frankfurt am Main от 16.09.2026, «Verpflichtende Anwendung
+  der Regelbesteuerung ab dem Kalenderjahr 2026»): оборот 2025 (34 387 €) выше
+  порога §19. Все новые счета — с 19 % USt. Счета 2026, выставленные ещё по §19,
+  можно исправить по §31 Abs. 5 UStDV. Voranmeldung: месяц или квартал — выбор
+  владельца (ещё не сделан). Открытое дело `[ust]` с полным списком — в
+  бюрократических делах; детали — `references/kleinunternehmer.md`.
 - Gesetzlich krankenversichert (не через KSK).
 - В KSK не состоит, заявление не подавал.
 - С IHK взаимодействия не было.

@@ -229,6 +229,31 @@ def main():
               n == 2 and s == 4980, f"строк {n}, сумма {s}")
     step("выписка: замена версии", t_bank_replace)
 
+    def t_vat():
+        # С 2026 — обязательная Regelbesteuerung: счёт без ставки обязан выйти с 19 %
+        import invoice
+        seen = {}
+        real = (invoice.generate_invoice, bot.register_own_invoice, bot.upsert_client)
+
+        def fake(**kw):
+            seen.update(kw)
+            return ("", 1190.0, kw.get("number"))
+        invoice.generate_invoice = fake
+        bot.register_own_invoice = lambda *a, **k: seen.__setitem__("reg", a[-1])
+        bot.upsert_client = lambda *a, **k: None
+        try:
+            bot.apply_actions([{"type": "invoice", "recipient": "Экзамен GmbH\nStr. 1\n60311 Frankfurt",
+                                "items": [{"desc": "Wand", "price": 1000}]}])
+        finally:
+            invoice.generate_invoice, bot.register_own_invoice, bot.upsert_client = real
+        check("счёт без ставки выходит с 19 % USt (не §19)",
+              seen.get("vat_rate") == 19 and seen.get("reg") == 19, str(seen.get("vat_rate")))
+        bot.seed_ust_case()
+        bot.seed_ust_case()
+        check("дело [ust] о Regelbesteuerung заведено один раз",
+              len(q("SELECT 1 FROM bureau_cases WHERE topic='ust'")) == 1)
+    step("НДС с 2026", t_vat)
+
     def t_dashboard():
         import dashboard
         dashboard.DB = db_path

@@ -74,6 +74,12 @@ def _sender():
     return s
 
 
+def _rate(r):
+    """19 → «19», 7.5 → «7,5» — ставка НДС без лишних нулей."""
+    r = float(r)
+    return str(int(r)) if r == int(r) else f"{r:g}".replace(".", ",")
+
+
 def _eur(n):
     """2000 → «2.000,00» (немецкий формат: точка-разделитель тысяч, запятая-дробь)."""
     s = f"{float(n):,.2f}"
@@ -138,7 +144,7 @@ def _build_html(recipient, items, number, salutation, customer_no,
         # Zwischensumme уже показана строкой Summe в таблице — здесь только НДС и итог
         tax_block = (
             f"<table class='sum'>"
-            f"<tr><td>zzgl. {_eur(vat_rate)} % USt.</td><td class=r>{_eur(vat)} €</td></tr>"
+            f"<tr><td>zzgl. {_rate(vat_rate)} % USt.</td><td class=r>{_eur(vat)} €</td></tr>"
             f"<tr class=grand><td>Gesamtbetrag</td><td class=r>{_eur(total)} €</td></tr>"
             f"</table>"
         )
