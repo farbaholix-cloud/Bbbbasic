@@ -292,6 +292,39 @@ def init_db():
                          ("description", "TEXT"), ("source", "TEXT DEFAULT 'bot'")]:
             if col not in cols:
                 conn.execute(f"ALTER TABLE invoices ADD COLUMN {col} {ddl}")
+        _ensure_shared_columns(conn)
+
+
+# Колонки общих таблиц, которые бот ПИШЕТ сам. Раньше они появлялись только
+# миграциями дашборда: схему фактически вёл он, а не бот. На базе, где дашборд
+# ещё ни разу не запускался (новая установка, восстановленный бэкап, дашборд
+# упал на старте), Секретарь молча не мог сохранить ни одного дела — ошибка
+# гасилась в логе, в чат уходило бодрое «готово». Нашёл это первый же прогон
+# экзамена перед обновлением (selftest.py). Список повторяет миграции
+# дашборда, поэтому неважно, какой процесс стартует первым: схема сходится.
+_SHARED_COLUMNS = {
+    "events": [("position", "INTEGER DEFAULT 0"), ("project_id", "INTEGER"),
+               ("morning_brief", "INTEGER DEFAULT 0"), ("importance", "INTEGER DEFAULT 0"),
+               ("urgency", "INTEGER DEFAULT 0"), ("comment", "TEXT"), ("time_end", "TEXT")],
+    "chaos": [("importance", "INTEGER DEFAULT 0"), ("urgency", "INTEGER DEFAULT 0"),
+              ("project_id", "INTEGER"), ("position", "INTEGER DEFAULT 0"), ("comment", "TEXT")],
+    "steps": [("position", "INTEGER DEFAULT 0"), ("comment", "TEXT")],
+    "projects": [("morning_brief", "INTEGER DEFAULT 0"), ("archived", "INTEGER DEFAULT 0"),
+                 ("archived_at", "TEXT"), ("expected_income", "REAL DEFAULT 0"),
+                 ("income_date", "TEXT"), ("income_status", "TEXT DEFAULT 'lead'"),
+                 ("position", "INTEGER DEFAULT 0")],
+    "goals": [("progress", "INTEGER DEFAULT 0"), ("target", "TEXT")],
+}
+
+
+def _ensure_shared_columns(conn):
+    for table, cols in _SHARED_COLUMNS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if not have:
+            continue            # таблицы ещё нет — её создаст владелец схемы
+        for col, ddl in cols:
+            if col not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
 
 
 # ─── Умная категоризация ───────────────────────────────────────────────────────
@@ -5985,6 +6018,7 @@ BRANCH = "claude/schedule-display-app-ixjt6b"
 RAW_BASE = f"https://raw.githubusercontent.com/{REPO}"
 REPO_API = f"https://api.github.com/repos/{REPO}"
 UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "invoice.py", "finance_report.py", "dashboard.py", "dashboard_biz.py", "dashboard_mac.py", "brief_render.py", "report_pages.py", "wisdom.py", "tts.py", "voicelive.py",
+                "selftest.py",  # экзамен перед установкой новой версии
                 "legal_kb/SKILL.md",
                 "legal_kb/references/freiberufler-status.md",
                 "legal_kb/references/kleinunternehmer.md",
@@ -6054,38 +6088,125 @@ def _remote_sha():
         return r.read().decode().strip()
 
 
-def _download_code(d, sha):
+def _files_listed_in(bot_source):
+    """UPDATE_FILES из текста НОВОГО bot.py (без импорта — только разбор).
+    Старый код в памяти не знает о модулях, которые добавил новый коммит; без
+    этого они не доезжали бы, а экзамен падал бы на их импорте вечно."""
+    import ast
+    try:
+        for node in ast.parse(bot_source).body:
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and getattr(node.targets[0], "id", None) == "UPDATE_FILES"):
+                val = ast.literal_eval(node.value)
+                return [f for f in val if isinstance(f, str)]
+    except Exception:
+        pass
+    return []
+
+
+def _run_exam(d, staged):
+    """Репетиция: полная копия кода (текущая + новые файлы поверх) в отдельной
+    папке БЕЗ баз данных, и в ней — экзамен новой версии (selftest.py).
+    Возвращает None, если сдан, иначе текст провалов."""
+    import shutil
+    import subprocess
+    import tempfile
+    rehearsal = tempfile.mkdtemp(prefix="rehearsal_", dir=d)
+    try:
+        # всё, что сейчас лежит в коде, кроме данных и служебного
+        for name in os.listdir(d):
+            src = os.path.join(d, name)
+            if name.startswith((".", "deploy_", "rehearsal_", "backups", "__pycache__")):
+                continue
+            if name.endswith((".db", ".db-wal", ".db-shm", ".log", ".jpg", ".jpeg", ".png", ".zip")):
+                continue
+            try:
+                if os.path.isdir(src):
+                    if name.endswith("_kb") or name == "finance_inbox":
+                        shutil.copytree(src, os.path.join(rehearsal, name))
+                elif name.endswith((".py", ".json", ".md")):
+                    shutil.copy2(src, os.path.join(rehearsal, name))
+            except Exception:
+                pass
+        for tmp_path, dest in staged:
+            rel = os.path.relpath(dest, d)
+            target = os.path.join(rehearsal, rel)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copy2(tmp_path, target)
+        env = dict(os.environ)
+        env["FRIEDMAN_SELFTEST"] = "1"
+        try:
+            p = subprocess.run([sys.executable, "selftest.py"], cwd=rehearsal, env=env,
+                               capture_output=True, text=True, timeout=180)
+        except subprocess.TimeoutExpired:
+            return "экзамен завис дольше 3 минут"
+        if p.returncode == 0:
+            return None
+        out = (p.stdout or "") + ("\n" + p.stderr[-400:] if p.returncode != 1 and p.stderr else "")
+        return _scrub_tokens(out.strip())[:900] or f"код выхода {p.returncode}"
+    finally:
+        shutil.rmtree(rehearsal, ignore_errors=True)
+
+
+def _scrub_tokens(text):
+    """Вычистить из текста всё похожее на токены (Telegram, GitHub, Anthropic)."""
+    import re as _re
+    text = _re.sub(r"bot\d{6,}:[A-Za-z0-9_-]{20,}", "bot…", text)
+    text = _re.sub(r"\b\d{6,}:[A-Za-z0-9_-]{30,}", "…", text)
+    text = _re.sub(r"(gh[pousr]_|github_pat_|sk-ant-)[A-Za-z0-9_-]{10,}", r"\1…", text)
+    return text
+
+
+def _download_code(d, sha, exam=True):
     """Скачать файлы по неизменяемому SHA — такие URL CDN никогда не отдаёт устаревшими.
-    Двухфазно: сначала ВСЁ во временную папку с py_compile-проверкой .py-файлов,
-    и только потом на место. Битый деплой не касается диска — иначе один
-    синтаксис-фейл в bot.py кладёт сразу все боты (все его импортируют)."""
+    Трёхфазно: 1) ВСЁ во временную папку с py_compile-проверкой .py-файлов;
+    2) ЭКЗАМЕН (selftest.py новой версии) на репетиционной копии без боевых баз;
+    3) только если сдан — на место. Не сдал → RuntimeError, на диске ничего не
+    поменялось, бот работает на прежней версии, владелец получает список провалов.
+    exam=False — аварийный обход (/update force)."""
     import urllib.request
     import py_compile
     import shutil
     import tempfile
     tmpdir = tempfile.mkdtemp(prefix="deploy_", dir=d)
     staged = []  # (временный файл, куда класть)
+
+    def fetch(f):
+        h = {"User-Agent": "friedman-bot"}
+        tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+        if tok:
+            h["Authorization"] = f"Bearer {tok}"
+        req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}", headers=h)
+        with urllib.request.urlopen(req, timeout=40) as r:
+            data = r.read()
+        if len(data) < 100:
+            raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
+        tmp_path = os.path.join(tmpdir, f.replace("/", "__"))
+        with open(tmp_path, "wb") as out:
+            out.write(data)
+        if f.endswith(".py"):
+            py_compile.compile(tmp_path, doraise=True)  # SyntaxError → деплой отбит целиком
+        staged.append((tmp_path, os.path.join(d, f)))
+        return data
+
     try:
-        for f in UPDATE_FILES:
-            h = {"User-Agent": "friedman-bot"}
-            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-            if tok:
-                h["Authorization"] = f"Bearer {tok}"
-            req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}", headers=h)
-            with urllib.request.urlopen(req, timeout=40) as r:
-                data = r.read()
-            if len(data) < 100:
-                raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
-            tmp_path = os.path.join(tmpdir, f.replace("/", "__"))
-            with open(tmp_path, "wb") as out:
-                out.write(data)
-            if f.endswith(".py"):
-                py_compile.compile(tmp_path, doraise=True)  # SyntaxError → деплой отбит целиком
-            staged.append((tmp_path, os.path.join(d, f)))
+        files = list(UPDATE_FILES)
+        new_bot = fetch("bot.py")
+        # список файлов берём из НОВОГО bot.py: коммит с новым модулем доставляет его сразу
+        for f in _files_listed_in(new_bot.decode("utf-8", "replace")):
+            if f not in files:
+                files.append(f)
+        for f in files:
+            if f != "bot.py":
+                fetch(f)
+        if exam and any(dest.endswith(os.sep + "selftest.py") for _, dest in staged):
+            fail = _run_exam(d, staged)
+            if fail:
+                raise RuntimeError("экзамен не сдан, новый код НЕ поставлен.\n" + fail)
         for tmp_path, dest in staged:
             os.makedirs(os.path.dirname(dest), exist_ok=True)  # подпапки (legal_kb/…)
             shutil.move(tmp_path, dest)
-        return list(UPDATE_FILES)
+        return files
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -7142,10 +7263,14 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if owner and chat_id != owner:
         return  # обновлять может только владелец
     d = os.path.dirname(os.path.abspath(__file__))
-    await ctx.bot.send_message(chat_id, "🔄 Качаю свежий код с GitHub…")
+    # /update force — аварийный обход экзамена (если сломан сам экзамен)
+    force = bool(ctx.args) and ctx.args[0].lower() in ("force", "-f", "форс")
+    await ctx.bot.send_message(
+        chat_id, "🔄 Качаю свежий код с GitHub…" +
+                 (" (БЕЗ экзамена)" if force else " Сначала экзамен, потом установка."))
     try:
         sha = _remote_sha()
-        downloaded = _download_code(d, sha)
+        downloaded = _download_code(d, sha, exam=not force)
         try:
             with open(_SHA_FILE, "w") as f:
                 f.write(sha)
@@ -7155,7 +7280,10 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             chat_id, f"✅ Скачано ({sha[:7]}): " + ", ".join(downloaded) +
             "\n♻️ Перезапускаю дашборд и себя…")
     except Exception as e:
-        await ctx.bot.send_message(chat_id, f"⚠️ Не удалось обновить: {e}")
+        msg = f"⚠️ Не удалось обновить: {str(e)[:1200]}"
+        if "экзамен" in str(e):
+            msg += "\n\nРаботаю на прежней версии. Обойти экзамен: /update force"
+        await ctx.bot.send_message(chat_id, msg)
         return
 
     try:
@@ -7352,7 +7480,7 @@ async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
             if cid:
                 try:
                     await ctx.bot.send_message(
-                        cid, f"⚠️ Деплой {sha[:7]} отбит: {str(e)[:200]}\n"
+                        cid, f"⚠️ Деплой {sha[:7]} отбит: {str(e)[:1200]}\n"
                              "Работаю на прежней версии, попробую снова через 15 минут.")
                 except Exception:
                     pass
