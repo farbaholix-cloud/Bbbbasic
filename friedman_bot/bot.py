@@ -6108,7 +6108,7 @@ def _files_listed_in(bot_source):
 def _run_exam(d, staged):
     """Репетиция: полная копия кода (текущая + новые файлы поверх) в отдельной
     папке БЕЗ баз данных, и в ней — экзамен новой версии (selftest.py).
-    Возвращает None, если сдан, иначе текст провалов."""
+    Возвращает (сдан?, текст итога)."""
     import shutil
     import subprocess
     import tempfile
@@ -6140,11 +6140,11 @@ def _run_exam(d, staged):
             p = subprocess.run([sys.executable, "selftest.py"], cwd=rehearsal, env=env,
                                capture_output=True, text=True, timeout=180)
         except subprocess.TimeoutExpired:
-            return "экзамен завис дольше 3 минут"
+            return False, "экзамен завис дольше 3 минут"
         if p.returncode == 0:
-            return None
+            return True, (p.stdout or "").strip()[-300:] or "экзамен сдан"
         out = (p.stdout or "") + ("\n" + p.stderr[-400:] if p.returncode != 1 and p.stderr else "")
-        return _scrub_tokens(out.strip())[:900] or f"код выхода {p.returncode}"
+        return False, _scrub_tokens(out.strip())[:900] or f"код выхода {p.returncode}"
     finally:
         shutil.rmtree(rehearsal, ignore_errors=True)
 
@@ -6156,6 +6156,37 @@ def _scrub_tokens(text):
     text = _re.sub(r"\b\d{6,}:[A-Za-z0-9_-]{30,}", "…", text)
     text = _re.sub(r"(gh[pousr]_|github_pat_|sk-ant-)[A-Za-z0-9_-]{10,}", r"\1…", text)
     return text
+
+
+_EXAM_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_exam")
+
+
+def _save_exam(sha, verdict):
+    """Итог экзамена поставленной версии — его покажет стартовое сообщение."""
+    try:
+        with open(_EXAM_FILE, "w") as f:
+            jsonlib.dump({"sha": sha, "verdict": verdict}, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def _exam_verdict_for(sha):
+    """Итог экзамена именно этой сборки. Записи нет (сборку ставил старый код без
+    экзамена, или руками) — сдаём экзамен прямо сейчас на установленном коде."""
+    try:
+        with open(_EXAM_FILE) as f:
+            rec = jsonlib.load(f)
+        if rec.get("sha", "")[:7] == (sha or "")[:7] and rec.get("verdict"):
+            return rec["verdict"]
+    except Exception:
+        pass
+    d = os.path.dirname(os.path.abspath(__file__))
+    if not os.path.exists(os.path.join(d, "selftest.py")):
+        return "экзамена в этой версии нет"
+    ok, text = _run_exam(d, [])
+    verdict = ("✅ " if ok else "❌ ") + text
+    _save_exam(sha, verdict)
+    return verdict
 
 
 def _download_code(d, sha, exam=True):
@@ -6200,13 +6231,19 @@ def _download_code(d, sha, exam=True):
         for f in files:
             if f != "bot.py":
                 fetch(f)
-        if exam and any(dest.endswith(os.sep + "selftest.py") for _, dest in staged):
-            fail = _run_exam(d, staged)
-            if fail:
-                raise RuntimeError("экзамен не сдан, новый код НЕ поставлен.\n" + fail)
+        if not exam:
+            verdict = "⚠️ экзамен пропущен (/update force)"
+        elif any(dest.endswith(os.sep + "selftest.py") for _, dest in staged):
+            ok, text = _run_exam(d, staged)
+            if not ok:
+                raise RuntimeError("экзамен не сдан, новый код НЕ поставлен.\n" + text)
+            verdict = "✅ " + text
+        else:
+            verdict = "экзамена в этой версии нет"
         for tmp_path, dest in staged:
             os.makedirs(os.path.dirname(dest), exist_ok=True)  # подпапки (legal_kb/…)
             shutil.move(tmp_path, dest)
+        _save_exam(sha, verdict)
         return files
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -7464,9 +7501,6 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 f.write(sha)
         except Exception:
             pass
-        await ctx.bot.send_message(
-            chat_id, f"✅ Скачано ({sha[:7]}): " + ", ".join(downloaded) +
-            "\n♻️ Перезапускаю дашборд и себя…")
     except Exception as e:
         msg = f"⚠️ Не удалось обновить: {str(e)[:1200]}"
         if "экзамен" in str(e):
@@ -7481,9 +7515,8 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await ctx.bot.send_message(chat_id, f"⚠️ Дашборд не стартовал: {e}")
 
-    # перезапуск самого бота — заменяем процесс на свежий bot.py
-    await ctx.bot.send_message(chat_id, "🚀 Готово! Поднимаюсь на новой версии. "
-                                        "Через пару секунд напиши /brief для проверки.")
+    # перезапуск самого бота — заменяем процесс на свежий bot.py;
+    # итог (версия, экзамен, команды) пришлёт уже новый процесс из _on_start
     _self_restart(d)
     os._exit(0)
 
@@ -7926,6 +7959,28 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 BOT_VERSION = "09.07b"  # видимая метка сборки бота
 
 
+COMMANDS_HELP = (
+    "Команды:\n"
+    "• /start — меню\n"
+    "• /brief — утренняя сводка сейчас\n"
+    "• /svod — свод всех вводных страницами A4 под печать\n"
+    "• /ip — ссылка на дашборд\n"
+    "• /status — здоровье всей системы\n"
+    "• /update — обновить всё вручную (/update force — без экзамена)\n"
+    "• /update_mac — обновить только Mac-дашборд\n"
+    "\nЮрист:\n"
+    "• /juriststatus — диагностика Юриста\n"
+    "• /juristrestart — перезапустить Юриста\n"
+    "\nСчета:\n"
+    "• /setinvoicedata <поле> <значение> — реквизиты для счетов\n"
+    "• /wipeinvoicestoday — удалить все счета, созданные сегодня\n"
+    "\nТокены ботов (сообщение с токеном сразу удаляется):\n"
+    "• /setjuristtoken · /setsalestoken · /setfinancetoken · /setdirectortoken\n"
+    "\nАварийное:\n"
+    "• /rollback_import — вернуть базу из бэкапа (откат импорта 09.07)"
+)
+
+
 def _deployed_sha_short():
     """Короткий SHA задеплоенного кода — по нему видно, что реально стоит свежая сборка."""
     try:
@@ -7940,16 +7995,19 @@ async def _on_start(app):
     try:
         cid = get_chat_id()
         if cid:
+            sha = _deployed_sha_short()
+            try:
+                exam = await asyncio.wait_for(
+                    asyncio.to_thread(_exam_verdict_for, sha), timeout=200)
+            except Exception as e:
+                exam = f"не удалось провести: {e}"
             await app.bot.send_message(
                 cid,
                 f"🚀 Секретарь обновлён и запущен.\n"
-                f"Версия: {BOT_VERSION} · сборка {_deployed_sha_short()}\n\n"
-                f"Авто-деплой включён: новые изменения подхватываю сам за ~1.5 мин.\n\n"
-                f"Команды:\n"
-                f"• /ip — ссылка на дашборд\n"
-                f"• /brief — сводка сейчас\n"
-                f"• /update — обновить всё вручную\n"
-                f"• /update_mac — обновить только Mac-дашборд",
+                f"Версия: {BOT_VERSION} · сборка {sha}\n"
+                f"Экзамен: {exam}\n\n"
+                f"Авто-деплой включён: новые изменения подхватываю сам раз в 15 мин.\n\n"
+                f"{COMMANDS_HELP}",
             )
     except Exception as e:
         log.error(f"startup notify failed: {e}")

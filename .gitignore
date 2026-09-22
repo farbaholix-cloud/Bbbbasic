@@ -11,3 +11,5 @@ friedman_bot/.claude_token
 friedman_bot/svod_out/
 friedman_bot/brief_sample.jpg
 friedman_bot/backups/
+friedman_bot/.last_exam
+friedman_bot/.deploy_fail
