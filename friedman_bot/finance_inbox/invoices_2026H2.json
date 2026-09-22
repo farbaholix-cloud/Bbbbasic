@@ -8,5 +8,9 @@
  {"number":"290726","date":"2026-07-29","recipient":"FSV Frankfurt 1899 Fußball GmbH","customer_no":"005",
   "description":"Grundierung und Neugestaltung Südtribüne PSD Bank Arena + Demontage Logos (3 Positionen)","total":2796.5,"net":2350.0,"vat":446.5,"kleinunternehmer":false},
  {"number":"270826","date":"2026-08-27","recipient":"Hanauer Fußball-Club 1893 e.V.","customer_no":"007",
-  "description":"Künstlerische Gestaltung eines Containers auf dem Gelände des Fußballstadions in Hanau","total":2380.0,"net":2000.0,"vat":380.0,"kleinunternehmer":false}
+  "description":"Künstlerische Gestaltung eines Containers auf dem Gelände des Fußballstadions in Hanau","total":2380.0,"net":2000.0,"vat":380.0,"kleinunternehmer":false},
+ {"number":"220926","date":"2026-09-22","recipient":"Kreis Offenbach","customer_no":"",
+  "description":"Anzahlungsrechnung 50 % zu Angebot 2026-09-11-01: Fassadengestaltung (Mural) GEWOBAU, Alicestraße 111, Neu-Isenburg (ENSO)","total":1487.5,"net":1250.0,"vat":237.5,"kleinunternehmer":false},
+ {"number":"220926-1","date":"2026-09-22","recipient":"HIG Höll Immo und Gastro GmbH","customer_no":"001",
+  "description":"Nachträgliche Rechnung zur Zahlung vom 02.03.2026 (Ref. „RN. 270127“): Künstlerische Gestaltungsleistungen","total":1000.0,"net":840.34,"vat":159.66,"kleinunternehmer":false}
 ]

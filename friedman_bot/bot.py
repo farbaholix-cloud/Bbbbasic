@@ -1453,12 +1453,14 @@ def invoice_pdf_path(number: str) -> str:
     return p if safe and os.path.exists(p) else ""
 
 
-def register_own_invoice(number, recipient, customer_no, desc, total, pdf_path, vat_rate=None):
+def register_own_invoice(number, recipient, customer_no, desc, total, pdf_path, vat_rate=None,
+                         inv_date=None):
     """ЕДИНАЯ регистрация выставленного счёта: журнал invoices + аналитический
     invoice_archive (оборот, /showinvoices, .xls — «таблица» Юриста) + постоянная
     PDF-копия. Раньше сгенерированные счета попадали только в invoices — Директор
     и вся аналитика их не видели (кейс «Cosmopop 2000€»)."""
-    today_iso = datetime.now().strftime("%Y-%m-%d")
+    when = datetime.strptime(inv_date, "%Y-%m-%d") if inv_date else datetime.now()
+    today_iso = when.strftime("%Y-%m-%d")
     client = (recipient or "").split(chr(10))[0].strip()
     try:
         rate = float(vat_rate) if vat_rate else 0.0
@@ -1471,12 +1473,12 @@ def register_own_invoice(number, recipient, customer_no, desc, total, pdf_path, 
         conn.execute(
             "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
             "VALUES (?,?,?,?,?,?, 'bot')",
-            (number, datetime.now().strftime("%d.%m.%Y"), client, customer_no or "", desc, gross))
+            (number, when.strftime("%d.%m.%Y"), client, customer_no or "", desc, gross))
         conn.execute(
             "INSERT OR IGNORE INTO invoice_archive "
             "(number, inv_date, year, client_name, items, net, vat, gross, kleinunternehmer, raw_json) "
             "VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (number, today_iso, datetime.now().year, client,
+            (number, today_iso, when.year, client,
              jsonlib.dumps([desc], ensure_ascii=False), net, vat, gross,
              0 if rate else 1, jsonlib.dumps({"source": "bot", "desc": desc}, ensure_ascii=False)))
     _archive_pdf_copy(pdf_path, number)
@@ -2476,6 +2478,80 @@ def seed_ust_case():
         "290726 (FSV), 270826 (Hanauer FC), Angebot Kreis Offenbach 2026-09-11-01. Плюс: с 2026 можно "
         "вычитать Vorsteuer с деловых покупок (краска, материалы, техника) — нужны чеки с НДС.")
     _settings_set("ust_case_2026_seeded", "1")
+
+
+# Счета, выставленные вне бота (в сессии Claude Code 22.09.2026), — ОПИСАНИЕ без
+# реквизитов. PDF собирает сам сервер при старте (seed_issued_invoices): IBAN,
+# BIC и Steuernummer берутся из его settings и в git не попадают никогда.
+ISSUED_INVOICES = [
+    {"number": "220926", "date": "2026-09-22", "title": "Anzahlungsrechnung",
+     "recipient": "Kreis Offenbach\nFachdienst Ehrenamt und Wirtschaftsförderung\n"
+                  "Bereich Förderung des Ehrenamtes, Sport & Kultur\n"
+                  "Werner-Hilpert-Straße 1\n63128 Dietzenbach",
+     "customer_no": "", "salutation": None,
+     "intro": "Gemäß Angebot Nr. 2026-09-11-01 vom 11.09.2026 berechne ich Ihnen die "
+              "vereinbarte Anzahlung:",
+     "items": [{"desc": "Anzahlung 50 %: Künstlerische Fassadengestaltung (Mural), "
+                        "GEWOBAU, Alicestraße 111, 63263 Neu-Isenburg – ENSO-Projekt "
+                        "(Gesamtauftrag 2.500,00 € netto)", "price": 1250.00}],
+     "vat_rate": 19,
+     "service_note": "Leistungszeitraum: Ausführung ab September 2026 "
+                     "(Anzahlung vor Leistungserbringung)",
+     "paid_note": "Die Anzahlung von 1.487,50 € ist am 21.09.2026 eingegangen – vielen Dank. "
+                  "Die Schlussrechnung über die verbleibenden 1.487,50 € folgt nach "
+                  "Fertigstellung.",
+     "desc": "Anzahlung 50 % Angebot 2026-09-11-01 — Fassade GEWOBAU Neu-Isenburg (ENSO)"},
+    {"number": "220926-1", "date": "2026-09-22", "title": "Rechnung",
+     "recipient": "HIG Höll Immo und Gastro GmbH\nSchäfergasse 8\n65428 Rüsselsheim am Main",
+     "customer_no": "001", "salutation": "Herr Höll",
+     "intro": "zu Ihrer Zahlung vom 02.03.2026 über 1.000,00 € (Verwendungszweck „RN. 270127“) "
+              "lag bislang keine Rechnung vor. Hiermit stelle ich sie nachträglich aus:",
+     "items": [{"desc": "Künstlerische Gestaltungsleistungen gemäß Absprache "
+                        "(Zahlungseingang 02.03.2026)", "price": 840.34}],
+     "vat_rate": 19,
+     "service_note": "Leistungsdatum: bis 02.03.2026",
+     "paid_note": "Der Rechnungsbetrag von 1.000,00 € wurde am 02.03.2026 bereits bezahlt – "
+                  "vielen Dank. Es ist keine weitere Zahlung erforderlich.",
+     "desc": "Künstlerische Gestaltungsleistungen — Zahlung 02.03.2026 (Ref. RN. 270127)"},
+]
+
+
+def build_issued_invoice(inv):
+    """PDF одного счёта из ISSUED_INVOICES → (path, total, number)."""
+    from invoice import generate_invoice
+    return generate_invoice(
+        recipient=inv["recipient"], items=inv["items"], salutation=inv.get("salutation"),
+        customer_no=inv.get("customer_no", ""), number=inv["number"], intro=inv.get("intro"),
+        when=datetime.strptime(inv["date"], "%Y-%m-%d"), vat_rate=inv.get("vat_rate"),
+        title=inv.get("title", "Rechnung"), service_note=inv.get("service_note", ""),
+        paid_note=inv.get("paid_note", ""))
+
+
+def seed_issued_invoices():
+    """Однократно: собрать PDF счетов из ISSUED_INVOICES на сервере и занести их в
+    журнал, архив (invoice_archive) и постоянную PDF-копию — как любой счёт бота.
+    Номер уже занят (например, бот сам выставил счёт с таким номером) — пропуск
+    с записью в лог, ничего не перетираем."""
+    for inv in ISSUED_INVOICES:
+        key = "issued_invoice:" + inv["number"]
+        if _settings_get(key):
+            continue
+        try:
+            with db() as conn:
+                busy = conn.execute("SELECT 1 FROM invoices WHERE number=?",
+                                    (inv["number"],)).fetchone()
+            if busy:
+                log.error(f"seed_issued_invoices: номер {inv['number']} уже занят — пропуск")
+                _settings_set(key, "skipped")
+                continue
+            path, total, number = build_issued_invoice(inv)
+            register_own_invoice(number, inv["recipient"], inv.get("customer_no", ""),
+                                 inv["desc"], round(total, 2), path, inv.get("vat_rate"),
+                                 inv_date=inv["date"])
+            _settings_set(key, "1")
+            log.info(f"seed_issued_invoices: счёт {number} собран и занесён")
+        except Exception as e:
+            log.error(f"seed_issued_invoices {inv['number']}: {e}")
 
 
 def seed_amsterdam_decor():
@@ -8106,6 +8182,7 @@ def main():
     try:
         seed_amsterdam_decor()   # разовая отметка поездки, если она есть в календаре
         seed_ust_case()          # разовое дело [ust]: Regelbesteuerung с 2026
+        seed_issued_invoices()   # счета 220926 (Kreis Offenbach), 220926-1 (Höll)
         ensure_legal_kb()  # докачать всё из UPDATE_FILES, чего нет на диске
                            # (имя историческое: функцию зовут по нему три других бота)
     except Exception as e:

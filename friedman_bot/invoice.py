@@ -101,7 +101,7 @@ def _addr_html(block):
 
 
 def _build_html(recipient, items, number, salutation, customer_no,
-                intro, dt, vat_rate):
+                intro, dt, vat_rate, title="Rechnung", service_note="", paid_note=""):
     snd = _sender()
 
     # ── позиции таблицы ──
@@ -158,10 +158,24 @@ def _build_html(recipient, items, number, salutation, customer_no,
     # ── обращение (опционально) ──
     greeting = ""
     if salutation and str(salutation).strip():
-        greeting = f"<p class='greet'>Sehr geehrte/r {_esc(salutation)},</p>"
+        sal = str(salutation).strip()
+        lead = ("Sehr geehrter" if sal.startswith("Herr") else
+                "Sehr geehrte" if sal.startswith("Frau") else "Sehr geehrte/r")
+        greeting = f"<p class='greet'>{lead} {_esc(sal)},</p>"
 
     kunde = (f"<div class='knr'>Kundennummer: {_esc(customer_no)}</div>"
              if customer_no and str(customer_no).strip() else "")
+    # Leistungszeitpunkt — обязательное поле счёта (§14 Abs. 4 Nr. 6 UStG)
+    svc = (f"<div class='knr'>{_esc(service_note)}</div>" if service_note else "")
+    # Счёт на уже полученные деньги: вместо «bitte überweisen» — отметка об оплате
+    # (реквизиты не нужны — платить больше нечего)
+    if paid_note:
+        pay_html = f"<div class='pay'>{_esc(paid_note)}</div>"
+    else:
+        pay_html = (f"<div class='pay'>Bitte überweisen Sie den Rechnungsbetrag auf folgende "
+                    f"Bankverbindung:<div class='bank'>Empfänger: {_esc(snd['name'])}<br>"
+                    f"<span class='b'>{_esc(snd['bank'])}</span><br>"
+                    f"IBAN: {_esc(snd['iban'])}<br>BIC: {_esc(snd['bic'])}</div></div>")
 
     return f"""<!doctype html><html><head><meta charset='utf-8'><style>
 @page {{ size: A4; margin: 0; }}
@@ -179,8 +193,8 @@ body {{
 .meta {{ background: #efefef; padding: 14px 18px; text-align: right;
   font-size: 12px; line-height: 1.75; color: #333; max-width: 46%; }}
 .meta a, .meta .mail {{ color: #b23a3a; text-decoration: none; }}
-.recip {{ margin-top: 78px; font-size: 15px; line-height: 1.55; }}
-.date {{ text-align: right; color: #8a8a8a; font-size: 13px; margin-top: 34px; }}
+.recip {{ margin-top: 56px; font-size: 15px; line-height: 1.55; }}
+.date {{ text-align: right; color: #8a8a8a; font-size: 13px; margin-top: 24px; }}
 h1 {{ font-size: 20px; font-weight: 700; margin: 12px 0 0; }}
 .rnr {{ font-size: 14px; margin-top: 10px; }}
 .knr {{ font-size: 13px; color: #555; margin-top: 3px; }}
@@ -197,10 +211,10 @@ table.sum {{ margin-top: 12px; margin-left: auto; border-collapse: collapse; fon
 table.sum td {{ padding: 4px 10px; }}
 table.sum td.r {{ text-align: right; white-space: nowrap; }}
 table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding-top: 7px; }}
-.pay {{ margin-top: 30px; line-height: 1.55; }}
+.pay {{ margin-top: 22px; line-height: 1.55; }}
 .pay .bank {{ margin-top: 8px; }}
 .pay .bank .b {{ font-weight: 700; }}
-.close {{ margin-top: 30px; line-height: 1.7; }}
+.close {{ margin-top: 22px; line-height: 1.7; }}
 </style></head><body>
   <div class='head'>
     <div>
@@ -221,9 +235,10 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
 
   <div class='date'>{_esc(snd['city'])}, {_de_date(dt)}</div>
 
-  <h1>Rechnung</h1>
+  <h1>{_esc(title)}</h1>
   <div class='rnr'>Rechnungsnummer.: {_esc(number)}</div>
   {kunde}
+  {svc}
 
   {greeting}
   <p class='intro'>{_esc(intro)}</p>
@@ -238,15 +253,7 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
   </table>
   {tax_block}
 
-  <div class='pay'>
-    Bitte überweisen Sie den Rechnungsbetrag auf folgende Bankverbindung:
-    <div class='bank'>
-      Empfänger: {_esc(snd['name'])}<br>
-      <span class='b'>{_esc(snd['bank'])}</span><br>
-      IBAN: {_esc(snd['iban'])}<br>
-      BIC: {_esc(snd['bic'])}
-    </div>
-  </div>
+  {pay_html}
 
   <div class='close'>
     Vielen Dank für Ihren Auftrag!<br><br>
@@ -257,7 +264,8 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
 
 
 def generate_invoice(recipient, items, salutation=None, customer_no="",
-                     number=None, intro=None, when=None, vat_rate=None):
+                     number=None, intro=None, when=None, vat_rate=None,
+                     title="Rechnung", service_note="", paid_note=""):
     """Собирает PDF немецкого счёта и возвращает (path, total, number).
 
     recipient  — получатель: название и адрес, каждая часть с новой строки (\\n).
@@ -269,6 +277,9 @@ def generate_invoice(recipient, items, salutation=None, customer_no="",
     when       — datetime счёта (опц.; иначе сейчас).
     vat_rate   — если задан (напр. 19) — показывается НДС-разбивка; иначе
                  ставится оговорка Kleinunternehmer §19 UStG.
+    title      — заголовок («Rechnung», «Anzahlungsrechnung»).
+    service_note — строка Leistungsdatum/-zeitraum (обязательна по §14 UStG).
+    paid_note  — если деньги уже пришли: текст об оплате вместо «bitte überweisen».
     """
     if not items:
         raise ValueError("нет позиций для счёта")
@@ -282,6 +293,7 @@ def generate_invoice(recipient, items, salutation=None, customer_no="",
         recipient=recipient, items=items, number=number,
         salutation=salutation, customer_no=customer_no,
         intro=intro, dt=dt, vat_rate=vat_rate,
+        title=title, service_note=service_note, paid_note=paid_note,
     )
 
     safe = "".join(c for c in str(number) if c.isalnum() or c in "-_")
@@ -394,8 +406,11 @@ def _render_pdf(html_text: str, out_path: str):
         try:
             from playwright.sync_api import sync_playwright
             with sync_playwright() as pw:
+                kw = {}
+                if os.environ.get("INVOICE_CHROMIUM"):   # нестандартный путь к браузеру
+                    kw["executable_path"] = os.environ["INVOICE_CHROMIUM"]
                 browser = pw.chromium.launch(args=["--no-sandbox", "--disable-setuid-sandbox",
-                                                    "--force-color-profile=srgb"])
+                                                    "--force-color-profile=srgb"], **kw)
                 page = browser.new_page()
                 page.set_content(html_text, wait_until="networkidle")
                 page.wait_for_timeout(150)

@@ -254,6 +254,25 @@ def main():
               len(q("SELECT 1 FROM bureau_cases WHERE topic='ust'")) == 1)
     step("НДС с 2026", t_vat)
 
+    def t_issued():
+        # Счета из ISSUED_INVOICES сервер собирает сам — описание должно давать
+        # корректный счёт: оплачен → без «bitte überweisen», сумма сходится.
+        import invoice
+        for inv in bot.ISSUED_INVOICES:
+            html_text, total = invoice._build_html(
+                recipient=inv["recipient"], items=inv["items"], number=inv["number"],
+                salutation=inv.get("salutation"), customer_no=inv.get("customer_no", ""),
+                intro=inv.get("intro"), dt=__import__("datetime").datetime(2026, 9, 22),
+                vat_rate=inv.get("vat_rate"), title=inv.get("title", "Rechnung"),
+                service_note=inv.get("service_note", ""), paid_note=inv.get("paid_note", ""))
+            ok = ("überweisen" not in html_text) == bool(inv.get("paid_note")) \
+                and "Leistung" in html_text and "§ 19" not in html_text
+            check(f"счёт {inv['number']} собирается корректно", ok)
+        check("суммы выставленных вне бота счетов: 1 487,50 и 1 000,00",
+              [round(sum(i["price"] for i in inv["items"]) * 1.19, 2)
+               for inv in bot.ISSUED_INVOICES] == [1487.5, 1000.0])
+    step("счета 22.09.2026", t_issued)
+
     def t_dashboard():
         import dashboard
         dashboard.DB = db_path
