@@ -2504,8 +2504,11 @@ ISSUED_INVOICES = [
                   "Die Schlussrechnung über die verbleibenden 1.487,50 € folgt nach "
                   "Fertigstellung.",
      "desc": "Anzahlung 50 % Angebot 2026-09-11-01 — Fassade GEWOBAU Neu-Isenburg (ENSO)"},
-    # Höll: платёж 02.03.2026 без счёта. 1 000 € — НЕТТО: владелец НЕ согласен включать
-    # НДС в уже полученную тысячу, 190 € НДС клиент доплачивает (вместе с 220926-2).
+    # Höll: платёж 02.03.2026 без счёта. Счёт за работу — 1 000 € нетто БЕЗ строки НДС
+    # и БЕЗ оговорки §19 (с 2026 она была бы ложной); дата — настоящая дата выставления
+    # (задним числом не датируем). Весь НДС — один раз, в 220926-2; оба документа
+    # вместе образуют счёт (§31 Abs. 1 UStDV). Владелец НЕ включает НДС в оплаченную
+    # тысячу: 190 € клиент доплачивает по 220926-2.
     {"number": "220926-1", "date": "2026-09-22", "title": "Rechnung",
      "recipient": "HIG Höll Immo und Gastro GmbH\nz. Hd. Herrn Christian Höll\n"
                   "Schäfergasse 8\n65428 Rüsselsheim am Main",
@@ -2514,20 +2517,20 @@ ISSUED_INVOICES = [
               "lag bislang keine Rechnung vor. Hiermit stelle ich sie nachträglich aus:",
      "items": [{"desc": "Künstlerische Gestaltungsleistungen gemäß Absprache "
                         "(Zahlungseingang 02.03.2026)", "price": 1000.00}],
-     "vat_rate": 19,
+     "vat_rate": None, "no_tax_note": True, "total_label": "Nettobetrag",
      "service_note": "Leistungsdatum: bis 02.03.2026",
-     "paid_note": "Auf den Rechnungsbetrag von 1.190,00 € ist am 02.03.2026 eine Zahlung von "
-                  "1.000,00 € eingegangen – vielen Dank. Offen ist die Umsatzsteuer von "
-                  "190,00 €. Sie ist in der Zahlungsübersicht der Rechnungsberichtigung "
-                  "Nr. 220926-2 enthalten – bitte nur einmal, zusammen mit dieser, überweisen.",
+     "paid_note": "Der Nettobetrag von 1.000,00 € wurde am 02.03.2026 bezahlt – vielen Dank. "
+                  "Die Umsatzsteuer von 19 % (190,00 €) auf diese Leistung weise ich – wie für "
+                  "alle meine Rechnungen an Sie aus 2026 – gesondert in der Rechnungsberichtigung "
+                  "Nr. 220926-2 aus. Beide Dokumente bilden zusammen die Rechnung "
+                  "(§ 31 Abs. 1 UStDV).",
      "show_bank": False,
-     "fin_total": 1190.00, "fin_net": 1000.00, "fin_vat": 190.00,
+     "fin_total": 1000.00, "fin_net": 1000.00, "fin_vat": 0.0,
      "desc": "Künstlerische Gestaltungsleistungen — Zahlung 02.03.2026 (Ref. RN. 270127), "
-             "1 000 netto + 190 USt; 190 offen"},
+             "1 000 netto; USt 190 в 220926-2"},
     # Höll: Rechnungsberichtigung по §31 Abs. 5 UStDV — прямо по письму Finanzamt
-    # 16.09.2026. Позиции — суммы USt по каждому счёту 2026, выставленному ещё по §19.
-    # 190 € из 220926-1 здесь только в сводке к оплате: НДС выделен в 220926-1 и
-    # второй раз не выделяется (двойной выдел = двойной долг по §14c UStG).
+    # 16.09.2026. ВЕСЬ НДС Höll за 2026 — здесь и только здесь: к четырём счетам,
+    # выставленным ещё по §19, и к 220926-1 (выставлен без строки НДС со ссылкой сюда).
     {"number": "220926-2", "date": "2026-09-22",
      "title": "Rechnungsberichtigung nach § 31 Abs. 5 UStDV – Nachberechnung der Umsatzsteuer",
      "recipient": "HIG Höll Immo und Gastro GmbH\nz. Hd. Herrn Christian Höll\n"
@@ -2539,10 +2542,11 @@ ISSUED_INVOICES = [
               "Regelbesteuerung anzuwenden.“ Weiter heißt es: „Sollten Sie ab dem Zeitpunkt des "
               "Übergangs zur Regelbesteuerung noch Rechnungen als Kleinunternehmer ausgestellt "
               "haben, können diese nach § 31 Absatz 5 der Umsatzsteuer-Durchführungsverordnung "
-              "berichtigt werden.“ Meine Rechnungen an Sie aus dem Jahr 2026 habe ich noch als "
-              "Kleinunternehmer ohne Umsatzsteuer ausgestellt. Hiermit berichtige ich sie und "
-              "berechne die gesetzliche Umsatzsteuer von 19 % auf die bereits bezahlten "
-              "Nettobeträge nach. Alle übrigen Angaben der Rechnungen bleiben unverändert.",
+              "berichtigt werden.“ Hiermit berichtige ich meine Rechnungen 070126, 260126, 270126 "
+              "und 230226, die ich noch als Kleinunternehmer ausgestellt habe, und weise zugleich "
+              "die Umsatzsteuer zur Rechnung 220926-1 aus. Nachberechnet wird die gesetzliche "
+              "Umsatzsteuer von 19 % auf die bereits bezahlten Nettobeträge; alle übrigen "
+              "Angaben der Rechnungen bleiben unverändert.",
      "items": [
          {"desc": "USt 19 % zu Rechnung Nr. 070126 vom 07.01.2026 – Künstlerische Gestaltung "
                   "der Restaurantfassade (netto 1.000,00 €, bezahlt am 12.01.2026)",
@@ -2554,8 +2558,8 @@ ISSUED_INVOICES = [
                   "des Tores (netto 500,00 €, bezahlt am 29.01.2026)", "price": 95.00},
          {"desc": "USt 19 % zu Rechnung Nr. 230226 vom 23.02.2026 (netto 820,00 €, bezahlt "
                   "am 23.02.2026)", "price": 155.80},
-         {"desc": "Offener Betrag aus Rechnung Nr. 220926-1 vom 22.09.2026 zur Zahlung vom "
-                  "02.03.2026 (netto 1.000,00 €; die USt von 190,00 € ist dort ausgewiesen)",
+         {"desc": "USt 19 % zu Rechnung Nr. 220926-1 vom 22.09.2026 – Künstlerische "
+                  "Gestaltungsleistungen (netto 1.000,00 €, bezahlt am 02.03.2026)",
           "price": 190.00},
      ],
      "vat_rate": None, "no_tax_note": True,
@@ -2565,9 +2569,9 @@ ISSUED_INVOICES = [
                   "ausgewiesene Umsatzsteuer als Vorsteuer abziehen – wirtschaftlich ist die "
                   "Nachzahlung für Sie damit neutral.",
      "show_bank": True,
-     "fin_total": 630.80, "fin_net": 0.0, "fin_vat": 630.80,
+     "fin_total": 820.80, "fin_net": 0.0, "fin_vat": 820.80,
      "desc": "Rechnungsberichtigung §31 Abs. 5 UStDV: USt 19 % zu 070126, 260126, 270126, "
-             "230226 (630,80) + offene 190,00 aus 220926-1 = 820,80"},
+             "230226 и 220926-1 = 820,80"},
 ]
 
 
@@ -2580,7 +2584,7 @@ def build_issued_invoice(inv):
         when=datetime.strptime(inv["date"], "%Y-%m-%d"), vat_rate=inv.get("vat_rate"),
         title=inv.get("title", "Rechnung"), service_note=inv.get("service_note", ""),
         paid_note=inv.get("paid_note", ""), no_tax_note=inv.get("no_tax_note", False),
-        show_bank=inv.get("show_bank"))
+        show_bank=inv.get("show_bank"), total_label=inv.get("total_label", "Gesamtbetrag"))
 
 
 def seed_issued_invoices():

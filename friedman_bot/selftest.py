@@ -272,8 +272,8 @@ def main():
                   == bool(inv.get("paid_note"))) \
                 and "Leistung" in html_text and "Als Kleinunternehmer" not in html_text
             check(f"счёт {inv['number']} собирается корректно", ok)
-        check("суммы счетов 22.09.2026: 1 487,50 · 1 190,00 · 820,80",
-              totals == {"220926": 1487.5, "220926-1": 1190.0, "220926-2": 820.8}, str(totals))
+        check("суммы счетов 22.09.2026: 1 487,50 · 1 000,00 · 820,80",
+              totals == {"220926": 1487.5, "220926-1": 1000.0, "220926-2": 820.8}, str(totals))
     step("счета 22.09.2026", t_issued)
 
     def t_dashboard():

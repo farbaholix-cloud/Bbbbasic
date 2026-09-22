@@ -102,7 +102,7 @@ def _addr_html(block):
 
 def _build_html(recipient, items, number, salutation, customer_no,
                 intro, dt, vat_rate, title="Rechnung", service_note="", paid_note="",
-                no_tax_note=False, show_bank=None):
+                no_tax_note=False, show_bank=None, total_label="Gesamtbetrag"):
     snd = _sender()
 
     # ── позиции таблицы ──
@@ -155,7 +155,7 @@ def _build_html(recipient, items, number, salutation, customer_no,
         total = subtotal
         tax_block = (
             f"<table class='sum'>"
-            f"<tr class=grand><td>Gesamtbetrag</td><td class=r>{_eur(total)} €</td></tr>"
+            f"<tr class=grand><td>{_esc(total_label)}</td><td class=r>{_eur(total)} €</td></tr>"
             f"</table>"
         )
     else:
@@ -282,7 +282,7 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
 def generate_invoice(recipient, items, salutation=None, customer_no="",
                      number=None, intro=None, when=None, vat_rate=None,
                      title="Rechnung", service_note="", paid_note="",
-                     no_tax_note=False, show_bank=None):
+                     no_tax_note=False, show_bank=None, total_label="Gesamtbetrag"):
     """Собирает PDF немецкого счёта и возвращает (path, total, number).
 
     recipient  — получатель: название и адрес, каждая часть с новой строки (\\n).
@@ -311,7 +311,7 @@ def generate_invoice(recipient, items, salutation=None, customer_no="",
         salutation=salutation, customer_no=customer_no,
         intro=intro, dt=dt, vat_rate=vat_rate,
         title=title, service_note=service_note, paid_note=paid_note,
-        no_tax_note=no_tax_note, show_bank=show_bank,
+        no_tax_note=no_tax_note, show_bank=show_bank, total_label=total_label,
     )
 
     safe = "".join(c for c in str(number) if c.isalnum() or c in "-_")
