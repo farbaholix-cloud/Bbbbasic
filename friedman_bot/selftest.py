@@ -202,6 +202,12 @@ def main():
               text[:120])
     step("/status", t_status)
 
+    def t_quiet():
+        check("до обновления боты стартуют с легендой", not bot.quiet_start_active())
+        bot._start_quiet_window()
+        check("после обновления боты стартуют молча", bot.quiet_start_active())
+    step("тихий старт после обновления", t_quiet)
+
     def t_dashboard():
         import dashboard
         dashboard.DB = db_path

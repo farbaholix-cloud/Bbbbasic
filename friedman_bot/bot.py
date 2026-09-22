@@ -6158,6 +6158,25 @@ def _scrub_tokens(text):
     return text
 
 
+def _start_quiet_window(minutes=5):
+    """После установки новой версии перезапускаются ВСЕ боты. Их стартовые
+    «легенды» и сообщения сторожа в это время — шум: итог обновления и так
+    присылает Секретарь. Пока окно открыто, остальные боты стартуют молча."""
+    try:
+        _settings_set("quiet_start_until",
+                      (datetime.now() + timedelta(minutes=minutes)).strftime("%Y-%m-%d %H:%M:%S"))
+    except Exception:
+        pass
+
+
+def quiet_start_active() -> bool:
+    try:
+        until = _settings_get("quiet_start_until") or ""
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S") < until
+    except Exception:
+        return False
+
+
 _EXAM_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_exam")
 
 
@@ -6244,6 +6263,7 @@ def _download_code(d, sha, exam=True):
             os.makedirs(os.path.dirname(dest), exist_ok=True)  # подпапки (legal_kb/…)
             shutil.move(tmp_path, dest)
         _save_exam(sha, verdict)
+        _start_quiet_window()
         return files
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -7548,6 +7568,8 @@ async def watchdog_children(ctx: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             log.error(f"watchdog restart {name}: {e}")
             continue
+        if quiet_start_active():
+            continue  # идёт обновление — боты и так перезапускаются, не шумим
         if _claim_daily(f"watchdog:{pat}:{datetime.now().strftime('%Y-%m-%d')}"):
             msg = f"🛠 Сторож: «{name}» был неактивен — перезапустил."
             if not _send_via_director(msg):

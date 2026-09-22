@@ -65,6 +65,8 @@ async def _post_init(app):
     chat = B.get_chat_id()
     if not chat:
         return
+    if B.quiet_start_active():
+        return  # перезапуск из-за обновления Секретаря — итог пришлёт он, здесь молчим
     import time as _t
     try:
         last = float(B._settings_get("director_legend_last") or 0)
