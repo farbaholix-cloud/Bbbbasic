@@ -4436,6 +4436,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "*Меню:*\n"
         "/ip — ссылка на дашборд\n"
         "/brief — сводка сейчас\n"
+        "/status — здоровье всей системы\n"
         "/update — обновить вручную прямо сейчас",
         parse_mode="Markdown",
         reply_markup=MAIN_KBD
@@ -7255,6 +7256,188 @@ async def cmd_setupvoicelive(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await ctx.bot.send_message(chat_id, f"⚠️ Не вышло поднять живой голос: {e}")
 
 
+import time as _time_mod  # внимание: `time` в этом файле — datetime.time
+_STARTED_AT = _time_mod.time()
+_DEPLOY_FAIL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deploy_fail")
+
+
+def _note_deploy(sha, err=None):
+    """Запомнить исход последнего деплоя для /status (отбит — чем; прошёл — стереть)."""
+    try:
+        if err is None:
+            if os.path.exists(_DEPLOY_FAIL_FILE):
+                os.unlink(_DEPLOY_FAIL_FILE)
+        else:
+            with open(_DEPLOY_FAIL_FILE, "w") as f:
+                jsonlib.dump({"sha": sha, "err": str(err)[:1500],
+                           "at": datetime.now().strftime("%Y-%m-%d %H:%M")}, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def _ago(seconds):
+    s = max(0, int(seconds))
+    if s < 3600:
+        return f"{s // 60} мин"
+    if s < 86400:
+        return f"{s // 3600} ч"
+    return f"{s // 86400} дн"
+
+
+def _log_errors(path, since_ts):
+    """(ошибок за период, последняя строка-ошибка) из хвоста лога, токены вычищены."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 200_000))
+            lines = f.read().decode("utf-8", "replace").splitlines()
+    except Exception:
+        return 0, None
+    since = datetime.fromtimestamp(since_ts).strftime("%Y-%m-%d %H:%M:%S")
+    n, last = 0, None
+    for ln in lines:
+        if " ERROR " in ln or " CRITICAL " in ln or ln.startswith(("Traceback", "RuntimeError", "Exception")) \
+                or ("Error:" in ln and not ln.startswith(" ")):
+            last = ln
+            if ln[:19] >= since or not ln[:4].isdigit():
+                n += 1
+    if last:
+        last = _scrub_tokens(last.strip())
+        last = re.sub(r"^\d{4}-\d\d-\d\d [\d:,.]+\s+", "", last)  # без метки времени
+        last = last[:180]
+    return n, last
+
+
+def _status_report_sync() -> str:
+    d = os.path.dirname(os.path.abspath(__file__))
+    now = _time_mod.time()
+    red, lines = 0, []
+
+    # ── процессы ──────────────────────────────────────────────────────────
+    procs = (
+        ("Секретарь", None, "/tmp/bot.log", None),
+        ("Финансист", "finance_bot.py", "/tmp/finance.log", get_finance_token),
+        ("Юрист", "jurist_bot.py", "/tmp/jurist.log", get_jurist_token),
+        ("Продавец", "sales_bot.py", "/tmp/sales.log", get_sales_token),
+        ("Директор", "director_bot.py", "/tmp/director.log", get_director_token),
+        ("Дашборд", "dashboard.py", "/tmp/dash.log", None),
+    )
+    for name, pat, logp, token_fn in procs:
+        if token_fn and not token_fn():
+            lines.append(f"⚪ {name} — не настроен (нет токена)")
+            continue
+        if pat is None:
+            alive, extra = True, f"работает {_ago(now - _STARTED_AT)}"
+        else:
+            try:
+                r = subprocess.run(["pgrep", "-f", pat], capture_output=True, text=True, timeout=10)
+                alive = bool(r.stdout.strip())
+            except Exception:
+                alive = False
+            extra = ""
+            if alive and pat == "dashboard.py":
+                try:
+                    import urllib.request
+                    urllib.request.urlopen("http://127.0.0.1:8765/", timeout=5)
+                except urllib.error.HTTPError:
+                    pass                      # ответил (хоть и кодом) — значит жив
+                except Exception:
+                    alive, extra = False, "процесс есть, но на порт 8765 не отвечает"
+        errs, last = _log_errors(logp, now - 86400)
+        if alive:
+            tail = f" · ошибок за сутки: {errs}" if errs else ""
+            lines.append(f"🟢 {name}" + (f" — {extra}" if extra else "") + tail)
+        else:
+            red += 1
+            hint = "/juristrestart" if name == "Юрист" else "сторож поднимет сам за ≤5 мин, или /update"
+            lines.append(f"🔴 {name} — НЕ работает" + (f" ({extra})" if extra else "")
+                         + (f"\n    последняя ошибка: {last}" if last else "")
+                         + f"\n    → {hint}")
+
+    # ── копии баз ─────────────────────────────────────────────────────────
+    bdir = os.path.join(d, "backups")
+    for label, prefix in (("основная база", "friedman"), ("деньги", "finance")):
+        try:
+            copies = sorted(f for f in os.listdir(bdir)
+                            if f.startswith(prefix + "_") and f.endswith(".db"))
+        except Exception:
+            copies = []
+        if not copies:
+            red += 1
+            lines.append(f"🔴 Копия ({label}) — нет ни одной")
+            continue
+        age = now - os.path.getmtime(os.path.join(bdir, copies[-1]))
+        mark = "🟢" if age < 2 * 86400 else "🔴"
+        red += mark == "🔴"
+        lines.append(f"{mark} Копия ({label}) — {_ago(age)} назад, хранится {len(copies)}")
+
+    # ── версия и деплой ───────────────────────────────────────────────────
+    sha = None
+    try:
+        with open(_SHA_FILE) as f:
+            sha = f.read().strip()
+    except Exception:
+        pass
+    try:
+        code_age = _ago(now - os.path.getmtime(os.path.join(d, "bot.py")))
+    except Exception:
+        code_age = "?"
+    ver = f"🟢 Версия {sha[:7] if sha else '?'} — поставлена {code_age} назад"
+    try:
+        remote = _remote_sha()
+        if sha and remote != sha:
+            ver += f"\n    на GitHub уже {remote[:7]} — доедет за ≤15 мин"
+    except Exception:
+        ver += "\n    GitHub сейчас недоступен — сверить не смог"
+    fail = None
+    try:
+        with open(_DEPLOY_FAIL_FILE) as f:
+            fail = jsonlib.load(f)
+    except Exception:
+        pass
+    if fail:
+        red += 1
+        first = [l for l in fail.get("err", "").splitlines() if l.strip().startswith("✗")][:3] \
+            or fail.get("err", "").splitlines()[:2]
+        ver = ver.replace("🟢", "🔴", 1) + (
+            f"\n    деплой {fail.get('sha', '')[:7]} отбит ({fail.get('at')}):\n    "
+            + "\n    ".join(x.strip()[:160] for x in first)
+            + "\n    → работаю на прежней; обойти экзамен: /update force")
+    lines.append(ver)
+
+    # ── граница знания Финансиста ─────────────────────────────────────────
+    try:
+        import finance_core
+        with finance_core.fdb() as fc:
+            cov = finance_core.coverage(fc)
+        bt = cov.get("bank_to")
+        if bt:
+            stale = (datetime.now() - datetime.strptime(bt[:10], "%Y-%m-%d")).days
+            mark = "🟢" if stale <= 35 else "🟡"
+            lines.append(f"{mark} Выписки банка — по {bt[:10]} ({stale} дн назад)"
+                         + ("\n    → пришли свежую выписку Финансисту" if stale > 35 else ""))
+        else:
+            lines.append("🟡 Выписки банка — не загружены")
+    except Exception as e:
+        lines.append(f"🟡 Выписки банка — не прочитал: {str(e)[:80]}")
+
+    head = "✅ Всё в порядке" if not red else f"⚠️ Проблем: {red}"
+    return f"{head}\n\n" + "\n".join(lines)
+
+
+async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/status — здоровье всей системы одним сообщением. Только смотрит, ничего не чинит."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    try:
+        text = await asyncio.wait_for(asyncio.to_thread(_status_report_sync), timeout=60)
+    except Exception as e:
+        text = f"⚠️ Не смог собрать состояние: {e}"
+    await ctx.bot.send_message(chat_id, text)
+
+
 async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Самообновление из Telegram: скачать свежий код, перезапустить дашборд и себя.
     Больше не нужен Termius — пишешь /update боту, и всё."""
@@ -7270,7 +7453,12 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                  (" (БЕЗ экзамена)" if force else " Сначала экзамен, потом установка."))
     try:
         sha = _remote_sha()
-        downloaded = _download_code(d, sha, exam=not force)
+        try:
+            downloaded = _download_code(d, sha, exam=not force)
+        except Exception as e:
+            _note_deploy(sha, e)
+            raise
+        _note_deploy(sha)
         try:
             with open(_SHA_FILE, "w") as f:
                 f.write(sha)
@@ -7471,8 +7659,10 @@ async def auto_update(ctx: ContextTypes.DEFAULT_TYPE):
         _download_code(d, sha)
         with open(_SHA_FILE, "w") as f:
             f.write(sha)
+        _note_deploy(sha)
     except Exception as e:
         log.error(f"auto-update failed: {e}")
+        _note_deploy(sha, e)
         # Битый/недоступный деплой: работаем на прежней версии, владельцу — один
         # пинг на каждый SHA (ретраи каждые 15 мин продолжаются молча)
         if _claim_daily("deploy_fail:" + sha[:7]):
@@ -7801,6 +7991,7 @@ def main():
     app.add_handler(CommandHandler("svod", cmd_svod))
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
+    app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))

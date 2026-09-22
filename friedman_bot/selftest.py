@@ -189,6 +189,19 @@ def main():
               isinstance(ctx, str) and "Экзамен" in ctx)
     step("контекст Секретаря", t_context)
 
+    def t_status():
+        def offline():
+            raise OSError("экзамен без сети")
+        real, bot._remote_sha = bot._remote_sha, offline
+        try:
+            text = bot._status_report_sync()
+        finally:
+            bot._remote_sha = real
+        check("/status собирается и видит всех",
+              all(n in text for n in ("Секретарь", "Финансист", "Дашборд", "Копия", "Версия")),
+              text[:120])
+    step("/status", t_status)
+
     def t_dashboard():
         import dashboard
         dashboard.DB = db_path
