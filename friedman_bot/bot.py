@@ -6054,7 +6054,8 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "finance_overrides.json",
                 "finance_inbox/invoices_2026H2.json",
                 "finance_inbox/bank_2026-07.json",
-                "finance_inbox/bank_2026-08.json"]
+                "finance_inbox/bank_2026-08.json",
+                "finance_inbox/bank_2026-09.json"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
