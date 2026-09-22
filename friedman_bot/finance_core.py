@@ -634,6 +634,52 @@ def subcontractor_payments(conn, year=None):
                        "party": r["party"]} for r in rows]}
 
 
+def import_bot_archive(conn, path=None):
+    """Счета, выставленные БОТОМ (Юрист, /invoice), — из архива Секретаря.
+
+    Они живут в friedman.db (invoice_archive) и в invoices_pdf/, а не в файлах,
+    из которых собирается эта база. Из-за этого Финансист их не видел: так
+    «потерялся» счёт 130526 (Klügling, 1 500 €, 13.05.2026) — оплата была, а
+    счёта будто нет. Берём только номера, которых здесь ещё нет: файлы
+    (invoices_seed, finance_inbox) остаются главнее и ничего не перетирается."""
+    p = path or os.path.join(BASE_DIR, "friedman.db")
+    if not os.path.exists(p):
+        return {"skipped": True, "reason": "нет friedman.db"}
+    have = {r[0] for r in conn.execute("SELECT number FROM fin_invoice").fetchall()}
+    src = sqlite3.connect("file:%s?mode=ro" % p, uri=True, timeout=10)
+    src.row_factory = sqlite3.Row
+    try:
+        try:
+            rows = src.execute("SELECT number, inv_date, client_name, items, net, vat, gross,"
+                               " kleinunternehmer FROM invoice_archive").fetchall()
+        except sqlite3.Error:
+            return {"skipped": True, "reason": "нет invoice_archive"}
+    finally:
+        src.close()
+    new = []
+    for r in rows:
+        num = (r["number"] or "").strip()
+        iso = to_iso(r["inv_date"])
+        gross = to_amount(r["gross"])
+        if not num or not iso or gross <= 0 or num in have:
+            continue
+        try:
+            items = json.loads(r["items"] or "[]")
+            desc = "; ".join(i if isinstance(i, str) else str(i.get("desc", "")) for i in items)
+        except Exception:
+            desc = ""
+        vat = to_amount(r["vat"] or 0)
+        net = to_amount(r["net"]) if r["net"] is not None else round(gross - vat, 2)
+        conn.execute(
+            "INSERT OR IGNORE INTO fin_invoice(number, inv_date, client, description, amount, net,"
+            " vat, currency, kleinunternehmer, note) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (num, iso, nfc(r["client_name"] or "").strip(), nfc(desc)[:400], gross, net, vat,
+             CURRENCY, 1 if r["kleinunternehmer"] else 0, "из архива бота (friedman.db)"))
+        have.add(num)
+        new.append(num)
+    return {"skipped": False, "kind": "bot_archive", "new": len(new), "numbers": new}
+
+
 def import_inbox(conn, force=False):
     """Забрать всё, что лежит в finance_inbox/ — это прямой канал передачи данных
     (см. finance_inbox/README.md). Порядок: счета, потом банк."""
@@ -969,13 +1015,21 @@ def open_invoices(conn, as_of=None):
 
 def unmatched_income(conn):
     """Приход, который не удалось привязать ни к одному счёту. Это рабочий
-    список «разобрать», а не повод молча потерять деньги из отчёта."""
+    список «разобрать», а не повод молча потерять деньги из отчёта.
+
+    Случайная переплата, которую сразу вернули (та же сумма, возврат
+    client_refund в течение 5 дней), — не «приход без счёта»: пара гасится.
+    Так было с Klügling 20.05.2026: 1 500 € пришли второй раз и в тот же день
+    ушли обратно."""
     rows = conn.execute("""
         SELECT p.* FROM fin_payment p
         LEFT JOIN fin_match m ON m.payment_id=p.id
         WHERE p.amount>0 AND m.id IS NULL AND p.category IN (%s)
+          AND NOT EXISTS (SELECT 1 FROM fin_payment r
+                          WHERE r.category=? AND ABS(r.amount + p.amount) < 0.01
+                            AND r.val_date BETWEEN p.val_date AND date(p.val_date, '+5 days'))
         ORDER BY p.val_date""" % ",".join("?" * len(BUSINESS_INCOME_CATS)),
-        list(BUSINESS_INCOME_CATS)).fetchall()
+        list(BUSINESS_INCOME_CATS) + [CLIENT_REFUND_CAT]).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -1171,6 +1225,7 @@ def bootstrap(force=False, verbose=True):
             if os.path.exists(p):
                 report["imports"].append(fx(conn, p, force))
         report["imports"] += import_inbox(conn, force)
+        report["imports"].append(import_bot_archive(conn))   # счета, выставленные ботом
         report["normalize"] = normalize_categories(conn)
         report["overrides"] = apply_overrides(conn)   # решения человека — после автоматики
         report["reconcile"] = reconcile(conn)

@@ -14,5 +14,7 @@
  {"number":"220926-1","date":"2026-09-22","recipient":"HIG Höll Immo und Gastro GmbH","customer_no":"001",
   "description":"Nachträgliche Rechnung zur Zahlung vom 02.03.2026 (Ref. „RN. 270127“): Künstlerische Gestaltungsleistungen — 1.000 netto, bezahlt; USt 190 ausgewiesen in 220926-2","total":1000.0,"net":1000.0,"vat":0.0,"kleinunternehmer":false},
  {"number":"220926-2","date":"2026-09-22","recipient":"HIG Höll Immo und Gastro GmbH","customer_no":"001",
-  "description":"Rechnungsberichtigung § 31 Abs. 5 UStDV: USt 19 % zu 070126, 260126, 270126, 230226 und 220926-1 — 820,80 €, fällig 06.10.2026","total":820.8,"net":0.0,"vat":820.8,"kleinunternehmer":false}
+  "description":"Rechnungsberichtigung § 31 Abs. 5 UStDV: USt 19 % zu 070126, 260126, 270126, 230226 und 220926-1 — 820,80 €, fällig 06.10.2026","total":820.8,"net":0.0,"vat":820.8,"kleinunternehmer":false},
+ {"number":"130526","date":"2026-05-13","recipient":"Klügling Café & Konditorei Betriebs GmbH (Café Sa'Sis)","customer_no":"017",
+  "description":"Rechnung, erstellt vom Juristen-Bot (PDF auf dem Server: invoices_pdf/130526.pdf); noch als Kleinunternehmer ohne USt","total":1500.0,"net":1500.0,"vat":0.0,"kleinunternehmer":true}
 ]
