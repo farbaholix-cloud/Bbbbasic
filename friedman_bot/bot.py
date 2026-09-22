@@ -7210,14 +7210,13 @@ async def watchdog_children(ctx: ContextTypes.DEFAULT_TYPE):
                         pass
 
 
-def _backup_db_sync() -> str:
-    """Консистентная копия friedman.db (sqlite backup API — безопасно при
-    параллельной записи) в backups/ с ротацией 7 дней. Возвращает путь копии."""
-    d = os.path.dirname(os.path.abspath(__file__))
-    bdir = os.path.join(d, "backups")
-    os.makedirs(bdir, exist_ok=True)
-    dest = os.path.join(bdir, f"friedman_{datetime.now().strftime('%Y-%m-%d')}.db")
-    src = sqlite3.connect(DB, timeout=30)
+def _backup_one(src_path: str, prefix: str, bdir: str, keep: int = 7):
+    """Консистентная копия одной sqlite-базы (backup API — безопасно при
+    параллельной записи) с ротацией. Базы нет — возвращает None."""
+    if not os.path.exists(src_path):
+        return None
+    dest = os.path.join(bdir, f"{prefix}_{datetime.now().strftime('%Y-%m-%d')}.db")
+    src = sqlite3.connect(src_path, timeout=30)
     dst = sqlite3.connect(dest)
     try:
         src.backup(dst)
@@ -7225,12 +7224,32 @@ def _backup_db_sync() -> str:
         dst.close()
         src.close()
     kept = sorted(f for f in os.listdir(bdir)
-                  if f.startswith("friedman_") and f.endswith(".db"))
-    for old in kept[:-7]:
+                  if f.startswith(prefix + "_") and f.endswith(".db"))
+    for old in kept[:-keep]:
         try:
             os.unlink(os.path.join(bdir, old))
         except Exception:
             pass
+    return dest
+
+
+def _backup_db_sync() -> str:
+    """Ночная копия ОБЕИХ баз в backups/ с ротацией 7 дней.
+
+    Раньше копировался только friedman.db. Денежная база finance.db — выписки,
+    счета, сверка «счёт ↔ оплата» — не попадала ни в ночную копию, ни в
+    воскресный сейф: у Финансиста был только /backup, и тот отдаёт markdown-
+    рендер, а не саму базу. Гибель диска означала бы заново всю сверку.
+    Возвращает путь копии friedman.db (её ждёт воскресный архив)."""
+    d = os.path.dirname(os.path.abspath(__file__))
+    bdir = os.path.join(d, "backups")
+    os.makedirs(bdir, exist_ok=True)
+    dest = _backup_one(DB, "friedman", bdir)
+    try:
+        _backup_one(os.path.join(d, "finance.db"), "finance", bdir)
+    except Exception as e:
+        # денежная копия не должна ронять основную
+        log.error(f"backup finance.db: {e}")
     return dest
 
 
@@ -7244,6 +7263,10 @@ def _weekly_backup_zip(db_copy: str) -> str:
     dest = os.path.join(bdir, f"farbaholix_{datetime.now().strftime('%Y-%m-%d')}.zip")
     with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(db_copy, os.path.basename(db_copy))
+        # денежная база — в тот же сейф: копия этого дня, если ночью сделалась
+        fin_copy = os.path.join(bdir, "finance_" + os.path.basename(db_copy).split("_", 1)[1])
+        if os.path.exists(fin_copy):
+            z.write(fin_copy, os.path.basename(fin_copy))
         if os.path.isdir(INVOICES_PDF_DIR):
             for f in sorted(os.listdir(INVOICES_PDF_DIR)):
                 if f.endswith(".pdf"):
