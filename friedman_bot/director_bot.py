@@ -113,20 +113,29 @@ async def cmd_update(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if owner and chat_id != owner:
         return
     d = os.path.dirname(os.path.abspath(__file__))
-    await update.message.reply_text("🔄 Качаю свежий код с GitHub…")
+    force = bool(ctx.args) and ctx.args[0].lower() in ("force", "-f", "форс")
+    await update.message.reply_text(
+        "🔄 Качаю свежий код с GitHub…" +
+        (" (БЕЗ экзамена)" if force else " Сначала экзамен, потом установка."))
     try:
         sha = B._remote_sha()
-        downloaded = B._download_code(d, sha)
+        try:
+            B._download_code(d, sha, exam=not force)
+        except Exception as e:
+            B._note_deploy(sha, e)
+            raise
+        B._note_deploy(sha)
         try:
             with open(B._SHA_FILE, "w") as f:
                 f.write(sha)
         except Exception:
             pass
-        await update.message.reply_text(
-            f"✅ Скачано ({sha[:7]}): " + ", ".join(downloaded)
-            + "\n♻️ Перезапускаю команду — вернусь через полминуты…")
+        # итог (версия, экзамен, команды) пришлёт Секретарь, когда поднимется
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Не удалось обновить: {e}")
+        msg = f"⚠️ Не удалось обновить: {str(e)[:1200]}"
+        if "экзамен" in str(e):
+            msg += "\n\nРаботаю на прежней версии. Обойти экзамен: /update force"
+        await update.message.reply_text(msg)
         return
     try:
         B._restart_dashboard(d)
