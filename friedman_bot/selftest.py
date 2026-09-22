@@ -208,6 +208,27 @@ def main():
         check("после обновления боты стартуют молча", bot.quiet_start_active())
     step("тихий старт после обновления", t_quiet)
 
+    def t_bank_replace():
+        import json
+        import finance_core as fc
+        fin = os.path.join(scratch, "finance_test.db")
+        path = os.path.join(code, "finance_inbox", "bank_selftest.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        def put(rows):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(rows, f, ensure_ascii=False)
+            with fc.fdb(fin) as c:
+                fc.ensure_schema(c)
+                fc.import_bank_json(c, path)
+                return c.execute("SELECT COUNT(*) n, ROUND(SUM(amount),2) s FROM fin_payment").fetchone()
+        put([{"date": "2030-08-07", "amount": 5000, "party": "cosmopop скриншот"}])
+        n, s = put([{"date": "2030-08-07", "amount": 5000, "party": "Gutschrift cosmopop GmbH RNr. 1"},
+                    {"date": "2030-08-08", "amount": -20, "party": "REWE"}])
+        check("новая версия выписки заменяет старую, а не удваивает деньги",
+              n == 2 and s == 4980, f"строк {n}, сумма {s}")
+    step("выписка: замена версии", t_bank_replace)
+
     def t_dashboard():
         import dashboard
         dashboard.DB = db_path

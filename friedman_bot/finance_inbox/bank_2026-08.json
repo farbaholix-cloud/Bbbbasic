@@ -1,29 +1,630 @@
-[
+{
+ "_": [
+  "АВГУСТ 2026 — полная выписка Naspa (Kontoauszug 8/2026, 8 стр.), заменяет",
+  "прежний частичный файл по скриншотам. Остаток 1 262,77 € на 31.07 → 1 823,51 € на 31.08;",
+  "сумма всех строк = +560,74 € — сходится с движением остатка копейка в копейку.",
+  "Дата = день проводки (Buchungstag). Реквизиты банка и счёта не переносились."
+ ],
+ "transactions": [
   {
-    "_": "АВГУСТ 2026 — ЧАСТИЧНЫЕ ДАННЫЕ. Источник: скриншоты банковского приложения",
-    "_2": "(Bank/IMG_1760…1778, 19 шт., проверены все). Настоящей выписки Naspa за август",
-    "_3": "ещё нет — она появится в начале сентября и заменит этот файл.",
-    "_4": "ПОСТУПЛЕНИЯ выписаны построчно и точно. РАСХОДЫ одной строкой: итог выведен",
-    "_5": "из движения остатка (1 262,77 € на 31.07 → 1 756,29 € на 26.08), а не из ручной",
-    "_6": "перепечатки сотни карточных покупок — перепечатка глазами дала бы ошибки.",
-    "_7": "Строку-агрегат удалить, когда придёт PDF-выписка за август.",
-    "date": "2026-08-01",
-    "amount": 0,
-    "party": "СЛУЖЕБНАЯ ЗАПИСЬ — не операция",
-    "category": "meta"
+   "date": "03.08.2026",
+   "amount": -52.84,
+   "party": "Lastschrift CORE Klarna Bank AB Purchase at Rex 019fb7b5f8d67c47b1f2f840eddb4fc0 1cf5586e92ae404da0b88ed3604cd642 Gläubiger-ID: SE71ZZZ5567370431"
   },
-
-  {"date": "2026-08-07", "amount": 5000.00,
-   "party": "cosmopop GmbH RNr. 270726 RDat. 27.07.2026", "category": "client_income"},
-
-  {"date": "2026-08-18", "amount": 19.99,
-   "party": "eBay O.03-15043-33402 Erstattung", "category": "other_income"},
-  {"date": "2026-08-20", "amount": 11.99,
-   "party": "eBay O.20-15026-33826 Erstattung", "category": "other_income"},
-  {"date": "2026-08-24", "amount": 250.00,
-   "party": "LUFTHAN2204103783154 Erstattung", "category": "other_income"},
-
-  {"date": "2026-08-26", "amount": -4788.46,
-   "party": "РАСХОДЫ АВГУСТА 01–26.08 ОДНОЙ СТРОКОЙ (агрегат из скриншотов; заменить выпиской)",
-   "category": "other_expense"}
-]
+  {
+   "date": "03.08.2026",
+   "amount": -16.9,
+   "party": "Lastschrift CORE Klarna Bank AB Purchase at eBay 019fb7b625f77c908c90d2df8cc4faeb 1cf5586e92ae404da0b88ed3604cd642 Gläubiger-ID: SE71ZZZ5567370431"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -220.0,
+   "party": "Bargeldauszfremd GA / Wert: 02.08.2026 F-ZEIL 4//FRANKFURTER SPARKASSE/DE 2026-08-02T12:35 Debitk.14 2029-12"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -16.2,
+   "party": "dig.Karte (Apple Pay) LOTTO-PETERS FRANKFURT GIR 79516226 //FRANKFURT/DE 2026-07-31T16:33 Debitk.14 2029-12"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -52.68,
+   "party": "dig.Karte (Apple Pay) PENNY SAGT DANKE. 63302364/Eckenhei me/Frankfurt Eckenheim /DE 2026-08-01T15:42 Debitk.14 2029-12"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -0.99,
+   "party": "dig.Karte (Apple Pay) PENNY SAGT DANKE. 63302364/Eckenhei me/Frankfurt Eckenheim /DE 2026-08-01T15:45 Debitk.14 2029-12"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -2.75,
+   "party": "dig.Karte (Apple Pay) Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/DE 2026-07-31T16:30 Debitk.14 2029-12"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -8.0,
+   "party": "dig.Karte (Apple Pay) MANGAL ET KEBAPHAUS/Grosse Friedber ger Str. 14 /Frankfurt/DE 2026-07-27T13:39 Debitk.14 2029-12"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -12.91,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-08-01T21:54 Debitk.14 2029-12"
+  },
+  {
+   "date": "03.08.2026",
+   "amount": -179.71,
+   "party": "Kartenzahlung Debitk. EXPEDIA 73510954347688/Calle Villal ba Hervas 9/EXPEDIA.DE/ES/1 2026-08-02T01:31 Debitk.0 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "04.08.2026",
+   "amount": -16.64,
+   "party": "dig.Karte (Apple Pay) OEMER YILDIRIM/SIGMUND-FREUD-STR. 7 2-74/FRANKFURT/DE 2026-08-03T16:20 Debitk.14 2029-12"
+  },
+  {
+   "date": "04.08.2026",
+   "amount": -63.0,
+   "party": "Überweisung beleglos Vira Overchuk D-Ticket DATUM 04.08.2026, 13.40 UHR"
+  },
+  {
+   "date": "05.08.2026",
+   "amount": -5.49,
+   "party": "Kartenzahlung Debitk. APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1 2026-08-03T00:00 Debitk.0 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "05.08.2026",
+   "amount": -12.5,
+   "party": "dig.Karte (Apple Pay) Riederwald Kebabhaus/Schfflestrae 3 /Frankfurt am Main/DE 2026-08-04T20:39 Debitk.14 2029-12"
+  },
+  {
+   "date": "06.08.2026",
+   "amount": -6.55,
+   "party": "Lastschrift CORE PayPal Europe S.a.r.l. et Cie S.C.A 1052158376111/PP.5747.PP/. CONTABO GmbH, Ihr Einkauf bei CONTABO GmbH 1052158376111 5RGJ225C7KXZC Gläubiger-ID: LU96ZZZ0000000000000000058"
+  },
+  {
+   "date": "06.08.2026",
+   "amount": -155.0,
+   "party": "dig.Karte (Apple Pay) Saykin Zahnmedizin//Frankfurt am Ma in/DE 2026-08-05T12:23 Debitk.14 2029-12"
+  },
+  {
+   "date": "06.08.2026",
+   "amount": -47.97,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE 2026-08-05T23:46 Debitk.14 2029-12"
+  },
+  {
+   "date": "07.08.2026",
+   "amount": -23.0,
+   "party": "dig.Karte (Apple Pay) Istanbul Fisch Grill/Munchener Str 54/Frankfurt am/DE/0 2026-08-06T13:45 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "07.08.2026",
+   "amount": -3.62,
+   "party": "GIRO E-COM (APPLE/HCE BOLT.EUR2608061217/Vana-L una tn 15 /Tallinn/EE/1 2026-08-06T13:28 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "07.08.2026",
+   "amount": 5000.0,
+   "party": "Gutschrift Überw. cosmopop GmbH RNr. 270726 RDat. 27.07.2026 4671869475-0000011"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -600.0,
+   "party": "Überweisung beleglos / Wert: 07.08.2026 Björn Bohrmann Farbe DATUM 07.08.2026, 22.21 UHR"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -65.11,
+   "party": "dig.Karte (Apple Pay) ROSSMANN/Eckenheimer Landstr. 425/F rankfurt/DE 2026-08-07T19:55 Debitk.14 2029-12"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -7.0,
+   "party": "dig.Karte (Apple Pay) ANNAPURNA KIOSK/Ronnenburgstr. 26/F rankfurt am Main/DE 2026-08-07T13:45 Debitk.14 2029-12"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -55.08,
+   "party": "Überweisung beleglos Vira Overchuk D-Radio DATUM 10.08.2026, 10.09 UHR"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -200.0,
+   "party": "Überweisung beleglos Vira Overchuk Prostotak Mit Love DATUM 10.08.2026, 11.11 UHR"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -35.27,
+   "party": "dig.Karte (Apple Pay) PENNY SAGT DANKE. 63302364/Eckenhei me/Frankfurt Eckenheim /DE 2026-08-07T20:22 Debitk.14 2029-12"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -46.82,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE 2026-08-07T21:35 Debitk.14 2029-12"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -57.15,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE 2026-08-07T20:55 Debitk.14 2029-12"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -7.28,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE 2026-08-07T15:05 Debitk.14 2029-12"
+  },
+  {
+   "date": "10.08.2026",
+   "amount": -15.59,
+   "party": "dig.Karte (Apple Pay) SCHLOSS BURGER GMBH - 1417//FRANKFU RT M/DE 2026-08-08T16:21 Debitk.14 2029-12"
+  },
+  {
+   "date": "11.08.2026",
+   "amount": -27.05,
+   "party": "Kartenzahlung Debitk. HORNBACH FRANKFURT HORNBACH FRANKFURT 0808174641983702 91200005246 ELV65148530 08.08 17.46 Der Einzug erfolgt im Namen und au f Rechnung der PAYONE GmbH 08081746419837029120000524665148530 G514853031092606121845 Gläubiger-ID: DE16E0100000020245"
+  },
+  {
+   "date": "11.08.2026",
+   "amount": -172.2,
+   "party": "dig.Karte (Apple Pay) BOESNER GMBH/August-Schanz-Strasse 12/Frankfurt am Main/DE 2026-08-10T14:33 Debitk.14 2029-12"
+  },
+  {
+   "date": "11.08.2026",
+   "amount": -10.0,
+   "party": "dig.Karte (Apple Pay) A.T.A. Gastronomie-Betrie/Zeil 25-2 7/Frankfurt/DE 2026-08-10T11:48 Debitk.14 2029-12"
+  },
+  {
+   "date": "11.08.2026",
+   "amount": -26.46,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE 2026-08-10T23:04 Debitk.14 2029-12"
+  },
+  {
+   "date": "11.08.2026",
+   "amount": -29.59,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE 2026-08-10T17:13 Debitk.14 2029-12"
+  },
+  {
+   "date": "11.08.2026",
+   "amount": -22.0,
+   "party": "GIRO E-COM (APPLE/HCE APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1 2026-08-10T00:00 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "12.08.2026",
+   "amount": -2.74,
+   "party": "dig.Karte (Apple Pay) SHELL 0205// Frankfurt /DE 2026-08-11T16:44 Debitk.14 2029-12"
+  },
+  {
+   "date": "12.08.2026",
+   "amount": -81.93,
+   "party": "dig.Karte (Apple Pay) BOESNER GMBH/August-Schanz-Strasse 12/Frankfurt am Main/DE 2026-08-11T17:59 Debitk.14 2029-12"
+  },
+  {
+   "date": "13.08.2026",
+   "amount": -56.96,
+   "party": "Lastschrift CORE Telefonica Germany GmbH + Co. OHG Kd-Nr.: 6110130919, Rg-Nr.: 1631675 762/8, Ihre Tarifrechnung 3304819001370001631675762008RCUR T0010001B000006110130919 Gläubiger-ID: DE9700000000142462"
+  },
+  {
+   "date": "13.08.2026",
+   "amount": -22.5,
+   "party": "dig.Karte (Apple Pay) Deepend/Danziger Platz 2-4/Frankfur t am/DE/0 2026-08-11T14:27 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "13.08.2026",
+   "amount": -25.4,
+   "party": "GIRO E-COM (APPLE/HCE BOLT.EUO2608121403/Vana-L una tn 15 /Tallinn/EE/1 2026-08-12T16:09 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "14.08.2026",
+   "amount": -52.64,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-08-13T15:35 Debitk.14 2029-12"
+  },
+  {
+   "date": "14.08.2026",
+   "amount": -6.0,
+   "party": "dig.Karte (Apple Pay) Grill Arena/Am Dachsberg/Frankfurt am/DE/0 2026-08-13T00:00 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "14.08.2026",
+   "amount": -53.44,
+   "party": "Überweisung online Mainova AG Kundennummer 2036 0515 218 DATUM 14.08.2026, 13.36 UHR 1837949730-20260814133630"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -29.99,
+   "party": "dig.Karte (Apple Pay) ROSSMANN/Am Bahnhof 3/Fulda/DE 2026-08-14T13:16 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -195.0,
+   "party": "Bargeldauszfremd GA / Wert: 15.08.2026 F-PREUNGC1//FRANKFURTER SPARKASSE/D E 2026-08-15T10:09 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -7.5,
+   "party": "dig.Karte (Apple Pay) LOTTO-PETERS FRANKFURT GIR 79516225 //FRANKFURT/DE 2026-08-14T15:43 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -2.37,
+   "party": "dig.Karte (Apple Pay) GUTER GERLACH GMBH CO KG 23 GIR 799 42852//FULDA/DE 2026-08-14T13:02 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -117.49,
+   "party": "dig.Karte (Apple Pay) TOOM BM SAGT DANKE 13563067/Friedbe rge/Frankfurt-Bornheim /DE 2026-08-15T14:26 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -34.22,
+   "party": "dig.Karte (Apple Pay) TOOM BM SAGT DANKE 13563067/Friedbe rge/Frankfurt-Bornheim /DE 2026-08-15T18:04 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -8.3,
+   "party": "dig.Karte (Apple Pay) Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/DE 2026-08-14T15:46 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -2.79,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE 2026-08-15T20:50 Debitk.14 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -29.28,
+   "party": "Kartenzahlung Debitk. REWE SAGT DANKE. 44400142/Karl-Von- D/Frankfurt Eckenhei /DE 2026-08-15T21:37 Debitk.0 2029-12"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -45.29,
+   "party": "GIRO E-COM (APPLE/HCE kleinanzeigen.de GmbH/Dernburgstras se 50/Berlin/DE/0 2026-08-14T10:44 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -19.99,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.03-15043-33399/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-14T14:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -73.2,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.03-15043-33400/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-14T14:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -90.05,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.03-15043-33401/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-14T14:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "17.08.2026",
+   "amount": -67.16,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.03-15043-33402/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-14T14:51 Debitk.14 2029-12 Teillieferung(Final) Zahl.System DebitMastercard"
+  },
+  {
+   "date": "18.08.2026",
+   "amount": -379.9,
+   "party": "Lastschrift CORE PayPal Europe S.a.r.l. et Cie S.C.A 1052360921703/PP.5747.PP/. HomeBlev e tool GmbH, Ihr Einkauf bei HomeBl eve tool GmbH 1052360921703 5RGJ225C7KXZC Gläubiger-ID: LU96ZZZ0000000000000000058"
+  },
+  {
+   "date": "18.08.2026",
+   "amount": -11.99,
+   "party": "Kartenzahlung Debitk. eBay O.20-15026-33825/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-17T17:45 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "18.08.2026",
+   "amount": -36.99,
+   "party": "Kartenzahlung Debitk. eBay O.20-15026-33826/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-17T17:45 Debitk.0 2029-12 Teillieferung(Final) Zahl.System DebitMastercard"
+  },
+  {
+   "date": "18.08.2026",
+   "amount": -8.95,
+   "party": "Kartenzahlung Debitk. eBay O.20-15026-33819/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-17T17:45 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "18.08.2026",
+   "amount": -47.29,
+   "party": "Kartenzahlung Debitk. eBay O.20-15026-33824/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-17T17:45 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "18.08.2026",
+   "amount": -37.54,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-08-17T20:46 Debitk.14 2029-12"
+  },
+  {
+   "date": "18.08.2026",
+   "amount": 19.99,
+   "party": "Landesbank Hessen-Thuringen 2026-08-17T20:35 Debitk.0 2029-12 DMC-Karte-4019+ARN7270092622902366 0692836 …9122MDSASJIBD08170000000000AM"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -36.05,
+   "party": "Lastschrift CORE PayPal Europe S.a.r.l. et Cie S.C.A 1052445087226/PP.5747.PP/. , Ihr Ei nkauf bei 1052445087226 5RGJ225C7KXZC Gläubiger-ID: LU96ZZZ0000000000000000058"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -4.4,
+   "party": "dig.Karte (Apple Pay) Wiener Feinbackerei Heberer Gm/Zeil 116/Frankfurt am Main/DE 2026-08-18T14:16 Debitk.14 2029-12"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -2.45,
+   "party": "dig.Karte (Apple Pay) Der Baecker Eifler Vertriebs G/Kons tabler Wache/Frankfurt am Main/DE 2026-08-18T18:04 Debitk.14 2029-12"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -2.75,
+   "party": "dig.Karte (Apple Pay) Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/DE 2026-08-18T13:08 Debitk.14 2029-12"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -43.2,
+   "party": "dig.Karte (Apple Pay) Montana Store Frankfur/Berliner Str asse 37/Frankfurt/DEU 2026-08-18T16:07 Debitk.14 2029-12"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -66.19,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.22-15027-27897/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-18T17:38 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -53.82,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.22-15027-27898/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-18T17:38 Debitk.14 2029-12 Teillieferung(Final) Zahl.System DebitMastercard"
+  },
+  {
+   "date": "19.08.2026",
+   "amount": -17.9,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.22-15027-27896/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-18T17:38 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "20.08.2026",
+   "amount": -1.54,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400003/Louis-App i/Frankfurt /DE 2026-08-19T12:36 Debitk.14 2029-12"
+  },
+  {
+   "date": "21.08.2026",
+   "amount": -2.2,
+   "party": "dig.Karte (Apple Pay) Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0 2026-08-19T21:02 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "21.08.2026",
+   "amount": -0.98,
+   "party": "GIRO E-COM (APPLE/HCE VOI DE/Kaufingerstr 24/MUNCHEN/DE/0 2026-08-19T11:00 Debitk.13 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "21.08.2026",
+   "amount": -38.79,
+   "party": "dig.Karte (Apple Pay) TEGUT SAGT DANKE/Kurt Schumacher St r. 30-32/Frankfurt/DE 2026-08-20T21:39 Debitk.14 2029-12"
+  },
+  {
+   "date": "21.08.2026",
+   "amount": 11.99,
+   "party": "Landesbank Hessen-Thuringen 2026-08-20T10:34 Debitk.0 2029-12 DMC-Karte-4019+ARN7270092623202433 0000694 …9122MDSVR1O5A08200000000000TM"
+  },
+  {
+   "date": "21.08.2026",
+   "amount": -300.0,
+   "party": "Bargeldausz. GAA GA NR00002260 BLZ5105001514 21.08/17.51UHR FFM-ZEIL"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -116.54,
+   "party": "Lastschrift CORE Klarna Bank AB Purchase at Rex Technologies (on be half or Rex Operations) 01a0203cbce870dcbc68f68f32fdc164 1cf5586e92ae404da0b88ed3604cd642 Gläubiger-ID: SE71ZZZ5567370431"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -0.1,
+   "party": "dig.Karte (Apple Pay) BOESNER GMBH/August-Schanz-Strasse 12/Frankfurt am Main/DE 2026-08-21T10:20 Debitk.14 2029-12"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -66.93,
+   "party": "dig.Karte (Apple Pay) BOESNER GMBH/August-Schanz-Strasse 12/Frankfurt am Main/DE 2026-08-21T10:19 Debitk.14 2029-12"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -12.1,
+   "party": "dig.Karte (Apple Pay) Backwerk 076//Frankfurt/DE 2026-08-21T17:53 Debitk.14 2029-12"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -7.5,
+   "party": "dig.Karte (Apple Pay) LOTTO-PETERS FRANKFURT GIR 79516225 //FRANKFURT/DE 2026-08-21T11:22 Debitk.14 2029-12"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -4.7,
+   "party": "dig.Karte (Apple Pay) MERCADONA 3087 L ANEC/PSO.AV DEL CA NAL OLIMPIC 20/CASTELLDEFELS/ES/1 2026-08-22T16:07 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -4.65,
+   "party": "dig.Karte (Apple Pay) COALIMENT/PSO.MARTIMO 212/CASTELLDE FELS/ES/1 2026-08-23T00:15 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": -1.84,
+   "party": "dig.Karte (Apple Pay) CHARTER CASTILLEJOS/C. SANT ANTONI MARIA CLAR29/BARCELONA/ES/1 2026-08-22T12:39 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "24.08.2026",
+   "amount": 250.0,
+   "party": "Landesbank Hessen-Thuringen 2026-08-21T00:00 Debitk.0 2029-12 DMC-Karte-4019+ARN0513086623491005 5167872 …912205130866234910055167872PM"
+  },
+  {
+   "date": "25.08.2026",
+   "amount": -87.14,
+   "party": "dig.Karte (Apple Pay) ALDI SE U. CO. KG/HOMBURGER LANDSTR . 268/FRANKFURT/DE 2026-08-24T20:28 Debitk.14 2029-12"
+  },
+  {
+   "date": "25.08.2026",
+   "amount": -4.6,
+   "party": "dig.Karte (Apple Pay) CAFETERIA DEL CASTELL/C. CTRA. DEL CASTELL 66/BARCELONA/ES/1 2026-08-23T18:57 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "25.08.2026",
+   "amount": -2.5,
+   "party": "dig.Karte (Apple Pay) Der Baecker Eifler GmbH/Konstabler Wache/Frankfurt am Main/DE 2026-08-24T14:37 Debitk.14 2029-12"
+  },
+  {
+   "date": "25.08.2026",
+   "amount": -19.0,
+   "party": "dig.Karte (Apple Pay) PTX.TELEFE MONTJUIC/CALLE 60 ZONA F RANCA 21 23 SECT A 8/BARCELONA/ES/1 2026-08-23T18:21 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "25.08.2026",
+   "amount": -10.75,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-08-24T20:42 Debitk.14 2029-12"
+  },
+  {
+   "date": "26.08.2026",
+   "amount": -5.65,
+   "party": "dig.Karte (Apple Pay) Wiener Feinbackerei Heberer Gm/Am H auptbahnhof 14/Hanau/DE 2026-08-25T20:40 Debitk.14 2029-12"
+  },
+  {
+   "date": "26.08.2026",
+   "amount": -28.94,
+   "party": "GIRO E-COM (APPLE/HCE UBR. PENDING.UBER.COM/Mr Treublaan 7/AMSTERDAM/NL/1 2026-08-23T22:22 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "26.08.2026",
+   "amount": -25.0,
+   "party": "Überweisung beleglos Vira Overchuk DATUM 26.08.2026, 16.05 UHR"
+  },
+  {
+   "date": "27.08.2026",
+   "amount": -4.4,
+   "party": "dig.Karte (Apple Pay) Wiener Feinbackerei Heberer Gm/Dies terwegplatz 51/Frankfurt am Main/DE 2026-08-26T17:00 Debitk.14 2029-12"
+  },
+  {
+   "date": "27.08.2026",
+   "amount": 2380.0,
+   "party": "Gutschrift Überw. Erster Hanauer Fußball-Club Rechng, 270826"
+  },
+  {
+   "date": "27.08.2026",
+   "amount": -1690.0,
+   "party": "Überweisung beleglos Vira Overchuk Vermieter Roland DATUM 27.08.2026, 17.52 UHR"
+  },
+  {
+   "date": "27.08.2026",
+   "amount": -51.0,
+   "party": "Überweisung beleglos Vira Overchuk Vermieter Roland DATUM 27.08.2026, 17.58 UHR"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -39.69,
+   "party": "Kartenzahlung Debitk. eBay O.21-15068-69644/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-27T20:30 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -32.94,
+   "party": "Kartenzahlung Debitk. eBay O.21-15068-69647/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-27T20:31 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -5.5,
+   "party": "Kartenzahlung Debitk. eBay O.21-15068-69648/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-27T20:31 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -6.9,
+   "party": "Kartenzahlung Debitk. eBay O.21-15068-69649/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-27T20:31 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -21.99,
+   "party": "Kartenzahlung Debitk. eBay O.21-15068-69645/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-27T20:30 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -19.99,
+   "party": "Kartenzahlung Debitk. eBay O.21-15068-69650/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-27T20:31 Debitk.0 2029-12 Teillieferung(Final) Zahl.System DebitMastercard"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -14.99,
+   "party": "Kartenzahlung Debitk. eBay O.21-15068-69646/BOULEVARD ROY AL 22-24/Luxembourg/LU/1 2026-08-27T20:30 Debitk.0 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "28.08.2026",
+   "amount": -40.75,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400598/Homburger /Frankfurt /DE 2026-08-27T23:20 Debitk.14 2029-12"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -63.0,
+   "party": "Überweisung beleglos / Wert: 29.08.2026 Vira Overchuk D-Ticket DATUM 29.08.2026, 10.36 UHR"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -44.76,
+   "party": "GIRO E-COM (APPLE/HCE eBay/Boulevard Royal/Luxembourg/LU 2026-08-28T08:10 Debitk.14 2029-12"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -56.45,
+   "party": "dig.Karte (Apple Pay) REWE SAGT DANKE. 44400031/Am Dachsb e/Frankfurt Preunges /DE 2026-08-29T21:56 Debitk.14 2029-12"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -51.99,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.26-15066-35106/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-29T10:32 Debitk.14 2029-12 Teillieferung(Final) Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -19.99,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.26-15066-35105/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-29T10:32 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -7.99,
+   "party": "GIRO E-COM (APPLE/HCE APPLE.COM.BILL/Hollyhill Industrial Estate/CORK/IE/1 2026-08-29T00:00 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -60.19,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.26-15066-35104/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-29T10:32 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -1.9,
+   "party": "dig.Karte (Apple Pay) Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0 2026-08-28T17:44 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -3.5,
+   "party": "dig.Karte (Apple Pay) Selecta Deutschland Gm/3 Isarstr/Ke lsterbach/DE/0 2026-08-28T20:31 Debitk.14 2029-12 Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -11.38,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.11-15091-25547/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-28T20:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -5.79,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.11-15091-25549/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-28T20:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -16.88,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.11-15091-25548/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-28T20:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -4.99,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.11-15091-25550/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-28T20:51 Debitk.14 2029-12 Teillieferung(Final) Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -12.96,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.11-15091-25546/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-28T20:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -12.98,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.11-15091-25545/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-28T20:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  },
+  {
+   "date": "31.08.2026",
+   "amount": -9.88,
+   "party": "GIRO E-COM (APPLE/HCE eBay O.11-15091-25544/22-24 Bouleva rd Royal/Luxembourg/LU/1 2026-08-28T20:51 Debitk.14 2029-12 Teillieferung Zahl.System DebitMastercard"
+  }
+ ]
+}

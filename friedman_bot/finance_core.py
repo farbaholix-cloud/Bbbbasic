@@ -277,6 +277,30 @@ def _register_source(conn, path, kind, note=""):
     return cur.lastrowid, True
 
 
+def _supersede_bank(conn, sid, path):
+    """Новая версия того же файла ЗАМЕНЯЕТ прежнюю, а не добавляется к ней.
+
+    Без этого исправленный файл удваивал деньги: строки старой версии оставались
+    в базе, а строки новой ложились рядом — ключ дедупликации включает текст
+    контрагента, и стоит ему чуть измениться (скриншот → PDF-выписка), как один
+    и тот же платёж считается дважды. Так было бы с августом 2026: частичный файл
+    по скриншотам (с итоговой строкой расходов) → полная выписка Naspa.
+    Удаляем ДО вставки: иначе совпавшие ключи новой версии отбросились бы как
+    дубли, а затем исчезли бы вместе со старыми. Связки со счетами уходят
+    каскадом и собираются заново сверкой; ручные решения (finance_overrides.json)
+    привязаны к дате и сумме и применяются после импорта."""
+    rel = os.path.relpath(path, BASE_DIR)
+    old = [r["id"] for r in conn.execute(
+        "SELECT id FROM fin_source WHERE path=? AND id<>?", (rel, sid)).fetchall()]
+    if not old:
+        return 0
+    marks = ",".join("?" * len(old))
+    cur = conn.execute("DELETE FROM fin_payment WHERE source_id IN (%s)" % marks, old)
+    conn.execute("UPDATE fin_source SET note=COALESCE(note,'') || ' [заменён версией #%d]'"
+                 " WHERE id IN (%s)" % (sid, marks), old)
+    return cur.rowcount
+
+
 def _finish_source(conn, sid, rows_new, rows_total, period_from, period_to):
     conn.execute("UPDATE fin_source SET rows_new=?, rows_total=?, period_from=?, period_to=? WHERE id=?",
                  (rows_new, rows_total, period_from, period_to, sid))
@@ -321,13 +345,17 @@ def import_bank_json(conn, path, force=False):
     sid, is_new = _register_source(conn, path, "bank")
     if not is_new and not force:
         return {"skipped": True, "reason": "файл не менялся", "path": os.path.basename(path)}
+    replaced = _supersede_bank(conn, sid, path)
     with open(path, "r", encoding="utf-8") as f:
         blob = json.load(f)
     rows = blob["transactions"] if isinstance(blob, dict) else blob
-    return _ingest_payments(conn, sid, [
+    res = _ingest_payments(conn, sid, [
         {"date": r.get("date"), "amount": r.get("amount"),
-         "party": r.get("party"), "category": r.get("cat") or ""} for r in rows],
+         "party": r.get("party"), "category": r.get("cat") or r.get("category") or ""}
+        for r in rows if isinstance(r, dict)],
         os.path.basename(path))
+    res["replaced_old"] = replaced
+    return res
 
 
 # Заголовки немецких банковских выгрузок (Naspa/Sparkasse/DKB/camt). Ищем по
@@ -413,7 +441,10 @@ def import_bank_csv(conn, path, force=False):
         parts += [row[u] for u in uis if u < len(row)]
         party = " ".join(x.strip() for x in parts if x and x.strip())
         items.append({"date": iso, "amount": to_amount(row[ai]), "party": party, "category": ""})
-    return _ingest_payments(conn, sid, items, os.path.basename(path))
+    replaced = _supersede_bank(conn, sid, path)   # только когда файл разобран
+    res = _ingest_payments(conn, sid, items, os.path.basename(path))
+    res["replaced_old"] = replaced
+    return res
 
 
 def _ingest_payments(conn, sid, items, label):
