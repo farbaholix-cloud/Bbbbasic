@@ -176,6 +176,10 @@ def _migrate(conn):
         conn.execute("ALTER TABLE fin_invoice ADD COLUMN net REAL")
     if "vat" not in cols:
         conn.execute("ALTER TABLE fin_invoice ADD COLUMN vat REAL DEFAULT 0")
+    # Оплата наличными: в выписке её нет, поэтому без этой отметки счёт вечно
+    # висел бы долгом (так было с 020724, «Barzahlung» прямо в счёте).
+    if "paid_cash" not in cols:
+        conn.execute("ALTER TABLE fin_invoice ADD COLUMN paid_cash REAL DEFAULT 0")
 
 
 def meta_get(conn, key, default=None):
@@ -562,6 +566,16 @@ def apply_overrides(conn, path=None):
             out["not_found"].append("связка %s ← %s: %s"
                                     % (l.get("invoice"), l.get("payment_date"), res.get("error")))
 
+    for c in ov.get("cash_paid_invoices", []):
+        cur = conn.execute(
+            "UPDATE fin_invoice SET paid_cash=?, note=? WHERE number=? AND inv_date=?",
+            (float(c.get("amount") or 0), ("Barzahlung: " + c.get("reason", ""))[:400],
+             c.get("number"), to_iso(c.get("date"))))
+        if cur.rowcount:
+            out["cash_paid"] = out.get("cash_paid", 0) + cur.rowcount
+        else:
+            out["not_found"].append("наличная оплата: счёт %s от %s" % (c.get("number"), c.get("date")))
+
     for r in ov.get("payment_category", []):
         cur = conn.execute(
             "UPDATE fin_payment SET category=? WHERE val_date=? AND ABS(amount-?)<0.01"
@@ -940,7 +954,7 @@ def monthly(conn, ym_from=None, ym_to=None):
 def open_invoices(conn, as_of=None):
     """Счета без (полной) оплаты — то, что реально висит на клиентах."""
     rows = conn.execute("""
-        SELECT i.*, COALESCE(SUM(m.amount),0) paid
+        SELECT i.*, COALESCE(SUM(m.amount),0) + COALESCE(i.paid_cash,0) paid
         FROM fin_invoice i LEFT JOIN fin_match m ON m.invoice_id=i.id
         WHERE i.cancelled=0 GROUP BY i.id ORDER BY i.inv_date""").fetchall()
     out = []
