@@ -101,7 +101,8 @@ def _addr_html(block):
 
 
 def _build_html(recipient, items, number, salutation, customer_no,
-                intro, dt, vat_rate, title="Rechnung", service_note="", paid_note=""):
+                intro, dt, vat_rate, title="Rechnung", service_note="", paid_note="",
+                no_tax_note=False, show_bank=None):
     snd = _sender()
 
     # ── позиции таблицы ──
@@ -148,6 +149,15 @@ def _build_html(recipient, items, number, salutation, customer_no,
             f"<tr class=grand><td>Gesamtbetrag</td><td class=r>{_eur(total)} €</td></tr>"
             f"</table>"
         )
+    elif no_tax_note:
+        # Документ без собственной ставки (напр. Rechnungsberichtigung, где позиции —
+        # сами суммы USt по прежним счетам): ни НДС-разбивки, ни оговорки §19
+        total = subtotal
+        tax_block = (
+            f"<table class='sum'>"
+            f"<tr class=grand><td>Gesamtbetrag</td><td class=r>{_eur(total)} €</td></tr>"
+            f"</table>"
+        )
     else:
         total = subtotal
         tax_block = (
@@ -167,10 +177,16 @@ def _build_html(recipient, items, number, salutation, customer_no,
              if customer_no and str(customer_no).strip() else "")
     # Leistungszeitpunkt — обязательное поле счёта (§14 Abs. 4 Nr. 6 UStG)
     svc = (f"<div class='knr'>{_esc(service_note)}</div>" if service_note else "")
-    # Счёт на уже полученные деньги: вместо «bitte überweisen» — отметка об оплате
-    # (реквизиты не нужны — платить больше нечего)
+    # Счёт на уже полученные деньги: вместо «bitte überweisen» — свой текст об оплате.
+    # Оплачено полностью — реквизиты не нужны; частично (show_bank=True) — нужны.
+    if show_bank is None:
+        show_bank = not paid_note
+    bank_html = (f"<div class='bank'>Empfänger: {_esc(snd['name'])}<br>"
+                 f"<span class='b'>{_esc(snd['bank'])}</span><br>"
+                 f"IBAN: {_esc(snd['iban'])}<br>BIC: {_esc(snd['bic'])}</div>")
     if paid_note:
-        pay_html = f"<div class='pay'>{_esc(paid_note)}</div>"
+        pay_html = (f"<div class='pay'>{_esc(paid_note)}"
+                    f"{bank_html if show_bank else ''}</div>")
     else:
         pay_html = (f"<div class='pay'>Bitte überweisen Sie den Rechnungsbetrag auf folgende "
                     f"Bankverbindung:<div class='bank'>Empfänger: {_esc(snd['name'])}<br>"
@@ -265,7 +281,8 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
 
 def generate_invoice(recipient, items, salutation=None, customer_no="",
                      number=None, intro=None, when=None, vat_rate=None,
-                     title="Rechnung", service_note="", paid_note=""):
+                     title="Rechnung", service_note="", paid_note="",
+                     no_tax_note=False, show_bank=None):
     """Собирает PDF немецкого счёта и возвращает (path, total, number).
 
     recipient  — получатель: название и адрес, каждая часть с новой строки (\\n).
@@ -294,6 +311,7 @@ def generate_invoice(recipient, items, salutation=None, customer_no="",
         salutation=salutation, customer_no=customer_no,
         intro=intro, dt=dt, vat_rate=vat_rate,
         title=title, service_note=service_note, paid_note=paid_note,
+        no_tax_note=no_tax_note, show_bank=show_bank,
     )
 
     safe = "".join(c for c in str(number) if c.isalnum() or c in "-_")

@@ -1454,7 +1454,7 @@ def invoice_pdf_path(number: str) -> str:
 
 
 def register_own_invoice(number, recipient, customer_no, desc, total, pdf_path, vat_rate=None,
-                         inv_date=None):
+                         inv_date=None, net=None, vat=None):
     """ЕДИНАЯ регистрация выставленного счёта: журнал invoices + аналитический
     invoice_archive (оборот, /showinvoices, .xls — «таблица» Юриста) + постоянная
     PDF-копия. Раньше сгенерированные счета попадали только в invoices — Директор
@@ -1467,8 +1467,11 @@ def register_own_invoice(number, recipient, customer_no, desc, total, pdf_path, 
     except (TypeError, ValueError):
         rate = 0.0
     gross = float(total or 0)
-    net = round(gross / (1 + rate / 100), 2) if rate else gross
-    vat = round(gross - net, 2)
+    if net is not None and vat is not None:   # явные суммы (напр. Rechnungsberichtigung)
+        net, vat, rate = round(float(net), 2), round(float(vat), 2), (rate or 19.0)
+    else:
+        net = round(gross / (1 + rate / 100), 2) if rate else gross
+        vat = round(gross - net, 2)
     with db() as conn:
         conn.execute(
             "INSERT INTO invoices (number, date, recipient, customer_no, description, total, source) "
@@ -2501,18 +2504,70 @@ ISSUED_INVOICES = [
                   "Die Schlussrechnung über die verbleibenden 1.487,50 € folgt nach "
                   "Fertigstellung.",
      "desc": "Anzahlung 50 % Angebot 2026-09-11-01 — Fassade GEWOBAU Neu-Isenburg (ENSO)"},
+    # Höll: платёж 02.03.2026 без счёта. 1 000 € — НЕТТО: владелец НЕ согласен включать
+    # НДС в уже полученную тысячу, 190 € НДС клиент доплачивает (вместе с 220926-2).
     {"number": "220926-1", "date": "2026-09-22", "title": "Rechnung",
-     "recipient": "HIG Höll Immo und Gastro GmbH\nSchäfergasse 8\n65428 Rüsselsheim am Main",
+     "recipient": "HIG Höll Immo und Gastro GmbH\nz. Hd. Herrn Christian Höll\n"
+                  "Schäfergasse 8\n65428 Rüsselsheim am Main",
      "customer_no": "001", "salutation": "Herr Höll",
      "intro": "zu Ihrer Zahlung vom 02.03.2026 über 1.000,00 € (Verwendungszweck „RN. 270127“) "
               "lag bislang keine Rechnung vor. Hiermit stelle ich sie nachträglich aus:",
      "items": [{"desc": "Künstlerische Gestaltungsleistungen gemäß Absprache "
-                        "(Zahlungseingang 02.03.2026)", "price": 840.34}],
+                        "(Zahlungseingang 02.03.2026)", "price": 1000.00}],
      "vat_rate": 19,
      "service_note": "Leistungsdatum: bis 02.03.2026",
-     "paid_note": "Der Rechnungsbetrag von 1.000,00 € wurde am 02.03.2026 bereits bezahlt – "
-                  "vielen Dank. Es ist keine weitere Zahlung erforderlich.",
-     "desc": "Künstlerische Gestaltungsleistungen — Zahlung 02.03.2026 (Ref. RN. 270127)"},
+     "paid_note": "Auf den Rechnungsbetrag von 1.190,00 € ist am 02.03.2026 eine Zahlung von "
+                  "1.000,00 € eingegangen – vielen Dank. Offen ist die Umsatzsteuer von "
+                  "190,00 €. Sie ist in der Zahlungsübersicht der Rechnungsberichtigung "
+                  "Nr. 220926-2 enthalten – bitte nur einmal, zusammen mit dieser, überweisen.",
+     "show_bank": False,
+     "fin_total": 1190.00, "fin_net": 1000.00, "fin_vat": 190.00,
+     "desc": "Künstlerische Gestaltungsleistungen — Zahlung 02.03.2026 (Ref. RN. 270127), "
+             "1 000 netto + 190 USt; 190 offen"},
+    # Höll: Rechnungsberichtigung по §31 Abs. 5 UStDV — прямо по письму Finanzamt
+    # 16.09.2026. Позиции — суммы USt по каждому счёту 2026, выставленному ещё по §19.
+    # 190 € из 220926-1 здесь только в сводке к оплате: НДС выделен в 220926-1 и
+    # второй раз не выделяется (двойной выдел = двойной долг по §14c UStG).
+    {"number": "220926-2", "date": "2026-09-22",
+     "title": "Rechnungsberichtigung nach § 31 Abs. 5 UStDV – Nachberechnung der Umsatzsteuer",
+     "recipient": "HIG Höll Immo und Gastro GmbH\nz. Hd. Herrn Christian Höll\n"
+                  "Schäfergasse 8\n65428 Rüsselsheim am Main",
+     "customer_no": "001", "salutation": "Herr Höll",
+     "intro": "das Finanzamt Frankfurt am Main hat mir mit Schreiben vom 16.09.2026 mitgeteilt: "
+              "„Sie sind aufgrund der Überschreitung der Umsatzgrenze in Höhe von 22.000 € des "
+              "§ 19 Abs. 1 UStG im Kalenderjahr 2025 verpflichtet, ab dem 01.01.2026 die "
+              "Regelbesteuerung anzuwenden.“ Weiter heißt es: „Sollten Sie ab dem Zeitpunkt des "
+              "Übergangs zur Regelbesteuerung noch Rechnungen als Kleinunternehmer ausgestellt "
+              "haben, können diese nach § 31 Absatz 5 der Umsatzsteuer-Durchführungsverordnung "
+              "berichtigt werden.“ Meine Rechnungen an Sie aus dem Jahr 2026 habe ich noch als "
+              "Kleinunternehmer ohne Umsatzsteuer ausgestellt. Hiermit berichtige ich sie und "
+              "berechne die gesetzliche Umsatzsteuer von 19 % auf die bereits bezahlten "
+              "Nettobeträge nach. Alle übrigen Angaben der Rechnungen bleiben unverändert.",
+     "items": [
+         {"desc": "USt 19 % zu Rechnung Nr. 070126 vom 07.01.2026 – Künstlerische Gestaltung "
+                  "der Restaurantfassade (netto 1.000,00 €, bezahlt am 12.01.2026)",
+          "price": 190.00},
+         {"desc": "USt 19 % zu Rechnung Nr. 260126 vom 26.01.2026 – Künstlerische Gestaltung "
+                  "der Restaurantfassade, Oberteil (netto 1.000,00 €, bezahlt am 29.01.2026)",
+          "price": 190.00},
+         {"desc": "USt 19 % zu Rechnung Nr. 270126 vom 27.01.2026 – Künstlerische Gestaltung "
+                  "des Tores (netto 500,00 €, bezahlt am 29.01.2026)", "price": 95.00},
+         {"desc": "USt 19 % zu Rechnung Nr. 230226 vom 23.02.2026 (netto 820,00 €, bezahlt "
+                  "am 23.02.2026)", "price": 155.80},
+         {"desc": "Offener Betrag aus Rechnung Nr. 220926-1 vom 22.09.2026 zur Zahlung vom "
+                  "02.03.2026 (netto 1.000,00 €; die USt von 190,00 € ist dort ausgewiesen)",
+          "price": 190.00},
+     ],
+     "vat_rate": None, "no_tax_note": True,
+     "service_note": "Leistungszeitraum: Januar bis März 2026 (siehe die jeweilige Rechnung)",
+     "paid_note": "Bitte überweisen Sie den Gesamtbetrag von 820,80 € bis zum 06.10.2026 auf "
+                  "folgende Bankverbindung. Als umsatzsteuerpflichtiges Unternehmen können Sie die "
+                  "ausgewiesene Umsatzsteuer als Vorsteuer abziehen – wirtschaftlich ist die "
+                  "Nachzahlung für Sie damit neutral.",
+     "show_bank": True,
+     "fin_total": 630.80, "fin_net": 0.0, "fin_vat": 630.80,
+     "desc": "Rechnungsberichtigung §31 Abs. 5 UStDV: USt 19 % zu 070126, 260126, 270126, "
+             "230226 (630,80) + offene 190,00 aus 220926-1 = 820,80"},
 ]
 
 
@@ -2524,32 +2579,44 @@ def build_issued_invoice(inv):
         customer_no=inv.get("customer_no", ""), number=inv["number"], intro=inv.get("intro"),
         when=datetime.strptime(inv["date"], "%Y-%m-%d"), vat_rate=inv.get("vat_rate"),
         title=inv.get("title", "Rechnung"), service_note=inv.get("service_note", ""),
-        paid_note=inv.get("paid_note", ""))
+        paid_note=inv.get("paid_note", ""), no_tax_note=inv.get("no_tax_note", False),
+        show_bank=inv.get("show_bank"))
 
 
 def seed_issued_invoices():
-    """Однократно: собрать PDF счетов из ISSUED_INVOICES на сервере и занести их в
-    журнал, архив (invoice_archive) и постоянную PDF-копию — как любой счёт бота.
-    Номер уже занят (например, бот сам выставил счёт с таким номером) — пропуск
-    с записью в лог, ничего не перетираем."""
+    """Собрать PDF счетов из ISSUED_INVOICES на сервере и занести их в журнал,
+    архив (invoice_archive) и постоянную PDF-копию — как любой счёт бота.
+
+    Версия счёта = хеш его описания (в settings «issued_invoice:<номер>»).
+    Описание поменялось (220926-1: 1 000 € брутто → 1 000 € нетто + 190 € USt) —
+    СВОЯ прежняя версия заменяется. Номер занят чужим счётом (бот сам выставил
+    такой) — пропуск с записью в лог, ничего не перетираем."""
+    import hashlib
     for inv in ISSUED_INVOICES:
         key = "issued_invoice:" + inv["number"]
-        if _settings_get(key):
+        ver = hashlib.sha1(jsonlib.dumps(inv, sort_keys=True, ensure_ascii=False)
+                           .encode("utf-8")).hexdigest()[:12]
+        prev = _settings_get(key)
+        if prev == ver or prev == "skipped":
             continue
         try:
             with db() as conn:
                 busy = conn.execute("SELECT 1 FROM invoices WHERE number=?",
                                     (inv["number"],)).fetchone()
-            if busy:
-                log.error(f"seed_issued_invoices: номер {inv['number']} уже занят — пропуск")
-                _settings_set(key, "skipped")
-                continue
+                if busy and not prev:
+                    log.error(f"seed_issued_invoices: номер {inv['number']} уже занят — пропуск")
+                    _settings_set(key, "skipped")
+                    continue
+                if prev:   # наша прежняя версия — убрать, чтобы не было двух записей
+                    conn.execute("DELETE FROM invoices WHERE number=?", (inv["number"],))
+                    conn.execute("DELETE FROM invoice_archive WHERE number=?", (inv["number"],))
             path, total, number = build_issued_invoice(inv)
             register_own_invoice(number, inv["recipient"], inv.get("customer_no", ""),
-                                 inv["desc"], round(total, 2), path, inv.get("vat_rate"),
-                                 inv_date=inv["date"])
-            _settings_set(key, "1")
-            log.info(f"seed_issued_invoices: счёт {number} собран и занесён")
+                                 inv["desc"], inv.get("fin_total", round(total, 2)), path,
+                                 inv.get("vat_rate"), inv_date=inv["date"],
+                                 net=inv.get("fin_net"), vat=inv.get("fin_vat"))
+            _settings_set(key, ver)
+            log.info(f"seed_issued_invoices: счёт {number} собран и занесён (версия {ver})")
         except Exception as e:
             log.error(f"seed_issued_invoices {inv['number']}: {e}")
 
@@ -8182,7 +8249,7 @@ def main():
     try:
         seed_amsterdam_decor()   # разовая отметка поездки, если она есть в календаре
         seed_ust_case()          # разовое дело [ust]: Regelbesteuerung с 2026
-        seed_issued_invoices()   # счета 220926 (Kreis Offenbach), 220926-1 (Höll)
+        seed_issued_invoices()   # счета 220926 (Kreis Offenbach), 220926-1/-2 (Höll)
         ensure_legal_kb()  # докачать всё из UPDATE_FILES, чего нет на диске
                            # (имя историческое: функцию зовут по нему три других бота)
     except Exception as e:

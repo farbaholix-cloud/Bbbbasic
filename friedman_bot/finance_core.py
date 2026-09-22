@@ -324,10 +324,21 @@ def import_invoices(conn, path, force=False):
         amount = to_amount(r.get("total") if r.get("total") is not None else r.get("gross"))
         vat = to_amount(r.get("vat") or 0)
         net = to_amount(r.get("net")) if r.get("net") is not None else round(amount - vat, 2)
+        # Upsert, а не OR IGNORE: исправленный в файле счёт (та же пара номер+дата,
+        # другая сумма — напр. 220926-1: 1 000 брутто → 1 000 нетто + 190 USt) обязан
+        # обновиться, иначе база молча держит старую сумму. cancelled не трогаем.
         cur = conn.execute(
-            "INSERT OR IGNORE INTO fin_invoice"
+            "INSERT INTO fin_invoice"
             "(number, inv_date, client, client_no, description, amount, net, vat, currency,"
-            " kleinunternehmer, source_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            " kleinunternehmer, source_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)"
+            " ON CONFLICT(number, inv_date) DO UPDATE SET client=excluded.client,"
+            " client_no=excluded.client_no, description=excluded.description,"
+            " amount=excluded.amount, net=excluded.net, vat=excluded.vat,"
+            " kleinunternehmer=excluded.kleinunternehmer, source_id=excluded.source_id"
+            " WHERE fin_invoice.amount IS NOT excluded.amount"
+            "    OR fin_invoice.net IS NOT excluded.net OR fin_invoice.vat IS NOT excluded.vat"
+            "    OR fin_invoice.description IS NOT excluded.description"
+            "    OR fin_invoice.client IS NOT excluded.client",
             ((r.get("number") or "").strip(), iso,
              nfc(r.get("recipient") or r.get("client") or r.get("client_name") or "").strip(),
              str(r.get("customer_no") or "").strip(),

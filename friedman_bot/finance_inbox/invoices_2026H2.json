@@ -12,5 +12,7 @@
  {"number":"220926","date":"2026-09-22","recipient":"Kreis Offenbach","customer_no":"",
   "description":"Anzahlungsrechnung 50 % zu Angebot 2026-09-11-01: Fassadengestaltung (Mural) GEWOBAU, Alicestraße 111, Neu-Isenburg (ENSO)","total":1487.5,"net":1250.0,"vat":237.5,"kleinunternehmer":false},
  {"number":"220926-1","date":"2026-09-22","recipient":"HIG Höll Immo und Gastro GmbH","customer_no":"001",
-  "description":"Nachträgliche Rechnung zur Zahlung vom 02.03.2026 (Ref. „RN. 270127“): Künstlerische Gestaltungsleistungen","total":1000.0,"net":840.34,"vat":159.66,"kleinunternehmer":false}
+  "description":"Nachträgliche Rechnung zur Zahlung vom 02.03.2026 (Ref. „RN. 270127“): Künstlerische Gestaltungsleistungen — 1.000 netto + 190 USt; 1.000 bezahlt, 190 offen (mit 220926-2)","total":1190.0,"net":1000.0,"vat":190.0,"kleinunternehmer":false},
+ {"number":"220926-2","date":"2026-09-22","recipient":"HIG Höll Immo und Gastro GmbH","customer_no":"001",
+  "description":"Rechnungsberichtigung § 31 Abs. 5 UStDV: USt 19 % nachberechnet zu 070126, 260126, 270126, 230226 (630,80 €); zur Zahlung zusammen mit offenen 190,00 € aus 220926-1 = 820,80 €, fällig 06.10.2026","total":630.8,"net":0.0,"vat":630.8,"kleinunternehmer":false}
 ]
