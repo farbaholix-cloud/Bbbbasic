@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.43"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.44"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -2519,16 +2519,79 @@ let _calRange='all';   // по умолчанию — вся картина це
 let _calView=localStorage.getItem('calView')||'list';
 // Панель и сетка ездят вбок как одно целое: иначе колонка «весь день» под днём
 // 31-го оказывалась бы под сеткой 30-го, и панель врала бы о том, чей это день.
+//
+// Ведёт одна лента — та, которой касается палец; вторая только повторяет. Раньше
+// ленты подгоняли друг друга в обе стороны: запоздалое эхо от ведомой ленты
+// записывало в ведущую чуть устаревший scrollLeft, а на iPhone любая такая запись
+// обрывает инерцию — отсюда рывки при свайпе. Вдобавок ведомая сетка
+// примагничивалась к колонкам (scroll-snap) и спорила с подгонкой. Теперь эха нет,
+// а у ведомой ленты магнит на время выключен.
 function _tgSyncScroll(){
   const a=document.getElementById('tg-days'), b=document.getElementById('tg-dock-days');
   if(!a||!b||a._synced)return;
   a._synced=b._synced=true;
-  let lock=false;
-  const bind=(from,to)=>from.addEventListener('scroll',()=>{
-    if(lock)return; lock=true; to.scrollLeft=from.scrollLeft;
-    requestAnimationFrame(()=>{lock=false;});
+  a._lead='a';
+  const take=who=>()=>{
+    if(a._lead===who)return;
+    a._lead=who;
+    a.style.scrollSnapType=who==='a'?'':'none';
+  };
+  [[a,'a'],[b,'b']].forEach(([el,who])=>{
+    el.addEventListener('touchstart',take(who),{passive:true});
+    el.addEventListener('pointerdown',take(who),{passive:true});
+    el.addEventListener('wheel',take(who),{passive:true});
+  });
+  const follow=(from,to,who)=>from.addEventListener('scroll',()=>{
+    if(a._lead!==who)return;                       // ведомая лента молчит
+    if(Math.abs(to.scrollLeft-from.scrollLeft)>0.5)to.scrollLeft=from.scrollLeft;
   },{passive:true});
-  bind(a,b);bind(b,a);
+  follow(a,b,'a');follow(b,a,'b');
+}
+
+// ─── Лента дней держит место при перерисовке ──────────────────────────────────
+// После создания/переноса дела календарь перерисовывается целиком, и лента
+// колонок начиналась с нуля — вид «перескакивал» влево, к первому дню. Теперь
+// перед перерисовкой запоминаем, какой ДЕНЬ стоит у левого края и насколько он
+// сдвинут, и после — возвращаем ленту к нему. Именно к дню, а не к пикселям:
+// если дело легло в новый день, добавилась колонка, и пиксели бы уже соврали.
+function _calStripEl(){return document.querySelector('#cal .tg-days')||document.querySelector('#cal .cal-cols');}
+function _calColX(strip,col){
+  return col.getBoundingClientRect().left-strip.getBoundingClientRect().left+strip.scrollLeft;
+}
+let _calShownKey=null;       // какой период/якорь сейчас нарисован на доске
+function _calKey(){return _calRange+'|'+(_calAnchor||'');}
+function _calStripSave(){
+  const s=_calStripEl();
+  const st={key:_calShownKey,ds:null,off:0,raw:0};
+  if(!s)return st;
+  st.raw=s.scrollLeft;
+  if(st.raw<=0)return st;
+  for(const c of s.children){
+    if(!c.dataset||!c.dataset.ds)continue;
+    const x=_calColX(s,c);
+    if(x+c.offsetWidth>st.raw){st.ds=c.dataset.ds;st.off=st.raw-x;break;}
+  }
+  return st;
+}
+function _calStripRestore(st){
+  // Другой период или другой якорь (тап по дню в обзоре) — это переход, а не
+  // перерисовка: там лента законно начинается с начала.
+  if(!st||st.key!==_calKey()||st.raw<=0)return;
+  const s=_calStripEl();if(!s)return;
+  let x=st.raw;
+  if(st.ds){
+    const cols=[...s.children].filter(n=>n.dataset&&n.dataset.ds);
+    const same=cols.find(n=>n.dataset.ds===st.ds)||cols.find(n=>n.dataset.ds>st.ds);
+    if(same)x=_calColX(s,same)+(same.dataset.ds===st.ds?st.off:0);
+  }
+  s.style.scrollSnapType='none';                  // магнит не должен утянуть в сторону
+  s.scrollLeft=x;
+  const d=document.getElementById('tg-dock-days');
+  if(d&&s.id==='tg-days')d.scrollLeft=s.scrollLeft;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(!s.isConnected)return;
+    if(s.id!=='tg-days'||s._lead!=='b')s.style.scrollSnapType='';
+  }));
 }
 
 function toggleCalView(){
@@ -2888,6 +2951,12 @@ function _calGridCols(sorted,ctx){
 }
 
 function renderCal(){
+  const st=_calStripSave();
+  _renderCal();
+  _calStripRestore(st);
+  _calShownKey=_calKey();
+}
+function _renderCal(){
   const now=new Date();
   const today0=new Date(now);today0.setHours(0,0,0,0);
   const todayISO=localISO(now);
@@ -3233,19 +3302,26 @@ function _cdgAutoScroll(x,y){
   _cdg.scrollV=v;
 
   let hz=0;
-  const cols=document.querySelector('#cal .cal-cols');
+  // В хроносетке лента дней — #tg-days (раньше искали только ленту списка,
+  // и в сетке дотащить дело до дня за краем экрана было нельзя).
+  const cols=document.querySelector('#cal .cal-cols')||document.getElementById('tg-days');
   if(cols){
     const r=cols.getBoundingClientRect(),e2=64;
     if(x<r.left+e2)hz=-(r.left+e2-x)/e2*16;
     else if(x>r.right-e2)hz=(x-(r.right-e2))/e2*16;
   }
   _cdg.scrollH=hz;_cdg.cols=cols;
+  if(hz&&cols&&cols.style.scrollSnapType!=='none')cols.style.scrollSnapType='none';   // магнит мешает ехать
 
   if((v||hz)&&!_cdg.scrollRAF){
     const step=()=>{
       if(!_cdg||(!_cdg.scrollV&&!_cdg.scrollH)){if(_cdg)_cdg.scrollRAF=0;return;}
       if(_cdg.scrollV)window.scrollBy(0,_cdg.scrollV);
-      if(_cdg.scrollH&&_cdg.cols)_cdg.cols.scrollLeft+=_cdg.scrollH;
+      if(_cdg.scrollH&&_cdg.cols){
+        _cdg.cols.scrollLeft+=_cdg.scrollH;
+        const dk=document.getElementById('tg-dock-days');     // панель «весь день» едет вместе
+        if(dk&&_cdg.cols.id==='tg-days')dk.scrollLeft=_cdg.cols.scrollLeft;
+      }
       _cdg.scrollRAF=requestAnimationFrame(step);
     };
     _cdg.scrollRAF=requestAnimationFrame(step);
@@ -3280,6 +3356,8 @@ function _cdgEnd(commit){
   const st=_cdg;_cdg=null;
   _cdgGuardOff();
   if(st.scrollRAF)cancelAnimationFrame(st.scrollRAF);
+  if(st.cols&&st.cols.isConnected&&!(st.cols.id==='tg-days'&&st.cols._lead==='b'))
+    st.cols.style.scrollSnapType='';
   clearTimeout(st.timer);
   document.body.classList.remove('dragging-now');
   const src=st.src;
