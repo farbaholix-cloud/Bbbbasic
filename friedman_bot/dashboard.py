@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.44"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.45"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -1300,6 +1300,10 @@ body.dragging-now .ev{cursor:grabbing}
 .tg-day.today .tg-hours{border-color:rgba(91,157,255,.5);background:rgba(91,157,255,.05)}
 .tg-line{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.06)}
 .tg-ev{position:absolute;overflow:hidden}
+/* После полуночи шкала продолжается: метки «00», «01» — это уже следующий день,
+   черта полуночи заметнее обычной часовой линии. */
+.tg-h.nx{color:rgba(255,154,166,.75)}
+.tg-line.midnight{background:rgba(255,154,166,.55)}
 .tg-ev .ev{height:100%;box-sizing:border-box;margin:0;font-size:11px;padding:5px 7px;
   display:flex;align-items:flex-start;line-height:1.25}
 /* Красная линия «сейчас» — как в Apple: точка слева и черта через всю колонку. */
@@ -2866,6 +2870,15 @@ function _calYearView(){
 const TG_SLOT=48, TG_HEAD=26;          // высота часа и шапки дня, px
 
 function _tgMin(t){const p=String(t||'').split(':');return p.length===2?(+p[0])*60+(+p[1]):null;}
+// Конец события в минутах от начала ЕГО дня. Конец «раньше» начала (23:30–00:30)
+// — это переход через полночь, а не ошибка: +24 ч. Нет конца — блок на 45 минут.
+function _tgEnd(a,t){
+  let b=_tgMin(t);
+  if(b!==null&&b<=a)b+=1440;
+  return (b!==null&&b>a&&b-a<=720)?b:a+45;
+}
+// Минимальная высота блока — чтобы в него влезли две строки текста.
+const TG_MIN_H=38;
 
 // Границы шкалы: по умолчанию рабочий день, но раздвигаем под реальные события —
 // дело в 05:00 не должно оказаться за пределами таблицы.
@@ -2873,10 +2886,13 @@ function _tgRange(days){
   let lo=7*60, hi=23*60;
   days.forEach(evs=>evs.forEach(e=>{
     const a=_tgMin(e.time); if(a===null)return;
-    const b=_tgMin(e.time_end);
-    lo=Math.min(lo,a); hi=Math.max(hi,(b!==null&&b>a)?b:a+60);
+    // низ блока: конец события, но не меньше минимальной высоты блока
+    const b=Math.max(_tgEnd(a,e.time_end), a+TG_MIN_H/TG_SLOT*60);
+    lo=Math.min(lo,a); hi=Math.max(hi,b);
   }));
-  return {lo:Math.max(0,Math.floor(lo/60)*60), hi:Math.min(1440,Math.ceil(hi/60)*60)};
+  // Шкала может продолжиться ПОСЛЕ 24:00 (до 02:00 следующего дня): иначе дело
+  // в 23:55 рисовалось у самого края и срезалось — виден был только краешек.
+  return {lo:Math.max(0,Math.floor(lo/60)*60), hi:Math.min(1440+120,Math.ceil(hi/60)*60)};
 }
 
 // Наложения: события, идущие внахлёст, делят ширину колонки. Без этого они
@@ -2907,7 +2923,8 @@ function _calGridCols(sorted,ctx){
 
   let ruler='<div class="tg-ruler"><div class="tg-head-sp"></div><div class="tg-scale" style="height:'+H+'px">';
   for(let m=lo;m<hi;m+=60)
-    ruler+='<div class="tg-h" style="top:'+((m-lo)/60*TG_SLOT)+'px">'+String(m/60).padStart(2,'0')+'</div>';
+    ruler+='<div class="tg-h'+(m>=1440?' nx':'')+'" style="top:'+((m-lo)/60*TG_SLOT)+'px">'+
+      String((m/60)%24).padStart(2,'0')+'</div>';
   ruler+='</div></div>';
 
   let cols='',dock='';
@@ -2918,16 +2935,19 @@ function _calGridCols(sorted,ctx){
     const label=DOW[(dd.getDay()+6)%7]+' '+dd.getDate()+' '+MONTHS[dd.getMonth()]+
       (dd.getFullYear()!==now.getFullYear()?' '+dd.getFullYear():'')+(today?' · сегодня':'');
     const timed=evs.filter(e=>e.time).map(e=>{
-      const a=_tgMin(e.time); const b=_tgMin(e.time_end);
-      return {e:e,a:a,b:(b!==null&&b>a)?b:a+45};
+      const a=_tgMin(e.time), end=_tgEnd(a,e.time_end);
+      // b — НАРИСОВАННЫЙ низ блока (с учётом минимальной высоты): по нему делятся
+      // дорожки. Иначе короткое дело, вытянутое до двух строк, наезжало на
+      // следующее — по часам они не пересекались, а на экране накрывали друг друга.
+      return {e:e,a:a,end:end,b:Math.max(end,a+(TG_MIN_H+2)/TG_SLOT*60)};
     }).sort((x,y)=>x.a-y.a||x.b-y.b);
     _tgLanes(timed);
     let body='';
     for(let m=lo;m<hi;m+=60)
-      body+='<div class="tg-line" style="top:'+((m-lo)/60*TG_SLOT)+'px"></div>';
+      body+='<div class="tg-line'+(m===1440?' midnight':'')+'" style="top:'+((m-lo)/60*TG_SLOT)+'px"></div>';
     timed.forEach(it=>{
       const top=(it.a-lo)/60*TG_SLOT;
-      const h=Math.max(20,(it.b-it.a)/60*TG_SLOT-2);
+      const h=Math.max(TG_MIN_H,(it.end-it.a)/60*TG_SLOT-2);
       const w=100/(it.lanes||1), left=w*(it.lane||0);
       body+='<div class="tg-ev" style="top:'+top+'px;height:'+h+'px;left:calc('+left+'% + 2px);width:calc('+w+'% - 4px)">'
            +evHtml(it.e,true)+'</div>';
@@ -2950,6 +2970,21 @@ function _calGridCols(sorted,ctx){
     '<div class="tg-dock-days" id="tg-dock-days">'+dock+'</div></div>';
 }
 
+// Текст дела в хроносетке виден ЦЕЛИКОМ: не влезает в блок — шрифт чуть
+// меньше (до 8.5px), и только если и так не влезает — блок вытягивается под
+// текст и встаёт поверх соседей. Размер блока по-прежнему говорит о времени,
+// а текст больше не обрезается на полуслове.
+function _tgFitText(){
+  document.querySelectorAll('#cal .tg-ev').forEach(w=>{
+    const ev=w.firstElementChild;if(!ev)return;
+    let fs=11;
+    if(ev.scrollHeight>ev.clientHeight+1){ev.style.padding='4px 6px';ev.style.lineHeight='1.18';}
+    while(ev.scrollHeight>ev.clientHeight+1&&fs>8.5){fs-=0.5;ev.style.fontSize=fs+'px';}
+    if(ev.scrollHeight>ev.clientHeight+1){
+      w.style.height=(ev.scrollHeight+2)+'px';w.style.zIndex='3';
+    }
+  });
+}
 function renderCal(){
   const st=_calStripSave();
   _renderCal();
@@ -3057,6 +3092,7 @@ function _renderCal(){
   if(_calView==='grid'&&withCards.length){
     document.getElementById('cal').innerHTML=head+_calGridCols(withCards,{now,todayISO,evHtml,dayEvents});
     _tgSyncScroll();
+    _tgFitText();
     return;
   }
   for(const ds of sorted){
