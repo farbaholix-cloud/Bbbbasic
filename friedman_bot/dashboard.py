@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.45"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.46"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -513,6 +513,49 @@ def api_move(payload):
                               payload.get("time_end", ""), payload["id"],
                               row["comment"] if "comment" in row.keys() else None))
     return {"ok": True}
+
+
+# ─── Журнал действий в интерфейсе (UX) ────────────────────────────────────────
+# Зачем: раз в неделю Секретарь смотрит, КАК владелец пользуется дашбордом (куда
+# заходит первым делом, на что жмёт, куда тянется пальцем, где промахивается), и
+# присылает рекомендации по интерфейсу. Пишем только устройство интерфейса —
+# названия кнопок и вкладок, координаты тапа, размер кнопки. Текст дел, карточек
+# и сумм сюда не попадает никогда. Хранится 180 дней, наружу не уходит.
+UX_KEEP_DAYS = 180
+_ux_pruned = 0.0
+
+
+def api_ux(payload):
+    global _ux_pruned
+    evs = payload.get("events") or []
+    if not isinstance(evs, list):
+        return {"ok": False}
+    rows = []
+    for e in evs[:300]:
+        if not isinstance(e, dict):
+            continue
+        def s(k, n=80):
+            v = e.get(k)
+            return str(v)[:n] if v is not None else None
+        def f(k):
+            try:
+                return round(float(e.get(k)), 4)
+            except (TypeError, ValueError):
+                return None
+        rows.append((s("ts", 32), s("sid", 24), s("page", 16), s("kind", 16), s("target"),
+                     f("x"), f("y"), f("w"), f("h"), f("dur"), s("extra", 160)))
+    with db() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS ux_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, sid TEXT, page TEXT, kind TEXT,
+            target TEXT, x REAL, y REAL, w REAL, h REAL, dur REAL, extra TEXT)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS ux_ts ON ux_events(ts)")
+        conn.executemany("INSERT INTO ux_events(ts,sid,page,kind,target,x,y,w,h,dur,extra)"
+                         " VALUES(?,?,?,?,?,?,?,?,?,?,?)", rows)
+        if time.time() - _ux_pruned > 86400:
+            _ux_pruned = time.time()
+            conn.execute("DELETE FROM ux_events WHERE ts < datetime('now', ?)",
+                         (f"-{UX_KEEP_DAYS} days",))
+    return {"ok": True, "n": len(rows)}
 
 
 def api_event_delete(payload):
@@ -5432,7 +5475,14 @@ let _wasHidden=false;
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     _wasHidden=true;
-    try{navigator.sendBeacon('/api/lock');}catch(_){fetch('/api/lock',{method:'POST',keepalive:true});}
+    // Последняя порция журнала действий едет ВМЕСТЕ с блокировкой: отдельным
+    // запросом она бы уже не прошла — сессия гаснет в этот же момент.
+    let body=null;
+    try{const ux=window._uxDrain?window._uxDrain():null;
+        if(ux&&ux.length)body=new Blob([JSON.stringify({events:ux})],{type:'application/json'});}catch(_){}
+    try{if(!navigator.sendBeacon('/api/lock',body))throw 0;}
+    catch(_){fetch('/api/lock',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},
+      body:body?JSON.stringify({events:window._uxLast||[]}):'{}'});}
   }else if(_wasHidden){
     location.reload();
   }
@@ -5810,6 +5860,93 @@ function renderMind(d,refit){
   },{passive:true});
 })();
 
+// ─── Журнал действий (UX) ─────────────────────────────────────────────────────
+// Раз в неделю Секретарь присылает рекомендации по интерфейсу на основе того,
+// как им реально пользуются: с чего начинают, куда жмут, куда тянется палец,
+// где промахиваются. Пишем только УСТРОЙСТВО интерфейса — вкладку, название
+// кнопки, место тапа (в долях экрана) и размер кнопки. Текст дел, карточек,
+// сумм — никогда. Выключить: localStorage.uxOff='1'.
+(function(){
+  let off=false;try{off=localStorage.getItem('uxOff')==='1';}catch(_){}
+  if(off)return;
+  const sid=Math.random().toString(36).slice(2,10);
+  let q=[],taps=[],pageNow=null,pageSince=Date.now(),openedAt=Date.now(),firstNav=true;
+  const curPage=()=>{const el=document.querySelector('.page.on');return el?el.id.replace('page-',''):'';};
+  const push=o=>{o.ts=new Date().toISOString();o.sid=sid;if(o.page===undefined)o.page=curPage();
+    q.push(o);if(q.length>300)q=q.slice(-300);if(q.length>=60)flush();};
+  // Где лежит пользовательское содержимое: у таких элементов текст НЕ пишем.
+  const CONTENT='.ev,.tg-ev,.card,.kcard,.kc,.chaos,.step,.debt,.q-row,.cell,.pcol,.goal,.sgoal';
+  const ACT='button,a,input,select,textarea,label,[onclick],[data-p],.s,.cs,.sh-btn,[role="button"],'+
+            '.ev,.tg-ev,.tg-hours,.tg-dock-day,.pcol,.kcard,.drum-item,.hper-btn';
+  function label(t){
+    const el=(t.closest&&t.closest(ACT))||t;
+    const tag=(el.tagName||'').toLowerCase();
+    const sheet=el.closest&&el.closest('#sheet,#drum-sheet')?'шторка:':'';
+    if(el.closest&&el.closest('#seg')&&el.dataset&&el.dataset.p)return 'вкладка:'+el.dataset.p;
+    if(el.id)return sheet+'#'+el.id;
+    const al=el.getAttribute&&(el.getAttribute('aria-label')||el.getAttribute('title'));
+    if(al)return sheet+al.slice(0,40);
+    const content=el.closest&&el.closest(CONTENT);
+    if(!content&&(tag==='button'||(el.classList&&(el.classList.contains('s')||el.classList.contains('cs')||
+       el.classList.contains('sh-btn')))||(el.dataset&&el.dataset.p))){
+      const tx=(el.innerText||'').replace(/\s+/g,' ').trim().slice(0,28);
+      if(tx)return sheet+tag+':'+tx;
+    }
+    const cls=(typeof el.className==='string'&&el.className.trim())?'.'+el.className.trim().split(/\s+/)[0]:'';
+    return sheet+tag+cls;
+  }
+  document.addEventListener('click',e=>{
+    const t=e.target;if(!t||!t.closest)return;
+    const hit=t.closest(ACT);
+    const r=(hit||t).getBoundingClientRect();
+    const W=window.innerWidth||1,H=window.innerHeight||1;
+    const o={kind:'tap',target:label(t),x:e.clientX/W,y:e.clientY/H,w:Math.round(r.width),h:Math.round(r.height)};
+    if(!hit)o.extra='dead';                        // тап мимо всего активного
+    push(o);
+    // «Злые» тапы: три тапа за секунду в одно место — кнопка не срабатывает или мала.
+    const now=Date.now();
+    taps=taps.filter(p=>now-p.t<1000);taps.push({t:now,x:e.clientX,y:e.clientY});
+    const near=taps.filter(p=>Math.hypot(p.x-e.clientX,p.y-e.clientY)<30);
+    if(near.length===3)push({kind:'rage',target:o.target,x:o.x,y:o.y,w:o.w,h:o.h});
+  },true);
+  // Вкладки: откуда пришли, сколько пробыли. goPage вызывается по имени — обёртка
+  // видна всем кнопкам.
+  if(typeof goPage==='function'){
+    const orig=goPage;
+    goPage=function(p){
+      const prev=pageNow||curPage();
+      if(prev&&prev!==p){
+        push({kind:'stay',page:prev,target:prev,dur:(Date.now()-pageSince)/1000});
+        push({kind:'page',page:p,target:p,extra:'from:'+prev+(firstNav?';first':'')});
+        firstNav=false;
+      }
+      pageNow=p;pageSince=Date.now();
+      return orig.apply(this,arguments);
+    };
+  }
+  const open=kind=>{
+    openedAt=Date.now();pageSince=Date.now();pageNow=curPage();firstNav=true;
+    push({kind:kind,target:pageNow,extra:'h:'+new Date().getHours()});
+  };
+  function flush(beacon){
+    if(!q.length)return;
+    const body=JSON.stringify({events:q});q=[];
+    try{
+      if(beacon&&navigator.sendBeacon&&navigator.sendBeacon('/api/ux',new Blob([body],{type:'application/json'})))return;
+      fetch('/api/ux',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
+    }catch(_){}
+  }
+  // При сворачивании дашборд блокируется (/api/lock) — хвост журнала забирает
+  // сам запрос блокировки: после неё отдельная отправка получила бы 403.
+  window._uxDrain=()=>{
+    push({kind:'stay',target:pageNow||curPage(),dur:(Date.now()-pageSince)/1000});
+    push({kind:'close',target:curPage(),dur:(Date.now()-openedAt)/1000});
+    const out=q;q=[];window._uxLast=out;return out;
+  };
+  setTimeout(()=>open('open'),1200);              // после первой отрисовки: видно стартовую вкладку
+  setInterval(()=>{if(!document.hidden)flush(false);},20000);
+})();
+
 load();
 // НЕТ фонового авто-опроса, который перерисовывал бы весь экран. Раньше именно он через
 // несколько секунд подменял свежую правку устаревшим снимком («появилось → исчезло»).
@@ -6080,6 +6217,12 @@ class Handler(BaseHTTPRequestHandler):
 
         # блокировка при сворачивании окна — гасим cookie и сбрасываем активность
         if path == "/api/lock":
+            # хвост журнала действий (UX) — записываем, пока сессия ещё жива
+            if payload.get("events") and self._authed():
+                try:
+                    api_ux(payload)
+                except Exception:
+                    pass
             _last_seen = 0.0
             extra = [("Set-Cookie", "dash=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly")]
             self._send(b'{"ok":true}', "application/json; charset=utf-8", extra)
@@ -6117,6 +6260,16 @@ class Handler(BaseHTTPRequestHandler):
                 pass
             self._send(json.dumps(result, ensure_ascii=False).encode(),
                        "application/json; charset=utf-8")
+            return
+
+        # Журнал действий: отдельно от routes — ему не нужны ни bump_rev, ни
+        # пересылка всего снимка данных (он шлётся раз в 20 с и при сворачивании).
+        if path == "/api/ux":
+            try:
+                res = api_ux(payload)
+            except Exception as e:
+                res = {"ok": False, "err": str(e)[:120]}
+            self._send(json.dumps(res).encode(), "application/json; charset=utf-8")
             return
 
         routes = {

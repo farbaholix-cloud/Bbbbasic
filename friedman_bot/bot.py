@@ -7682,6 +7682,177 @@ def _status_report_sync() -> str:
     return f"{head}\n\n" + "\n".join(lines)
 
 
+# ─── UX-наблюдатель: еженедельные рекомендации по интерфейсу дашборда ─────────
+# Дашборд пишет в ux_events, КАК им пользуются (см. api_ux в dashboard.py):
+# открытия, вкладки, тапы (место в долях экрана, размер кнопки), «злые» и
+# «мимо» тапы. Здесь это сводится в цифры и превращается в конкретные советы:
+# что подвинуть под палец, что увеличить, что убрать как неиспользуемое.
+UX_TABS = {"plan": "Мостик", "cal": "Календарь", "fin": "Финансы", "proj": "Проекты",
+           "hap": "Счастье", "mind": "Ментальная карта"}
+UX_DASHBOARD_MAP = """Дашборд — веб-приложение на iPhone (на экране «Домой»).
+Сверху: шапка с иконкой и названием вкладки, справа кнопка ☀️ (#sunbtn) — ментальная карта.
+Под шапкой — полоска из 5 вкладок (#seg): Мостик, Календарь, Финансы, Проекты, Счастье.
+Мостик (plan): парковка/хаос вводных, цели, поток дохода. Календарь (cal): режимы
+неделя/месяц/год/всё/хвосты (#cal-seg), переключатель список/хроносетка (#cal-view),
+кнопка «+» (добавить в день), в хроносетке снизу панель «весь день»; дела тащатся
+долгим нажатием; долгое нажатие по пустому месту сетки — новое дело.
+Финансы (fin): нал/карта/всего, долги, платежи. Проекты (proj): канбан-колонки проектов.
+Счастье (hap): оценки и график. Шторки (bottom sheets) — «шторка:» в названии цели.
+Координаты тапа: x,y — доли экрана (y=0 верх, 1 низ). Зона большого пальца на iPhone —
+нижние 40% экрана; верхняя четверть — неудобно одной рукой. Рекомендуемый размер цели
+касания — от 44×44 pt."""
+
+
+def _ux_rows(conn, since, until=None):
+    try:
+        q = "SELECT * FROM ux_events WHERE ts >= ?" + (" AND ts < ?" if until else "")
+        return [dict(r) for r in conn.execute(q, (since, until) if until else (since,)).fetchall()]
+    except sqlite3.Error:
+        return []
+
+
+def ux_stats(days=7):
+    """Цифры за последние N дней + сравнение с предыдущими N днями."""
+    from collections import Counter, defaultdict
+    now = datetime.utcnow()
+    since = (now - timedelta(days=days)).isoformat()
+    prev = (now - timedelta(days=2 * days)).isoformat()
+    with db() as conn:
+        rows = _ux_rows(conn, since)
+        prow = _ux_rows(conn, prev, since)
+    st = {"days": days, "events": len(rows)}
+    if not rows:
+        return st
+    opens = [r for r in rows if r["kind"] in ("open", "resume")]
+    st["opens"] = len(opens)
+    st["opens_prev"] = sum(1 for r in prow if r["kind"] in ("open", "resume"))
+    st["taps_prev"] = sum(1 for r in prow if r["kind"] == "tap")
+    st["start_tab"] = Counter(UX_TABS.get(r["target"], r["target"]) for r in opens).most_common()
+    st["first_move"] = Counter(
+        (UX_TABS.get((r["extra"] or "").split(";")[0].replace("from:", ""), "?") + " → " +
+         UX_TABS.get(r["target"], r["target"]))
+        for r in rows if r["kind"] == "page" and "first" in (r["extra"] or "")).most_common(6)
+    hours = Counter()
+    for r in opens:
+        try:
+            hours[int((r["extra"] or "h:0").split(":")[1]) // 3 * 3] += 1
+        except (ValueError, IndexError):
+            pass
+    st["open_hours"] = sorted(hours.items())
+    dur = sorted(r["dur"] for r in rows if r["kind"] == "close" and r["dur"])
+    st["session_median_s"] = round(dur[len(dur) // 2]) if dur else None
+    tabt = defaultdict(float)
+    for r in rows:
+        if r["kind"] == "stay" and r["dur"]:
+            tabt[UX_TABS.get(r["target"], r["target"])] += min(r["dur"], 3600)
+    st["tab_minutes"] = sorted(((k, round(v / 60, 1)) for k, v in tabt.items()), key=lambda x: -x[1])
+    visited = {r["target"] for r in rows if r["kind"] in ("page", "open", "resume")}
+    st["tabs_never"] = [v for k, v in UX_TABS.items() if k not in visited]
+    taps = [r for r in rows if r["kind"] == "tap"]
+    st["taps"] = len(taps)
+    agg = defaultdict(lambda: {"n": 0, "y": 0.0, "x": 0.0, "w": 0.0, "h": 0.0, "page": Counter()})
+    for r in taps:
+        a = agg[r["target"]]
+        a["n"] += 1; a["y"] += r["y"] or 0; a["x"] += r["x"] or 0
+        a["w"] += r["w"] or 0; a["h"] += r["h"] or 0; a["page"][r["page"]] += 1
+    top = []
+    for t, a in sorted(agg.items(), key=lambda kv: -kv[1]["n"])[:25]:
+        n = a["n"]
+        top.append({"target": t, "n": n, "tab": UX_TABS.get(a["page"].most_common(1)[0][0], "?"),
+                    "y": round(a["y"] / n, 2), "x": round(a["x"] / n, 2),
+                    "size": f"{round(a['w'] / n)}×{round(a['h'] / n)}"})
+    st["top_targets"] = top
+    st["hard_to_reach"] = [t for t in top if t["y"] < 0.28 and t["n"] >= 5]
+    st["small_targets"] = [t for t in top if t["n"] >= 5 and
+                           min(map(int, t["size"].split("×"))) < 40]
+    zones = Counter("верх" if (r["y"] or 0) < 0.33 else "середина" if (r["y"] or 0) < 0.66 else "низ"
+                    for r in taps)
+    st["tap_zones"] = dict(zones)
+    st["rage"] = Counter(r["target"] for r in rows if r["kind"] == "rage").most_common(6)
+    dead = [r for r in taps if (r["extra"] or "") == "dead"]
+    st["dead_taps"] = Counter(
+        UX_TABS.get(r["page"], r["page"]) + " · " +
+        ("верх" if (r["y"] or 0) < 0.33 else "середина" if (r["y"] or 0) < 0.66 else "низ")
+        for r in dead).most_common(6)
+    return st
+
+
+def ux_report_sync(days=7):
+    """Текст еженедельного отчёта. Мало данных — честно так и говорим."""
+    st = ux_stats(days)
+    if st.get("events", 0) < 30:
+        return (f"🧭 Интерфейс дашборда · {days} дн.\n\nДанных пока мало "
+                f"({st.get('events', 0)} действий) — рекомендации появятся, когда "
+                "наберётся хотя бы несколько заходов.")
+    facts = jsonlib.dumps(st, ensure_ascii=False, indent=1)
+    prompt = (
+        f"{UX_DASHBOARD_MAP}\n\nСТАТИСТИКА ИСПОЛЬЗОВАНИЯ за {days} дней (JSON):\n{facts}\n\n"
+        "Ты — UX-исследователь. Владелец дашборда — один человек, пользуется им с iPhone. "
+        "Дай 3–6 КОНКРЕТНЫХ рекомендаций по интерфейсу, каждая строго опирается на цифры выше: "
+        "что сделать стартовым экраном; какие частые кнопки перенести в зону большого пальца "
+        "(низ экрана); какие частые кнопки увеличить (меньше 44 px); что убрать или спрятать "
+        "как неиспользуемое; где «злые» и «мимо» тапы говорят о поломке или неудобстве; какую "
+        "функцию переделать под реальный сценарий (частые переходы подряд). Не выдумывай "
+        "элементов, которых нет в описании или статистике; если данных для вывода мало — не "
+        "делай вывод.\n\nФормат — простой текст для Telegram, по-русски, без Markdown-таблиц:\n"
+        "первая строка «🧭 Интерфейс дашборда · неделя»; затем 2–3 строки «что видно» с "
+        "главными цифрами (заходы, стартовая вкладка, топ-3 кнопки, зоны тапов); затем "
+        "пронумерованные рекомендации: «N. Что сделать — почему (цифра) — что это даст». "
+        "Не длиннее 1800 символов.")
+    text = ""
+    try:
+        r = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "sonnet", "--tools", ""],
+                         timeout=180)
+        text = (r.stdout or "").strip()
+    except Exception as e:
+        log.error(f"ux report: {e}")
+    if not text or text.startswith("Error:"):
+        top = ", ".join(f"{t['target']} ({t['n']})" for t in st.get("top_targets", [])[:5])
+        pairs = lambda xs: ", ".join(f"{k} — {v}" for k, v in (xs or []))
+        text = (f"🧭 Интерфейс дашборда · {days} дн.\n\nЗаходов: {st.get('opens')}, тапов: "
+                f"{st.get('taps')}.\nСтарт: {pairs(st.get('start_tab'))}\n"
+                f"Первый шаг: {pairs(st.get('first_move'))}\nЧаще всего: {top}\n"
+                f"Зоны тапов: {pairs((st.get('tap_zones') or {}).items())}\n"
+                "(Модель не ответила — это сырые цифры без рекомендаций.)")
+    text += ("\n\nХочешь внедрить пункты — перешли этот отчёт в Claude Code и напиши номера.")
+    try:
+        with db() as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS ux_reports (id INTEGER PRIMARY KEY "
+                         "AUTOINCREMENT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, stats TEXT, text TEXT)")
+            conn.execute("INSERT INTO ux_reports(stats, text) VALUES(?,?)", (facts, text))
+    except Exception as e:
+        log.error(f"ux report save: {e}")
+    return text
+
+
+async def ux_weekly(ctx: ContextTypes.DEFAULT_TYPE):
+    """Понедельник: рекомендации по интерфейсу за прошедшую неделю."""
+    cid = get_chat_id()
+    if not cid:
+        return
+    try:
+        text = await asyncio.to_thread(ux_report_sync, 7)
+        await ctx.bot.send_message(cid, text[:4000])
+    except Exception as e:
+        log.error(f"ux weekly: {e}")
+
+
+async def cmd_ux(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/ux [дней] — отчёт по интерфейсу прямо сейчас (по умолчанию за 7 дней)."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    try:
+        days = max(1, min(90, int(ctx.args[0]))) if ctx.args else 7
+    except ValueError:
+        days = 7
+    await ctx.bot.send_message(chat_id, "🧭 Смотрю, как ты пользуешься дашбордом…")
+    text = await asyncio.to_thread(ux_report_sync, days)
+    await ctx.bot.send_message(chat_id, text[:4000])
+
+
+
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """/status — здоровье всей системы одним сообщением. Только смотрит, ничего не чинит."""
     chat_id = update.effective_chat.id
@@ -8188,6 +8359,7 @@ COMMANDS_HELP = (
     "• /svod — свод всех вводных страницами A4 под печать\n"
     "• /ip — ссылка на дашборд\n"
     "• /status — здоровье всей системы\n"
+    "• /ux — как ты пользуешься дашбордом и что улучшить (сам — по понедельникам)\n"
     "• /update — обновить всё вручную (/update force — без экзамена)\n"
     "• /update_mac — обновить только Mac-дашборд\n"
     "\nЮрист:\n"
@@ -8274,6 +8446,7 @@ def main():
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("status", cmd_status))
+    app.add_handler(CommandHandler("ux", cmd_ux))
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
@@ -8303,7 +8476,11 @@ def main():
     brief_t = time(7, 0, tzinfo=BERLIN) if BERLIN else time(7, 0)
     bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
     jq.run_daily(morning_focus, time=brief_t)
-    jq.run_daily(sunday_bridge, time=bridge_t, days=(6,))
+    # В PTB ≥20 дни недели: 0 = воскресенье … 6 = суббота. Раньше здесь стояло 6 —
+    # «воскресный» мостик на деле приходил в субботу.
+    jq.run_daily(sunday_bridge, time=bridge_t, days=(0,))
+    ux_t = time(9, 30, tzinfo=BERLIN) if BERLIN else time(9, 30)
+    jq.run_daily(ux_weekly, time=ux_t, days=(1,))   # понедельник: советы по интерфейсу
 
     # Юрист — отдельный бот (jurist_bot.py); поднимаем его, если задан токен
     try:

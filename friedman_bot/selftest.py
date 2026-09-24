@@ -288,6 +288,27 @@ def main():
               any("Экзамен" in str(c.get("text")) for c in data.get("cards", [])))
     step("дашборд", t_dashboard)
 
+    def t_ux():
+        # Журнал действий: дашборд пишет, бот сводит. Текст дел в журнал не идёт —
+        # только устройство интерфейса.
+        import dashboard
+        evs = [{"ts": "2099-01-01T10:00:00Z", "sid": "t", "page": "plan", "kind": "open",
+                "target": "plan", "extra": "h:10"},
+               {"ts": "2099-01-01T10:00:02Z", "sid": "t", "page": "cal", "kind": "page",
+                "target": "cal", "extra": "from:plan;first"}]
+        evs += [{"ts": "2099-01-01T10:00:%02dZ" % (5 + i), "sid": "t", "page": "cal",
+                 "kind": "tap", "target": "вкладка:cal", "x": .3, "y": .12, "w": 60, "h": 50}
+                for i in range(30)]
+        r = dashboard.api_ux({"events": evs})
+        check("журнал действий принимает события", r.get("n") == 32, str(r))
+        st = bot.ux_stats(36500 * 2)
+        check("бот видит первый шаг «Мостик → Календарь»",
+              st.get("first_move") and st["first_move"][0][0] == "Мостик → Календарь",
+              str(st.get("first_move")))
+        check("частая кнопка вверху экрана помечена как неудобная",
+              any(t["target"] == "вкладка:cal" for t in st.get("hard_to_reach", [])))
+    step("журнал действий (UX)", t_ux)
+
     def t_svod():
         import report_pages
         c = sqlite3.connect(db_path)
