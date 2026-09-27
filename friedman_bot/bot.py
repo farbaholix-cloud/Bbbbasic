@@ -2597,8 +2597,8 @@ ISSUED_INVOICES = [
     # Продажа оригинала самим автором — 7 % (§12 Abs. 2 Nr. 1 UStG, Anlage 2 Nr. 53),
     # а не 19 %, как за работу на месте (мурал, роспись стены).
     {"number": "270926-1", "date": "2026-09-27", "title": "Rechnung",
-     "recipient": "FSV Frankfurt 1899 Fußball GmbH\nRichard-Herrmann-Platz 1\n"
-                  "60386 Frankfurt am Main",
+     "recipient": "FSV Frankfurt 1899 Fußball GmbH\nz. Hd. Robert Lempka\n"
+                  "Richard-Herrmann-Platz 1\n60386 Frankfurt am Main",
      "customer_no": "005", "salutation": None,
      "intro": "Hiermit berechne ich Ihnen wie vorab besprochen die Lieferung folgenden Kunstwerks:",
      "items": [{"desc": "Originalgemälde auf Leinwand, 1,1 × 1,8 m, vollständig handgemalt – "
