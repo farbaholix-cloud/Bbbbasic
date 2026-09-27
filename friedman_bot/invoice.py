@@ -199,7 +199,7 @@ def _build_html(recipient, items, number, salutation, customer_no,
 body {{
   font-family: 'Helvetica Neue', Arial, 'Segoe UI', sans-serif;
   color: #1a1a1a; margin: 0;
-  padding: 60px 62px 48px 62px;
+  padding: 48px 62px 36px 62px;
   font-size: 14px; line-height: 1.5;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }}
@@ -209,7 +209,7 @@ body {{
 .meta {{ background: #efefef; padding: 14px 18px; text-align: right;
   font-size: 12px; line-height: 1.75; color: #333; max-width: 46%; }}
 .meta a, .meta .mail {{ color: #b23a3a; text-decoration: none; }}
-.recip {{ margin-top: 56px; font-size: 15px; line-height: 1.55; }}
+.recip {{ margin-top: 44px; font-size: 15px; line-height: 1.55; }}
 .date {{ text-align: right; color: #8a8a8a; font-size: 13px; margin-top: 24px; }}
 h1 {{ font-size: 20px; font-weight: 700; margin: 12px 0 0; }}
 .rnr {{ font-size: 14px; margin-top: 10px; }}
@@ -227,10 +227,10 @@ table.sum {{ margin-top: 12px; margin-left: auto; border-collapse: collapse; fon
 table.sum td {{ padding: 4px 10px; }}
 table.sum td.r {{ text-align: right; white-space: nowrap; }}
 table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding-top: 7px; }}
-.pay {{ margin-top: 22px; line-height: 1.55; }}
+.pay {{ margin-top: 16px; line-height: 1.45; }}
 .pay .bank {{ margin-top: 8px; }}
 .pay .bank .b {{ font-weight: 700; }}
-.close {{ margin-top: 22px; line-height: 1.7; }}
+.close {{ margin-top: 14px; line-height: 1.5; }}
 </style></head><body>
   <div class='head'>
     <div>
@@ -272,8 +272,8 @@ table.sum tr.grand td {{ border-top: 1.5px solid #222; font-weight: 700; padding
   {pay_html}
 
   <div class='close'>
-    Vielen Dank für Ihren Auftrag!<br><br>
-    Mit freundlichen Grüßen<br>
+    Vielen Dank für Ihren Auftrag!<br>
+    <span style="display:block;margin-top:8px">Mit freundlichen Grüßen</span>
     {_esc(snd['name'])}
   </div>
 </body></html>""", total
