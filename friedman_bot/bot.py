@@ -2604,7 +2604,7 @@ ISSUED_INVOICES = [
      "items": [{"desc": "Originalgemälde auf Leinwand, 1,1 × 1,8 m, vollständig handgemalt – "
                         "Geschenk des FSV Frankfurt an Eintracht Frankfurt", "price": 1400.00}],
      "vat_rate": 7,
-     "service_note": "Lieferdatum: September 2026 · Lieferung eines Kunstgegenstands durch den "
+     "service_note": "Lieferdatum: 12.08.2026 · Lieferung eines Kunstgegenstands durch den "
                      "Urheber, ermäßigter Steuersatz (§ 12 Abs. 2 Nr. 1 UStG)",
      "fin_total": 1498.00, "fin_net": 1400.00, "fin_vat": 98.00,
      "desc": "Originalgemälde auf Leinwand 1,1 × 1,8 m — Geschenk FSV an Eintracht Frankfurt (7 % USt)"},
