@@ -2572,29 +2572,27 @@ ISSUED_INVOICES = [
      "fin_total": 820.80, "fin_net": 0.0, "fin_vat": 820.80,
      "desc": "Rechnungsberichtigung §31 Abs. 5 UStDV: USt 19 % zu 070126, 260126, 270126, "
              "230226 и 220926-1 = 820,80"},
-    # Kreis Offenbach: Schlussrechnung — работа сдана 25.09.2026. По §14 Abs. 5 UStG
-    # в конечном счёте: вся работа, минус полученная предоплата (нетто) и
-    # отдельно названный НДС этой предоплаты; к оплате остаётся вторая половина.
-    {"number": "270926", "date": "2026-09-27", "title": "Schlussrechnung",
+    # Kreis Offenbach: вторая половина — работа сдана 25.09.2026. Одной позицией
+    # «Schlusszahlung 50 %», без строки с минусом (так захотел владелец): это счёт
+    # на вторую часть оплаты, первая выставлена и оплачена отдельно (220926).
+    {"number": "270926", "date": "2026-09-27", "title": "Rechnung",
      "recipient": "Kreis Offenbach\nFachdienst Ehrenamt und Wirtschaftsförderung\n"
                   "Bereich Förderung des Ehrenamtes, Sport & Kultur\n"
                   "Werner-Hilpert-Straße 1\n63128 Dietzenbach",
      "customer_no": "", "salutation": None,
-     "intro": "Schlusszahlung gemäß Angebot Nr. 2026-09-11-01 vom 11.09.2026:",
-     "items": [{"desc": "Künstlerische Fassadengestaltung (Mural), GEWOBAU, Alicestraße 111, "
-                        "63263 Neu-Isenburg – ENSO-Projekt, inkl. Entwurf und Material",
-                "price": 2500.00},
-               {"desc": "abzüglich Anzahlung gemäß Anzahlungsrechnung Nr. 220926 vom "
-                        "22.09.2026 (netto)", "price": -1250.00}],
+     "intro": "Nach Fertigstellung der Arbeiten am 25.09.2026 berechne ich Ihnen gemäß Angebot "
+              "Nr. 2026-09-11-01 vom 11.09.2026 die Schlusszahlung:",
+     "items": [{"desc": "Schlusszahlung 50 % gemäß Angebot Nr. 2026-09-11-01: Künstlerische "
+                        "Fassadengestaltung (Mural), GEWOBAU, Alicestraße 111, 63263 "
+                        "Neu-Isenburg – ENSO-Projekt", "price": 1250.00}],
      "vat_rate": 19,
      "service_note": "Leistungszeitraum: September 2026, Fertigstellung am 25.09.2026",
-     "paid_note": "Anzahlung 1.487,50 € (1.250,00 € netto + 237,50 € USt), erhalten am "
-                  "21.09.2026, ist oben abgezogen. Restbetrag bitte binnen drei Tagen nach "
-                  "Fertigstellungsanzeige überweisen an:",
+     "paid_note": "Die Anzahlung (50 %, Rechnung Nr. 220926) wurde am 21.09.2026 bezahlt – "
+                  "vielen Dank. Bitte überweisen Sie die Schlusszahlung gemäß Angebot innerhalb "
+                  "von drei Tagen nach Anzeige der Fertigstellung auf folgende Bankverbindung:",
      "show_bank": True,
      "fin_total": 1487.50, "fin_net": 1250.00, "fin_vat": 237.50,
-     "desc": "Schlussrechnung Angebot 2026-09-11-01 — Fassade GEWOBAU Neu-Isenburg (ENSO); "
-             "2 500 netto − Anzahlung 1 250 = 1 250 + 237,50 USt"},
+     "desc": "Schlusszahlung 50 % Angebot 2026-09-11-01 — Fassade GEWOBAU Neu-Isenburg (ENSO)"},
     # FSV: картина 1,1 × 1,8 м — подарок FSV клубу Eintracht Frankfurt.
     {"number": "270926-1", "date": "2026-09-27", "title": "Rechnung",
      "recipient": "FSV Frankfurt 1899 Fußball GmbH\nRichard-Herrmann-Platz 1\n"

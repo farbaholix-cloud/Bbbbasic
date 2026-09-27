@@ -18,7 +18,7 @@
  {"number":"130526","date":"2026-05-13","recipient":"Klügling Café & Konditorei Betriebs GmbH (Café Sa'Sis)","customer_no":"017",
   "description":"Rechnung, erstellt vom Juristen-Bot (PDF auf dem Server: invoices_pdf/130526.pdf); noch als Kleinunternehmer ohne USt","total":1500.0,"net":1500.0,"vat":0.0,"kleinunternehmer":true},
  {"number":"270926","date":"2026-09-27","recipient":"Kreis Offenbach","customer_no":"",
-  "description":"Schlussrechnung zu Angebot 2026-09-11-01: Fassadengestaltung (Mural) GEWOBAU, Alicestraße 111, Neu-Isenburg (ENSO), Fertigstellung 25.09.2026; 2.500 netto − Anzahlung 1.250 (220926)","total":1487.5,"net":1250.0,"vat":237.5,"kleinunternehmer":false},
+  "description":"Schlusszahlung 50 % zu Angebot 2026-09-11-01: Fassadengestaltung (Mural) GEWOBAU, Alicestraße 111, Neu-Isenburg (ENSO), Fertigstellung 25.09.2026","total":1487.5,"net":1250.0,"vat":237.5,"kleinunternehmer":false},
  {"number":"270926-1","date":"2026-09-27","recipient":"FSV Frankfurt 1899 Fußball GmbH","customer_no":"005",
   "description":"Gemälde 1,1 × 1,8 m – Geschenk des FSV Frankfurt an Eintracht Frankfurt","total":1666.0,"net":1400.0,"vat":266.0,"kleinunternehmer":false}
 ]
