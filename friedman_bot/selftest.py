@@ -270,10 +270,10 @@ def main():
             totals[inv["number"]] = round(total, 2)
             ok = (("Bitte überweisen Sie den Rechnungsbetrag" not in html_text)
                   == bool(inv.get("paid_note"))) \
-                and "Leistung" in html_text and "Als Kleinunternehmer" not in html_text
+                and ("Leistung" in html_text or "Lieferdatum" in html_text) and "Als Kleinunternehmer" not in html_text
             check(f"счёт {inv['number']} собирается корректно", ok)
         check("суммы счетов, выставленных вне бота, сходятся",
-              totals == {"220926": 1487.5, "220926-1": 1000.0, "220926-2": 820.8, "270926": 1487.5, "270926-1": 1666.0}, str(totals))
+              totals == {"220926": 1487.5, "220926-1": 1000.0, "220926-2": 820.8, "270926": 1487.5, "270926-1": 1498.0}, str(totals))
     step("счета 22.09.2026", t_issued)
 
     def t_dashboard():

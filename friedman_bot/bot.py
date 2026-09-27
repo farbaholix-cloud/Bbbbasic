@@ -851,7 +851,7 @@ SKILL.md (карта тем) уже вшит в конец этого промп
 ТВОИ ЗАДАЧИ:
 1. Анализ финансов: тебе дан баланс, счета (Rechnungen) с оборотом по годам, долги, расходы. Оцени налогово-правовую картину, предупреди о рисках: превышение порога Kleinunternehmer (оборот), переквалификация Freiberufler→Gewerbe, обязанность Künstlersozialabgabe как Verwerter при выплатах другим художникам сверх Bagatellgrenze.
 2. Сроки: напоминай о подаче деклараций (ESt + Anlage EÜR + Anlage S, обычно к 31 июля) и ежегодных обновлениях. Если просят — поставь напоминание (action remind).
-3. Инвойсы (СЧЕТА): когда просят выставить/сделать счёт или PDF-Rechnung — твоя ЕДИНСТВЕННАЯ задача вернуть action invoice с данными (recipient — получатель: название + адрес, каждая часть с новой строки \\n; items — позиции, desc на немецком профессионально с умляутами, price числом; salutation — обращение если известно; intro — вводная фраза на немецком если ясен повод). PDF собирает САМ БОТ по фиксированному шаблону. Ты НЕ рисуешь и НЕ меняешь дизайн счёта, НЕ редактируешь файлы, НЕ пишешь и НЕ запускаешь код, НЕ просишь никаких разрешений/«Allow», НЕ утверждай, что ты обновил дизайн или отредактировал invoice.py — у тебя нет такой возможности и это не нужно. Просто верни action invoice и короткий reply вроде «Готовлю счёт для … на …€». Если не хватает получателя или суммы — спроси одним вопросом. ВАЖНО по НДС: с 01.01.2026 — ОБЯЗАТЕЛЬНАЯ Regelbesteuerung (письмо Finanzamt Frankfurt от 16.09.2026: оборот 2025 превысил порог §19 UStG). Kleinunternehmer-оговорку §19 больше НЕ ставить. Каждый счёт — с НДС: "vat_rate": 19 (бот и сам подставит 19, если поле пустое). Другую ставку (7 %) — только если пользователь прямо её назовёт. Счета 2026 года, выставленные ещё по §19, можно исправить по §31 Abs. 5 UStDV — это открытое дело [ust], см. бюрократические дела.
+3. Инвойсы (СЧЕТА): когда просят выставить/сделать счёт или PDF-Rechnung — твоя ЕДИНСТВЕННАЯ задача вернуть action invoice с данными (recipient — получатель: название + адрес, каждая часть с новой строки \\n; items — позиции, desc на немецком профессионально с умляутами, price числом; salutation — обращение если известно; intro — вводная фраза на немецком если ясен повод). PDF собирает САМ БОТ по фиксированному шаблону. Ты НЕ рисуешь и НЕ меняешь дизайн счёта, НЕ редактируешь файлы, НЕ пишешь и НЕ запускаешь код, НЕ просишь никаких разрешений/«Allow», НЕ утверждай, что ты обновил дизайн или отредактировал invoice.py — у тебя нет такой возможности и это не нужно. Просто верни action invoice и короткий reply вроде «Готовлю счёт для … на …€». Если не хватает получателя или суммы — спроси одним вопросом. ВАЖНО по НДС: с 01.01.2026 — ОБЯЗАТЕЛЬНАЯ Regelbesteuerung (письмо Finanzamt Frankfurt от 16.09.2026: оборот 2025 превысил порог §19 UStG). Kleinunternehmer-оговорку §19 больше НЕ ставить. Каждый счёт — с НДС: "vat_rate": 19 (бот и сам подставит 19, если поле пустое). Ставка 7 % (vat_rate 7) — когда продаётся САМО произведение: картина/рисунок на холсте, панели или бумаге, целиком сделанные рукой (оригинал, не принт), которые заказчик забирает как предмет (§12 Abs. 2 Nr. 1 UStG, Anlage 2 Nr. 53), или только права на использование произведения (§12 Abs. 2 Nr. 7c). Роспись стены/фасада/забора/сцены, мурал, дизайн, эскиз под заказ, ассистенция, монтаж — это работа, 19 %. Не уверен, холст это или роспись на месте, — спроси одним вопросом. Счета 2026 года, выставленные ещё по §19, можно исправить по §31 Abs. 5 UStDV — это открытое дело [ust], см. бюрократические дела.
 4. Письма/заявления: по reference letters.md составь готовый текст письма на немецком (Finanzamt, KSK, Krankenkasse, Handwerkskammer, Jobcenter) прямо в reply.
 3б. УДАЛЕНИЕ СЧЕТОВ ИЗ АРХИВА: если пользователь просит убрать счёт/дубль из таблицы («удали инвойс Cosmopop на 5000», «в архиве дубль — убери один») — НЕ отвечай просто «ок», а верни action delete_invoice с максимально точными критериями из просьбы и контекста (АРХИВ ИНВОЙСОВ выше): {"type":"delete_invoice","number":"","client":"Cosmopop","amount":5000,"date":"YYYY-MM-DD","all":false}. all=false удаляет ОДНУ последнюю совпавшую запись (для дубля из двух одинаковых — ровно то, что нужно); all=true — все совпавшие (только если пользователь явно просит убрать все). Если критериев мало и можно зацепить не тот счёт — сначала уточни одним вопросом.
 4б. ДОКУМЕНТЫ/БЮРОКРАТИЯ (права Führerschein-Umtausch, §24, паспорт, термины в ведомства): по reference buerokratie.md. В контексте тебе даны открытые «дела» (БЮРОКРАТИЧЕСКИЕ ДЕЛА) — когда пользователь сообщает новость по делу («записался на термин 15.08», «подал заявление», «получил права»), ОБНОВИ дело через action case: {"type":"case","topic":"fuehrerschein","status":"open|waiting|done","next_step":"...","due":"YYYY-MM-DD","note":"..."} (topic из списка в контексте; новую тему заводи с коротким латинским topic). Для актуальных процедур/правил делай web_search.
@@ -2593,18 +2593,21 @@ ISSUED_INVOICES = [
      "show_bank": True,
      "fin_total": 1487.50, "fin_net": 1250.00, "fin_vat": 237.50,
      "desc": "Schlusszahlung 50 % Angebot 2026-09-11-01 — Fassade GEWOBAU Neu-Isenburg (ENSO)"},
-    # FSV: картина 1,1 × 1,8 м — подарок FSV клубу Eintracht Frankfurt.
+    # FSV: картина на холсте 1,1 × 1,8 м — подарок FSV клубу Eintracht Frankfurt.
+    # Продажа оригинала самим автором — 7 % (§12 Abs. 2 Nr. 1 UStG, Anlage 2 Nr. 53),
+    # а не 19 %, как за работу на месте (мурал, роспись стены).
     {"number": "270926-1", "date": "2026-09-27", "title": "Rechnung",
      "recipient": "FSV Frankfurt 1899 Fußball GmbH\nRichard-Herrmann-Platz 1\n"
                   "60386 Frankfurt am Main",
      "customer_no": "005", "salutation": None,
-     "intro": "Hiermit berechne ich Ihnen wie vorab besprochen folgende Leistung:",
-     "items": [{"desc": "Erstellung eines Gemäldes (1,1 × 1,8 m) – Geschenk des FSV Frankfurt "
-                        "an Eintracht Frankfurt, inkl. Material", "price": 1400.00}],
-     "vat_rate": 19,
-     "service_note": "Leistungszeitraum: September 2026",
-     "fin_total": 1666.00, "fin_net": 1400.00, "fin_vat": 266.00,
-     "desc": "Gemälde 1,1 × 1,8 m — Geschenk FSV an Eintracht Frankfurt"},
+     "intro": "Hiermit berechne ich Ihnen wie vorab besprochen die Lieferung folgenden Kunstwerks:",
+     "items": [{"desc": "Originalgemälde auf Leinwand, 1,1 × 1,8 m, vollständig handgemalt – "
+                        "Geschenk des FSV Frankfurt an Eintracht Frankfurt", "price": 1400.00}],
+     "vat_rate": 7,
+     "service_note": "Lieferdatum: September 2026 · Lieferung eines Kunstgegenstands durch den "
+                     "Urheber, ermäßigter Steuersatz (§ 12 Abs. 2 Nr. 1 UStG)",
+     "fin_total": 1498.00, "fin_net": 1400.00, "fin_vat": 98.00,
+     "desc": "Originalgemälde auf Leinwand 1,1 × 1,8 m — Geschenk FSV an Eintracht Frankfurt (7 % USt)"},
 ]
 
 
