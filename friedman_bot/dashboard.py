@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.48"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.49"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -53,6 +53,14 @@ SESSION_TOKEN = get_session_token()
 # (ввод карточки, крутилки) не роняли сессию посреди действия.
 IDLE_TIMEOUT = 900
 _last_seen = 0.0
+# Круг — не чаще раза в 5 минут. Свернул дашборд — сервер лишь помечает «свёрнут»
+# (_locked); вернулся — круг нужен, только если с ПОСЛЕДНЕГО круга прошло ≥ 5 минут.
+# Раньше блокировка срабатывала на каждое сворачивание: заглянул в Telegram на 10
+# секунд — снова рисуй. Cookie живёт 12 часов (iOS выгружает приложение с экрана
+# «Домой», и сессионная cookie терялась бы), а решение «пускать ли» — на сервере.
+UNLOCK_GRACE = 300
+_unlocked_at = 0.0
+_locked = False
 
 
 def is_circle(points):
@@ -6173,6 +6181,11 @@ class Handler(BaseHTTPRequestHandler):
         now = time.time()
         if (now - _last_seen) > IDLE_TIMEOUT:
             return False  # давно нет активности (или рестарт сервера) → снова рисуем круг
+        global _locked
+        if _locked:
+            if (now - _unlocked_at) >= UNLOCK_GRACE:
+                return False  # свёрнут, а круг был 5+ минут назад → рисуем круг
+            _locked = False   # вернулся в пределах 5 минут после круга — пускаем
         _last_seen = now
         return True
 
@@ -6241,14 +6254,19 @@ class Handler(BaseHTTPRequestHandler):
             result = _set_session(payload)
             extra = None
             if result.get("ok"):
+                global _unlocked_at, _locked
                 _last_seen = time.time()  # запускаем отсчёт бездействия заново
-                # сессионная cookie (без Max-Age) — пропадает при закрытии вкладки
+                _unlocked_at = _last_seen
+                _locked = False
+                # cookie на 12 ч: переживает выгрузку приложения iOS; пускать ли —
+                # решает сервер (_locked / UNLOCK_GRACE / IDLE_TIMEOUT)
                 extra = [("Set-Cookie",
-                          f"dash={SESSION_TOKEN}; Path=/; SameSite=Lax; HttpOnly")]
+                          f"dash={SESSION_TOKEN}; Path=/; Max-Age=43200; SameSite=Lax; HttpOnly")]
             self._send(json.dumps(result).encode(), "application/json; charset=utf-8", extra)
             return
 
-        # блокировка при сворачивании окна — гасим cookie и сбрасываем активность
+        # сворачивание окна: помечаем «свёрнут». Круг при возврате потребуется,
+        # только если с последнего круга прошло ≥ UNLOCK_GRACE (см. _authed)
         if path == "/api/lock":
             # хвост журнала действий (UX) — записываем, пока сессия ещё жива
             if payload.get("events") and self._authed():
@@ -6256,9 +6274,8 @@ class Handler(BaseHTTPRequestHandler):
                     api_ux(payload)
                 except Exception:
                     pass
-            _last_seen = 0.0
-            extra = [("Set-Cookie", "dash=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly")]
-            self._send(b'{"ok":true}', "application/json; charset=utf-8", extra)
+            _locked = True
+            self._send(b'{"ok":true}', "application/json; charset=utf-8")
             return
 
         if not self._authed():
