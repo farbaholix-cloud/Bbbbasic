@@ -7873,6 +7873,37 @@ async def ux_weekly(ctx: ContextTypes.DEFAULT_TYPE):
         log.error(f"ux weekly: {e}")
 
 
+START_PAGE_NAMES = {"мостик": "plan", "календарь": "cal", "финансы": "fin", "проекты": "proj",
+                    "счастье": "hap", "карта": "mind", "plan": "plan", "cal": "cal",
+                    "fin": "fin", "proj": "proj", "hap": "hap", "mind": "mind"}
+
+
+async def cmd_startpage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/startpage [вкладка] — с какой вкладки открывается дашборд. Без аргумента —
+    показать текущую. Изменение подхватывается при следующем открытии, без деплоя.
+    Введено по рекомендации UX-отчёта (Календарь стартовым), чтобы откат был в одну
+    команду: /startpage мостик."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    cur = _settings_get("dash_start_page") or "cal"
+    if not ctx.args:
+        await ctx.bot.send_message(
+            chat_id, f"🏁 Дашборд открывается на вкладке «{UX_TABS.get(cur, cur)}».\n"
+                     "Сменить: /startpage мостик · календарь · финансы · проекты · счастье · карта")
+        return
+    want = START_PAGE_NAMES.get(ctx.args[0].strip().lower())
+    if not want:
+        await ctx.bot.send_message(chat_id, "Не знаю такой вкладки. Варианты: мостик, календарь, "
+                                            "финансы, проекты, счастье, карта.")
+        return
+    _settings_set("dash_start_page", want)
+    await ctx.bot.send_message(
+        chat_id, f"✅ Готово: дашборд будет открываться на «{UX_TABS.get(want, want)}». "
+                 "Сработает при следующем открытии.")
+
+
 async def cmd_ux(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """/ux [дней] — отчёт по интерфейсу прямо сейчас (по умолчанию за 7 дней)."""
     chat_id = update.effective_chat.id
@@ -8396,6 +8427,7 @@ COMMANDS_HELP = (
     "• /ip — ссылка на дашборд\n"
     "• /status — здоровье всей системы\n"
     "• /ux — как ты пользуешься дашбордом и что улучшить (сам — по понедельникам)\n"
+    "• /startpage — с какой вкладки открывается дашборд (/startpage мостик — вернуть как было)\n"
     "• /update — обновить всё вручную (/update force — без экзамена)\n"
     "• /update_mac — обновить только Mac-дашборд\n"
     "\nЮрист:\n"
@@ -8483,6 +8515,7 @@ def main():
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("ux", cmd_ux))
+    app.add_handler(CommandHandler("startpage", cmd_startpage))
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))

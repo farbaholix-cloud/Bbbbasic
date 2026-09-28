@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.46"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.47"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -522,6 +522,20 @@ def api_move(payload):
 # названия кнопок и вкладок, координаты тапа, размер кнопки. Текст дел, карточек
 # и сумм сюда не попадает никогда. Хранится 180 дней, наружу не уходит.
 UX_KEEP_DAYS = 180
+
+START_PAGES = ("plan", "cal", "fin", "proj", "hap", "mind")
+
+
+def start_page():
+    """Вкладка, с которой открывается дашборд. Меняется командой /startpage у
+    Секретаря; по умолчанию — Календарь (так показал журнал действий)."""
+    try:
+        with db() as conn:
+            r = conn.execute("SELECT value FROM settings WHERE key='dash_start_page'").fetchone()
+        v = r["value"] if r else None
+    except Exception:
+        v = None
+    return v if v in START_PAGES else "cal"
 _ux_pruned = 0.0
 
 
@@ -2126,6 +2140,17 @@ const MONTHS=['янв','фев','мар','апр','май','июн','июл','а
 const MONTHS_FULL=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
 const DOW=['пн','вт','ср','чт','пт','сб','вс'];
 window.__INIT__=null;let DATA=null;
+// Стартовая вкладка — настройка на сервере (settings.dash_start_page), вшивается в
+// страницу. По журналу действий почти каждый заход начинался с «Мостик → Календарь»,
+// поэтому по умолчанию — Календарь. Откат без правки кода: /startpage мостик у Секретаря.
+window.__START__='plan';
+function _applyStartPage(){
+  if(window._startDone)return;window._startDone=true;
+  const p=window.__START__;
+  if(!p||p==='plan'||PAGES.indexOf(p)<0)return;
+  window._uxAuto=true;                 // это не жест человека — журнал его не пишет
+  try{goPage(p);}finally{window._uxAuto=false;}
+}
 const openProjects=new Set();
 
 function eur(v){return (v<0?'−':'')+Math.abs(Math.round(v)).toLocaleString('ru')+' €';}
@@ -2163,10 +2188,11 @@ async function fetchData(){
   return r.json();
 }
 async function load(){
-  if(window.__INIT__){DATA=window.__INIT__;if(DATA.rev!==undefined)_rev=DATA.rev;window.__INIT__=null;if(!document.getElementById('sheet'))render();return;}
+  if(window.__INIT__){DATA=window.__INIT__;if(DATA.rev!==undefined)_rev=DATA.rev;window.__INIT__=null;if(!document.getElementById('sheet'))render();_applyStartPage();return;}
   const seq=_mutSeq;
   const j=await fetchData();
   _applyServer(j,seq);
+  _applyStartPage();
 }
 function _reconcile(){
   // Periodic pull (picks up changes made from the bot). Never clobbers a pending edit.
@@ -5914,6 +5940,7 @@ function renderMind(d,refit){
   if(typeof goPage==='function'){
     const orig=goPage;
     goPage=function(p){
+      if(window._uxAuto){pageNow=p;pageSince=Date.now();return orig.apply(this,arguments);}
       const prev=pageNow||curPage();
       if(prev&&prev!==p){
         push({kind:'stay',page:prev,target:prev,dur:(Date.now()-pageSince)/1000});
@@ -6195,6 +6222,8 @@ class Handler(BaseHTTPRequestHandler):
                                      "window.__INIT__=" + data_json))
             except Exception:
                 page = PAGE.replace("__VERSION__", VERSION)
+            page = page.replace("window.__START__='plan'",
+                                "window.__START__=" + json.dumps(start_page()))
             self._send(page.encode(), "text/html; charset=utf-8")
 
     def do_POST(self):
