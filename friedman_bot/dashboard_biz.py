@@ -35,7 +35,7 @@ DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8770
 VERSION = "1.0"
 
-STAGE_W = {"lead": 0.5, "agreed": 0.8, "invoiced": 0.95}
+STAGE_W = {"idea": 0.2, "lead": 0.5, "agreed": 0.8, "invoiced": 0.95}
 
 
 @contextmanager
@@ -152,7 +152,7 @@ def get_data():
                         "SELECT id,name,area,expected_income,income_date,income_status "
                         "FROM projects WHERE COALESCE(archived,0)=0 AND COALESCE(expected_income,0)>0 "
                         "ORDER BY CASE COALESCE(income_status,'lead') WHEN 'invoiced' THEN 0 "
-                        "WHEN 'agreed' THEN 1 ELSE 2 END, expected_income DESC"):
+                        "WHEN 'agreed' THEN 1 WHEN 'lead' THEN 2 ELSE 3 END, expected_income DESC"):
                     st = r["income_status"] or "lead"
                     amt = r["expected_income"] or 0
                     total += amt
@@ -262,7 +262,7 @@ def api_deal_stage(p):
     """Смена стадии; 'paid' конвертирует сумму в приход finance и обнуляет ожидание —
     в точности как api_proj_income основного дашборда."""
     pid = p["id"]
-    status = p.get("status") if p.get("status") in ("lead", "agreed", "invoiced", "paid") else "lead"
+    status = p.get("status") if p.get("status") in ("idea", "lead", "agreed", "invoiced", "paid") else "lead"
     with db() as conn:
         if status == "paid":
             row = conn.execute("SELECT name, expected_income FROM projects WHERE id=?", (pid,)).fetchone()
@@ -426,7 +426,7 @@ PAGE = r"""<!DOCTYPE html>
 <title>FARBAHOLIX</title>
 <style>
 :root{--bg:#0b0e14;--card:#151a24;--card2:#1b2130;--tx:#e8edf7;--dim:#8b93a7;--gold:#ffd07a;
---lead:#5b9dff;--agreed:#ffd07a;--invoiced:#ff9f43;--paid:#52e08a;--red:#ff6b7d;--line:#232a3a}
+--idea:#c3b8ff;--lead:#5b9dff;--agreed:#ffd07a;--invoiced:#ff9f43;--paid:#52e08a;--red:#ff6b7d;--line:#232a3a}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--tx);
 font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;overscroll-behavior-y:none}
@@ -575,7 +575,7 @@ window.__INIT__=null;
 let S=window.__INIT__||{rev:-1}, applied=-1, tab='funnel';
 const eur=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Math.round(n||0))+' €';
 const CH={referral:'🗣',insta:'📸',google:'🌍',partner:'🤝',letter:'✉️',visit:'🚶',tender:'🏛',other:'📌'};
-const FST=[['lead','🔵 Лид','var(--lead)'],['agreed','🟡 Согласовано','var(--agreed)'],
+const FST=[['idea','💭 Идея','var(--idea)'],['lead','🔵 Лид','var(--lead)'],['agreed','🟡 Согласовано','var(--agreed)'],
            ['invoiced','🟠 Счёт','var(--invoiced)'],['paid','✅ Оплачено','var(--paid)']];
 const LST=[['new','📥 Новые'],['contacted','📞 Контакт'],['qualified','✅ Квалиф.'],['offer','📄 Оферта']];
 const $=id=>document.getElementById(id);

@@ -727,7 +727,7 @@ def api_proj_income(payload):
     """Ожидаемый профит проекта. lead → agreed → invoiced → paid.
     При 'paid' сумма конвертируется в реальный приход (finance) и обнуляется."""
     pid = payload["id"]
-    status = payload.get("status") if payload.get("status") in ("lead", "agreed", "invoiced", "paid") else "lead"
+    status = payload.get("status") if payload.get("status") in ("idea", "lead", "agreed", "invoiced", "paid") else "lead"
     with db() as conn:
         if status == "paid":
             row = conn.execute("SELECT name, expected_income FROM projects WHERE id=?", (pid,)).fetchone()
@@ -1310,6 +1310,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:var(-
 .dlegend .lg-soon2{background:linear-gradient(180deg,#ff7a45,#ffa870)}
 .dlegend .lg-mid{background:linear-gradient(180deg,#ffc657,#ffe08a)}
 .dlegend .lg-far{background:linear-gradient(180deg,#5b9dff,#86b8ff)}
+.dlegend .lg-idea{background:linear-gradient(180deg,#9b8cff,#c3b8ff)}
 .dlegend .lg-lead{background:linear-gradient(180deg,#5b9dff,#86b8ff)}
 .dlegend .lg-agreed{background:linear-gradient(180deg,#ffb648,#ffd07a)}
 .dlegend .lg-invoiced{background:linear-gradient(180deg,#52e08a,#7fe0c4)}
@@ -1840,6 +1841,7 @@ select,textarea,.idea-txt{font-size:14px}
       <div class="bh"><div class="t">💰 Карта поступлений <span class="sm">ожидаемый профит</span></div><div class="cnt" id="income-total"></div></div>
       <div class="debtchart" id="incomechart"></div>
       <div class="dlegend">
+        <span><i class="lg-idea"></i>идея</span>
         <span><i class="lg-lead"></i>лид</span>
         <span><i class="lg-agreed"></i>согласовано</span>
         <span><i class="lg-invoiced"></i>счёт выставлен</span>
@@ -2566,6 +2568,8 @@ function openPayment(id){
 
 // ─── Перспективные поступления (ожидаемый профит проектов) ───
 const INCOME_META={
+  // «идея» — самая ранняя стадия: сделки ещё нет, есть замысел; вес минимальный
+  idea:    {w:0.2, label:'идея',          col:'linear-gradient(180deg,#9b8cff,#c3b8ff)', chip:'#c3b8ff', bg:'rgba(155,140,255,.16)'},
   lead:    {w:0.5, label:'лид',           col:'linear-gradient(180deg,#5b9dff,#86b8ff)', chip:'#86b8ff', bg:'rgba(91,157,255,.16)'},
   agreed:  {w:0.8, label:'согласовано',   col:'linear-gradient(180deg,#ffb648,#ffd07a)', chip:'#ffd07a', bg:'rgba(255,198,87,.16)'},
   invoiced:{w:0.95,label:'счёт выставлен',col:'linear-gradient(180deg,#52e08a,#7fe0c4)', chip:'#7fe0c4', bg:'rgba(82,224,138,.16)'},
@@ -2577,7 +2581,7 @@ function renderIncomeChart(d){
   const arr=_incomeProjects(d);
   if(!arr.length){block.style.display='none';return;}
   block.style.display='block';
-  const IRANK={invoiced:0,agreed:1,lead:2};
+  const IRANK={invoiced:0,agreed:1,lead:2,idea:3};
   const sorted=arr.slice().sort((a,b)=>(IRANK[a.income_status||'lead']-IRANK[b.income_status||'lead'])||((b.expected_income||0)-(a.expected_income||0)));
   const maxA=Math.max(1,...sorted.map(p=>p.expected_income||0));
   const total=sorted.reduce((s,p)=>s+(p.expected_income||0),0);
@@ -2626,7 +2630,7 @@ function projIncome(id){
   const base=(_piEdit&&_piEdit.id===id)?_piEdit:{id,amount:p.expected_income||0,stage:p.income_status||'lead',date:p.income_date||null};
   _piEdit=null;
   const cur=base.amount||0;
-  const stages=[['lead','🔵 Лид'],['agreed','🟡 Согласовано'],['invoiced','🟠 Счёт выставлен']];
+  const stages=[['idea','💭 Идея'],['lead','🔵 Лид'],['agreed','🟡 Согласовано'],['invoiced','🟠 Счёт выставлен']];
   const {bg,sheet}=_openSheet(
     '<div class="grab"></div>'+
     '<div class="stitle">💰 Ожидаемый профит</div><div class="ssub">'+esc(p.name)+'</div>'+

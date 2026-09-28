@@ -2166,9 +2166,9 @@ SALES_PROMPT = """Ты — «Продавец», закрывающий сдел
 def get_funnel_context() -> str:
     """Воронка сделок из проектов дашборда: стадия, ожидаемая сумма, дата оплаты.
     Рабочая доска Продавца — что дожимать, чтобы закрыть кассовый разрыв."""
-    stage_label = {"lead": "🔵 лид", "agreed": "🟡 согласовано",
+    stage_label = {"idea": "💭 идея", "lead": "🔵 лид", "agreed": "🟡 согласовано",
                    "invoiced": "🟠 счёт выставлен", "paid": "✅ оплачено"}
-    stage_w = {"lead": 0.5, "agreed": 0.8, "invoiced": 0.95}
+    stage_w = {"idea": 0.2, "lead": 0.5, "agreed": 0.8, "invoiced": 0.95}
     try:
         with db() as conn:
             cols = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
@@ -2178,7 +2178,7 @@ def get_funnel_context() -> str:
                 "SELECT name, area, expected_income, income_date, income_status FROM projects "
                 "WHERE COALESCE(expected_income,0)>0 AND COALESCE(income_status,'lead')!='paid' "
                 "ORDER BY CASE COALESCE(income_status,'lead') WHEN 'invoiced' THEN 0 "
-                "WHEN 'agreed' THEN 1 ELSE 2 END, expected_income DESC").fetchall()
+                "WHEN 'agreed' THEN 1 WHEN 'lead' THEN 2 ELSE 3 END, expected_income DESC").fetchall()
     except Exception as e:
         log.error(f"get_funnel_context: {e}")
         return ""
@@ -2191,7 +2191,7 @@ def get_funnel_context() -> str:
         st = stage_label.get(r["income_status"] or "lead", r["income_status"] or "лид")
         lines.append(f"  • {r['name']} [{r['area']}] — {r['expected_income']:.0f}€ · {st}"
                      + (f" · оплата ~{r['income_date']}" if r["income_date"] else ""))
-    lines.append(f"Итого ожидаемо: {total:.0f}€ · взвешенно (лид×0.5/согл×0.8/счёт×0.95): {weighted:.0f}€")
+    lines.append(f"Итого ожидаемо: {total:.0f}€ · взвешенно (идея×0.2/лид×0.5/согл×0.8/счёт×0.95): {weighted:.0f}€")
     return "\n".join(lines)
 
 
@@ -2966,13 +2966,13 @@ def apply_actions(actions: list) -> list:
                 # action finance (иначе возможен двойной учёт с дашбордом).
                 pid = int(a["project_id"])
                 stage = a.get("stage")
-                if stage in ("lead", "agreed", "invoiced", "paid"):
+                if stage in ("idea", "lead", "agreed", "invoiced", "paid"):
                     with db() as conn:
                         proj = conn.execute("SELECT name FROM projects WHERE id=?", (pid,)).fetchone()
                         if proj:
                             conn.execute("UPDATE projects SET income_status=? WHERE id=?", (stage, pid))
                     if proj:
-                        lbl = {"lead": "🔵 лид", "agreed": "🟡 согласовано",
+                        lbl = {"idea": "💭 идея", "lead": "🔵 лид", "agreed": "🟡 согласовано",
                                "invoiced": "🟠 счёт выставлен", "paid": "✅ оплачено"}[stage]
                         results.append(("stage", pid, f"{proj['name']} → {lbl}", "", ""))
             elif a.get("type") == "unremind":
@@ -5761,7 +5761,7 @@ def get_director_state() -> str:
                 else:
                     seg += " · шаги закрыты"
                 if has_funnel and (p["expected_income"] or 0) > 0 and (p["income_status"] or "lead") != "paid":
-                    st = {"lead": "🔵", "agreed": "🟡", "invoiced": "🟠"}.get(p["income_status"] or "lead", "🔵")
+                    st = {"idea": "💭", "lead": "🔵", "agreed": "🟡", "invoiced": "🟠"}.get(p["income_status"] or "lead", "🔵")
                     seg += f" · {st}{p['expected_income']:.0f}€"
                 plines.append(seg)
             if plines:
@@ -5809,7 +5809,7 @@ DIRECTOR_PROMPT = """Ты — «Директор», главный агент и
 АКТУАЛИЗАЦИЯ БАЗЫ — твоё право и обязанность. Вводные-факты владельца («сделано/отправлено X», «эскиз готов», «получил/потратил N€», «оплата пришла», «договорились на Y», «напомни…») фиксируй САМ полем actions, БЕЗ делегирования — база общая, все агенты сразу видят и не переспрашивают. Сопоставляй с блоком ТЕКУЩЕЕ СОСТОЯНИЕ (там id):
 - {"type":"done","id":N} — задача [N] из списка выполнена
 - {"type":"progress","project_id":N,"count":1} — шаг проекта [N] сделан
-- {"type":"stage","project_id":N,"stage":"agreed|invoiced|paid"} — сделка сдвинулась; «оплата пришла» → stage paid И отдельный finance с суммой прихода
+- {"type":"stage","project_id":N,"stage":"idea|lead|agreed|invoiced|paid"} — сделка сдвинулась (idea — ещё только замысел, без договорённости); «оплата пришла» → stage paid И отдельный finance с суммой прихода
 - {"type":"finance","amount":300 или -40,"comment":"...","account":"card|cash"} — получил/потратил (по умолчанию card)
 - {"type":"save","text":"...","area":"work|money|health|people|home|self|other","importance":0-10,"urgency":0-10} — новая задача/вводная
 - {"type":"remind","when":"YYYY-MM-DD HH:MM","text":"..."} — напоминание
