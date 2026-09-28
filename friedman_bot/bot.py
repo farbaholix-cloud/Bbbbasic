@@ -6855,6 +6855,120 @@ def _update_mac_sync(d):
     return steps
 
 
+# Дашборд на iPhone (порт 8765) и то, что он импортирует. Бизнес-пульт /biz живёт
+# в том же процессе, finance_core — источник графика дохода.
+IPHONE_DASH_FILES = ("dashboard.py", "dashboard_biz.py", "wisdom.py", "finance_core.py")
+
+
+def _file_version(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            m = re.search(r'^VERSION = "([^"]+)"', f.read(), re.M)
+        return m.group(1) if m else "?"
+    except Exception:
+        return "?"
+
+
+def _update_iphone_dash_sync(d, exam=True):
+    """Обновить ТОЛЬКО дашборд для iPhone: скачать его файлы, сдать экзамен,
+    поставить и перезапустить один процесс дашборда. Секретарь и остальные боты не
+    перезапускаются. Возвращает отчёт по шагам.
+
+    Экзамен — тот, что уже стоит (selftest.py от текущего bot.py), на новых файлах
+    дашборда: свежий экзамен мог бы проверять функции бота, которых ещё нет."""
+    import py_compile
+    import shutil
+    import tempfile
+    import urllib.request
+    steps = []
+    dash = os.path.join(d, "dashboard.py")
+    before = _file_version(dash)
+    try:
+        sha = _remote_sha()
+    except Exception as e:
+        return [f"❌ GitHub недоступен: {e}"]
+    tmpdir = tempfile.mkdtemp(prefix="deploy_", dir=d)
+    staged = []
+    try:
+        for f in IPHONE_DASH_FILES:
+            h = {"User-Agent": "friedman-bot"}
+            tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+            if tok:
+                h["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}", headers=h)
+            with urllib.request.urlopen(req, timeout=40) as r:
+                data = r.read()
+            if len(data) < 100:
+                raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
+            tmp_path = os.path.join(tmpdir, f)
+            with open(tmp_path, "wb") as out:
+                out.write(data)
+            py_compile.compile(tmp_path, doraise=True)
+            staged.append((tmp_path, os.path.join(d, f)))
+        new_ver = _file_version(staged[0][0])
+        steps.append(f"✅ скачал дашборд {new_ver} ({sha[:7]})")
+        if exam:
+            ok, text = _run_exam(d, staged)
+            if not ok:
+                steps.append("❌ экзамен не сдан — дашборд НЕ обновлён, работает прежний "
+                             f"{before}:\n{text[:700]}\n\nОбойти: /update_iphone force")
+                return steps
+            steps.append("✅ " + text)
+        else:
+            steps.append("⚠️ экзамен пропущен (force)")
+        for tmp_path, dest in staged:
+            shutil.move(tmp_path, dest)
+    except Exception as e:
+        steps.append(f"❌ {_scrub_tokens(str(e))[:300]} — дашборд НЕ обновлён")
+        return steps
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    _restart_dashboard(d)
+    import time as _t
+    alive = False
+    for _ in range(16):
+        _t.sleep(0.5)
+        try:
+            urllib.request.urlopen("http://127.0.0.1:8765/", timeout=2)
+            alive = True
+            break
+        except urllib.error.HTTPError:
+            alive = True
+            break
+        except Exception:
+            pass
+    after = _file_version(dash)
+    if alive:
+        steps.append(f"✅ дашборд перезапущен и отвечает: {before} → {after}")
+    else:
+        tail = ""
+        try:
+            with open("/tmp/dash.log", "rb") as f:
+                f.seek(0, 2); f.seek(max(0, f.tell() - 1500))
+                tail = _scrub_tokens(f.read().decode("utf-8", "replace"))[-600:]
+        except Exception:
+            pass
+        steps.append(f"❌ дашборд не отвечает после перезапуска. Хвост лога:\n{tail}")
+    return steps
+
+
+async def cmd_update_iphone(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/update_iphone [force] — обновить только дашборд для iPhone (с экзаменом),
+    не трогая Секретаря и остальных ботов."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    force = bool(ctx.args) and ctx.args[0].lower() in ("force", "-f", "форс")
+    d = os.path.dirname(os.path.abspath(__file__))
+    await ctx.bot.send_message(chat_id, "📱 Обновляю только дашборд iPhone…" +
+                               (" (БЕЗ экзамена)" if force else ""))
+    steps = await asyncio.to_thread(_update_iphone_dash_sync, d, not force)
+    tail = ("\n\n📱 Закрой дашборд на iPhone и открой заново." if steps and
+            steps[-1].startswith("✅ дашборд перезапущен") else "")
+    await ctx.bot.send_message(chat_id, "\n".join(steps) + tail)
+
+
 async def cmd_update_mac(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Быстрое обновление только Mac-дашборда, с пошаговым отчётом."""
     chat_id = update.effective_chat.id
@@ -8429,6 +8543,7 @@ COMMANDS_HELP = (
     "• /ux — как ты пользуешься дашбордом и что улучшить (сам — по понедельникам)\n"
     "• /startpage — с какой вкладки открывается дашборд (/startpage мостик — вернуть как было)\n"
     "• /update — обновить всё вручную (/update force — без экзамена)\n"
+    "• /update_iphone — обновить только дашборд iPhone (боты не перезапускаются)\n"
     "• /update_mac — обновить только Mac-дашборд\n"
     "\nЮрист:\n"
     "• /juriststatus — диагностика Юриста\n"
@@ -8517,6 +8632,7 @@ def main():
     app.add_handler(CommandHandler("ux", cmd_ux))
     app.add_handler(CommandHandler("startpage", cmd_startpage))
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
+    app.add_handler(CommandHandler("update_iphone", cmd_update_iphone))
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
     app.add_handler(CommandHandler("setjuristtoken", cmd_setjuristtoken))
     app.add_handler(CommandHandler("setsalestoken", cmd_setsalestoken))
