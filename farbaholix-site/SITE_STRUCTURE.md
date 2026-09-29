@@ -11,6 +11,7 @@
 - **Скрипты** вставляются как `data:text/javascript;base64,…`. Иначе WordPress «типографит» код (например, `&&` превращается в `&#038;&#038;`) и JavaScript ломается.
 - **Языки** обслуживает Polylang: немецкий по умолчанию без префикса, английский под `/en/`, украинский под `/uk/`. Все версии связаны как переводы, поэтому Google видит hreflang.
 - **SEO:** Rank Math отвечает за title, description, robots, canonical, sitemap и редиректы. Структурированные данные (schema.org) генерирует сама сборка.
+- **Всего страниц:** 27 (9 шаблонов × 3 языка).
 - **Цикл работы:** правка исходников → `python3 build.py` → `python3 deploy.py` (см. раздел 9).
 
 ---
@@ -23,6 +24,7 @@
 | Проекты | `/projekte/` | `/en/projects/` | `/uk/proiekty/` | 493 / 534 / 494 |
 | ↳ Кейс FSV Frankfurt | `/projekte/fsv-frankfurt-stadion/` | `/en/projects/fsv-frankfurt-stadium/` | `/uk/proiekty/stadion-fsv-frankfurt/` | 709 / 710 / 711 |
 | ↳ Кейс Sankt Georgen | `/projekte/sankt-georgen-mural/` | `/en/projects/sankt-georgen-mural-100-years/` | `/uk/proiekty/mural-sankt-georgen/` | 712 / 713 / 714 |
+| ↳ Кейс Braubachstraße (витрины) | `/projekte/schaufenster-graffiti-braubachstrasse/` | `/en/projects/window-graffiti-braubachstrasse/` | `/uk/proiekty/graffiti-vitryny-braubachstrasse/` | 831 / 832 / 833 |
 | Пакет «Открытие» | `/eroeffnungspaket/` | `/en/opening-package/` | `/uk/paket-vidkryttia/` | 455 / 535 / 492 |
 | О Славике | `/ueber-slavik/` | `/en/about-slavik/` | `/uk/pro-slavika/` | 531 / 536 / 541 |
 | Журнал | `/magazin/` | `/en/magazine/` | `/uk/zhurnal/` | 532 / 537 / 542 |
@@ -82,13 +84,14 @@
 14. **Контакт** (см. раздел 3).
 
 ### Проекты
-Все кейсы с фото и миниатюрами (миниатюры открываются в лайтбоксе): Sankt Georgen, FSV Frankfurt, Wellenlänge, Cansativa, ENSO Neu-Isenburg. У FSV и Sankt Georgen есть ссылки на статьи. Schema: CollectionPage и VisualArtwork.
+Все кейсы с фото и миниатюрами (миниатюры открываются в лайтбоксе): Sankt Georgen, FSV Frankfurt, Braubachstraße, Wellenlänge, Cansativa, ENSO Neu-Isenburg. У FSV, Sankt Georgen и Braubachstraße есть ссылки на статьи. Schema: CollectionPage и VisualArtwork.
 
-### Кейсы (статьи) FSV Frankfurt и Sankt Georgen
+### Кейсы (статьи) FSV Frankfurt, Sankt Georgen, Braubachstraße
 Хлебные крошки → подпись «Projektbericht» → H1 → лид (готовый короткий ответ для Google и ИИ) → главное фото → блок «Projekt auf einen Blick» (место, заказчик, повод, сроки, объём, материалы) → 4–5 разделов → [панорама] → большая цитата → [отзыв заказчика] → галерея (FSV 10 фото, Sankt Georgen 24, лайтбокс) → «Presse und Quellen» → FAQ → призыв к действию (калькулятор / запрос) → ссылка на другой кейс и «Все проекты» → контакт.
 
 - **FSV:** стадион на Bornheimer Hang (с 2026 года BBBank Arena, раньше PSD Bank Arena). Фасад, герб ~6 × 4 м, фан-шоп, коридоры, пандус. 1,5 года, к 125-летию клуба. Источники: hessenschau (статья и видео), sportschau, пресс-релиз города Франкфурт о южной трибуне.
 - **Sankt Georgen:** стена кампуса, 100 лет школы, девиз «heute weiter denken». Октябрь 2025 – 2026, **проект завершён**. Источники: сайт Sankt Georgen (новость и открытие семестра 13.04.2026), франкфуртская пресса.
+- **Braubachstraße:** витрины шести заведений ко Дню немецкого единства 2025 (35 лет), в рамках фестиваля «Jazz zum Dritten», инициатор — кафе «Das Herz von Frankfurt». Цитаты: Willy Brandt, «Frau, Leben, Freiheit», «Demokratie lebt vom Mitmachen». Визит бургомистра Наргесс Эскандари-Грюнберг 01.10.2025. Источники: город Франкфурт, frankfurt-live, weltexpresso, Rhein Main Verlag, visitfrankfurt.
 - **Schema:** Article, BreadcrumbList, FAQPage.
 - **Rank Math:** фокус-ключ дословно стоит в title, description, адресе, лиде, подзаголовке и alt главного фото.
 
@@ -99,7 +102,7 @@
 Подпись, H1 (полное имя), лид, таблица фактов (Николаев → Франкфурт 2022, рисует с 2004, 1 000+ заказов), разделы биографии, большая цитата («Ich lebe jetzt hier…»), фото, хронология 2004–2026, пресса, подпись-каллиграфия. Schema: ProfilePage и Person (sameAs: Instagram, Facebook, LinkedIn, Telegram, Monochronicle).
 
 ### Журнал
-Оглавление и статьи на одной странице с якорями: graffiti-frankfurt, стоимость мурала, UA-статья о росписи, воркшопы, EN hire-a-mural-artist, граффити или мурал, кейс ENSO. Внизу карточки «Ausgewählte Projekte» со ссылками на оба кейса. Schema: BlogPosting.
+Оглавление и статьи на одной странице с якорями: graffiti-frankfurt, стоимость мурала, UA-статья о росписи, воркшопы, EN hire-a-mural-artist, граффити или мурал, кейс ENSO. Внизу карточки «Ausgewählte Projekte» со ссылками на три кейса. Schema: BlogPosting.
 
 ### Калькулятор цены
 Форма: что расписываем · площадь (ползунок 1–400 м²) · детализация · высота · эскиз · состояние стены · сроки · где · дополнительно. Справа «липкая» карточка результата, при прокрутке над формой висит мини-цена. Кнопка «Richtwert per WhatsApp senden» отправляет весь бриф, альтернатива — e-mail. Если выбран вариант «только туалет», показывается шуточный отказ 🚽✋.
@@ -142,7 +145,7 @@
 
 - **Rank Math:** title и description на каждую страницу, robots `index, follow`, sitemap `/sitemap_index.xml`, редиректы.
 - **Canonical:** у главных `/en/` и `/uk/` прописан вручную. Без этого Rank Math указывает на `/`.
-- **hreflang:** выводит Polylang, все три языка связаны у всех 24 страниц.
+- **hreflang:** выводит Polylang, все три языка связаны у всех 27 страниц.
 - **schema.org** в каждой странице: Organization (ProfessionalService + LocalBusiness), Person (Slavik), WebSite, плюс тип конкретной страницы (FAQPage, Article, CollectionPage, Service, ProfilePage, WebApplication, BlogPosting, BreadcrumbList).
 - **GEO** (ответы ИИ-ассистентов): у статей и кейсов в начале стоит готовый короткий ответ (`fx-answer`), факты вынесены таблицей, есть FAQ и источники со ссылками.
 - **Изображения:** WebP, SEO-имена файлов (`graffiti-frankfurt-…`), alt на немецком в медиатеке, на EN/UA в самой разметке.
@@ -181,7 +184,7 @@
 
 ```
 farbaholix-site/
-  build.py        генератор всех 24 страниц (8 шаблонов × 3 языка)
+  build.py        генератор всех 27 страниц (9 шаблонов × 3 языка)
   lang_*.py       тексты DE/EN/UK      cases.py  кейсы      articles.py  журнал
   calc.js / calc_texts.py  калькулятор   gallery.py  портфолио-лайтбокс
   fx.css / fx.js  стили и скрипты      wp.py / lang.py / deploy.py  доступ к WordPress

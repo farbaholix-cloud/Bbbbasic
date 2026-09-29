@@ -18,11 +18,11 @@ def img(key):  # new image under its SEO file name
     return MEDIA[key]['url']
 
 LANGS = {k: importlib.import_module('lang_' + k).L for k in ('de', 'en', 'uk')}
-PAGES = ('home', 'projects', 'opening', 'about', 'magazine', 'calc', 'fsv', 'georgen')
+PAGES = ('home', 'projects', 'opening', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach')
 URL = {  # WordPress slugs; the home pages are the Polylang front pages
-    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural'),
-    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years'),
-    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen'),
+    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse'),
+    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse'),
+    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse'),
 }
 LANG_PATH = dict(de='', en='en/', uk='uk/')
 def url(k, page):
@@ -89,11 +89,12 @@ def fdate(k, iso):
 CASES = {  # key: (anchor id, main image, thumbs, on home)
  'georgen': ('sankt-georgen', 'sg-strelitzien', ['sg-blueten', 'sg-monstera', 'georgen-strassenbahn', 'georgen-kuenstler'], True),
  'fsv': ('fsv-frankfurt', 'fsv-stadion-arena', ['fsv-wappen-flammen'], True),
+ 'braubach': ('braubachstrasse', 'bb-philokalist', ['bb-salon', 'bb-iimori'], False),
  'wellen': ('wellenlaenge', 'wellenlaenge-panorama', ['wellenlaenge-interieur', 'wellenlaenge-portrait', 'wellenlaenge-welcome', 'wellenlaenge-fassade'], True),
  'cansativa': ('cansativa', 'cansativa-lettering', [], False),
  'enso': ('enso', 'enso-neu-isenburg', ['presse-offenbach-post', 'presse-op-seite37'], False),   # ENSO only on the projects page and in the press
 }
-CASE_PLACE = {'georgen': 'Frankfurt am Main', 'fsv': 'Frankfurt am Main', 'wellen': 'Rüsselsheim am Main', 'cansativa': 'Frankfurt am Main', 'enso': 'Neu-Isenburg'}
+CASE_PLACE = {'braubach': 'Frankfurt am Main, Braubachstraße', 'georgen': 'Frankfurt am Main', 'fsv': 'Frankfurt am Main', 'wellen': 'Rüsselsheim am Main', 'cansativa': 'Frankfurt am Main', 'enso': 'Neu-Isenburg'}
 
 WA = '4915172450347'   # WhatsApp Business (German number)
 SAME_AS = ['https://www.instagram.com/farbaholix/', 'https://www.facebook.com/farbaholix', 'https://www.linkedin.com/company/farbaholix/', 'https://t.me/farbaholix']
@@ -330,7 +331,7 @@ def page_magazine(k):
                       'author': {'@id': SITE + '#slavik'}, 'publisher': {'@id': SITE + '#farbaholix'}, 'image': image_obj(a['image'], a['image_alt']), 'url': url(k, 'magazine') + '#' + a['slug']})
     o.append('<section class="fx-sec" id="projektberichte"><h2>%s</h2><div class="fx-press">%s</div></section>' % (e(L['s_projects']), ''.join(
         '<a class="fx-press-card" href="%s"><div class="fx-press-img"><img loading="lazy" src="%s" alt="%s"></div><div class="fx-press-body"><span class="fx-press-pub">%s</span><h3>%s</h3><span class="fx-press-meta">%s →</span></div></a>' % (
-            url(k, c), img(CASE_PAGES[c]['hero']), e(CASE_PAGES[c]['t'][k]['h1']), e(CASE_PAGES[c]['t'][k]['kicker']), e(CASE_PAGES[c]['t'][k]['h1']), e(UI[k]['more'])) for c in ('georgen', 'fsv'))))
+            url(k, c), img(CASE_PAGES[c]['hero']), e(CASE_PAGES[c]['t'][k]['h1']), e(CASE_PAGES[c]['t'][k]['kicker']), e(CASE_PAGES[c]['t'][k]['h1']), e(UI[k]['more'])) for c in ('georgen', 'fsv', 'braubach'))))
     o.append('</div>')
     o.append(contact_open(k))
     return '\n'.join(o), graph
@@ -414,7 +415,7 @@ def page_case(k, key):
         {'@type': 'FAQPage', 'mainEntity': [{'@type': 'Question', 'name': a, 'acceptedAnswer': {'@type': 'Answer', 'text': b}} for a, b in T['faq']]}]
     return '\n'.join(o), graph
 
-BUILDERS = dict(fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
+BUILDERS = dict(braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
 
 def wrap(k, top, graph, page=None):
     css, js = open('fx.css').read(), open('fx.js').read()

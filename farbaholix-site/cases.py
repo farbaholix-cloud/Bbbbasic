@@ -205,3 +205,98 @@ UI = {
  'uk': dict(facts_t="Проєкт коротко", review_t="Відгук замовника", sources_t="Преса та джерела", faq_t="Часті запитання", more="Читати кейс", related="Інший проєкт",
             cta_t="Ваша стіна – наступний проєкт?", cta_calc="Розрахувати ціну", cta_contact="Замовити проєкт", all_works="Дивитися всі роботи", back="Усі проєкти", gallery_hint="Торкніться, щоб збільшити"),
 }
+
+# ---- Braubachstraße: window paintings for German Unity Day 2025 (sources: Stadt Frankfurt / frankfurt-live 02.10.2025, visitfrankfurt)
+BB_CITY = 'https://frankfurt.de/aktuelle-meldung/meldungen/graffiti-fuer-frieden-und-freiheit/'
+BB_LIVE = 'https://www.frankfurt-live.com/graffiti-fuer-frieden-und-freiheit'
+BB_WELT = 'https://weltexpresso.de/index.php/heimspiel/35600-graffiti-fuer-frieden-und-freiheit'
+BB_RMV = 'https://www.rheinmainverlag.de/2025/10/02/graffiti-fuer-frieden-und-freiheit-in-frankfurt/'
+BB_JAZZ = 'https://www.visitfrankfurt.travel/presse/pressemeldungen/details/jazz-zum-dritten-35-jahre-deutsche-einheit'
+CAP.update({
+ 'bb-philokalist': ("„Frau, Leben, Freiheit“ – Philokalist Concept Store", "“Frau, Leben, Freiheit” (Woman, Life, Freedom) – Philokalist Concept Store", "«Frau, Leben, Freiheit» («Жінка, життя, свобода») – Philokalist Concept Store"),
+ 'bb-salon': ("„Demokratie lebt vom Mitmachen“ – Frankfurter Salon", "“Demokratie lebt vom Mitmachen” (Democracy thrives on taking part) – Frankfurter Salon", "«Demokratie lebt vom Mitmachen» («Демократія живе участю») – Frankfurter Salon"),
+ 'bb-iimori': ("„Berlin wird leben und die Mauer wird fallen“ (Willy Brandt) – Iimori Pâtisserie", "“Berlin wird leben und die Mauer wird fallen” (Willy Brandt) – Iimori Pâtisserie", "«Berlin wird leben und die Mauer wird fallen» (Віллі Брандт) – Iimori Pâtisserie"),
+})
+CASE_PAGES['braubach'] = dict(case='braubach', hero='bb-philokalist', wide=None, gallery=['bb-philokalist', 'bb-salon', 'bb-iimori'], date='2025-10-02', related='georgen', t={
+ 'de': dict(
+  meta=("Schaufenster Graffiti in der Braubachstraße: Frieden & Freiheit | Farbaholix",
+        "Schaufenster Graffiti zum Tag der Deutschen Einheit 2025: Slavik (Farbaholix) bemalte sechs Schaufenster in der Braubachstraße – Willy Brandt, „Frau, Leben, Freiheit“ und mehr."),
+  focus="Schaufenster Graffiti", kicker="Projektbericht", h1="Graffiti für Frieden und Freiheit: Schaufenster in der Braubachstraße",
+  lead="Zum Tag der Deutschen Einheit 2025 – dem 35. Jahrestag – verwandelte der Graffiti-Künstler Viacheslav „Slavik“ Balabaiev (Farbaholix) Schaufenster in der Frankfurter Braubachstraße in Botschaften für Demokratie: Schaufenster Graffiti und Kalligrafie mit Sätzen von Willy Brandt bis zur iranischen Protestbewegung, unter dem Motto „Wir schützen unsere Demokratie – gemeinsam für Freiheit, Vielfalt und Zusammenhalt“.",
+  facts=[("Ort", "Braubachstraße, neue Frankfurter Altstadt"), ("Anlass", "Tag der Deutschen Einheit 2025 – 35 Jahre Einheit"), ("Rahmen", "„Jazz zum Dritten“ (Tourismus+Congress GmbH und Stadtmarketing Frankfurt)"),
+         ("Initiative", "Café „Das Herz von Frankfurt“"), ("Umfang", "Schaufenster von sechs Geschäften"), ("Zeitraum", "Anfang Oktober 2025, zu sehen bis 5. Oktober")],
+  sections=[
+   ("Die Idee", ["<p>Römerberg, neue Altstadt und Braubachstraße waren 2025 das Zentrum der Frankfurter Feiern zum Tag der Deutschen Einheit. Das Café „Das Herz von Frankfurt“ um Mengi und Taff Zeleke hatte die Idee, die Schaufenster der Straße sprechen zu lassen – und holte Slavik dazu. Das Projekt lief im Rahmen des traditionellen Bürgerfests „Jazz zum Dritten“, das die Tourismus+Congress GmbH zusammen mit dem Stadtmarketing ausrichtet und das zum 35. Jubiläum auf ein ganzes Wochenende (3.–5. Oktober) wuchs.</p>"]),
+   ("Welche Schaufenster gestaltet wurden", ["<p>Mitgemacht haben sechs Adressen in der Braubachstraße:</p><ul><li>Café „Das Herz von Frankfurt“ (Initiative)</li><li>Iimori Pâtisserie</li><li>Frankfurter Salon</li><li>Magus Antiquitäten</li><li>Maison Slilou</li><li>Philokalist Concept Store</li></ul>"]),
+   ("Die Botschaften im Schaufenster Graffiti", ["<ul><li><strong>„Berlin wird leben und die Mauer wird fallen!“</strong> – Willy Brandt; der erste Spruch der Reihe, in weißer Kalligrafie mit grünen Farbstrahlen im Fenster der Iimori Pâtisserie.</li>"
+                                                "<li><strong>„Frau, Leben, Freiheit“</strong> – der Slogan der iranischen Protestbewegung, im Fenster von Philokalist.</li>"
+                                                "<li><strong>„Demokratie lebt vom Mitmachen“</strong> – im Fenster mit der Signatur „Albert Einstein“ versehen, umrahmt von orange-weißen Sprühstrahlen am Frankfurter Salon.</li></ul>"
+                                                "<p>Historische Zitate treffen auf aktuelle Fragen – die Verbindung von Wiedervereinigung und dem weltweiten Kampf für Freiheit war der rote Faden.</p>"]),
+   ("Besuch der Bürgermeisterin", ["<p>Das Fenster mit „Frau, Leben, Freiheit“ entstand am Mittwoch, 1. Oktober 2025, in Anwesenheit von Bürgermeisterin und Diversitätsdezernentin Nargess Eskandari-Grünberg. Mit dabei waren auch Loucienne Nahih Girmazion vom Philokalist Concept Store und das Team des Cafés „Das Herz von Frankfurt“.</p>"]),
+   ("Technik: Kalligrafie trifft Sprühdose", ["<p>Die Schriftzüge sind weiße Kalligrafie direkt auf dem Glas. Dazu kommen Farbstrahlen und weiche Verläufe aus der Sprühdose, die das Licht der Schaufenster aufnehmen – tagsüber wie abends. Die Bilder waren für die Festtage gedacht und bis zum 5. Oktober zu sehen.</p>"]),
+  ],
+  quote=("Die Demokratie ist kein Geschenk, sondern muss immer wieder gelebt und verteidigt werden.", "Bürgermeisterin Nargess Eskandari-Grünberg zum Projekt, 1. Oktober 2025 (sinngemäß laut Stadt Frankfurt)"),
+  review=None,
+  gallery_t="Fotos der Schaufenster",
+  sources=[("Stadt Frankfurt am Main: „Graffiti für Frieden und Freiheit“ (02.10.2025)", BB_CITY), ("frankfurt-live.com: „Graffiti für Frieden und Freiheit“ (02.10.2025)", BB_LIVE),
+           ("Weltexpresso: „Graffiti für Frieden und Freiheit“", BB_WELT), ("Rhein Main Verlag: „Graffiti für Frieden und Freiheit in Frankfurt“ (02.10.2025)", BB_RMV),
+           ("visitfrankfurt: „Jazz zum Dritten – 35 Jahre Deutsche Einheit“", BB_JAZZ)],
+  faq=[("Was ist Schaufenster Graffiti?", "Malerei und Kalligrafie direkt auf der Schaufensterscheibe – mit Pinsel und Sprühdose. Sie wirkt von der Straße wie ein Plakat aus Licht und lässt sich später rückstandsfrei entfernen."),
+       ("Welche Sprüche standen in der Braubachstraße?", "Unter anderem „Berlin wird leben und die Mauer wird fallen!“ (Willy Brandt), „Frau, Leben, Freiheit“ und „Demokratie lebt vom Mitmachen“."),
+       ("Kann ich mein Schaufenster gestalten lassen?", "Ja – für Eröffnungen, Feiertage oder Aktionen. Einen ersten Richtwert gibt der Preisrechner, das Eröffnungspaket kombiniert Fenster, Wand und Event.")],
+ ),
+ 'en': dict(
+  meta=("Window Graffiti on Braubachstraße: Peace & Freedom | Farbaholix",
+        "Window graffiti for German Unity Day 2025: Slavik (Farbaholix) painted six shop windows on Frankfurt’s Braubachstraße – Willy Brandt, “Woman, Life, Freedom” and more."),
+  focus="window graffiti", kicker="Case study", h1="Graffiti for peace and freedom: shop windows on Braubachstraße",
+  lead="For German Unity Day 2025 – the 35th anniversary – graffiti artist Viacheslav “Slavik” Balabaiev (Farbaholix) turned shop windows on Frankfurt’s Braubachstraße into messages for democracy: window graffiti and calligraphy with lines from Willy Brandt to the Iranian protest movement, under the motto “We protect our democracy – together for freedom, diversity and solidarity”.",
+  facts=[("Location", "Braubachstraße, Frankfurt’s new old town"), ("Occasion", "German Unity Day 2025 – 35 years of unity"), ("Framework", "“Jazz zum Dritten” (Tourismus+Congress GmbH and Frankfurt city marketing)"),
+         ("Initiative", "Café “Das Herz von Frankfurt”"), ("Scope", "Windows of six shops"), ("Period", "Early October 2025, on view until 5 October")],
+  sections=[
+   ("The idea", ["<p>In 2025, Römerberg, the new old town and Braubachstraße were the centre of Frankfurt’s German Unity Day celebrations. Café “Das Herz von Frankfurt”, run by Mengi and Taff Zeleke, came up with the idea of letting the street’s shop windows speak – and brought in Slavik. The project was part of the traditional civic festival “Jazz zum Dritten”, organised by Tourismus+Congress GmbH with the city marketing office, which grew to a full weekend (3–5 October) for the 35th anniversary.</p>"]),
+   ("Which windows were painted", ["<p>Six addresses on Braubachstraße took part:</p><ul><li>Café “Das Herz von Frankfurt” (initiative)</li><li>Iimori Pâtisserie</li><li>Frankfurter Salon</li><li>Magus Antiquitäten</li><li>Maison Slilou</li><li>Philokalist Concept Store</li></ul>"]),
+   ("The messages in the window graffiti", ["<ul><li><strong>“Berlin wird leben und die Mauer wird fallen!”</strong> (“Berlin will live and the wall will fall!”) – Willy Brandt; the first line of the series, in white calligraphy with green rays of paint at Iimori Pâtisserie.</li>"
+                                           "<li><strong>“Frau, Leben, Freiheit”</strong> (“Woman, Life, Freedom”) – the slogan of the Iranian protest movement, at Philokalist.</li>"
+                                           "<li><strong>“Demokratie lebt vom Mitmachen”</strong> (“Democracy thrives on taking part”) – signed “Albert Einstein” in the window, framed by orange and white spray rays at Frankfurter Salon.</li></ul>"
+                                           "<p>Historic quotes meet current issues – the link between reunification and the worldwide struggle for freedom was the common thread.</p>"]),
+   ("The mayor’s visit", ["<p>The “Woman, Life, Freedom” window was painted on Wednesday, 1 October 2025, in the presence of Mayor and Diversity Commissioner Nargess Eskandari-Grünberg, together with Loucienne Nahih Girmazion of Philokalist Concept Store and the team of Café “Das Herz von Frankfurt”.</p>"]),
+   ("Technique: calligraphy meets spray can", ["<p>The lettering is white calligraphy directly on the glass, combined with rays and soft gradients from the spray can that catch the light of the shop windows – by day and by night. The pieces were made for the festival days and were on view until 5 October.</p>"]),
+  ],
+  quote=("Democracy is not a gift; it has to be lived and defended again and again.", "Mayor Nargess Eskandari-Grünberg on the project, 1 October 2025 (paraphrased by the City of Frankfurt, translated)"),
+  review=None,
+  gallery_t="Photos of the windows",
+  sources=[("City of Frankfurt: “Graffiti für Frieden und Freiheit” (2 Oct 2025, in German)", BB_CITY), ("frankfurt-live.com: “Graffiti für Frieden und Freiheit” (2 Oct 2025, in German)", BB_LIVE),
+           ("Weltexpresso: “Graffiti für Frieden und Freiheit” (in German)", BB_WELT), ("Rhein Main Verlag: “Graffiti für Frieden und Freiheit in Frankfurt” (2 Oct 2025, in German)", BB_RMV),
+           ("visitfrankfurt: “Jazz zum Dritten – 35 Jahre Deutsche Einheit” (in German)", BB_JAZZ)],
+  faq=[("What is window graffiti?", "Painting and calligraphy directly on the shop window – with brush and spray can. From the street it reads like a poster made of light, and it can be removed without residue later."),
+       ("Which lines were painted on Braubachstraße?", "Among others “Berlin wird leben und die Mauer wird fallen!” (Willy Brandt), “Frau, Leben, Freiheit” and “Demokratie lebt vom Mitmachen”."),
+       ("Can I have my shop window painted?", "Yes – for openings, holidays or campaigns. The price calculator gives a first estimate; the opening package combines window, wall and event.")],
+ ),
+ 'uk': dict(
+  meta=("Графіті на вітринах Braubachstrasse: мир і свобода | Farbaholix",
+        "Графіті на вітринах до Дня німецької єдності 2025: Славік (Farbaholix) розписав шість вітрин на Braubachstrasse у Франкфурті – Віллі Брандт, «Жінка, життя, свобода» та інше."),
+  focus="Braubachstrasse", kicker="Кейс", h1="Графіті за мир і свободу: вітрини на Braubachstrasse",
+  lead="До Дня німецької єдності 2025 року – 35-ї річниці – графіті-художник В’ячеслав «Славік» Балабаєв (Farbaholix) перетворив вітрини на Braubachstrasse у Франкфурті на послання на захист демократії: графіті й каліграфія з цитатами від Віллі Брандта до гасла іранського протестного руху, під девізом «Ми захищаємо нашу демократію – разом за свободу, різноманіття й згуртованість».",
+  facts=[("Місце", "Braubachstrasse, нове Старе місто Франкфурта"), ("Привід", "День німецької єдності 2025 – 35 років єдності"), ("Рамки", "«Jazz zum Dritten» (Tourismus+Congress GmbH і міський маркетинг Франкфурта)"),
+         ("Ініціатива", "Кафе «Das Herz von Frankfurt»"), ("Обсяг", "Вітрини шести закладів"), ("Період", "Початок жовтня 2025, до 5 жовтня")],
+  sections=[
+   ("Ідея", ["<p>У 2025 році Рьомерберг, нове Старе місто й Braubachstrasse стали центром святкування Дня німецької єдності у Франкфурті. Кафе «Das Herz von Frankfurt» (Менгі й Тафф Зелеке) придумало дати слово вітринам вулиці – і запросило Славіка. Проєкт став частиною традиційного міського свята «Jazz zum Dritten», яке Tourismus+Congress GmbH проводить разом із міським маркетингом; до 35-річчя воно розтягнулося на цілі вихідні (3–5 жовтня).</p>"]),
+   ("Які вітрини розписали", ["<p>Долучилися шість адрес на Braubachstrasse:</p><ul><li>Кафе «Das Herz von Frankfurt» (ініціатор)</li><li>Iimori Pâtisserie</li><li>Frankfurter Salon</li><li>Magus Antiquitäten</li><li>Maison Slilou</li><li>Philokalist Concept Store</li></ul>"]),
+   ("Послання на вітринах Braubachstrasse", ["<ul><li><strong>«Berlin wird leben und die Mauer wird fallen!»</strong> («Берлін житиме, а стіна впаде!») – Віллі Брандт; перша цитата серії, біла каліграфія з зеленими променями на вітрині Iimori Pâtisserie.</li>"
+                                           "<li><strong>«Frau, Leben, Freiheit»</strong> («Жінка, життя, свобода») – гасло іранського протестного руху, на вітрині Philokalist.</li>"
+                                           "<li><strong>«Demokratie lebt vom Mitmachen»</strong> («Демократія живе участю») – на вітрині з підписом «Albert Einstein», в обрамленні оранжево-білих променів біля Frankfurter Salon.</li></ul>"
+                                           "<p>Історичні цитати зустрічаються з актуальними питаннями – зв’язок між возз’єднанням Німеччини й світовою боротьбою за свободу став наскрізною ниткою.</p>"]),
+   ("Візит бургомістерки", ["<p>Вітрина «Frau, Leben, Freiheit» з’явилася в середу, 1 жовтня 2025 року, у присутності бургомістерки й очільниці відділу з питань різноманіття Наргес Ескандарі-Грюнберг, разом із Лусьєнн Нахіх Гірмазіон із Philokalist Concept Store і командою кафе «Das Herz von Frankfurt».</p>"]),
+   ("Техніка: каліграфія й балончик", ["<p>Написи – це біла каліграфія прямо на склі. До неї додаються промені й м’які переходи з балончика, що ловлять світло вітрин – і вдень, і ввечері. Роботи задумувалися на святкові дні й були на вітринах до 5 жовтня.</p>"]),
+  ],
+  quote=("Демократія – не подарунок, її треба знову й знову проживати й захищати.", "Бургомістерка Наргес Ескандарі-Грюнберг про проєкт, 1 жовтня 2025 (за переказом міста Франкфурт, переклад)"),
+  review=None,
+  gallery_t="Фото вітрин",
+  sources=[("Місто Франкфурт: «Graffiti für Frieden und Freiheit» (02.10.2025, німецькою)", BB_CITY), ("frankfurt-live.com: «Graffiti für Frieden und Freiheit» (02.10.2025, німецькою)", BB_LIVE),
+           ("Weltexpresso: «Graffiti für Frieden und Freiheit» (німецькою)", BB_WELT), ("Rhein Main Verlag: «Graffiti für Frieden und Freiheit in Frankfurt» (02.10.2025, німецькою)", BB_RMV),
+           ("visitfrankfurt: «Jazz zum Dritten – 35 Jahre Deutsche Einheit» (німецькою)", BB_JAZZ)],
+  faq=[("Що таке графіті на вітринах?", "Розпис і каліграфія прямо на склі вітрини – пензлем і балончиком. З вулиці це виглядає як світловий плакат, а згодом його можна прибрати без слідів."),
+       ("Які цитати були на Braubachstrasse?", "Зокрема «Berlin wird leben und die Mauer wird fallen!» (Віллі Брандт), «Frau, Leben, Freiheit» і «Demokratie lebt vom Mitmachen»."),
+       ("Чи можна замовити розпис своєї вітрини?", "Так – до відкриття, свят чи акцій. Перший орієнтир дасть калькулятор ціни, а пакет «Відкриття» поєднує вітрину, стіну й подію.")],
+ ),
+})
