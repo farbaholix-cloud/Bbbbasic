@@ -93,7 +93,7 @@ CASES = {  # key: (anchor id, main image, thumbs, on home)
  'fsv': ('fsv-frankfurt', 'fsv-stadion-arena', ['fsv-wappen-flammen'], True),
  'braubach': ('braubachstrasse', 'bb-philokalist', ['bb-salon', 'bb-iimori'], False),
  'wellen': ('wellenlaenge', 'wellenlaenge-panorama', ['wellenlaenge-interieur', 'wellenlaenge-portrait', 'wellenlaenge-welcome', 'wellenlaenge-fassade'], True),
- 'cansativa': ('cansativa', 'cansativa-lettering', [], False),
+ 'cansativa': ('cansativa', 'cansativa-treppenhaus', ['cansativa-abkleben', 'cansativa-geruest', 'cansativa-detail', 'cansativa-lettering'], False),
  'enso': ('enso', 'enso-neu-isenburg', ['presse-offenbach-post', 'presse-op-seite37'], False),   # ENSO only on the projects page and in the press
 }
 CASE_PLACE = {'braubach': 'Frankfurt am Main, Braubachstraße', 'georgen': 'Frankfurt am Main', 'fsv': 'Frankfurt am Main', 'wellen': 'Rüsselsheim am Main', 'cansativa': 'Frankfurt am Main', 'enso': 'Neu-Isenburg'}

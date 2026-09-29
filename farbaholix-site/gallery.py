@@ -80,6 +80,7 @@ EXTRA = [
  ('wellenlaenge-interieur', 'indoor', {'de': 'Restaurant Wellenlänge – ornamentale Wände', 'en': 'Restaurant Wellenlänge – ornamental walls', 'uk': 'Ресторан Wellenlänge – орнаментальні стіни'}),
  ('wellenlaenge-welcome', 'objects', {'de': '„Welcome“-Flügel als Fotospot am Tor', 'en': '“Welcome” wings as a photo spot on the gate', 'uk': 'Крила «Welcome» – фотозона на воротах'}),
  ('enso-neu-isenburg', 'facade', {'de': 'ENSO-Mural „Luft“, Neu-Isenburg (Entwurf: Miruna Costa)', 'en': 'ENSO mural “Air”, Neu-Isenburg (design: Miruna Costa)', 'uk': 'Мурал ENSO «Повітря», Ной-Ізенбург (ескіз: Міруна Коста)'}),
+ ('cansativa-treppenhaus', 'objects', {'de': 'Firmen-Timeline der Cansativa Group im Treppenhaus', 'en': 'Cansativa Group company timeline in the stairwell', 'uk': 'Таймлайн Cansativa Group на сходах'}),
  ('cansativa-lettering', 'objects', {'de': 'Lettering im Büro der Cansativa Group, Frankfurt', 'en': 'Office lettering for Cansativa Group, Frankfurt', 'uk': 'Леттеринг в офісі Cansativa Group, Франкфурт'}),
  ('bb-philokalist', 'objects', {'de': 'Schaufenster „Frau, Leben, Freiheit“, Braubachstraße', 'en': 'Shop window “Frau, Leben, Freiheit”, Braubachstraße', 'uk': 'Вітрина «Frau, Leben, Freiheit», Braubachstrasse'}),
  ('bb-iimori', 'objects', {'de': 'Schaufenster mit Willy-Brandt-Zitat, Braubachstraße', 'en': 'Shop window with a Willy Brandt quote, Braubachstraße', 'uk': 'Вітрина з цитатою Віллі Брандта, Braubachstrasse'}),

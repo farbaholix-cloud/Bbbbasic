@@ -300,3 +300,11 @@ CASE_PAGES['braubach'] = dict(case='braubach', hero='bb-philokalist', wide=None,
        ("Чи можна замовити розпис своєї вітрини?", "Так – до відкриття, свят чи акцій. Перший орієнтир дасть калькулятор ціни, а пакет «Відкриття» поєднує вітрину, стіну й подію.")],
  ),
 })
+
+CAP.update({
+ 'cansativa-treppenhaus': ("Firmen-Timeline im Treppenhaus der Cansativa Group", "Company timeline in the Cansativa Group stairwell", "Таймлайн компанії на сходах Cansativa Group"),
+ 'cansativa-abkleben': ("Präzision: Buchstaben werden abgeklebt", "Precision: masking the letters", "Точність: букви обклеюють малярним скотчем"),
+ 'cansativa-geruest': ("Arbeit am Gerüst über dem Treppenhaus", "Working from the scaffold above the stairwell", "Робота з риштування над сходами"),
+ 'cansativa-detail': ("Detailarbeit am Lettering", "Detail work on the lettering", "Детальна робота над леттерингом"),
+ 'cansativa-lettering': ("Markenschriftzug „cansativa“", "The “cansativa” brand lettering", "Фірмовий напис «cansativa»"),
+})
