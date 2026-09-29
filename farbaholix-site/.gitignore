@@ -1,0 +1,6 @@
+page_*.txt
+local_*.html
+.wpauth
+*.png
+*.jpg
+*.webp
