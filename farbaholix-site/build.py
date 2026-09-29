@@ -247,7 +247,7 @@ def chrome_bottom(k):
 
 # ---------------- pages ----------------
 def page_home(k):
-    SERVICE_IMGS = [SIZES.get(u, {'t': u})['t'] for u in (old(25), old(6), old(44), img('cansativa-lettering'))]   # 768px versions
+    SERVICE_IMGS = [SIZES.get(u, {'t': u})['t'] for u in (img('tile-fassaden'), old(6), old(44), img('cansativa-lettering'))]   # 768px versions
     L = LANGS[k]; o = chrome_top(k, 'home', False)
     o.append('<div class="fx-intro"></div>')
     o.append('<div class="fx-video-wrap"><video class="fx-video" id="fxVideo" src="%s2026/06/farbaholix_video1.mp4" autoplay muted loop playsinline preload="metadata" aria-label="Farbaholix Graffiti Frankfurt"></video></div>' % U)
