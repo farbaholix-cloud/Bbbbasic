@@ -49,8 +49,8 @@
   var box = null, group = [], cur = 0, boxImg, boxCap, boxN, lastFocus = null;
   function buildBox() {
     box = document.createElement('div'); box.className = 'fx-lbx'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
-    box.innerHTML = '<button type="button" class="fx-lbx-x" aria-label="Close">×</button><button type="button" class="fx-lbx-prev" aria-label="Previous">‹</button>' +
-      '<figure><img alt=""><figcaption></figcaption></figure><button type="button" class="fx-lbx-next" aria-label="Next">›</button><span class="fx-lbx-n"></span>';
+    box.innerHTML = '<button type="button" class="fx-lbx-x" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><button type="button" class="fx-lbx-prev" aria-label="Previous"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+      '<figure><img alt=""><figcaption></figcaption></figure><button type="button" class="fx-lbx-next" aria-label="Next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button><span class="fx-lbx-n"></span>';
     document.body.appendChild(box);
     boxImg = box.querySelector('img'); boxCap = box.querySelector('figcaption'); boxN = box.querySelector('.fx-lbx-n');
     box.querySelector('.fx-lbx-x').onclick = closeBox;

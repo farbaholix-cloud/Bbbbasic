@@ -388,7 +388,7 @@ html, body { margin: 0; background: var(--fx-brown); }
 .fx-thumbs:has(> a:only-child) { grid-template-columns: 1fr; }
 .fx-thumbs > a:only-child img { aspect-ratio: 3 / 2; border-radius: 10px; }
 html.fx-noscroll, html.fx-noscroll body { overflow: hidden; }
-.fx-lbx { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; background: rgba(12, 8, 4, .96); }
+.fx-lbx { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; background: #0c0804; }
 .fx-lbx.is-on { display: flex; }
 .fx-lbx figure { margin: 0; display: flex; flex-direction: column; align-items: center; max-width: 94vw; }
 .fx-lbx img { width: min(94vw, 1300px); height: auto; max-height: 80vh; object-fit: contain; border-radius: 6px; background: #000; }
@@ -439,3 +439,21 @@ html.fx-noscroll, html.fx-noscroll body { overflow: hidden; }
 .fx.lights-on .fx-lit .fx-voice p { color: #1d1d1f; } .fx.lights-on .fx-lit .fx-voice b { color: #1d1d1f; }
 .fx.lights-on .fx-lit .fx-quote p { color: var(--fx-gold-2) !important; }
 .fx.lights-on .fx-lit .fx-report-cta h2 { color: var(--fx-gold-2) !important; }
+
+/* lightbox controls: SVG icons, immune to the theme's button styles */
+.fx-lbx button, .fx-lbx button:hover, .fx-lbx button:focus, .fx-lbx button:active { display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; border: 0; border-radius: 50%;
+  width: 48px; height: 48px; background: rgba(255, 255, 255, .14); color: #fff; box-shadow: none; outline: none; -webkit-tap-highlight-color: transparent; z-index: 2; }
+@media (hover: hover) { .fx-lbx button:hover { background: rgba(217, 178, 106, .55); } }
+.fx-lbx button:focus-visible { box-shadow: 0 0 0 2px var(--fx-gold); }
+.fx-lbx button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.fx-lbx-x { top: max(14px, env(safe-area-inset-top)); right: 14px; }
+.fx-lbx figcaption { font-style: normal; }
+/* page buttons: neutralise Hello Elementor's pink button styles */
+button.fx-btn, button.fx-btn:hover, button.fx-btn:focus, button.fx-btn:active { border: 0; font: inherit; font-weight: 800; cursor: pointer; line-height: 1.2; -webkit-tap-highlight-color: transparent; }
+button.fx-btn-ghost, button.fx-btn-ghost:focus, button.fx-btn-ghost:active { background: transparent; color: var(--fx-gold-2); box-shadow: inset 0 0 0 2px var(--fx-gold); outline: none; }
+@media (hover: hover) { button.fx-btn-ghost:hover { background: var(--fx-gold); color: #1a1109; } }
+button.fx-btn-ghost:focus-visible { box-shadow: inset 0 0 0 2px var(--fx-gold), 0 0 0 3px rgba(217, 178, 106, .4); }
+.fx-more.fx-more-btn { margin: 30px 0 0; }
+.fx-case-more { display: table; margin-top: 10px; }
+/* the rising artist is a cut-out, not a photo card: no frame, shadow or 3:2 crop */
+.fx-photo .fx-artist-clip img { aspect-ratio: auto; object-fit: contain; border-radius: 0; box-shadow: none; filter: drop-shadow(0 10px 14px rgba(0,0,0,.18)); }

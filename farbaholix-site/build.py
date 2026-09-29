@@ -177,7 +177,7 @@ def works_grid(k, nums):
     shown = ''.join('<figure class="fx-photo fx-photo-sm"><a class="fx-lb" data-lb="works" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a><figcaption>%s</figcaption></figure>' % (
         old(n), e(caps.get(n, WORK_ALT[k][n])), old(n), e(WORK_ALT[k][n] + ' – Farbaholix'), e(WORK_ALT[k][n])) for n in nums)
     rest = ''.join('<a class="fx-lb" data-lb="works" href="%s" data-cap="%s" hidden></a>' % (old(n), e(c)) for n, c in caps.items() if n not in nums)
-    return ('<div class="fx-grid">%s</div><div hidden>%s</div><p class="fx-more"><button type="button" class="fx-btn fx-btn-ghost" data-lb-open="works">%s (%d) →</button></p>' % (
+    return ('<div class="fx-grid">%s</div><div hidden>%s</div><p class="fx-more fx-more-btn"><button type="button" class="fx-btn fx-btn-ghost" data-lb-open="works">%s (%d) →</button></p>' % (
         shown, rest, e(UI[k]['all_works']), len(caps)))
 
 def press_cards(k, items):
