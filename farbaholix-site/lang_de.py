@@ -23,6 +23,7 @@ L = dict(
   services_short=['Große Wände für Marken, Städte und Stadien.', 'Büros, Restaurants, Clubs – bis zur UV-Neonwelt.', 'Graffiti, DJing, B-Boying, MCing – für Teams und Kids.', 'Lettering, Sneaker, Bikes, Tafeln, Kalligrafie.'],
   promo_short='Konzept, Wand und Event aus einer Hand.',
   svc_more='Wischen für mehr',
+  go_title='Alle Arbeiten', go_all='Alle', tile_more='Arbeiten ansehen',
   promo_t='Eröffnungspaket', promo_p='Sie eröffnen bald oder planen ein neues Projekt? Konzept, Wandgestaltung und Eröffnungs-Event aus einer Hand – zum besten Preis.', promo_a='Mehr erfahren',
   s_projects='Ausgewählte Projekte', all_projects='Alle Projekte ansehen',
   cases={

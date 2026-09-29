@@ -9,7 +9,9 @@ MEDIA = json.load(open('media_seo.json'))
 from articles import ARTICLES
 from calc_texts import CALC
 from cases import CASE_PAGES, CAP, UI
-from gallery import GALLERY
+from gallery import GALLERY, CATS, CAT, EXTRA
+SIZES = json.load(open('gallery_sizes.json'))
+ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
 e = html.escape
 
 def old(n):   # existing gallery image, n = number in the alt-text table
@@ -173,12 +175,24 @@ def photo_case(k, key, with_thumbs, artist=False):
             ' fx-photo-artist' if artist else '', cid, a, main, th, h, e(text), e(' · '.join(facts)), more)
 
 def works_grid(k, nums):
-    caps = {n: c[k] for n, c in GALLERY}
-    shown = ''.join('<figure class="fx-photo fx-photo-sm"><a class="fx-lb" data-lb="works" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a><figcaption>%s</figcaption></figure>' % (
-        old(n), e(caps.get(n, WORK_ALT[k][n])), old(n), e(WORK_ALT[k][n] + ' – Farbaholix'), e(WORK_ALT[k][n])) for n in nums)
-    rest = ''.join('<a class="fx-lb" data-lb="works" href="%s" data-cap="%s" hidden></a>' % (old(n), e(c)) for n, c in caps.items() if n not in nums)
-    return ('<div class="fx-grid">%s</div><div hidden>%s</div><p class="fx-more fx-more-btn"><button type="button" class="fx-btn fx-btn-ghost" data-lb-open="works">%s (%d) →</button></p>' % (
-        shown, rest, e(UI[k]['all_works']), len(caps)))
+    """10 works on the page + every portfolio photo as a hidden lightbox link (data-cat) + the "all works" overview skeleton."""
+    L = LANGS[k]; caps = {n: c[k] for n, c in GALLERY}
+    sz = lambda u: SIZES.get(u, {'t': u, 'l': u})
+    def link(url, cap, cat, inner='', hidden=False, recent=False):
+        return '<a class="fx-lb" data-lb="works" data-cat="%s" data-thumb="%s" href="%s" data-cap="%s"%s%s>%s</a>' % (cat, sz(url)['t'], sz(url)['l'], e(cap), ' data-recent="1"' if recent else '', ' hidden' if hidden else '', inner)
+    shown = ''.join('<figure class="fx-photo fx-photo-sm">%s<figcaption>%s</figcaption></figure>' % (
+        link(old(n), caps.get(n, WORK_ALT[k][n]), CAT[n], '<img loading="lazy" src="%s" alt="%s">' % (sz(old(n))['t'], e(WORK_ALT[k][n] + ' – Farbaholix'))), e(WORK_ALT[k][n])) for n in nums)
+    rest = ''.join(link(img(key), cap[k], cat, hidden=True, recent=True) for key, cat, cap in EXTRA)
+    rest += ''.join(link(old(n), c, CAT[n], hidden=True) for n, c in caps.items() if n not in nums)
+    total = len(EXTRA) + len(caps)
+    counts = {c: sum(1 for _, cc, _ in EXTRA if cc == c) + sum(1 for n in caps if CAT[n] == c) for c in CATS}
+    chips = '<button type="button" class="is-on" data-cat="all">%s <span>%d</span></button>' % (e(L['go_all']), total)
+    chips += ''.join('<button type="button" data-cat="%s">%s <span>%d</span></button>' % (c, e(L['services'][i][0]), counts[c]) for i, c in enumerate(CATS))
+    overlay = ('<div class="fx-go" id="fxGo" hidden role="dialog" aria-modal="true" aria-label="%s"><div class="fx-go-head"><div class="fx-go-top"><h2>%s</h2>'
+               '<button type="button" class="fx-go-x" aria-label="%s">%s</button></div><div class="fx-go-cats" role="tablist">%s</div></div><div class="fx-go-grid"></div></div>') % (
+               e(L['go_title']), e(L['go_title']), e(L['close_label']), ICON_X, chips)
+    return ('<div class="fx-grid">%s</div><div hidden>%s</div><p class="fx-more fx-more-btn"><button type="button" class="fx-btn fx-btn-ghost" data-go-open="all">%s (%d) →</button></p>%s' % (
+        shown, rest, e(UI[k]['all_works']), total, overlay))
 
 def press_cards(k, items):
     L = LANGS[k]; o = ['<div class="fx-press">']
@@ -242,8 +256,8 @@ def page_home(k):
     o.append('<div class="fx-stats">%s</div>' % ''.join('<div><b>%s</b><span>%s</span></div>' % (e(n), e(t)) for n, t in L['stats']))
     o.append('<p class="fx-trust-line">%s</p></section>' % ' · '.join(e(t) for t in L['trust'][2:]))
     o.append('<section class="fx-sec" id="leistungen"><h2>%s</h2><div class="fx-tiles">' % e(L['s_services']))
-    for (t, _), short, src in zip(L['services'], L['services_short'], SERVICE_IMGS):
-        o.append('<article class="fx-tile"><img loading="lazy" src="%s" alt="%s"><div class="fx-tile-t"><h3>%s</h3><p>%s</p></div></article>' % (src, e(t), e(t).replace('Innenraumgestaltung', 'Innenraum&shy;gestaltung'), e(short)))
+    for (t, _), short, src, cat in zip(L['services'], L['services_short'], SERVICE_IMGS, CATS):
+        o.append('<a class="fx-tile" href="#arbeiten" data-go-open="%s"><img loading="lazy" src="%s" alt="%s"><div class="fx-tile-t"><h3>%s</h3><p>%s</p><span class="fx-tile-go">%s →</span></div></a>' % (cat, src, e(t), e(t).replace('Innenraumgestaltung', 'Innenraum&shy;gestaltung'), e(short), e(L['tile_more'])))
     o.append('<a class="fx-tile fx-tile-promo" href="%s"><img loading="lazy" src="%s" alt="%s"><div class="fx-tile-t"><h3>%s</h3><p>%s</p><span class="fx-tile-go">%s →</span></div></a></div>' % (
         url(k, 'opening'), old(30), e(L['promo_t']), e(L['promo_t']), e(L['promo_short']), e(L['promo_a'])))
     o.append('<p class="fx-swipe" aria-hidden="true">%s →</p></section>' % e(L['svc_more']))
@@ -254,7 +268,7 @@ def page_home(k):
     for i, c in enumerate(home_cases):
         o.append(photo_case(k, c, False, artist=(i == len(home_cases) - 1)))
     o.append('<p class="fx-more"><a href="%s">%s →</a></p></section>' % (url(k, 'projects'), e(L['all_projects'])))
-    o.append('<section class="fx-sec"><h2>%s</h2>%s</section></div>' % (e(L['s_gallery']), works_grid(k, HOME_WORKS)))
+    o.append('<section class="fx-sec" id="arbeiten"><h2>%s</h2>%s</section></div>' % (e(L['s_gallery']), works_grid(k, HOME_WORKS)))
     o.append('<section class="fx-sec" id="stimmen"><h2>%s</h2><div class="fx-voices">' % e(L['s_voices']))
     for q, n, r, im, tr in VOICES:
         t = '<p class="fx-tr"><span>%s:</span> %s</p>' % (e(L['translated']), e(tr[k])) if k in tr else ''

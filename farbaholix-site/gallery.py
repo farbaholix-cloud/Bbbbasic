@@ -62,3 +62,26 @@ for n in UK:
     de, en, _ = A[n - 1]
     if n in FIX: de, en = FIX[n]
     GALLERY.append((n, {'de': de, 'en': en, 'uk': UK[n]}))
+
+# categories = the four service tiles on the home page
+CATS = ('facade', 'indoor', 'workshop', 'objects')
+CAT = {n: 'facade' for n in (1, 2, 3, 4, 5, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36)}
+CAT.update({n: 'indoor' for n in range(6, 22)})
+CAT.update({n: 'workshop' for n in range(44, 54)})
+CAT.update({n: 'objects' for n in (38, 39, 40, 42)})
+# recent projects shown first in "all works" (media_seo keys)
+EXTRA = [
+ ('sg-strelitzien', 'facade', {'de': 'Strelitzien-Mural, Hochschule Sankt Georgen, Frankfurt', 'en': 'Bird-of-paradise mural, Sankt Georgen, Frankfurt', 'uk': 'Мурал зі стрелітціями, Sankt Georgen, Франкфурт'}),
+ ('sg-monstera-mauer', 'facade', {'de': 'Monstera an der Campusmauer von Sankt Georgen', 'en': 'Monstera on the Sankt Georgen campus wall', 'uk': 'Монстера на стіні кампусу Sankt Georgen'}),
+ ('fsv-stadion-arena', 'facade', {'de': 'FSV Frankfurt: Stadionfassade am Bornheimer Hang', 'en': 'FSV Frankfurt: stadium facade at Bornheimer Hang', 'uk': 'FSV Frankfurt: фасад стадіону на Борнгаймер Ганг'}),
+ ('fsv-wappen-flammen', 'indoor', {'de': 'FSV-Wappen in blauen Flammen, Innenraum', 'en': 'FSV crest in blue flames, interior', 'uk': 'Герб FSV у синьому полум’ї, інтер’єр'}),
+ ('fsv-immer-weiter', 'indoor', {'de': '„Immer weiter“ – Innenraum im FSV-Stadion', 'en': '“Immer weiter” – interior of the FSV stadium', 'uk': '«Immer weiter» – інтер’єр стадіону FSV'}),
+ ('wellenlaenge-panorama', 'facade', {'de': 'Restaurant Wellenlänge, Rüsselsheim – Fassaden-Mural', 'en': 'Restaurant Wellenlänge, Rüsselsheim – facade mural', 'uk': 'Ресторан Wellenlänge, Рюссельсгайм – мурал на фасаді'}),
+ ('wellenlaenge-interieur', 'indoor', {'de': 'Restaurant Wellenlänge – ornamentale Wände', 'en': 'Restaurant Wellenlänge – ornamental walls', 'uk': 'Ресторан Wellenlänge – орнаментальні стіни'}),
+ ('wellenlaenge-welcome', 'objects', {'de': '„Welcome“-Flügel als Fotospot am Tor', 'en': '“Welcome” wings as a photo spot on the gate', 'uk': 'Крила «Welcome» – фотозона на воротах'}),
+ ('enso-neu-isenburg', 'facade', {'de': 'ENSO-Mural „Luft“, Neu-Isenburg (Entwurf: Miruna Costa)', 'en': 'ENSO mural “Air”, Neu-Isenburg (design: Miruna Costa)', 'uk': 'Мурал ENSO «Повітря», Ной-Ізенбург (ескіз: Міруна Коста)'}),
+ ('cansativa-lettering', 'objects', {'de': 'Lettering im Büro der Cansativa Group, Frankfurt', 'en': 'Office lettering for Cansativa Group, Frankfurt', 'uk': 'Леттеринг в офісі Cansativa Group, Франкфурт'}),
+ ('bb-philokalist', 'objects', {'de': 'Schaufenster „Frau, Leben, Freiheit“, Braubachstraße', 'en': 'Shop window “Frau, Leben, Freiheit”, Braubachstraße', 'uk': 'Вітрина «Frau, Leben, Freiheit», Braubachstrasse'}),
+ ('bb-iimori', 'objects', {'de': 'Schaufenster mit Willy-Brandt-Zitat, Braubachstraße', 'en': 'Shop window with a Willy Brandt quote, Braubachstraße', 'uk': 'Вітрина з цитатою Віллі Брандта, Braubachstrasse'}),
+ ('bb-salon', 'objects', {'de': 'Schaufenster „Demokratie lebt vom Mitmachen“', 'en': 'Shop window “Demokratie lebt vom Mitmachen”', 'uk': 'Вітрина «Demokratie lebt vom Mitmachen»'}),
+]

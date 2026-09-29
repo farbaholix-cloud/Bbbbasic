@@ -22,6 +22,7 @@ L = dict(
   services_short=['Big walls for brands, cities and stadiums.', 'Offices, restaurants, clubs – all the way to UV neon.', 'Graffiti, DJing, b-boying, MCing – for teams and kids.', 'Lettering, sneakers, bikes, chalkboards, calligraphy.'],
   promo_short='Concept, wall and event from one source.',
   svc_more='Swipe for more',
+  go_title='All works', go_all='All', tile_more='See works',
   promo_t='Opening package', promo_p='Opening soon or planning a new project? Concept, wall design and opening event from one source – at the best price.', promo_a='Learn more',
   s_projects='Selected projects', all_projects='See all projects',
   cases={
