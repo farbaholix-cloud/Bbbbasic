@@ -496,3 +496,47 @@ button.fx-btn-ghost:focus-visible { box-shadow: inset 0 0 0 2px var(--fx-gold), 
 a.fx-tile { cursor: pointer; }
 a.fx-tile .fx-tile-go { margin-top: 10px; }
 .fx-go-tile img { font-size: 0; color: transparent; }
+
+/* ---- Contact: neutral form + separate direct buttons ---- */
+.fx-cform-card { background: var(--fx-card); border: 1px solid var(--fx-line); border-radius: 22px; padding: 20px; }
+.fx-cform-card h3 { margin: 0 0 6px; }
+.fx-cform-lead { font-size: .95rem; margin: 0 0 14px; color: var(--fx-muted); }
+.fx-cform input[type=text], .fx-cform textarea { display: block; width: 100%; box-sizing: border-box; background: #1f150d; color: var(--fx-text); border: 1px solid var(--fx-line); border-radius: 12px; padding: 13px 14px; font: inherit; font-size: 16px; margin: 0 0 10px; outline: none; transition: border-color .2s, box-shadow .2s; }
+.fx-cform input[type=text]:focus, .fx-cform textarea:focus { border-color: var(--fx-gold); box-shadow: 0 0 0 3px rgba(217, 178, 106, .18); }
+.fx-cform textarea { resize: vertical; min-height: 110px; }
+.fx-cform .is-bad { border-color: #e0685a !important; }
+.fx-hp { position: absolute !important; left: -9999px !important; width: 1px !important; height: 1px !important; opacity: 0 !important; }
+.fx-cform-send, .fx-cform-send:hover, .fx-cform-send:focus { display: block; width: 100%; border: 0; cursor: pointer; font: inherit; font-weight: 800; background: var(--fx-gold); color: #1a1109 !important; }
+.fx-cform-send:disabled { opacity: .6; cursor: wait; }
+.fx-cform-note { margin: 10px 0 0; font-size: .75rem; line-height: 1.45; color: var(--fx-muted); }
+.fx-cform-note a { color: inherit; text-decoration: underline; }
+.fx-cform-status { margin: 10px 0 0; font-size: .92rem; font-weight: 600; }
+.fx-cform-status:empty { display: none; }
+.fx-cform-status.is-ok { color: #8fd19e; }
+.fx-cform-status.is-err { color: #f0a097; }
+.fx-direct { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-top: 16px; padding: 16px 18px; border: 1px solid var(--fx-line); border-radius: 18px; background: rgba(255, 255, 255, .03); }
+.fx-direct-t { margin: 0; font-weight: 700; }
+.fx-direct-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1 1 260px; max-width: 440px; }
+.fx-direct-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 14px; border-radius: 999px; text-decoration: none !important; font-weight: 700; color: var(--fx-text) !important; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 1px var(--fx-line); transition: background .2s, color .2s; }
+.fx-direct-btn svg { width: 20px; height: 20px; flex: none; }
+@media (hover: hover) { .fx-direct-btn:hover { background: var(--fx-gold); color: #1a1109 !important; box-shadow: none; } }
+.fx-direct-sm { margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid #3a3a3c; border-radius: 0; background: none; gap: 8px; }
+.fx-direct-sm .fx-direct-t { font-size: .8rem; font-weight: 600; color: #a1a1a6; }
+.fx-direct-sm .fx-direct-btns { flex-basis: 100%; max-width: none; }
+.fx-direct-sm .fx-direct-btn { padding: 9px 10px; font-size: .88rem; background: #2c2c2e; box-shadow: none; color: #f5f5f7 !important; }
+/* floating message button (brand gold, no messenger branding) + popup */
+.fx-fab, .fx-fab:hover, .fx-fab:focus { position: fixed; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 75; width: 58px; height: 58px; padding: 0; border-radius: 50%; border: 0; background: var(--fx-gold) !important; color: #1a1109 !important; display: grid; place-items: center; cursor: pointer; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); -webkit-tap-highlight-color: transparent; }
+.fx-fab svg { width: 28px; height: 28px; }
+.fx-pop { position: fixed; right: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 70px); z-index: 76; width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 110px); overflow-y: auto; box-sizing: border-box; background: #1d1d1f; color: #f5f5f7; border-radius: 20px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, .45); }
+.fx-pop[hidden] { display: none; }
+.fx-pop-x, .fx-pop-x:hover, .fx-pop-x:focus { position: absolute; right: 10px; top: 10px; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(255, 255, 255, .08) !important; color: #d1d1d6 !important; cursor: pointer; }
+.fx-pop-x svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.fx-pop-head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; padding-right: 36px; }
+.fx-pop-head img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; }
+.fx-pop-head small { color: #a1a1a6; }
+.fx-pop .fx-cform-lead { color: #d1d1d6; font-size: .86rem; margin-bottom: 10px; }
+.fx-pop .fx-cform input[type=text], .fx-pop .fx-cform textarea { background: #2c2c2e; border-color: #3a3a3c; color: #f5f5f7; }
+.fx-pop .fx-cform textarea { min-height: 84px; }
+.fx-pop .fx-cform-note { color: #8e8e93; }
+.fx-bubble button, .fx-bubble button:hover, .fx-bubble button:focus { display: inline-block; margin: 0 6px 4px 0; padding: 6px 12px; border-radius: 999px; border: 0; background: var(--fx-gold); color: #1a1109; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.fx-calc-send, .fx-calc-send:hover, .fx-calc-send:focus { display: block; width: 100%; border: 0; cursor: pointer; font: inherit; font-weight: 800; }

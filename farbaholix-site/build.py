@@ -1,5 +1,5 @@
 """Builds the Farbaholix preview pages in DE / EN / UA: home, projects, opening package, about Slavik, magazine."""
-import json, html, importlib, base64
+import json, html, importlib, base64, urllib.parse
 
 SITE = 'https://farbaholix.de/'
 U = SITE + 'wp-content/uploads/'
@@ -148,7 +148,7 @@ def chrome_top(k, page, static_logo):
     menu = ''.join('<a href="%s"%s>%s</a>' % (href(t), ' class="fx-menu-hl"' if t == 'calc' else '', e(lbl)) for t, lbl in items)
     o = ['<div class="fx%s" lang="%s"><div class="fx-light" aria-hidden="true"></div><div class="fx-tube" aria-hidden="true"></div>' % (' fx-sub' if static_logo else '', L['lang'])]
     o.append('<header class="fx-top"><nav class="fx-langs">%s</nav><button class="fx-burger" id="fxBurger" aria-label="%s" aria-expanded="false"><span></span><span></span><span></span></button></header>' % (lb, e(L['menu_label'])))
-    o.append('<nav class="fx-menu" id="fxMenu" aria-hidden="true"><button class="fx-menu-close" id="fxMenuClose" aria-label="%s">×</button>%s<p class="fx-menu-foot"><a href="tel:+4915172450347">+49 151 724 50347</a> · <a href="https://wa.me/4915172450347">WhatsApp</a></p></nav>' % (e(L['close_label']), menu))
+    o.append('<nav class="fx-menu" id="fxMenu" aria-hidden="true"><button class="fx-menu-close" id="fxMenuClose" aria-label="%s">×</button>%s<p class="fx-menu-foot"><a href="tel:+4915172450347">+49 151 724 50347</a> · <a href="mailto:farbaholix@gmail.com">E-Mail</a></p></nav>' % (e(L['close_label']), menu))
     if static_logo:
         o.append('<a class="fx-logo fx-logo-static" href="%s"><img src="%s" alt="%s"></a>' % (url(k, 'home'), img('logo-badge'), e(L['logo_alt'])))
     else:
@@ -160,7 +160,7 @@ def photo_case(k, key, with_thumbs, artist=False):
     a = ''
     if artist:
         a = ('<div class="fx-artist" id="fxArtist"><div class="fx-artist-clip"><img src="%s" alt="Viacheslav „Slavik“ Balabaiev"></div>'
-             '<div class="fx-bubble" role="note"><p>%s</p><a href="tel:+4915172450347">%s</a><a href="https://wa.me/4915172450347" target="_blank" rel="noopener">WhatsApp</a></div></div>') % (img('artist-slavik-v3'), e(L['bubble']), e(L['bubble_call']))
+             '<div class="fx-bubble" role="note"><p>%s</p><a href="tel:+4915172450347">%s</a><button type="button" data-fx-contact>%s</button></div></div>') % (img('artist-slavik-v3'), e(L['bubble']), e(L['bubble_call']), e(L['bubble_write']))
     report = url(k, key) if key in CASE_PAGES else None
     th = ''
     if with_thumbs and thumbs:
@@ -207,15 +207,31 @@ def press_cards(k, items):
     o.append('</div>')
     return ''.join(o)
 
-def wa_form(k, compact=False):
+SVG_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.8-1.1-4.6-4-4.8-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .6l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.8-.1 1.3z"/></svg>'
+SVG_MAIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3.5 6h17v12h-17zM3.5 6l8.5 7 8.5-7"/></svg>'
+SVG_MSG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 9.5h8M8 12.5h5"/></svg>'
+MAIL = 'farbaholix@gmail.com'
+
+def contact_form(k, compact=False):
+    """Neutral enquiry form – posts to /wp-json/fx/v1/contact (stored in wp-admin, e-mailed and forwarded to the owner)."""
     L = LANGS[k]
-    return ('<form class="fx-wa-form%s" data-wa-form onsubmit="return false"><p class="fx-wa-lead"><span class="fx-live-dot" aria-hidden="true"></span>%s</p>'
-            '<input type="text" name="wa_name" autocomplete="name" placeholder="%s" aria-label="%s">'
-            '<textarea name="wa_msg" rows="%d" placeholder="%s" aria-label="%s"></textarea>'
-            '<button type="submit" class="fx-btn fx-btn-wa"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.8-1.1-4.6-4-4.8-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.7-.1l1-1.2c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>%s</button>'
-            '<input type="hidden" name="wa_hello" value="%s"><input type="hidden" name="wa_from" value="%s"></form>') % (
-            ' fx-wa-compact' if compact else '', e(L['wa_lead']), e(L['wa_name']), e(L['wa_name']), 3 if compact else 4, e(L['wa_msg']), e(L['wa_msg']),
-            e(L['wa_send']), e(L['wa_hello']), e(L['wa_from']))
+    consent = e(L['f_consent']).replace('{ds}', '<a href="/datenschutzerklarung/">%s</a>' % e(L['f_ds']))
+    return ('<form class="fx-cform%s" data-fx-form novalidate><p class="fx-cform-lead">%s</p>'
+            '<input type="text" name="name" autocomplete="name" placeholder="%s" aria-label="%s" maxlength="120">'
+            '<input type="text" name="contact" autocomplete="email" inputmode="email" required placeholder="%s" aria-label="%s" maxlength="160">'
+            '<textarea name="message" rows="%d" required placeholder="%s" aria-label="%s" maxlength="5000"></textarea>'
+            '<input type="text" name="website" tabindex="-1" autocomplete="off" class="fx-hp" aria-hidden="true">'
+            '<button type="submit" class="fx-btn fx-cform-send" data-sending="%s">%s</button><p class="fx-cform-note">%s</p>'
+            '<p class="fx-cform-status" role="status" aria-live="polite" data-ok="%s" data-err="%s"></p></form>') % (
+            ' fx-cform-compact' if compact else '', e(L['form_lead']), e(L['f_name']), e(L['f_name']), e(L['f_contact']), e(L['f_contact']),
+            3 if compact else 5, e(L['f_msg']), e(L['f_msg']), e(L['f_sending']), e(L['f_send']), consent, e(L['f_ok']), e(L['f_err']))
+
+def direct_buttons(k, small=False):
+    L = LANGS[k]
+    return ('<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">'
+            '<a class="fx-direct-btn" href="https://wa.me/%s?text=%s" target="_blank" rel="noopener">%s<span>%s</span></a>'
+            '<a class="fx-direct-btn" href="mailto:%s">%s<span>%s</span></a></div></div>') % (
+            ' fx-direct-sm' if small else '', e(L['direct_t']), WA, urllib.parse.quote(L['direct_hello']), SVG_WA, e(L['direct_wa']), MAIL, SVG_MAIL, e(L['direct_mail']))
 
 def call_card(k):
     L = LANGS[k]
@@ -226,26 +242,25 @@ def call_card(k):
 
 def contact_section(k):
     L = LANGS[k]
-    return ('<section class="fx-sec" id="kontakt"><h2>%s</h2><p>%s</p><div class="fx-contact-grid">%s<div class="fx-wa-card"><h3>%s</h3>%s'
-            '<p class="fx-mail-under">%s <a href="mailto:farbaholix@gmail.com">farbaholix@gmail.com</a></p></div></div>'
-            '<ul class="fx-contact-list"><li><span>%s</span><a href="tel:+4915172450347">+49 151 724 50347</a></li><li><span>%s</span><a href="https://wa.me/%s" target="_blank" rel="noopener">+49 151 724 50347</a></li>'
-            '<li><span>%s</span><a href="mailto:farbaholix@gmail.com">farbaholix@gmail.com</a></li><li><span>📍</span>%s</li></ul></section>') % (
-            e(L['s_contact']), e(L['contact_lead']), call_card(k), e(L['wa_t']), wa_form(k), e(L['mail_under']),
-            e(L['phone_l']), e(L['wa_label']), WA, e(L['email_label']), e(L['city']))
+    return ('<section class="fx-sec" id="kontakt"><h2>%s</h2><p>%s</p><div class="fx-contact-grid">%s<div class="fx-cform-card"><h3>%s</h3>%s</div></div>%s'
+            '<ul class="fx-contact-list"><li><span>%s</span><a href="tel:+4915172450347">+49 151 724 50347</a></li>'
+            '<li><span>%s</span><a href="mailto:%s">%s</a></li><li><span>📍</span>%s</li></ul></section>') % (
+            e(L['s_contact']), e(L['contact_lead']), call_card(k), e(L['form_t']), contact_form(k), direct_buttons(k),
+            e(L['phone_l']), e(L['email_label']), MAIL, MAIL, e(L['city']))
 
 def contact_open(k):   # kept name: every page ends with the contact section
     return contact_section(k)
 
 def chrome_bottom(k):
     L = LANGS[k]
-    fab = ('<button class="fx-wa-fab" id="fxWaFab" aria-label="%s" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/></svg><span class="fx-live-dot" aria-hidden="true"></span></button>'
-           '<div class="fx-wa-pop" id="fxWaPop" hidden><button class="fx-wa-pop-x" id="fxWaPopX" aria-label="%s">×</button><div class="fx-wa-pop-head"><img src="%s" alt="Slavik"><span><b>Slavik</b><br><small>%s</small></span></div>%s</div>') % (
-           e(L['wa_float']), e(L['close_label']), img('slavik-portrait'), e(L['call_role']), wa_form(k, compact=True))
+    fab = ('<button class="fx-fab" id="fxFab" aria-label="%s" aria-expanded="false">%s</button>'
+           '<div class="fx-pop" id="fxPop" hidden role="dialog" aria-label="%s"><button class="fx-pop-x" id="fxPopX" aria-label="%s">%s</button>'
+           '<div class="fx-pop-head"><img src="%s" alt="Slavik"><span><b>Slavik</b><br><small>%s</small></span></div>%s%s</div>') % (
+           e(L['fab_label']), SVG_MSG, e(L['fab_label']), e(L['close_label']), ICON_X, img('slavik-portrait'), e(L['call_role']), contact_form(k, compact=True), direct_buttons(k, small=True))
     return ('%s<footer class="fx-foot"><a href="https://www.instagram.com/farbaholix/">Instagram</a> · <a href="https://www.facebook.com/farbaholix">Facebook</a> · '
-            '<a href="https://www.linkedin.com/company/farbaholix/">LinkedIn</a> · <a href="https://wa.me/%s">WhatsApp</a><br>'
-            '<a href="/impressum/">%s</a> · <a href="/datenschutzerklarung/">%s</a><br>© Farbaholix · Viacheslav Balabaiev · Frankfurt am Main</footer></div>') % (fab, WA, L['footer_imp'], L['footer_ds'])
+            '<a href="https://www.linkedin.com/company/farbaholix/">LinkedIn</a><br>'
+            '<a href="/impressum/">%s</a> · <a href="/datenschutzerklarung/">%s</a><br>© Farbaholix · Viacheslav Balabaiev · Frankfurt am Main</footer></div>') % (fab, L['footer_imp'], L['footer_ds'])
 
-# ---------------- pages ----------------
 def page_home(k):
     SERVICE_IMGS = [SIZES.get(u, {'t': u})['t'] for u in (img('tile-fassaden'), old(6), old(44), img('cansativa-lettering'))]   # 768px versions
     L = LANGS[k]; o = chrome_top(k, 'home', False)
@@ -368,7 +383,7 @@ def page_calc(k):
     f.append('<fieldset><legend>%s</legend><div class="fx-chips fx-chips-col">%s</div></fieldset>' % (e(q['extras']), ''.join('<label class="fx-chip"><input type="checkbox" name="%s">%s</label>' % (v, e(t)) for v, t in C['extras'])))
     f.append('</form></section>')
     o.extend(f)
-    o.append('<section class="fx-sec fx-calc-result"><div class="fx-result" id="fxCalcOut"><p class="fx-result-t">%s</p><p class="fx-price" id="fxPrice">–</p><p class="fx-net">%s · <span id="fxGross"></span></p><ul class="fx-rows" id="fxRows"></ul><p class="fx-note" id="fxDesignNote">%s</p><p class="fx-note">%s</p><button type="button" class="fx-btn fx-btn-wa" id="fxCalcSend">%s</button><a class="fx-mail-alt" id="fxCalcMail" href="mailto:farbaholix@gmail.com">%s</a></div>'
+    o.append('<section class="fx-sec fx-calc-result"><div class="fx-result" id="fxCalcOut"><p class="fx-result-t">%s</p><p class="fx-price" id="fxPrice">–</p><p class="fx-net">%s · <span id="fxGross"></span></p><ul class="fx-rows" id="fxRows"></ul><p class="fx-note" id="fxDesignNote">%s</p><p class="fx-note">%s</p><button type="button" class="fx-btn fx-calc-send" id="fxCalcSend">%s</button><a class="fx-mail-alt" id="fxCalcMail" href="mailto:farbaholix@gmail.com">%s</a></div>'
              '<div class="fx-result fx-stop" id="fxCalcStop" hidden><p class="fx-price">🚽✋</p><h3>%s</h3><p>%s</p></div></section>' % (
              e(C['result_t']), e(C['net']), e(C['design_note']), e(C['disclaimer']), e(C['cta']), e(C['mail']), e(C['stop_t']), e(C['stop_p'])))
     o.append('<section class="fx-sec" id="faq"><h2>%s</h2>%s</section></div>' % (e(L['s_faq']), ''.join('<details class="fx-faq"><summary>%s</summary><p>%s</p></details>' % (e(a), e(b)) for a, b in C['faq'])))

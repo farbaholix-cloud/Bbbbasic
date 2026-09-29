@@ -91,7 +91,7 @@ var FX_CFG = {
   form.addEventListener('input', calc);
   form.addEventListener('change', calc);
   document.getElementById('fxCalcSend').addEventListener('click', function () {
-    window.open('https://wa.me/' + T.wa + '?text=' + encodeURIComponent(brief()), '_blank', 'noopener');
+    if (window.fxContact) window.fxContact(brief()); else location.href = 'mailto:farbaholix@gmail.com?body=' + encodeURIComponent(brief());
   });
   document.getElementById('fxCalcMail').addEventListener('click', function (ev) {
     ev.currentTarget.href = 'mailto:farbaholix@gmail.com?subject=' + encodeURIComponent(T.briefTitle) + '&body=' + encodeURIComponent(brief());

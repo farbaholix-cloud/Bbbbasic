@@ -17,21 +17,37 @@
   }
 
 
-  // ---- WhatsApp: every [data-wa-form] opens a chat with the typed message ----
-  var WA = '4915172450347';
-  Array.prototype.forEach.call(document.querySelectorAll('[data-wa-form]'), function (f) {
+  // ---- Contact form: posted to the site (stored, mailed, forwarded to the owner) – visitors stay on the page ----
+  var t0 = Date.now();
+  Array.prototype.forEach.call(document.querySelectorAll('[data-fx-form]'), function (f) {
+    var btn = f.querySelector('.fx-cform-send'), label = btn.textContent, st = f.querySelector('.fx-cform-status');
     f.addEventListener('submit', function (ev) {
       ev.preventDefault();
-      var name = f.elements.wa_name.value.trim(), msg = f.elements.wa_msg.value.trim();
-      var text = (name ? f.elements.wa_hello.value.replace('{name}', name) + '\n' : '') + (msg || '') + '\n' + f.elements.wa_from.value;
-      window.open('https://wa.me/' + WA + '?text=' + encodeURIComponent(text.trim()), '_blank', 'noopener');
+      var c = f.elements.contact, m = f.elements.message;
+      [c, m].forEach(function (x) { x.classList.toggle('is-bad', x.value.trim().length < (x === c ? 5 : 2)); });
+      if (f.querySelector('.is-bad')) { f.querySelector('.is-bad').focus(); return; }
+      btn.disabled = true; btn.textContent = btn.dataset.sending; st.textContent = ''; st.className = 'fx-cform-status';
+      fetch('/wp-json/fx/v1/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        name: f.elements.name.value.trim(), contact: c.value.trim(), message: m.value.trim(), website: f.elements.website.value,
+        page: location.href, lang: document.documentElement.lang || root.getAttribute('lang') || '', t: Date.now() - t0 }) })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function () { f.reset(); st.textContent = st.dataset.ok; st.classList.add('is-ok'); })
+        .catch(function () { st.textContent = st.dataset.err; st.classList.add('is-err'); })
+        .then(function () { btn.disabled = false; btn.textContent = label; });
     });
   });
-  var fab = document.getElementById('fxWaFab'), pop = document.getElementById('fxWaPop');
+  // floating message button + popup; [data-fx-contact] and the calculator open it (optionally prefilled)
+  var fab = document.getElementById('fxFab'), pop = document.getElementById('fxPop');
+  function togglePop(open, text) {
+    if (!pop) return;
+    pop.hidden = !open; fab.setAttribute('aria-expanded', open);
+    if (open) { var ta = pop.querySelector('textarea'); if (text) ta.value = text; (text ? pop.querySelector('input[name=contact]') : ta).focus({ preventScroll: true }); }
+  }
+  window.fxContact = function (text) { togglePop(true, text); };
   if (fab && pop) {
-    var toggle = function (open) { pop.hidden = !open; fab.setAttribute('aria-expanded', open); if (open) { var t = pop.querySelector('textarea'); if (t) t.focus(); } };
-    fab.addEventListener('click', function () { toggle(pop.hidden); });
-    document.getElementById('fxWaPopX').addEventListener('click', function () { toggle(false); });
+    fab.addEventListener('click', function () { togglePop(pop.hidden); });
+    document.getElementById('fxPopX').addEventListener('click', function () { togglePop(false); });
+    document.addEventListener('click', function (ev) { var b = ev.target.closest && ev.target.closest('[data-fx-contact]'); if (b) { ev.preventDefault(); togglePop(true); } });
   }
 
   // ---- Call card: "available now" Mon–Sat 9–20 (Frankfurt time) ----
