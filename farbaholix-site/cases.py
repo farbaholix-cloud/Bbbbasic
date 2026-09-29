@@ -37,7 +37,7 @@ CAP = {  # image key -> captions de / en / uk
  'sg-farben': ("Montana-Sprühdosen und Skizzen", "Montana spray cans and sketches", "Балончики Montana й ескізи"),
  'sg-partner': ("Partner: Montana Colors und Caparol", "Partners: Montana Colors and Caparol", "Партнери: Montana Colors і Caparol"),
  'sg-caparol-malen': ("Der Caparol-Elefant entsteht", "The Caparol elephant taking shape", "Створення слона Caparol"),
- 'georgen-presse': ("Frankfurter Presse: „Aus seiner Sprühdose kommen Blumen“", "Frankfurt press: “Aus seiner Sprühdose kommen Blumen”", "Франкфуртська преса: «Aus seiner Sprühdose kommen Blumen»"),
+ 'georgen-presse': ("Frankfurter Neue Presse, 29.04.2026: „Aus seiner Sprühdose kommen Blumen“ (Foto: Bernd Kammerer)", "Frankfurter Neue Presse, 29 Apr 2026: “Aus seiner Sprühdose kommen Blumen” (photo: Bernd Kammerer)", "Frankfurter Neue Presse, 29.04.2026: «Aus seiner Sprühdose kommen Blumen» (фото: Bernd Kammerer)"),
 }
 
 FSV_GAL = ['fsv-stadion-arena', 'fsv-panorama', 'fsv-wappen-flammen', 'fsv-respekt', 'fsv-immer-weiter', 'fsv-gang', 'fsv-vereinsheim', 'fsv-rampe-fussball', 'fsv-arena-ecke', 'fsv-caparol']
@@ -126,23 +126,27 @@ CASE_PAGES = {
   focus="Sankt Georgen Mural", kicker="Projektbericht", h1="100 Jahre Sankt Georgen: eine Mauer voller Blumen",
   lead="Das Sankt Georgen Mural ist fertig: Ab Oktober 2025 verwandelte der Graffiti-Künstler Viacheslav „Slavik“ Balabaiev (Farbaholix) die Campusmauer der Philosophisch-Theologischen Hochschule Sankt Georgen in Frankfurt-Sachsenhausen in eine botanische Galerie – zum 100-jährigen Jubiläum der Hochschule 2026 unter dem Motto „heute weiter denken“.",
   facts=[("Ort", "Campusmauer der Hochschule Sankt Georgen, Frankfurt-Sachsenhausen"), ("Auftraggeber", "Philosophisch-Theologische Hochschule Sankt Georgen"), ("Anlass", "100 Jahre Sankt Georgen (gegründet 1926)"),
-         ("Zeitraum", "Oktober 2025 – 2026, abgeschlossen"), ("Motive", "Strelitzien, Monstera, Lotus, Palm- und Bananenblätter, Blüten mit Hummel"), ("Material", "Montana Colors, Caparol")],
+         ("Zeitraum", "Oktober 2025 – 2026, abgeschlossen"), ("Motive", "Strelitzien, Monstera, Lotus, Palm- und Bananenblätter, Blüten mit Hummel"), ("Fläche", "rund 600 m² auf einer gut 280 m langen Mauer"), ("Material", "Montana Colors, Caparol")],
   sections=[
    ("Vorher: eine graue Mauer an der Straße", ["<p>Die lange Mauer um den Campus-Park war grau, fleckig und stellenweise beschmiert – eine Grenze, an der täglich Autos, Radfahrer und die Straßenbahn vorbeifahren. Zum Jubiläum sollte sie zeigen, wofür die Hochschule steht: Offenheit und Entwicklung.</p>"]),
    ("Was auf der Mauer blüht", ["<p>Strelitzien in Orange und Violett, meterhohe Monstera-Blätter, Lotus, pinke Blätter, Palm- und Bananenblätter, weiße Blüten mit einer Hummel – botanisch genau und über die gesamte Länge der Mauer. Vorhandene Schilder wie „Mensa im Park“ und der Jubiläumsschriftzug „100 Jahre Sankt Georgen – heute weiter denken“ wurden in die Komposition eingebunden.</p>"]),
    ("Was die Pflanzen bedeuten", ["<p>Die Hochschule schreibt: „Die dargestellten pflanzlichen Motive verweisen auf Prozesse des Wachsens, der Differenzierung und der fortlaufenden Veränderung.“ Das Mural zeige Sankt Georgen als offenen, dynamischen Ort, an dem Wissen ständig weiterentwickelt wird – und schaffe einen neuen Blickpunkt auf dem Campus.</p>"]),
-   ("Wie das Sankt Georgen Mural entsteht", ["<ol><li><strong>Vorbereiten:</strong> Die Mauer wird gereinigt und mit dem Farbspritzgerät hell grundiert (Caparol).</li>"
-                              "<li><strong>Entwerfen:</strong> Die Motive werden skizziert – auch mit Hilfe von KI-Werkzeugen – und abschnittsweise übertragen.</li>"
+   ("Die Idee kam vom Künstler", ["<p>Das Thema Pflanzen und Blumen schlug Slavik selbst vor: Er schrieb einen Brief an Rektor Prof. Wolfgang Beck – genau zum richtigen Zeitpunkt, kurz vor dem 100-jährigen Bestehen der Hochschule. Die Hochschulleitung nahm den Vorschlag mit kleinen Änderungen an, etwa einem Schriftzug mit dem Hochschul-Logo. Warum exotische Pflanzen? „Ich habe mich für exotische Pflanzen entschieden, weil sie spannender sind: Warum sollte ich etwas malen, das es hier bereits gibt?“, sagte er der Frankfurter Neuen Presse.</p>"]),
+   ("Wie das Sankt Georgen Mural entsteht", ["<ol><li><strong>Recherche:</strong> Pflanzenstudien im Nizza-Garten am Mainufer und in Bibliotheken; Entwürfe auch mit Hilfe von KI-Werkzeugen.</li>"
+                              "<li><strong>Vorbereiten:</strong> Die gut 280 Meter lange Mauer war in keinem guten Zustand – sie wurde ausgebessert und geweißt (Caparol). So entstanden rund 600 m² Malfläche.</li>"
+                              "<li><strong>Übertragen:</strong> Mit einer Virtual-Reality-Brille projizierte Slavik die Entwürfe auf die Wand und zeichnete die Konturen vor.</li>"
                               "<li><strong>Sprühen:</strong> Blätter und Blüten entstehen mit Sprühdosen von Montana Colors, Abschnitt für Abschnitt.</li></ol>"]),
+   ("Die Wand und ihre Nachbarn", ["<p>„Diese Wand ist so wunderschön, wir bedanken uns für Ihre Arbeit!“ – solche Sätze hörte Slavik während der Arbeit ein Dutzend Mal am Tag. Autofahrer hielten an, um ihn zu loben, Spaziergänger schauten beim Sprühen zu. P. Niccolo Steiner SJ, Kunstbeauftragter der Hochschule: „Das Grün soll eine Einladung an den Betrachter sein, unseren öffentlichen Park hinter der Mauer zu besuchen.“</p>"]),
    ("Ein Werk, das gewachsen ist", ["<p>Bei der Eröffnung des Sommersemesters am 13. April 2026 sprach Slavik mit P. Niccolo Steiner SJ, moderiert von Rektor Prof. Wolfgang Beck. Damals beschrieb er seine Arbeit – ähnlich den dargestellten floralen Motiven – als fortwährenden Wachstumsprozess, in den neue künstlerische Möglichkeiten wie KI-Technologien einflossen. Inzwischen ist das Mural vollendet: eine durchgehende Blumenwand, an der Passanten stehen bleiben, fotografieren und ins Gespräch kommen.</p>"]),
   ],
   quote=("Die dargestellten pflanzlichen Motive verweisen auf Prozesse des Wachsens, der Differenzierung und der fortlaufenden Veränderung.", "Hochschule Sankt Georgen, April 2026"),
-  review=None,
+  review=("Wir sind sehr glücklich mit der schönen Wand.", "P. Niccolo Steiner SJ, Kunstbeauftragter der Hochschule Sankt Georgen (Frankfurter Neue Presse, 29.04.2026)"),
   gallery_t="Fotos von der Mauer",
   sources=[("Hochschule Sankt Georgen: „Kunstprojekt an der Mauer“ (14.04.2026)", SG_NEWS), ("Hochschule Sankt Georgen: „Eröffnung des Sommersemesters 2026“", SG_SEM),
-           ("Frankfurter Presse: „Aus seiner Sprühdose kommen Blumen“", None)],
+           ("Frankfurter Neue Presse (Süden, S. 32): „Aus seiner Sprühdose kommen Blumen“, Stefanie Wehr (29.04.2026, Printausgabe)", None)],
   faq=[("Wo ist das Blumen-Mural von Sankt Georgen?", "An der Mauer des Campus der Hochschule Sankt Georgen in Frankfurt-Sachsenhausen, gut sichtbar von der Straße und aus der Straßenbahn."),
-       ("Warum Pflanzen?", "Sie stehen laut Hochschule für Wachstum, Differenzierung und fortlaufende Veränderung – passend zum Jubiläumsmotto „heute weiter denken“."),
+       ("Wie groß ist das Mural?", "Rund 600 Quadratmeter auf einer gut 280 Meter langen Mauer."),
+       ("Warum Pflanzen?", "Die Idee kam von Slavik selbst: Exotische Pflanzen sind spannender als das, was es vor Ort schon gibt. Laut Hochschule stehen sie für Wachstum, Differenzierung und fortlaufende Veränderung – passend zum Jubiläumsmotto „heute weiter denken“."),
        ("Kann ich so eine Wand auch für mein Unternehmen bekommen?", "Ja. Florale Murals funktionieren an Mauern, Fassaden und in Innenräumen. Einen ersten Richtwert gibt der Preisrechner.")],
  ),
  'en': dict(
@@ -151,23 +155,27 @@ CASE_PAGES = {
   focus="Sankt Georgen mural", kicker="Case study", h1="100 years of Sankt Georgen: a wall full of flowers",
   lead="The Sankt Georgen mural is finished: from October 2025, graffiti artist Viacheslav “Slavik” Balabaiev (Farbaholix) turned the campus wall of the Sankt Georgen Graduate School of Philosophy and Theology in Frankfurt-Sachsenhausen into a botanical gallery – for the school’s 100th anniversary in 2026 under the motto “heute weiter denken” (“thinking further today”).",
   facts=[("Location", "Campus wall of Sankt Georgen, Frankfurt-Sachsenhausen"), ("Client", "Sankt Georgen Graduate School of Philosophy and Theology"), ("Occasion", "100 years of Sankt Georgen (founded 1926)"),
-         ("Period", "October 2025 – 2026, completed"), ("Motifs", "Birds of paradise, monstera, lotus, palm and banana leaves, blossoms with a bumblebee"), ("Materials", "Montana Colors, Caparol")],
+         ("Period", "October 2025 – 2026, completed"), ("Motifs", "Birds of paradise, monstera, lotus, palm and banana leaves, blossoms with a bumblebee"), ("Area", "about 600 m² on a wall just over 280 m long"), ("Materials", "Montana Colors, Caparol")],
   sections=[
    ("Before: a grey wall by the road", ["<p>The long wall around the campus park was grey, stained and partly tagged – a boundary passed every day by cars, cyclists and the tram. For the anniversary it was to show what the school stands for: openness and development.</p>"]),
    ("What blooms on the wall", ["<p>Birds of paradise in orange and violet, monstera leaves metres high, lotus, pink leaves, palm and banana fronds, white blossoms with a bumblebee – botanically accurate and along the entire length of the wall. Existing signs such as “Mensa im Park” and the anniversary lettering “100 Jahre Sankt Georgen – heute weiter denken” became part of the composition.</p>"]),
    ("What the plants mean", ["<p>According to the school, “the plant motifs refer to processes of growth, differentiation and continuous change.” The mural presents Sankt Georgen as an open, dynamic place where knowledge keeps developing – and creates a new point of attention on campus.</p>"]),
-   ("How the Sankt Georgen mural is made", ["<ol><li><strong>Preparation:</strong> the wall is cleaned and primed white with a paint sprayer (Caparol).</li>"
-                             "<li><strong>Design:</strong> the motifs are sketched – also with the help of AI tools – and transferred section by section.</li>"
+   ("The idea came from the artist", ["<p>The plants-and-flowers theme was Slavik’s own proposal: he wrote a letter to rector Prof. Wolfgang Beck – at exactly the right moment, just before the school’s 100th anniversary. The school’s leadership accepted it with minor changes, such as lettering with the school logo. Why exotic plants? “I chose exotic plants because they are more exciting: why should I paint something that already exists here?” he told the Frankfurter Neue Presse.</p>"]),
+   ("How the Sankt Georgen mural is made", ["<ol><li><strong>Research:</strong> plant studies in the Nizza garden on the Main riverbank and in libraries; designs also with the help of AI tools.</li>"
+                             "<li><strong>Preparation:</strong> the wall, just over 280 metres long, was in poor condition – it was repaired and whitewashed (Caparol), creating about 600 m² of painting surface.</li>"
+                             "<li><strong>Transfer:</strong> using a virtual-reality headset, Slavik projected the designs onto the wall and drew the outlines.</li>"
                              "<li><strong>Spraying:</strong> leaves and blossoms are painted with Montana Colors spray cans, section by section.</li></ol>"]),
+   ("The wall and its neighbours", ["<p>“This wall is so beautiful, thank you for your work!” – Slavik heard sentences like this a dozen times a day while painting. Drivers stopped to praise him, walkers watched him spray. Fr Niccolo Steiner SJ, the school’s art commissioner: “The green is meant as an invitation to visit our public park behind the wall.”</p>"]),
    ("A work that has grown", ["<p>At the opening of the summer semester on 13 April 2026, Slavik talked with Fr Niccolo Steiner SJ, moderated by rector Prof. Wolfgang Beck. At the time he described his work, like the floral motifs it shows, as a continuous process of growth that took in new artistic possibilities such as AI technologies. The mural has since been completed: a continuous wall of flowers where passers-by stop, take photos and start conversations.</p>"]),
   ],
   quote=("The plant motifs refer to processes of growth, differentiation and continuous change.", "Sankt Georgen Graduate School, April 2026 (translated)"),
-  review=None,
+  review=("We are very happy with the beautiful wall.", "Fr Niccolo Steiner SJ, art commissioner of Sankt Georgen (Frankfurter Neue Presse, 29 Apr 2026, translated)"),
   gallery_t="Photos of the wall",
   sources=[("Sankt Georgen: “Kunstprojekt an der Mauer” (14 Apr 2026, in German)", SG_NEWS), ("Sankt Georgen: “Eröffnung des Sommersemesters 2026” (in German)", SG_SEM),
-           ("Frankfurt press: “Aus seiner Sprühdose kommen Blumen”", None)],
+           ("Frankfurter Neue Presse (Süden, p. 32): “Aus seiner Sprühdose kommen Blumen”, Stefanie Wehr (29 Apr 2026, print, in German)", None)],
   faq=[("Where is the Sankt Georgen flower mural?", "On the campus wall of Sankt Georgen in Frankfurt-Sachsenhausen, clearly visible from the road and the tram."),
-       ("Why plants?", "According to the school, they stand for growth, differentiation and continuous change – fitting the anniversary motto “thinking further today”."),
+       ("How big is the mural?", "About 600 square metres on a wall just over 280 metres long."),
+       ("Why plants?", "The idea came from Slavik himself: exotic plants are more exciting than what already grows nearby. According to the school, they stand for growth, differentiation and continuous change – fitting the anniversary motto “thinking further today”."),
        ("Can I get a wall like this for my company?", "Yes. Floral murals work on walls, facades and indoors. The price calculator gives you a first estimate.")],
  ),
  'uk': dict(
@@ -176,23 +184,27 @@ CASE_PAGES = {
   focus="Sankt Georgen", kicker="Кейс", h1="100 років Sankt Georgen: стіна, повна квітів",
   lead="Мурал Sankt Georgen завершено: з жовтня 2025 року графіті-художник В’ячеслав «Славік» Балабаєв (Farbaholix) перетворював стіну кампусу Філософсько-теологічної вищої школи Sankt Georgen у Франкфурті-Заксенгаузені на ботанічну галерею – до 100-річчя школи у 2026 році під гаслом «heute weiter denken» («думати далі вже сьогодні»).",
   facts=[("Місце", "Стіна кампусу Sankt Georgen, Франкфурт-Заксенгаузен"), ("Замовник", "Філософсько-теологічна вища школа Sankt Georgen"), ("Привід", "100 років Sankt Georgen (засн. 1926)"),
-         ("Період", "Жовтень 2025 – 2026, завершено"), ("Мотиви", "Стрелітції, монстера, лотос, пальмове й бананове листя, квіти з джмелем"), ("Матеріали", "Montana Colors, Caparol")],
+         ("Період", "Жовтень 2025 – 2026, завершено"), ("Мотиви", "Стрелітції, монстера, лотос, пальмове й бананове листя, квіти з джмелем"), ("Площа", "близько 600 м² на стіні завдовжки понад 280 м"), ("Матеріали", "Montana Colors, Caparol")],
   sections=[
    ("До: сіра стіна біля дороги", ["<p>Довга стіна навколо парку кампусу була сірою, у плямах і подекуди розмальованою тегами – межа, повз яку щодня їдуть авто, велосипедисти й трамвай. До ювілею вона мала показати, що цінує школа: відкритість і розвиток.</p>"]),
    ("Що квітне на стіні", ["<p>Стрелітції в оранжевих і фіолетових тонах, багатометрове листя монстери, лотос, рожеве листя, пальмове й бананове листя, білі квіти з джмелем – ботанічно точно й уздовж усієї стіни. Наявні таблички, як-от «Mensa im Park», і ювілейний напис «100 Jahre Sankt Georgen – heute weiter denken» стали частиною композиції.</p>"]),
    ("Що означають рослини", ["<p>Як пише школа, «рослинні мотиви вказують на процеси зростання, диференціації й безперервних змін». Мурал показує Sankt Georgen як відкрите, динамічне місце, де знання постійно розвиваються, – і створює нову точку тяжіння в кампусі.</p>"]),
-   ("Як створюється мурал Sankt Georgen", ["<ol><li><strong>Підготовка:</strong> стіну очищають і світло ґрунтують фарборозпилювачем (Caparol).</li>"
-                             "<li><strong>Ескіз:</strong> мотиви малюють – зокрема за допомогою інструментів ШІ – і переносять ділянками.</li>"
+   ("Ідея від художника", ["<p>Тему рослин і квітів запропонував сам Славік: він написав листа ректорові проф. Вольфгангу Беку – якраз вчасно, перед 100-річчям школи. Керівництво прийняло пропозицію з невеликими змінами, наприклад написом із логотипом школи. Чому екзотичні рослини? «Я обрав екзотичні рослини, бо вони цікавіші: навіщо малювати те, що тут уже є?» – сказав він Frankfurter Neue Presse.</p>"]),
+   ("Як створюється мурал Sankt Georgen", ["<ol><li><strong>Дослідження:</strong> замальовки рослин у саду Nizza на березі Майну та в бібліотеках; ескізи – зокрема за допомогою інструментів ШІ.</li>"
+                             "<li><strong>Підготовка:</strong> стіна завдовжки понад 280 метрів була в поганому стані – її полагодили й побілили (Caparol). Так з’явилося близько 600 м² площі для розпису.</li>"
+                             "<li><strong>Перенесення:</strong> в окулярах віртуальної реальності Славік проєктував ескізи на стіну й промальовував контури.</li>"
                              "<li><strong>Розпис:</strong> листя й квіти малюють балончиками Montana Colors, ділянка за ділянкою.</li></ol>"]),
+   ("Стіна та її сусіди", ["<p>«Ця стіна така гарна, дякуємо вам за роботу!» – такі слова Славік чув під час роботи з десяток разів на день. Водії зупинялися, щоб похвалити, перехожі спостерігали за розписом. О. Нікколо Штайнер SJ, уповноважений школи з питань мистецтва: «Зелень має бути запрошенням відвідати наш відкритий парк за стіною».</p>"]),
    ("Робота, що виросла", ["<p>На відкритті літнього семестру 13 квітня 2026 року Славік говорив із о. Нікколо Штайнером SJ, модерував ректор проф. Вольфганг Бек. Тоді він описував свою роботу – як і квіткові мотиви на стіні – як безперервне зростання, що вбирало нові художні можливості, зокрема технології ШІ. Відтоді мурал завершено: суцільна квіткова стіна, біля якої перехожі зупиняються, фотографують і заводять розмови.</p>"]),
   ],
   quote=("Рослинні мотиви вказують на процеси зростання, диференціації й безперервних змін.", "Вища школа Sankt Georgen, квітень 2026 (переклад)"),
-  review=None,
+  review=("Ми дуже щасливі з цієї гарної стіни.", "О. Нікколо Штайнер SJ, уповноважений з питань мистецтва Sankt Georgen (Frankfurter Neue Presse, 29.04.2026, переклад)"),
   gallery_t="Фото стіни",
   sources=[("Sankt Georgen: «Kunstprojekt an der Mauer» (14.04.2026, німецькою)", SG_NEWS), ("Sankt Georgen: «Eröffnung des Sommersemesters 2026» (німецькою)", SG_SEM),
-           ("Франкфуртська преса: «Aus seiner Sprühdose kommen Blumen»", None)],
+           ("Frankfurter Neue Presse (Süden, с. 32): «Aus seiner Sprühdose kommen Blumen», Stefanie Wehr (29.04.2026, друковане видання, німецькою)", None)],
   faq=[("Де знаходиться квітковий мурал Sankt Georgen?", "На стіні кампусу Sankt Georgen у Франкфурті-Заксенгаузені, його добре видно з дороги й трамвая."),
-       ("Чому саме рослини?", "За словами школи, вони символізують зростання, диференціацію й безперервні зміни – у дусі ювілейного гасла «думати далі вже сьогодні»."),
+       ("Який розмір муралу?", "Близько 600 квадратних метрів на стіні завдовжки понад 280 метрів."),
+       ("Чому саме рослини?", "Ідея належить самому Славікові: екзотичні рослини цікавіші за те, що вже росте поруч. За словами школи, вони символізують зростання, диференціацію й безперервні зміни – у дусі ювілейного гасла «думати далі вже сьогодні»."),
        ("Чи можна замовити таку стіну для компанії?", "Так. Квіткові мурали працюють на огорожах, фасадах і в інтер’єрах. Перший орієнтир дасть калькулятор ціни.")],
  ),
 }),
