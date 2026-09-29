@@ -30,7 +30,7 @@ CALC = {
        ('Was ist im Preis enthalten?', 'Arbeitszeit, Farben (Caparol, Montana Colors) und Anfahrt. Gerüst oder Hubsteiger werden bei Bedarf gesondert abgestimmt.'),
        ('Wie wird bezahlt?', '10 % des Budgets als Anzahlung für die Entwürfe – nicht erstattbar, aber Teil des Gesamtpreises. 50 % nach Freigabe der Entwürfe, 40 % nach Fertigstellung. Alle Preise zzgl. 19 % MwSt.'),
        ('Gibt es einen Mindestauftrag?', 'Ja, 1.000 € netto. Für Projekte mit Hip-Hop-Bezug machen wir Ausnahmen – dann geht es auch darunter.')],
-  teaser_t='Was kostet Ihre Wand?', teaser_p='Fläche, Motiv, Termin – in 30 Sekunden zum Richtwert. Unverbindlich.', teaser_a='Zum Preisrechner',
+  teaser_t='Was kostet die Gestaltung Ihrer Wand?', teaser_p='Fläche, Motiv, Termin – in 30 Sekunden zum Richtwert. Unverbindlich.', teaser_a='Zum Preisrechner',
 ),
 'en': dict(
   menu='Price calculator',
@@ -63,7 +63,7 @@ CALC = {
        ('What is included?', 'Working time, paints (Caparol, Montana Colors) and travel. Scaffolding or a lift is agreed separately if needed.'),
        ('How is payment made?', '10 % of the budget as a deposit for the designs – non-refundable but part of the total price. 50 % after design approval, 40 % on completion. All prices plus 19 % VAT.'),
        ('Is there a minimum order?', 'Yes, €1,000 net. For projects connected to hip-hop we make exceptions – then it can be less.')],
-  teaser_t='How much does your wall cost?', teaser_p='Size, motif, deadline – an estimate in 30 seconds. No obligation.', teaser_a='Open the price calculator',
+  teaser_t='How much does it cost to paint your wall?', teaser_p='Size, motif, deadline – an estimate in 30 seconds. No obligation.', teaser_a='Open the price calculator',
 ),
 'uk': dict(
   menu="Калькулятор ціни",
@@ -96,6 +96,6 @@ CALC = {
        ("Що входить у ціну?", "Робочий час, фарби (Caparol, Montana Colors) і дорога. Риштування чи автовишка узгоджуються окремо за потреби."),
        ("Як відбувається оплата?", "10 % бюджету – передоплата за ескізи: без повернення, але входить у загальну ціну. 50 % після затвердження ескізів, 40 % після завершення. Усі ціни без ПДВ 19 %."),
        ("Чи є мінімальне замовлення?", "Так, 1000 € нетто. Для проєктів, пов'язаних із хіп-хопом, робимо винятки – тоді можна й менше.")],
-  teaser_t="Скільки коштує ваша стіна?", teaser_p="Площа, мотив, термін – орієнтир за 30 секунд. Без зобов'язань.", teaser_a="До калькулятора",
+  teaser_t="Скільки коштує розпис Вашої стіни?", teaser_p="Площа, мотив, термін – орієнтир за 30 секунд. Без зобов'язань.", teaser_a="До калькулятора",
 ),
 }

@@ -8,7 +8,8 @@ L = dict(
              'Murals, graffiti and wall design in Frankfurt – for facades, offices, restaurants and sports venues. 20+ years, 1,000+ projects. Get in touch!'),
   tagline='We are here to create!',
   h1='Graffiti Artist & Mural Painting in Frankfurt',
-  lead='Farbaholix designs facades, interiors and events with graffiti and murals – for more than 20 years and over 1,000 projects.',
+  lead='Farbaholix is a movement – we have been giving walls style for over 20 years. 1,000+ projects delivered.',
+  org_desc='Farbaholix designs facades, interiors and events with graffiti and murals – for more than 20 years and over 1,000 projects.',
   cta1='Request a project', cta2='See our work',
   trust=['20+ years of experience', '1,000+ projects', 'Partner of Montana Colors & Caparol', 'Clients: FSV Frankfurt, Sankt Georgen'],
   s_services='Services',
@@ -24,7 +25,7 @@ L = dict(
   svc_more='Swipe for more',
   go_title='All works', go_all='All', tile_more='See works',
   promo_t='Opening package', promo_p='Opening soon or planning a new project? Concept, wall design and opening event from one source – at the best price.', promo_a='Learn more',
-  s_projects='Selected projects', all_projects='See all projects',
+  s_projects='Recent projects', all_projects='See all projects',
   cases={
     'georgen': ('100 years of Sankt Georgen – botanical mural', 'For the 100th anniversary of Sankt Georgen University in Frankfurt, a grey campus wall became a blooming gallery: bird-of-paradise flowers, monstera, lotus and banana leaves along its entire length. According to the university, the motifs refer to “processes of growth, differentiation and continuous change”.', ['Frankfurt am Main', 'October 2025 – 2026', 'Montana Colors & Caparol']),
     'fsv': ('FSV Frankfurt 1899 – stadium design', 'Over one and a half years, Slavik gave FSV Frankfurt’s stadium at Bornheimer Hang its artistic look: the facade with the club lettering and a crest of about six by four metres, the fan shop, interiors and corridors – in time for the club’s 125th anniversary.', ['Frankfurt am Main', 'Facade & interiors', '1.5-year project']),

@@ -116,7 +116,7 @@ def ld_base(k):
               'subjectOf': [p['link'] for p in PRESS if isinstance(p['link'], str)]}
     org = {'@type': ['ProfessionalService', 'LocalBusiness'], '@id': SITE + '#farbaholix', 'name': 'Farbaholix',
            'alternateName': 'Farbaholix – Frankfurt Mural Movement', 'url': SITE, 'logo': img('logo-badge'), 'image': [img('fsv-stadion-arena'), img('sg-strelitzien')],
-           'description': L['lead'], 'telephone': '+49 151 72450347', 'email': 'farbaholix@gmail.com',
+           'description': L['org_desc'], 'telephone': '+49 151 72450347', 'email': 'farbaholix@gmail.com',
            'address': {'@type': 'PostalAddress', 'addressLocality': 'Frankfurt am Main', 'addressRegion': 'Hessen', 'addressCountry': 'DE'},
            'areaServed': ['Frankfurt am Main', 'Rhein-Main', 'Offenbach', 'Neu-Isenburg', 'Darmstadt', 'Rüsselsheim'],
            'founder': {'@id': SITE + '#slavik'}, 'sameAs': SAME_AS, 'knowsLanguage': ['de', 'en', 'uk', 'ru'],
@@ -247,7 +247,7 @@ def chrome_bottom(k):
 
 # ---------------- pages ----------------
 def page_home(k):
-    SERVICE_IMGS = [old(25), old(7), old(44), img('cansativa-lettering')]
+    SERVICE_IMGS = [SIZES.get(u, {'t': u})['t'] for u in (old(25), old(6), old(44), img('cansativa-lettering'))]   # 768px versions
     L = LANGS[k]; o = chrome_top(k, 'home', False)
     o.append('<div class="fx-intro"></div>')
     o.append('<div class="fx-video-wrap"><video class="fx-video" id="fxVideo" src="%s2026/06/farbaholix_video1.mp4" autoplay muted loop playsinline preload="metadata" aria-label="Farbaholix Graffiti Frankfurt"></video></div>' % U)

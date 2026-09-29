@@ -9,7 +9,8 @@ L = dict(
              'Murals, Graffiti & Wandgestaltung in Frankfurt – für Fassaden, Büros, Gastronomie und Sportstätten. 20+ Jahre, 1.000+ Projekte. Jetzt anfragen!'),
   tagline='Wir sind hier, um zu kreieren!',
   h1='Graffiti-Künstler & Wandgestaltung in Frankfurt',
-  lead='Farbaholix gestaltet Fassaden, Innenräume und Events mit Graffiti und Murals – seit über 20 Jahren, mit mehr als 1.000 Projekten.',
+  lead='Farbaholix ist eine Bewegung – seit über 20 Jahren geben wir Wänden Stil. Mehr als 1.000 Projekte umgesetzt.',
+  org_desc='Farbaholix gestaltet Fassaden, Innenräume und Events mit Graffiti und Murals – seit über 20 Jahren, mit mehr als 1.000 Projekten.',
   cta1='Projekt anfragen', cta2='Arbeiten ansehen',
   trust=['20+ Jahre Erfahrung', '1.000+ Projekte', 'Partner von Montana Colors & Caparol', 'Referenzen: FSV Frankfurt, Sankt Georgen'],
   s_services='Leistungen',
@@ -25,7 +26,7 @@ L = dict(
   svc_more='Wischen für mehr',
   go_title='Alle Arbeiten', go_all='Alle', tile_more='Arbeiten ansehen',
   promo_t='Eröffnungspaket', promo_p='Sie eröffnen bald oder planen ein neues Projekt? Konzept, Wandgestaltung und Eröffnungs-Event aus einer Hand – zum besten Preis.', promo_a='Mehr erfahren',
-  s_projects='Ausgewählte Projekte', all_projects='Alle Projekte ansehen',
+  s_projects='Aktuelle Projekte', all_projects='Alle Projekte ansehen',
   cases={
     'georgen': ('100 Jahre Sankt Georgen – botanisches Mural', 'Zum 100-jährigen Jubiläum der Hochschule Sankt Georgen in Frankfurt wurde aus einer grauen Campusmauer eine blühende Galerie: Strelitzien, Monstera, Lotus und Bananenblätter über die gesamte Länge der Mauer. Die Motive verweisen – so die Hochschule – „auf Prozesse des Wachsens, der Differenzierung und der fortlaufenden Veränderung“.', ['Frankfurt am Main', 'Oktober 2025 – 2026', 'Montana Colors & Caparol']),
     'fsv': ('FSV Frankfurt 1899 – Stadiongestaltung', 'Über anderthalb Jahre hat Slavik das Stadion des FSV Frankfurt am Bornheimer Hang künstlerisch gestaltet: die Fassade mit Vereinsschriftzug und rund sechs mal vier Meter großem Wappen, den Fanshop sowie Innenräume und Gänge – passend zum 125-jährigen Vereinsjubiläum.', ['Frankfurt am Main', 'Fassade & Innenräume', '1,5 Jahre Projektlaufzeit']),
