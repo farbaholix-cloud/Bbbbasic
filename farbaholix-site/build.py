@@ -282,7 +282,8 @@ def page_home(k):
     SERVICE_IMGS = [SIZES.get(u, {'t': u})['t'] for u in (img('tile-fassaden'), img('tile-innenraeume'), old(44), img('cansativa-lettering'))]   # 768px versions
     L = LANGS[k]; o = chrome_top(k, 'home', False)
     o.append('<div class="fx-intro"></div>')
-    o.append('<div class="fx-video-wrap"><video class="fx-video" id="fxVideo" src="%s2026/06/farbaholix_video1.mp4" autoplay muted loop playsinline preload="metadata" aria-label="Farbaholix Graffiti Frankfurt"></video></div>' % U)
+    o.append('<div class="fx-video-wrap"><div class="fx-video-box"><video class="fx-video" id="fxVideo" src="%s2026/06/farbaholix_video1.mp4" autoplay muted loop playsinline preload="metadata" aria-label="Farbaholix Graffiti Frankfurt" data-video="%s2026/06/farbaholix_video1.mp4"></video>'
+             '<button type="button" class="fx-vfull" data-video="%s2026/06/farbaholix_video1.mp4" aria-label="Vollbild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div></div>' % (U, U, U))
     o.append('<section class="fx-hero"><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead">%s</p>' % (e(L['tagline']), e(L['h1']), e(L['lead'])))
     o.append('<div class="fx-ctas"><a class="fx-btn" href="#kontakt">%s</a><a class="fx-btn fx-btn-ghost" href="#projekte">%s</a></div>' % (e(L['cta1']), e(L['cta2'])))
     o.append('<div class="fx-stats">%s</div>' % ''.join('<div><b>%s</b><span>%s</span></div>' % (e(n), e(t)) for n, t in L['stats']))
@@ -438,6 +439,16 @@ def page_case(k, key):
              '<section class="fx-sec"><blockquote class="fx-quote"><p>“%s”</p><footer>%s</footer></blockquote></section>' % (e(q), e(src)))
     if T['review']:
         o.append('<section class="fx-sec"><h2>%s</h2><blockquote class="fx-voice"><p>%s</p><footer><span><b>%s</b></span></footer></blockquote></section>' % (e(U['review_t']), e(T['review'][0]), e(T['review'][1])))
+    if P.get('video'):   # project video: vertical reel (tap = full screen) + two silent process loops
+        Vd = P['video']
+        exp = '<svg class="fx-vexp" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>'
+        clips = ''.join('<button type="button" class="fx-vcard fx-vclip" data-video="%s" data-poster="%s" aria-label="%s"><video src="%s" poster="%s" muted loop playsinline preload="none" data-autoplay></video>%s</button>' % (
+            img(v), img(p), e(U['video_play']), img(v), img(p), exp) for v, p in Vd.get('clips', []))
+        o.append('<section class="fx-sec fx-vsec" id="video"><h2>%s</h2><div class="fx-vgrid"><button type="button" class="fx-vcard fx-vmain" data-video="%s" data-poster="%s" aria-label="%s">'
+                 '<img loading="lazy" src="%s" alt="%s"><span class="fx-vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span><span class="fx-vlen">%s</span></button>'
+                 '<div class="fx-vside"><p class="fx-vlead">%s</p>%s</div></div></section>' % (
+            e(U['video_t']), img(Vd['src']), img(Vd['poster']), e(U['video_play']), img(Vd['poster']), e(MEDIA[Vd['src']].get('alt_de', '')), Vd.get('len', ''),
+            e(U['video_lead']), ('<p class="fx-vclips-t">%s</p><div class="fx-vclips">%s</div>' % (e(U['video_clips']), clips)) if clips else ''))
     gal = [g for g in P['gallery'] if g != P['hero']]
     o.append('<section class="fx-sec" id="galerie"><h2>%s</h2><p class="fx-hint">%s</p><div class="fx-gal">%s</div></section>' % (
         e(T['gallery_t']), e(U['gallery_hint']), ''.join('<a class="fx-lb" data-lb="report" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a>' % (

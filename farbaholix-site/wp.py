@@ -1,6 +1,6 @@
 """Logged-in WordPress session for farbaholix.de. Credentials come from the environment, never from the repo:
 FX_WP_USER / FX_WP_PASS (an administrator account)."""
-import json, os, urllib.request, urllib.parse, http.cookiejar
+import mimetypes, json, os, urllib.request, urllib.parse, http.cookiejar
 SITE = 'https://farbaholix.de'
 
 def session(user, pw):
@@ -24,7 +24,7 @@ class WP:
         except urllib.error.HTTPError as e:
             return {'error': e.code, 'body': e.read().decode()[:300]}
     def upload(self, path, alt, title=None):
-        name = os.path.basename(path); ctype = 'image/webp' if name.endswith('.webp') else 'image/jpeg' if name.endswith('.jpg') else 'image/png'
+        name = os.path.basename(path); ctype = mimetypes.guess_type(name)[0] or 'application/octet-stream'
         r = urllib.request.Request(SITE + '/wp-json/wp/v2/media', data=open(path, 'rb').read(), method='POST',
                                    headers={'X-WP-Nonce': self.nonce, 'Content-Type': ctype, 'Content-Disposition': 'attachment; filename="%s"' % name})
         m = json.loads(self.op.open(r, timeout=120).read())

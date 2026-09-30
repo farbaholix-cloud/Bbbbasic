@@ -242,6 +242,40 @@
   }
   var byGroup = function (name) { return Array.prototype.slice.call(document.querySelectorAll('a.fx-lb[data-lb="' + name + '"]')); };
 
+  // ---- Video player: any [data-video] (home video, project reel, process clips) opens full screen with controls ----
+  var vbox = null, vEl = null;
+  function openVideo(src, poster, t) {
+    if (!vbox) {
+      vbox = document.createElement('div'); vbox.className = 'fx-vbox'; vbox.setAttribute('role', 'dialog'); vbox.setAttribute('aria-modal', 'true');
+      vbox.innerHTML = '<button type="button" class="fx-vbox-x" aria-label="Close">' + svg('M6 6l12 12M18 6L6 18') + '</button><video controls playsinline></video>';
+      document.body.appendChild(vbox); vEl = vbox.querySelector('video');
+      vbox.querySelector('.fx-vbox-x').onclick = closeTop;
+      vbox.addEventListener('click', function (ev) { if (ev.target === vbox) closeTop(); });
+    }
+    vEl.poster = poster || ''; vEl.src = src; vEl.muted = false;
+    vbox.classList.add('is-on');
+    vEl.addEventListener('loadedmetadata', function once() { vEl.removeEventListener('loadedmetadata', once); if (t) try { vEl.currentTime = t; } catch (err) {} }, false);
+    var p = vEl.play(); if (p && p.catch) p.catch(function () { vEl.muted = true; vEl.play().catch(function () {}); });
+    Array.prototype.forEach.call(document.querySelectorAll('video[data-autoplay], #fxVideo'), function (x) { x.pause(); });
+    pushLayer(function () { vEl.pause(); vEl.removeAttribute('src'); vEl.load(); vbox.classList.remove('is-on');
+      Array.prototype.forEach.call(document.querySelectorAll('video[data-autoplay].is-vis, #fxVideo'), function (x) { x.play().catch(function () {}); }); });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-video]'); if (!b) return;
+    ev.preventDefault();
+    var inner = b.tagName === 'VIDEO' ? b : b.querySelector && b.querySelector('video');
+    openVideo(b.getAttribute('data-video'), b.getAttribute('data-poster') || (inner && inner.getAttribute('poster')), inner && b.id === 'fxVideo' ? 0 : 0);
+  });
+  // silent process loops play only while visible
+  var autos = document.querySelectorAll('video[data-autoplay]');
+  if (autos.length && 'IntersectionObserver' in window) {
+    var vio = new IntersectionObserver(function (es) { es.forEach(function (en) {
+      var v = en.target; v.classList.toggle('is-vis', en.isIntersecting);
+      if (en.isIntersecting) { if (!v.getAttribute('src')) v.src = v.dataset.src; v.play().catch(function () {}); } else v.pause();
+    }); }, { rootMargin: '120px' });
+    Array.prototype.forEach.call(autos, function (v) { vio.observe(v); });
+  }
+
   // ---- "All works" overview: category chips + thumbnail grid, tap a photo to open it full screen ----
   var go = document.getElementById('fxGo'), goGrid = go && go.querySelector('.fx-go-grid'), goList = [], goBuilt = false;
   function goFilter(cat) {

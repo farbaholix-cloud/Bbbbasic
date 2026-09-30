@@ -124,7 +124,7 @@ CASE_PAGES = {
        ("Чи оформлює Farbaholix інші спортивні об’єкти?", "Так: стадіони, спортзали, фітнес-клуби й клубні приміщення – від фасаду до роздягальні. Перший орієнтир дасть калькулятор ціни.")],
  ),
 }),
-'georgen': dict(case='georgen', hero='sg-strelitzien', wide=None, gallery=SG_GAL, date='2026-04-14', related='fsv', t={
+'georgen': dict(case='georgen', hero='sg-strelitzien', wide=None, gallery=SG_GAL, video=dict(src='vid-sg-reel', poster='vid-sg-reel-poster', len='0:22', clips=[('vid-sg-bluete', 'vid-sg-bluete-poster'), ('vid-sg-spruehen', 'vid-sg-spruehen-poster')]), date='2026-04-14', related='fsv', t={
  'de': dict(
   meta=("Sankt Georgen Mural: 100 Jahre, eine Mauer voller Blumen | Farbaholix",
         "Das Sankt Georgen Mural in Frankfurt: botanisches Graffiti an der Campusmauer zum 100-jährigen Jubiläum der Hochschule – Motive, Bedeutung, Entstehung. Mit über 20 Fotos."),
@@ -215,11 +215,11 @@ CASE_PAGES = {
 }),
 }
 UI = {
- 'de': dict(facts_t="Projekt auf einen Blick", review_t="Stimme des Auftraggebers", sources_t="Presse und Quellen", faq_t="Häufige Fragen", more="Projektbericht lesen", related="Weiteres Projekt",
+ 'de': dict(video_t="Das Projekt im Video", video_lead="22 Sekunden vom Sprühen bis zur fertigen Mauer. Tippen Sie auf ein Video, um es im Vollbild anzusehen.", video_play="Video abspielen", video_clips="Aus dem Prozess", facts_t="Projekt auf einen Blick", review_t="Stimme des Auftraggebers", sources_t="Presse und Quellen", faq_t="Häufige Fragen", more="Projektbericht lesen", related="Weiteres Projekt",
             cta_t="Ihre Wand als nächstes Projekt?", cta_calc="Preis berechnen", cta_contact="Projekt anfragen", all_works="Alle Arbeiten ansehen", back="Alle Projekte", gallery_hint="Zum Vergrößern antippen"),
- 'en': dict(facts_t="Project at a glance", review_t="Client’s voice", sources_t="Press and sources", faq_t="Frequently asked questions", more="Read the case study", related="Another project",
+ 'en': dict(video_t="The project on video", video_lead="22 seconds from spraying to the finished wall. Tap a video to watch it full screen.", video_play="Play video", video_clips="From the process", facts_t="Project at a glance", review_t="Client’s voice", sources_t="Press and sources", faq_t="Frequently asked questions", more="Read the case study", related="Another project",
             cta_t="Your wall as the next project?", cta_calc="Calculate a price", cta_contact="Request a project", all_works="See all works", back="All projects", gallery_hint="Tap to enlarge"),
- 'uk': dict(facts_t="Проєкт коротко", review_t="Відгук замовника", sources_t="Преса та джерела", faq_t="Часті запитання", more="Читати кейс", related="Інший проєкт",
+ 'uk': dict(video_t="Проєкт у відео", video_lead="22 секунди від розпису до готової стіни. Торкніться відео, щоб переглянути на весь екран.", video_play="Відтворити відео", video_clips="З процесу", facts_t="Проєкт коротко", review_t="Відгук замовника", sources_t="Преса та джерела", faq_t="Часті запитання", more="Читати кейс", related="Інший проєкт",
             cta_t="Ваша стіна – наступний проєкт?", cta_calc="Розрахувати ціну", cta_contact="Замовити проєкт", all_works="Дивитися всі роботи", back="Усі проєкти", gallery_hint="Торкніться, щоб збільшити"),
 }
 
