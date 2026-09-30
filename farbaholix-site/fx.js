@@ -191,7 +191,7 @@
           f.reset(); if (f._fxReset) f._fxReset();
           if (j.token && j.live) {
             th = { t: j.token, mail: /\S+@\S+\.\S+/.test(contact) }; store(th); lastAct = Date.now();
-            msgs = [{ w: 'v', x: text + (nImg ? '\n📎 ×' + nImg : ''), t: Date.now() / 1000 }]; renderAll(); poll();
+            msgs = [{ w: 'v', x: text + (nImg ? '\n📎 ×' + nImg : ''), t: Date.now() / 1000 }]; renderAll(); poll(true);
           } else { st.textContent = st.dataset.ok; st.classList.add('is-ok'); }
           if (f._fxWin) requestAnimationFrame(function () { f._fxWin(f._th && !f._th.hidden ? f._th.querySelector('.fx-thread-log') : null); });
         })
