@@ -85,7 +85,6 @@ EXTRA = [
  ('wl-gastraum-abend', 'indoor', {'de': 'Restaurant Wellenlänge: violette Ornamente im Gastraum', 'en': 'Restaurant Wellenlänge: violet ornaments in the dining room', 'uk': 'Ресторан Wellenlänge: фіолетові орнаменти в залі'}),
  ('wellenlaenge-panorama', 'facade', {'de': 'Restaurant Wellenlänge, Rüsselsheim – Fassaden-Mural', 'en': 'Restaurant Wellenlänge, Rüsselsheim – facade mural', 'uk': 'Ресторан Wellenlänge, Рюссельсгайм – мурал на фасаді'}),
  ('wellenlaenge-interieur', 'indoor', {'de': 'Restaurant Wellenlänge – ornamentale Wände', 'en': 'Restaurant Wellenlänge – ornamental walls', 'uk': 'Ресторан Wellenlänge – орнаментальні стіни'}),
- ('wellenlaenge-welcome', 'objects', {'de': '„Welcome“-Flügel als Fotospot am Tor', 'en': '“Welcome” wings as a photo spot on the gate', 'uk': 'Крила «Welcome» – фотозона на воротах'}),
  ('enso-neu-isenburg', 'facade', {'de': 'ENSO-Mural „Luft“, Neu-Isenburg (Entwurf: Miruna Costa)', 'en': 'ENSO mural “Air”, Neu-Isenburg (design: Miruna Costa)', 'uk': 'Мурал ENSO «Повітря», Ной-Ізенбург (ескіз: Міруна Коста)'}),
  ('cansativa-treppenhaus', 'objects', {'de': 'Firmen-Timeline der Cansativa Group im Treppenhaus', 'en': 'Cansativa Group company timeline in the stairwell', 'uk': 'Таймлайн Cansativa Group на сходах'}),
  ('cansativa-lettering', 'objects', {'de': 'Lettering im Büro der Cansativa Group, Frankfurt', 'en': 'Office lettering for Cansativa Group, Frankfurt', 'uk': 'Леттеринг в офісі Cansativa Group, Франкфурт'}),

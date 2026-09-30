@@ -341,7 +341,7 @@ CAP.update({
  'wellenlaenge-welcome': ("„Welcome to Höll am Main“: Flügel am Tor als Fotospot", "“Welcome to Höll am Main”: wings on the gate as a photo spot", "«Welcome to Höll am Main»: крила на воротах як фотозона"),
 })
 CASE_PAGES['wellen'] = dict(case='wellen', hero='wellenlaenge-panorama', wide='wellenlaenge-fassade', date='2026-09-30', related='georgen',
-  gallery=['wellenlaenge-panorama', 'wl-fassade-seite', 'wl-leiter', 'wellenlaenge-portrait', 'wl-speisekarte', 'wellenlaenge-interieur', 'wl-gastraum-abend', 'wellenlaenge-welcome', 'wellenlaenge-fassade'], t={
+  gallery=['wellenlaenge-panorama', 'wl-fassade-seite', 'wl-leiter', 'wellenlaenge-portrait', 'wellenlaenge-interieur', 'wl-gastraum-abend', 'wellenlaenge-fassade'], t={
  'de': dict(
   meta=("Restaurant Wandgestaltung: Wellenlänge in Rüsselsheim | Farbaholix",
         "Restaurant Wandgestaltung aus einer Hand: Fassaden-Mural, Porträt am Eingang, Chef’s Table und Fotospot für das Restaurant Wellenlänge im Hotel Höll am Main, Rüsselsheim."),

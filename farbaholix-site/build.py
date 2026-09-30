@@ -92,7 +92,7 @@ CASES = {  # key: (anchor id, main image, thumbs, on home)
  'georgen': ('sankt-georgen', 'sg-strelitzien', ['sg-blueten', 'sg-monstera', 'georgen-strassenbahn', 'georgen-kuenstler'], True),
  'fsv': ('fsv-frankfurt', 'fsv-stadion-arena', ['fsv-wappen-flammen'], True),
  'braubach': ('braubachstrasse', 'bb-philokalist', ['bb-salon', 'bb-iimori'], False),
- 'wellen': ('wellenlaenge', 'wellenlaenge-panorama', ['wellenlaenge-interieur', 'wellenlaenge-portrait', 'wellenlaenge-welcome', 'wellenlaenge-fassade'], True),
+ 'wellen': ('wellenlaenge', 'wellenlaenge-panorama', ['wellenlaenge-interieur', 'wellenlaenge-portrait', 'wl-fassade-seite', 'wellenlaenge-fassade'], True),
  'cansativa': ('cansativa', 'cansativa-treppenhaus', ['cansativa-abkleben', 'cansativa-geruest', 'cansativa-detail', 'cansativa-lettering'], False),
  'enso': ('enso', 'enso-neu-isenburg', ['presse-offenbach-post', 'presse-op-seite37'], False),   # ENSO only on the projects page and in the press
 }
