@@ -181,6 +181,8 @@ html, body { margin: 0; background: var(--fx-brown); }
 .fx.lights-on .fx-lit .fx-list li { color: #424245; transition-delay: .15s; }
 .fx-more { margin: -20px 0 0; font-weight: 700; }
 .fx.lights-on .fx-lit .fx-more a { color: #0066cc; }
+.fx.lights-on .fx-lit .fx-more-btn .fx-btn-ghost { color: #1d1d1f !important; border-color: #1d1d1f !important; }
+.fx.lights-on .fx-lit .fx-more-ig { color: #b3246f !important; }
 .fx-photo { scroll-margin-top: 80px; }
 
 /* translated testimonials (UA): original stays verbatim, translation below */
@@ -453,7 +455,7 @@ button.fx-btn, button.fx-btn:hover, button.fx-btn:focus, button.fx-btn:active { 
 button.fx-btn-ghost, button.fx-btn-ghost:focus, button.fx-btn-ghost:active { background: transparent; color: var(--fx-gold-2); box-shadow: inset 0 0 0 2px var(--fx-gold); outline: none; }
 @media (hover: hover) { button.fx-btn-ghost:hover { background: var(--fx-gold); color: #1a1109; } }
 button.fx-btn-ghost:focus-visible { box-shadow: inset 0 0 0 2px var(--fx-gold), 0 0 0 3px rgba(217, 178, 106, .4); }
-.fx-more.fx-more-btn { margin: 30px 0 0; }
+.fx-more.fx-more-btn { margin: 30px 0 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px 22px; }
 .fx-case-more { display: table; margin-top: 10px; }
 /* the rising artist is a cut-out, not a photo card: no frame, shadow or 3:2 crop */
 .fx-photo .fx-artist-clip img { aspect-ratio: auto; object-fit: contain; border-radius: 0; box-shadow: none; filter: drop-shadow(0 10px 14px rgba(0,0,0,.18)); }
@@ -530,6 +532,13 @@ a.fx-tile .fx-tile-go { margin-top: 10px; }
 .fx-d-go { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; opacity: .45; transition: transform .18s, opacity .18s; }
 .fx-direct-btn:active { transform: scale(.98); }
 @media (hover: hover) { .fx-direct-btn:hover { transform: translateY(-2px); border-color: var(--c); background: rgba(255, 255, 255, .07); } .fx-direct-btn:hover .fx-d-go { opacity: 1; transform: translateX(3px); color: var(--c); } }
+.fx-insta { --c: #d6249f; display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 14px 18px; border-radius: 22px; text-decoration: none !important; color: var(--fx-text) !important; border: 1px solid var(--fx-line); background: linear-gradient(120deg, rgba(254, 218, 117, .08), rgba(214, 36, 159, .10) 60%, rgba(79, 91, 213, .10)); transition: transform .18s, border-color .18s; }
+.fx-insta .fx-d-ic { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%); box-shadow: 0 6px 16px -6px #d6249f; }
+.fx-insta .fx-d-tx small { white-space: normal; }
+@media (hover: hover) { .fx-insta:hover { transform: translateY(-2px); border-color: #d6249f; } .fx-insta:hover .fx-d-go { opacity: 1; transform: translateX(3px); } }
+.fx-more-ig { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: var(--fx-gold-2) !important; text-decoration: none !important; white-space: nowrap; }
+.fx-more-ig svg { width: 18px; height: 18px; }
+@media (hover: hover) { .fx-more-ig:hover { text-decoration: underline !important; } }
 .fx-direct-sm { margin: 14px 0 0; padding: 14px 0 0; border: 0; border-top: 1px solid #3a3a3c; border-radius: 0; background: none; }
 .fx-direct-sm .fx-direct-t { font-size: .8rem; font-weight: 600; color: #a1a1a6; margin-bottom: 10px; }
 .fx-direct-sm .fx-direct-btns { grid-template-columns: repeat(3, 1fr); gap: 8px; }

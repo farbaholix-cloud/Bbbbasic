@@ -100,6 +100,7 @@ CASE_PLACE = {'braubach': 'Frankfurt am Main, Braubachstraße', 'georgen': 'Fran
 
 WA = '4915172450347'   # WhatsApp Business (German number)
 TG_USER = 'slavik_ffm'   # Telegram button → Slavik's personal account (the bot @Farbaholix_chat_bot is only his inbox for the form)
+IG = 'https://www.instagram.com/farbaholix/'
 SAME_AS = ['https://www.instagram.com/farbaholix/', 'https://www.facebook.com/farbaholix', 'https://www.linkedin.com/company/farbaholix/', 'https://t.me/farbaholix']
 
 # ---------------- structured data (schema.org) ----------------
@@ -149,7 +150,7 @@ def chrome_top(k, page, static_logo):
     menu = ''.join('<a href="%s"%s>%s</a>' % (href(t), ' class="fx-menu-hl"' if t == 'calc' else '', e(lbl)) for t, lbl in items)
     o = ['<div class="fx%s" lang="%s"><div class="fx-light" aria-hidden="true"></div><div class="fx-tube" aria-hidden="true"></div>' % (' fx-sub' if static_logo else '', L['lang'])]
     o.append('<header class="fx-top"><nav class="fx-langs">%s</nav><button class="fx-burger" id="fxBurger" aria-label="%s" aria-expanded="false"><span></span><span></span><span></span></button></header>' % (lb, e(L['menu_label'])))
-    o.append('<nav class="fx-menu" id="fxMenu" aria-hidden="true"><button class="fx-menu-close" id="fxMenuClose" aria-label="%s">×</button>%s<p class="fx-menu-foot"><a href="tel:+4915172450347">+49 151 724 50347</a> · <a href="mailto:farbaholix@gmail.com">E-Mail</a></p></nav>' % (e(L['close_label']), menu))
+    o.append('<nav class="fx-menu" id="fxMenu" aria-hidden="true"><button class="fx-menu-close" id="fxMenuClose" aria-label="%s">×</button>%s<p class="fx-menu-foot"><a href="tel:+4915172450347">+49 151 724 50347</a> · <a href="mailto:farbaholix@gmail.com">E-Mail</a> · <a href="https://www.instagram.com/farbaholix/" target="_blank" rel="noopener">Instagram</a></p></nav>' % (e(L['close_label']), menu))
     if static_logo:
         o.append('<a class="fx-logo fx-logo-static" href="%s"><img src="%s" alt="%s"></a>' % (url(k, 'home'), img('logo-badge'), e(L['logo_alt'])))
     else:
@@ -192,8 +193,8 @@ def works_grid(k, nums):
     overlay = ('<div class="fx-go" id="fxGo" hidden role="dialog" aria-modal="true" aria-label="%s"><div class="fx-go-head"><div class="fx-go-top"><h2>%s</h2>'
                '<button type="button" class="fx-go-x" aria-label="%s">%s</button></div><div class="fx-go-cats" role="tablist">%s</div></div><div class="fx-go-grid"></div></div>') % (
                e(L['go_title']), e(L['go_title']), e(L['close_label']), ICON_X, chips)
-    return ('<div class="fx-grid">%s</div><div hidden>%s</div><p class="fx-more fx-more-btn"><button type="button" class="fx-btn fx-btn-ghost" data-go-open="all">%s (%d) →</button></p>%s' % (
-        shown, rest, e(UI[k]['all_works']), total, overlay))
+    return ('<div class="fx-grid">%s</div><div hidden>%s</div><p class="fx-more fx-more-btn"><button type="button" class="fx-btn fx-btn-ghost" data-go-open="all">%s (%d) →</button><a class="fx-more-ig" href="%s" target="_blank" rel="noopener">%s%s →</a></p>%s' % (
+        shown, rest, e(UI[k]['all_works']), total, IG, SVG_IG, e(LANGS[k]['insta_more']), overlay))
 
 def press_cards(k, items):
     L = LANGS[k]; o = ['<div class="fx-press">']
@@ -210,6 +211,7 @@ def press_cards(k, items):
 
 SVG_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.8-1.1-4.6-4-4.8-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .6l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.8-.1 1.3z"/></svg>'
 SVG_TG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.4 3.6 2.9 10.8c-1.3.5-1.3 1.2-.2 1.5l4.7 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.4l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.5ZM8.6 13.5l8.9-5.6c.4-.3.8-.1.5.2l-7.6 6.9-.3 3.2-1.5-4.7Z"/></svg>'
+SVG_IG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.3" fill="currentColor"/></svg>'
 SVG_MAIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3.5 6h17v12h-17zM3.5 6l8.5 7 8.5-7"/></svg>'
 SVG_MSG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 9.5h8M8 12.5h5"/></svg>'
 MAIL = 'farbaholix@gmail.com'
@@ -243,6 +245,11 @@ def direct_buttons(k, small=False):
         c, e(h), ' target="_blank" rel="noopener"' if blank else '', ic, e(lbl), e(sub), go) for c, h, ic, lbl, sub, blank in items)
     return '<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">%s</div></div>' % (' fx-direct-sm' if small else '', e(L['direct_t']), btns)
 
+def insta_card(k):
+    L = LANGS[k]
+    return ('<a class="fx-insta" href="%s" target="_blank" rel="noopener"><span class="fx-d-ic">%s</span><span class="fx-d-tx"><b>Instagram · @farbaholix</b><small>%s</small></span>'
+            '<svg class="fx-d-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>') % (IG, SVG_IG, e(L['insta_sub']))
+
 def call_card(k):
     L = LANGS[k]
     return ('<div class="fx-call"><div class="fx-call-top"><span class="fx-call-face"><img src="%s" alt="Slavik"><i class="fx-call-dot" aria-hidden="true"></i></span>'
@@ -255,7 +262,7 @@ def contact_section(k):
     return ('<section class="fx-sec" id="kontakt"><h2>%s</h2><p>%s</p><div class="fx-contact-grid">%s<div class="fx-cform-card"><h3>%s</h3>%s</div></div>%s'
             '<ul class="fx-contact-list"><li><span>%s</span><a href="tel:+4915172450347">+49 151 724 50347</a></li>'
             '<li><span>%s</span><a href="mailto:%s">%s</a></li><li><span>📍</span>%s</li></ul></section>') % (
-            e(L['s_contact']), e(L['contact_lead']), call_card(k), e(L['form_t']), contact_form(k), direct_buttons(k),
+            e(L['s_contact']), e(L['contact_lead']), call_card(k), e(L['form_t']), contact_form(k), direct_buttons(k) + insta_card(k),
             e(L['phone_l']), e(L['email_label']), MAIL, MAIL, e(L['city']))
 
 def contact_open(k):   # kept name: every page ends with the contact section
