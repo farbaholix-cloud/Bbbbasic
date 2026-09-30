@@ -11,7 +11,7 @@ L = dict(
   lead='Farbaholix is a movement – we have been giving walls style for over 20 years. 1,000+ projects delivered.',
   org_desc='Farbaholix designs facades, interiors and events with graffiti and murals – for more than 20 years and over 1,000 projects.',
   cta1='Request a project', cta2='See our work',
-  proud='Proudly representing', trust=['20+ years of experience', '1,000+ projects', 'Partner of Montana Colors & Caparol', 'Clients: FSV Frankfurt, Sankt Georgen'],
+  proud='Proudly representing', trust=['20+ years of experience', '1,000+ projects', 'Partner of Montana Colors & Caparol', 'The best materials for the best results'],
   s_services='Services',
   services=[
     ('Murals & facades', 'Large-scale murals for facades, walls and stadiums – in your brand’s style or as free art. The bigger the wall, the better.'),
