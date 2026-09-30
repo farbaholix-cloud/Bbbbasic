@@ -356,6 +356,15 @@ html, body { margin: 0; background: var(--fx-brown); }
 .fx-stats div { text-align: center; padding: 14px 4px 0; border-top: 2px solid var(--fx-gold); }
 .fx-stats b { display: block; font-size: clamp(1.5rem, 6.5vw, 2.5rem); line-height: 1.1; font-weight: 800; color: var(--fx-gold); letter-spacing: -.02em; white-space: nowrap; }
 .fx-stats span { display: block; margin-top: 4px; font-size: .72rem; line-height: 1.3; text-transform: uppercase; letter-spacing: .06em; color: var(--fx-muted); }
+.fx-partners { margin: 26px auto 0; text-align: center; }
+.fx-partners-t { margin: 0 0 12px; font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--fx-muted); }
+.fx-partners-logos { display: flex; align-items: center; justify-content: center; gap: 26px; }
+.fx-partners-logos img { display: block; width: auto; opacity: .82; transition: opacity .2s; }
+.fx-partners-logos .fx-logo-mtn { height: 34px; }
+.fx-partners-logos .fx-logo-cap { height: 50px; }
+.fx-partners-logos i { width: 1px; height: 36px; background: var(--fx-line); }
+@media (hover: hover) { .fx-partners-logos img:hover { opacity: 1; } }
+.fx-partners .fx-trust-line { margin-top: 14px; }
 .fx-trust-line { margin: 18px auto 0; font-size: .85rem; color: var(--fx-muted); text-align: center; }
 .fx-tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .fx-tile { position: relative; display: block; margin: 0; aspect-ratio: 3 / 4; border-radius: 16px; overflow: hidden; background: var(--fx-card); color: var(--fx-text); text-decoration: none; }
