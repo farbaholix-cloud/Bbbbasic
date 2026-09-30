@@ -146,22 +146,84 @@
   function buildBox() {
     box = document.createElement('div'); box.className = 'fx-lbx'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
     box.innerHTML = '<button type="button" class="fx-lbx-x" aria-label="Close">' + svg('M6 6l12 12M18 6L6 18') + '</button><button type="button" class="fx-lbx-prev" aria-label="Previous">' + svg('M15 5l-7 7 7 7') + '</button>' +
-      '<figure><img alt=""><figcaption></figcaption></figure><button type="button" class="fx-lbx-next" aria-label="Next">' + svg('M9 5l7 7-7 7') + '</button><span class="fx-lbx-n"></span>';
+      '<button type="button" class="fx-lbx-zoom" aria-label="Zoom">' + svg('M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM20 20l-4.8-4.8M10.5 7.5v6M7.5 10.5h6') + '</button>' +
+      '<figure><img alt="" draggable="false"><figcaption></figcaption></figure><button type="button" class="fx-lbx-next" aria-label="Next">' + svg('M9 5l7 7-7 7') + '</button><span class="fx-lbx-n"></span>';
     document.body.appendChild(box);
-    boxImg = box.querySelector('img'); boxCap = box.querySelector('figcaption'); boxN = box.querySelector('.fx-lbx-n');
+    boxImg = box.querySelector('img'); boxCap = box.querySelector('figcaption'); boxN = box.querySelector('.fx-lbx-n'); zBind();
     box.querySelector('.fx-lbx-x').onclick = closeTop;
     box.querySelector('.fx-lbx-prev').onclick = function () { show(cur - 1); };
     box.querySelector('.fx-lbx-next').onclick = function () { show(cur + 1); };
     box.addEventListener('click', function (ev) { if (ev.target === box || ev.target.tagName === 'FIGURE') closeTop(); });
     var x0 = null, y0 = null;
-    box.addEventListener('touchstart', function (ev) { x0 = ev.touches[0].clientX; y0 = ev.touches[0].clientY; }, { passive: true });
+    box.addEventListener('touchstart', function (ev) { if (ev.touches.length > 1 || zm.z > 1) { x0 = null; return; } x0 = ev.touches[0].clientX; y0 = ev.touches[0].clientY; }, { passive: true });
     box.addEventListener('touchend', function (ev) {
-      if (x0 === null) return; var dx = ev.changedTouches[0].clientX - x0, dy = ev.changedTouches[0].clientY - y0;
+      if (x0 === null || zm.z > 1 || zm.pinched) { if (!ev.touches.length) zm.pinched = false; x0 = null; return; } var dx = ev.changedTouches[0].clientX - x0, dy = ev.changedTouches[0].clientY - y0;
       if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) show(cur + (dx < 0 ? 1 : -1)); else if (dy > 90 && Math.abs(dy) > Math.abs(dx)) closeTop();
       x0 = null;
     });
   }
+  // zoom: double tap / double click, pinch, mouse wheel, button, +/- keys; drag to pan while zoomed
+  var zm = { z: 1, x: 0, y: 0, pinched: false }, ptr = {}, pinch = null, pan = null, lastTap = 0, tapXY = null;
+  function zApply(anim) {
+    boxImg.classList.toggle('is-gesture', !anim);
+    boxImg.style.transform = zm.z > 1 ? 'translate(' + zm.x + 'px,' + zm.y + 'px) scale(' + zm.z + ')' : '';
+    box.classList.toggle('is-zoomed', zm.z > 1);
+  }
+  function zClamp() {
+    var mx = boxImg.offsetWidth * (zm.z - 1) / 2, my = boxImg.offsetHeight * (zm.z - 1) / 2;
+    zm.x = Math.max(-mx, Math.min(mx, zm.x)); zm.y = Math.max(-my, Math.min(my, zm.y));
+  }
+  function zAt(cx, cy, nz, anim) {   // keep the point under (cx, cy) in place
+    nz = Math.max(1, Math.min(4, nz));
+    var r = boxImg.getBoundingClientRect(), px = cx - (r.left + r.width / 2 - zm.x), py = cy - (r.top + r.height / 2 - zm.y);
+    zm.x = px - (px - zm.x) * nz / zm.z; zm.y = py - (py - zm.y) * nz / zm.z; zm.z = nz;
+    if (nz === 1) { zm.x = 0; zm.y = 0; }
+    zClamp(); zApply(anim);
+  }
+  function zReset() { zm.z = 1; zm.x = 0; zm.y = 0; ptr = {}; pinch = pan = null; if (boxImg) zApply(true); }
+  function zToggle(cx, cy) { if (zm.z > 1) zAt(cx, cy, 1, true); else zAt(cx, cy, 2.5, true); }
+  function zBind() {
+    var dist = function (a, b) { return Math.hypot(a.x - b.x, a.y - b.y); };
+    boxImg.addEventListener('pointerdown', function (ev) {
+      ev.preventDefault(); boxImg.setPointerCapture(ev.pointerId);
+      ptr[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; var ids = Object.keys(ptr);
+      if (ids.length === 2) { var a = ptr[ids[0]], b = ptr[ids[1]]; pinch = { d: dist(a, b), z: zm.z }; pan = null; zm.pinched = true; }
+      else if (ids.length === 1) { pan = { x: ev.clientX, y: ev.clientY, ox: zm.x, oy: zm.y, moved: 0 }; }
+    });
+    boxImg.addEventListener('pointermove', function (ev) {
+      if (!ptr[ev.pointerId]) return;
+      ptr[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; var ids = Object.keys(ptr);
+      if (pinch && ids.length >= 2) { var a = ptr[ids[0]], b = ptr[ids[1]]; zAt((a.x + b.x) / 2, (a.y + b.y) / 2, pinch.z * dist(a, b) / pinch.d, false); }
+      else if (pan) {
+        pan.moved = Math.max(pan.moved, Math.abs(ev.clientX - pan.x) + Math.abs(ev.clientY - pan.y));
+        if (zm.z > 1) { zm.x = pan.ox + ev.clientX - pan.x; zm.y = pan.oy + ev.clientY - pan.y; zClamp(); zApply(false); }
+      }
+    });
+    function up(ev) {
+      if (!ptr[ev.pointerId]) return;
+      delete ptr[ev.pointerId];
+      if (Object.keys(ptr).length < 2) pinch = null;
+      if (zm.z < 1.05 && zm.z !== 1) zAt(ev.clientX, ev.clientY, 1, true);
+      if (pan && !Object.keys(ptr).length) {
+        if (pan.moved < 10 && !zm.pinched) {   // a tap: two taps within 300 ms = zoom toggle
+          var now = Date.now();
+          if (now - lastTap < 300 && tapXY && Math.abs(tapXY.x - ev.clientX) + Math.abs(tapXY.y - ev.clientY) < 40) { zToggle(ev.clientX, ev.clientY); lastTap = 0; }
+          else { lastTap = now; tapXY = { x: ev.clientX, y: ev.clientY }; }
+        }
+        pan = null;
+      }
+    }
+    boxImg.addEventListener('pointerup', up); boxImg.addEventListener('pointercancel', up);
+    box.addEventListener('wheel', function (ev) { if (!box.classList.contains('is-on')) return; ev.preventDefault(); zAt(ev.clientX, ev.clientY, zm.z * Math.exp(-ev.deltaY * 0.0022), false); }, { passive: false });
+    box.querySelector('.fx-lbx-zoom').onclick = function () { var r = boxImg.getBoundingClientRect(); zToggle(r.left + r.width / 2, r.top + r.height / 2); };
+    document.addEventListener('keydown', function (ev) {
+      if (!box.classList.contains('is-on')) return;
+      var r = boxImg.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      if (ev.key === '+' || ev.key === '=') zAt(cx, cy, zm.z * 1.5, true); else if (ev.key === '-') zAt(cx, cy, zm.z / 1.5, true); else if (ev.key === '0') zAt(cx, cy, 1, true);
+    });
+  }
   function show(i) {
+    zReset();
     cur = (i + group.length) % group.length;
     var a = group[cur], im = a.querySelector('img');
     boxImg.classList.remove('is-in'); boxImg.src = a.href; boxImg.alt = im ? im.alt : (a.dataset.cap || '');
@@ -176,7 +238,7 @@
     if (!box) buildBox();
     group = list; lastFocus = document.activeElement;
     box.classList.add('is-on'); show(start || 0); box.querySelector('.fx-lbx-next').focus({ preventScroll: true });
-    pushLayer(function () { box.classList.remove('is-on'); boxImg.src = ''; if (lastFocus) lastFocus.focus({ preventScroll: true }); });
+    pushLayer(function () { zReset(); box.classList.remove('is-on'); boxImg.src = ''; if (lastFocus) lastFocus.focus({ preventScroll: true }); });
   }
   var byGroup = function (name) { return Array.prototype.slice.call(document.querySelectorAll('a.fx-lb[data-lb="' + name + '"]')); };
 

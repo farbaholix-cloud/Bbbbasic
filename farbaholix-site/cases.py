@@ -37,11 +37,16 @@ CAP = {  # image key -> captions de / en / uk
  'sg-farben': ("Montana-Sprühdosen und Skizzen", "Montana spray cans and sketches", "Балончики Montana й ескізи"),
  'sg-partner': ("Partner: Montana Colors und Caparol", "Partners: Montana Colors and Caparol", "Партнери: Montana Colors і Caparol"),
  'sg-caparol-malen': ("Der Caparol-Elefant entsteht", "The Caparol elephant taking shape", "Створення слона Caparol"),
+ 'sg-mauer-panorama': ("Die ganze Mauer: Pflanzen auf rund 280 Metern entlang der Straßenbahn", "The whole wall: plants along some 280 metres beside the tram line", "Уся стіна: рослини на близько 280 метрах уздовж трамвайної лінії"),
+ 'sg-monstera-detail': ("Monstera aus der Sprühdose – Licht, Schatten und Putzstruktur", "Monstera from the spray can – light, shade and plaster texture", "Монстера з балончика – світло, тінь і фактура штукатурки"),
+ 'sg-monstera-ecke': ("Monstera am Mauerende neben der Einfahrt zum Campus", "Monstera at the end of the wall next to the campus entrance", "Монстера в кінці стіни біля в’їзду до кампусу"),
+ 'sg-pinke-bluete': ("Pinke Tropenpflanze und Palmblätter – der Stromkasten bleibt Teil der Szene", "Pink tropical plant and palm fronds – the utility box stays part of the scene", "Рожева тропічна рослина й пальмове листя – електрошафа стала частиною сцени"),
+ 'sg-hummel': ("Hummel im Anflug auf weiße Blüten", "A bumblebee flying towards white blossoms", "Джміль летить до білих квітів"),
  'georgen-presse': ("Frankfurter Neue Presse, 29.04.2026: „Aus seiner Sprühdose kommen Blumen“ (Foto: Bernd Kammerer)", "Frankfurter Neue Presse, 29 Apr 2026: “Aus seiner Sprühdose kommen Blumen” (photo: Bernd Kammerer)", "Frankfurter Neue Presse, 29.04.2026: «Aus seiner Sprühdose kommen Blumen» (фото: Bernd Kammerer)"),
 }
 
 FSV_GAL = ['fsv-stadion-arena', 'fsv-panorama', 'fsv-wappen-flammen', 'fsv-respekt', 'fsv-immer-weiter', 'fsv-gang', 'fsv-vereinsheim', 'fsv-rampe-fussball', 'fsv-arena-ecke', 'fsv-caparol']
-SG_GAL = ['sg-strelitzien', 'sg-mauer-fahnen', 'sg-strelitzie-nah', 'sg-blueten', 'sg-monstera', 'sg-monstera-mauer', 'sg-lotus', 'sg-pink', 'sg-bananenblatt', 'sg-palme', 'sg-einblatt',
+SG_GAL = ['sg-strelitzien', 'sg-mauer-panorama', 'sg-mauer-fahnen', 'sg-strelitzie-nah', 'sg-hummel', 'sg-blueten', 'sg-monstera', 'sg-monstera-detail', 'sg-monstera-ecke', 'sg-monstera-mauer', 'sg-pinke-bluete', 'sg-lotus', 'sg-pink', 'sg-bananenblatt', 'sg-palme', 'sg-einblatt',
           'sg-mensa', 'sg-100-jahre', 'georgen-strassenbahn', 'sg-abend', 'sg-strasse', 'sg-grundierung', 'sg-slavik-monstera', 'sg-slavik-bluete', 'georgen-kuenstler', 'sg-farben', 'sg-partner', 'sg-caparol-malen', 'georgen-presse']
 
 CASE_PAGES = {

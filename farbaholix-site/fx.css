@@ -491,6 +491,15 @@ button.fx-btn-ghost:focus-visible { box-shadow: inset 0 0 0 2px var(--fx-gold), 
 .fx-lbx figure { width: 100%; max-width: 100vw; }
 .fx-lbx img { width: auto; max-width: min(100vw, 1400px); max-height: calc(100dvh - 190px); height: auto; border-radius: 0; opacity: 0; transition: opacity .25s; }
 .fx-lbx img.is-in { opacity: 1; }
+.fx-lbx { overflow: hidden; }
+.fx-lbx img { touch-action: none; cursor: zoom-in; transition: opacity .25s, transform .28s ease; transform-origin: 50% 50%; will-change: transform; -webkit-user-select: none; user-select: none; }
+.fx-lbx img.is-gesture { transition: opacity .25s; }
+.fx-lbx.is-zoomed img { cursor: grab; position: relative; z-index: 1; }
+.fx-lbx.is-zoomed figcaption, .fx-lbx.is-zoomed .fx-lbx-prev, .fx-lbx.is-zoomed .fx-lbx-next { opacity: 0; pointer-events: none; }
+.fx-lbx figcaption, .fx-lbx-prev, .fx-lbx-next { transition: opacity .2s; }
+.fx-lbx-zoom { top: max(14px, env(safe-area-inset-top)); right: 70px; z-index: 2; }
+.fx-lbx-x { z-index: 2; }
+.fx-lbx.is-zoomed .fx-lbx-zoom { background: rgba(217, 178, 106, .55); }
 @media (min-width: 700px) { .fx-lbx img { max-width: min(92vw, 1400px); max-height: calc(100dvh - 140px); border-radius: 6px; } }
 .fx-lbx-n { top: max(24px, calc(env(safe-area-inset-top) + 12px)); }
 @media (max-width: 700px) { .fx-lbx-prev, .fx-lbx-next { bottom: max(18px, calc(env(safe-area-inset-bottom) + 8px)) !important; } }

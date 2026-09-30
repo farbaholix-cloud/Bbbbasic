@@ -71,6 +71,11 @@ CAT.update({n: 'workshop' for n in range(44, 54)})
 CAT.update({n: 'objects' for n in (38, 39, 40, 42)})
 # recent projects shown first in "all works" (media_seo keys)
 EXTRA = [
+ ('sg-mauer-panorama', 'facade', {'de': 'Sankt Georgen: die ganze Blumenmauer an der Straße, Frankfurt', 'en': 'Sankt Georgen: the whole flower wall by the road, Frankfurt', 'uk': 'Sankt Georgen: уся квіткова стіна біля дороги, Франкфурт'}),
+ ('sg-hummel', 'facade', {'de': 'Hummel und weiße Blüten, Mauer von Sankt Georgen', 'en': 'Bumblebee and white blossoms, Sankt Georgen wall', 'uk': 'Джміль і білі квіти, стіна Sankt Georgen'}),
+ ('sg-pinke-bluete', 'facade', {'de': 'Pinke Tropenpflanze an der Campusmauer von Sankt Georgen', 'en': 'Pink tropical plant on the Sankt Georgen campus wall', 'uk': 'Рожева тропічна рослина на стіні кампусу Sankt Georgen'}),
+ ('sg-monstera-detail', 'facade', {'de': 'Monstera-Blatt aus der Sprühdose, Sankt Georgen', 'en': 'Monstera leaf from the spray can, Sankt Georgen', 'uk': 'Лист монстери з балончика, Sankt Georgen'}),
+ ('sg-monstera-ecke', 'facade', {'de': 'Monstera am Mauerende, Sankt Georgen, Frankfurt-Sachsenhausen', 'en': 'Monstera at the end of the wall, Sankt Georgen, Frankfurt-Sachsenhausen', 'uk': 'Монстера в кінці стіни, Sankt Georgen, Франкфурт-Заксенгаузен'}),
  ('sg-strelitzien', 'facade', {'de': 'Strelitzien-Mural, Hochschule Sankt Georgen, Frankfurt', 'en': 'Bird-of-paradise mural, Sankt Georgen, Frankfurt', 'uk': 'Мурал зі стрелітціями, Sankt Georgen, Франкфурт'}),
  ('sg-monstera-mauer', 'facade', {'de': 'Monstera an der Campusmauer von Sankt Georgen', 'en': 'Monstera on the Sankt Georgen campus wall', 'uk': 'Монстера на стіні кампусу Sankt Georgen'}),
  ('fsv-stadion-arena', 'facade', {'de': 'FSV Frankfurt: Stadionfassade am Bornheimer Hang', 'en': 'FSV Frankfurt: stadium facade at Bornheimer Hang', 'uk': 'FSV Frankfurt: фасад стадіону на Борнгаймер Ганг'}),
