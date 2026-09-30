@@ -241,21 +241,23 @@ def th_attrs(k):   # texts for the chat view that replaces the form after sendin
     L = LANGS[k]
     return ' '.join('data-%s="%s"' % (a, e(L[b])) for a, b in (('th-you', 'th_you'), ('th-me', 'th_me'), ('th-wait', 'th_wait'), ('th-mail', 'th_mail'), ('th-ph', 'th_ph'), ('th-send', 'th_send'), ('th-new', 'th_new')))
 
-def direct_buttons(k, small=False):
-    """Three direct channels (they open the visitor's own app) – cards with brand icon, label and handle."""
-    L = LANGS[k]
-    go = '<svg class="fx-d-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>'
-    items = (('wa', 'https://wa.me/%s?text=%s' % (WA, urllib.parse.quote(L['direct_hello'])), SVG_WA, L['direct_wa'], '+49 151 724 50347', True),
-             ('tg', 'https://t.me/%s' % TG_USER, SVG_TG, L['direct_tg'], '@' + TG_USER, True),
-             ('mail', 'mailto:%s' % MAIL, SVG_MAIL, L['direct_mail'], MAIL, False))
-    btns = ''.join('<a class="fx-direct-btn fx-d-%s" href="%s"%s><span class="fx-d-ic">%s</span><span class="fx-d-tx"><b>%s</b><small>%s</small></span>%s</a>' % (
-        c, e(h), ' target="_blank" rel="noopener"' if blank else '', ic, e(lbl), e(sub), go) for c, h, ic, lbl, sub, blank in items)
-    return '<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">%s</div></div>' % (' fx-direct-sm' if small else '', e(L['direct_t']), btns)
+SVG_PHONE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M5 3.5h3.2l1.6 4.2-2.2 1.4a11 11 0 0 0 7.3 7.3l1.4-2.2 4.2 1.6V19a1.5 1.5 0 0 1-1.6 1.5C10.8 20 4 13.2 3.5 5.1A1.5 1.5 0 0 1 5 3.5z"/></svg>'
+SVG_FB = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2.3H8v3h2.5V21z"/></svg>'
+SVG_LI = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.9 8.8H3.8V20h3.1zM5.3 3.5a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM20.2 13.6c0-3-1.6-4.9-4.2-4.9-1.4 0-2.4.8-2.8 1.5V8.8h-3V20h3.1v-5.8c0-1.5.6-2.6 2-2.6s1.8 1.2 1.8 2.7V20h3.1z"/></svg>'
+SVG_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/></svg>'
 
-def insta_card(k):
+def direct_buttons(k, small=False):
+    """Direct channels as a minimal row of round brand icons with a tiny caption (they open the visitor's own app)."""
     L = LANGS[k]
-    return ('<a class="fx-insta" href="%s" target="_blank" rel="noopener"><span class="fx-d-ic">%s</span><span class="fx-d-tx"><b>Instagram · @farbaholix</b><small>%s</small></span>'
-            '<svg class="fx-d-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>') % (IG, SVG_IG, e(L['insta_sub']))
+    items = [('wa', 'https://wa.me/%s?text=%s' % (WA, urllib.parse.quote(L['direct_hello'])), SVG_WA, L['direct_wa'], 'WhatsApp +49 151 724 50347', True),
+             ('tg', 'https://t.me/%s' % TG_USER, SVG_TG, L['direct_tg'], 'Telegram @' + TG_USER, True),
+             ('mail', 'mailto:%s' % MAIL, SVG_MAIL, L['direct_mail'], MAIL, False)]
+    if not small:
+        items += [('ig', IG, SVG_IG, 'Instagram', 'Instagram @farbaholix', True),
+                  ('tel', 'tel:+4915172450347', SVG_PHONE, L['phone_l'], '+49 151 724 50347', False)]
+    btns = ''.join('<a class="fx-direct-btn fx-d-%s" href="%s" title="%s" aria-label="%s"%s><span class="fx-d-ic">%s</span><span class="fx-d-l">%s</span></a>' % (
+        c, e(h), e(t), e(t), ' target="_blank" rel="noopener"' if blank else '', ic, e(lbl)) for c, h, ic, lbl, t, blank in items)
+    return '<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">%s</div></div>' % (' fx-direct-sm' if small else '', e(L['direct_t']), btns)
 
 def call_card(k):
     L = LANGS[k]
@@ -267,10 +269,9 @@ def call_card(k):
 def contact_section(k):
     L = LANGS[k]
     return ('<section class="fx-sec" id="kontakt"><h2>%s</h2><p>%s</p><div class="fx-contact-grid">%s<div class="fx-cform-card"><h3>%s</h3>%s</div></div>%s'
-            '<ul class="fx-contact-list"><li><span>%s</span><a href="tel:+4915172450347">+49 151 724 50347</a></li>'
-            '<li><span>%s</span><a href="mailto:%s">%s</a></li><li><span>📍</span>%s</li></ul></section>') % (
-            e(L['s_contact']), e(L['contact_lead']), call_card(k), e(L['form_t']), contact_form(k), direct_buttons(k) + insta_card(k),
-            e(L['phone_l']), e(L['email_label']), MAIL, MAIL, e(L['city']))
+            '<p class="fx-city">%s%s</p></section>') % (
+            e(L['s_contact']), e(L['contact_lead']), call_card(k), e(L['form_t']), contact_form(k), direct_buttons(k),
+            SVG_PIN, e(L['city']))
 
 def contact_open(k):   # kept name: every page ends with the contact section
     return contact_section(k)
@@ -281,9 +282,10 @@ def chrome_bottom(k):
            '<div class="fx-pop" id="fxPop" hidden role="dialog" aria-label="%s"><button class="fx-pop-x" id="fxPopX" aria-label="%s">%s</button>'
            '<div class="fx-pop-head"><img src="%s" alt="Slavik"><span><b>Slavik</b><br><small>%s</small></span></div>%s%s</div>') % (
            e(L['fab_label']), SVG_MSG, e(L['fab_label']), e(L['close_label']), ICON_X, img('slavik-portrait'), e(L['call_role']), contact_form(k, compact=True), direct_buttons(k, small=True))
-    return ('%s<footer class="fx-foot"><a href="https://www.instagram.com/farbaholix/">Instagram</a> · <a href="https://www.facebook.com/farbaholix">Facebook</a> · '
-            '<a href="https://www.linkedin.com/company/farbaholix/">LinkedIn</a><br>'
-            '<a href="/impressum/">%s</a> · <a href="/datenschutzerklarung/">%s</a><br>© Farbaholix · Viacheslav Balabaiev · Frankfurt am Main</footer></div>') % (fab, L['footer_imp'], L['footer_ds'])
+    return ('%s<footer class="fx-foot"><nav class="fx-social">'
+            '<a href="https://www.instagram.com/farbaholix/" aria-label="Instagram" title="Instagram">%s</a><a href="https://www.facebook.com/farbaholix" aria-label="Facebook" title="Facebook">%s</a>'
+            '<a href="https://www.linkedin.com/company/farbaholix/" aria-label="LinkedIn" title="LinkedIn">%s</a></nav>'
+            '<a href="/impressum/">%s</a> · <a href="/datenschutzerklarung/">%s</a><br>© Farbaholix · Viacheslav Balabaiev · Frankfurt am Main</footer></div>') % (fab, SVG_IG, SVG_FB, SVG_LI, L['footer_imp'], L['footer_ds'])
 
 def page_home(k):
     SERVICE_IMGS = [SIZES.get(u, {'t': u})['t'] for u in (img('tile-fassaden'), img('tile-innenraeume'), old(44), img('cansativa-lettering'))]   # 768px versions
