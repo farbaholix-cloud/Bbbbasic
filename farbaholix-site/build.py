@@ -99,6 +99,7 @@ CASES = {  # key: (anchor id, main image, thumbs, on home)
 CASE_PLACE = {'braubach': 'Frankfurt am Main, Braubachstraße', 'georgen': 'Frankfurt am Main', 'fsv': 'Frankfurt am Main', 'wellen': 'Rüsselsheim am Main', 'cansativa': 'Frankfurt am Main', 'enso': 'Neu-Isenburg'}
 
 WA = '4915172450347'   # WhatsApp Business (German number)
+TG_BOT = ''   # Telegram bot username (fx/v1/tg-setup); empty = no Telegram button
 SAME_AS = ['https://www.instagram.com/farbaholix/', 'https://www.facebook.com/farbaholix', 'https://www.linkedin.com/company/farbaholix/', 'https://t.me/farbaholix']
 
 # ---------------- structured data (schema.org) ----------------
@@ -208,6 +209,7 @@ def press_cards(k, items):
     return ''.join(o)
 
 SVG_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.8-1.1-4.6-4-4.8-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .6l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.8-.1 1.3z"/></svg>'
+SVG_TG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.4 3.6 2.9 10.8c-1.3.5-1.3 1.2-.2 1.5l4.7 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.4l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.5ZM8.6 13.5l8.9-5.6c.4-.3.8-.1.5.2l-7.6 6.9-.3 3.2-1.5-4.7Z"/></svg>'
 SVG_MAIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3.5 6h17v12h-17zM3.5 6l8.5 7 8.5-7"/></svg>'
 SVG_MSG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 9.5h8M8 12.5h5"/></svg>'
 MAIL = 'farbaholix@gmail.com'
@@ -216,22 +218,27 @@ def contact_form(k, compact=False):
     """Neutral enquiry form – posts to /wp-json/fx/v1/contact (stored in wp-admin, e-mailed and forwarded to the owner)."""
     L = LANGS[k]
     consent = e(L['f_consent']).replace('{ds}', '<a href="/datenschutzerklarung/">%s</a>' % e(L['f_ds']))
-    return ('<form class="fx-cform%s" data-fx-form novalidate><p class="fx-cform-lead">%s</p>'
+    return ('<form class="fx-cform%s" data-fx-form novalidate %s><p class="fx-cform-lead">%s</p>'
             '<input type="text" name="name" autocomplete="name" placeholder="%s" aria-label="%s" maxlength="120">'
             '<input type="text" name="contact" autocomplete="email" inputmode="email" required placeholder="%s" aria-label="%s" maxlength="160">'
             '<textarea name="message" rows="%d" required placeholder="%s" aria-label="%s" maxlength="5000"></textarea>'
             '<input type="text" name="website" tabindex="-1" autocomplete="off" class="fx-hp" aria-hidden="true">'
             '<button type="submit" class="fx-btn fx-cform-send" data-sending="%s">%s</button><p class="fx-cform-note">%s</p>'
             '<p class="fx-cform-status" role="status" aria-live="polite" data-ok="%s" data-err="%s"></p></form>') % (
-            ' fx-cform-compact' if compact else '', e(L['form_lead']), e(L['f_name']), e(L['f_name']), e(L['f_contact']), e(L['f_contact']),
+            ' fx-cform-compact' if compact else '', th_attrs(k), e(L['form_lead']), e(L['f_name']), e(L['f_name']), e(L['f_contact']), e(L['f_contact']),
             3 if compact else 5, e(L['f_msg']), e(L['f_msg']), e(L['f_sending']), e(L['f_send']), consent, e(L['f_ok']), e(L['f_err']))
+
+def th_attrs(k):   # texts for the chat view that replaces the form after sending (fx.js)
+    L = LANGS[k]
+    return ' '.join('data-%s="%s"' % (a, e(L[b])) for a, b in (('th-you', 'th_you'), ('th-me', 'th_me'), ('th-wait', 'th_wait'), ('th-mail', 'th_mail'), ('th-ph', 'th_ph'), ('th-send', 'th_send'), ('th-new', 'th_new')))
 
 def direct_buttons(k, small=False):
     L = LANGS[k]
+    tg = ('<a class="fx-direct-btn" href="https://t.me/%s?start=site" target="_blank" rel="noopener">%s<span>%s</span></a>' % (TG_BOT, SVG_TG, e(L['direct_tg']))) if TG_BOT else ''
     return ('<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">'
-            '<a class="fx-direct-btn" href="https://wa.me/%s?text=%s" target="_blank" rel="noopener">%s<span>%s</span></a>'
+            '<a class="fx-direct-btn" href="https://wa.me/%s?text=%s" target="_blank" rel="noopener">%s<span>%s</span></a>%s'
             '<a class="fx-direct-btn" href="mailto:%s">%s<span>%s</span></a></div></div>') % (
-            ' fx-direct-sm' if small else '', e(L['direct_t']), WA, urllib.parse.quote(L['direct_hello']), SVG_WA, e(L['direct_wa']), MAIL, SVG_MAIL, e(L['direct_mail']))
+            ' fx-direct-sm' if small else '', e(L['direct_t']), WA, urllib.parse.quote(L['direct_hello']), SVG_WA, e(L['direct_wa']), tg, MAIL, SVG_MAIL, e(L['direct_mail']))
 
 def call_card(k):
     L = LANGS[k]

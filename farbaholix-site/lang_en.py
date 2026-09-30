@@ -28,7 +28,7 @@ L = dict(
   f_name='Your name', f_contact='E-mail or phone *', f_msg='What’s it about? Wall, place, idea … *', f_send='Send message', f_sending='Sending …',
   f_ok='Thank you! Your message has arrived – I’ll get back to you shortly.', f_err='Sorry, that didn’t work. Please write to me directly by e-mail or WhatsApp.',
   f_consent='By sending, you agree that your details are processed to handle your enquiry ({ds}).', f_ds='privacy policy',
-  direct_t='Prefer to write directly?', direct_wa='WhatsApp', direct_mail='E-mail', direct_hello='Hi Slavik, ',
+  direct_t='Prefer to write directly?', direct_wa='WhatsApp', direct_mail='E-mail', direct_tg='Telegram', th_you='You', th_me='Slavik', th_wait='Slavik will answer right here – usually the same day. Feel free to leave the page: the answer stays saved in this browser.', th_mail=' You will also get it by e-mail.', th_ph='Add something …', th_send='Send', th_new='New enquiry', direct_hello='Hi Slavik, ',
   fab_label='Send Slavik a message', bubble_write='Write',
   promo_t='Opening package', promo_p='Opening soon or planning a new project? Concept, wall design and opening event from one source – at the best price.', promo_a='Learn more',
   s_projects='Recent projects', all_projects='See all projects',

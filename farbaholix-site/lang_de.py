@@ -29,7 +29,7 @@ L = dict(
   f_name='Ihr Name', f_contact='E-Mail oder Telefon *', f_msg='Worum geht es? Wand, Ort, Idee … *', f_send='Nachricht senden', f_sending='Wird gesendet …',
   f_ok='Danke! Ihre Nachricht ist angekommen – ich melde mich in Kürze.', f_err='Das hat leider nicht geklappt. Bitte schreiben Sie direkt per E-Mail oder WhatsApp.',
   f_consent='Mit dem Absenden stimmen Sie zu, dass Ihre Angaben zur Bearbeitung der Anfrage verarbeitet werden ({ds}).', f_ds='Datenschutz',
-  direct_t='Lieber direkt schreiben?', direct_wa='WhatsApp', direct_mail='E-Mail', direct_hello='Hallo Slavik, ',
+  direct_t='Lieber direkt schreiben?', direct_wa='WhatsApp', direct_mail='E-Mail', direct_tg='Telegram', th_you='Sie', th_me='Slavik', th_wait='Slavik antwortet hier im Chat – meist noch am selben Tag. Sie können die Seite ruhig verlassen: Die Antwort bleibt in diesem Browser gespeichert.', th_mail=' Zusätzlich kommt sie per E-Mail.', th_ph='Noch etwas ergänzen …', th_send='Senden', th_new='Neue Anfrage', direct_hello='Hallo Slavik, ',
   fab_label='Nachricht an Slavik schreiben', bubble_write='Schreiben',
   promo_t='Eröffnungspaket', promo_p='Sie eröffnen bald oder planen ein neues Projekt? Konzept, Wandgestaltung und Eröffnungs-Event aus einer Hand – zum besten Preis.', promo_a='Mehr erfahren',
   s_projects='Aktuelle Projekte', all_projects='Alle Projekte ansehen',

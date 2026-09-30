@@ -17,9 +17,64 @@
   }
 
 
-  // ---- Contact form: posted to the site (stored, mailed, forwarded to the owner) – visitors stay on the page ----
-  var t0 = Date.now();
-  Array.prototype.forEach.call(document.querySelectorAll('[data-fx-form]'), function (f) {
+  // ---- Contact form → /wp-json/fx/v1/contact (stored, mailed, forwarded to Slavik: WhatsApp + Telegram).
+  //      When Telegram is connected ("live"), the form turns into a chat: Slavik's Telegram replies appear here (token in localStorage).
+  var t0 = Date.now(), API = '/wp-json/fx/v1/', KEY = 'fxThread', forms = [].slice.call(document.querySelectorAll('[data-fx-form]'));
+  function store(v) { try { if (v) localStorage.setItem(KEY, JSON.stringify(v)); else localStorage.removeItem(KEY); } catch (err) {} }
+  function stored() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (err) { return null; } }
+  var th = stored(), msgs = [], timer = null, lastAct = Date.now();
+  function el(tag, cls, txt) { var x = document.createElement(tag); if (cls) x.className = cls; if (txt != null) x.textContent = txt; return x; }
+  function tm(t) { var d = new Date(t * 1000); return d.toLocaleString(document.documentElement.lang || undefined, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+  function view(f) {   // chat block right after the form, built once
+    if (f._th) return f._th;
+    var d = f.dataset, v = el('div', 'fx-thread'), log = el('div', 'fx-thread-log'), note = el('p', 'fx-thread-wait'),
+        rf = el('form', 'fx-thread-form'), ta = el('textarea'), sb = el('button', 'fx-btn fx-thread-send', d.thSend), nb = el('button', 'fx-thread-new', d.thNew);
+    log.setAttribute('aria-live', 'polite'); ta.rows = 2; ta.maxLength = 3000; ta.placeholder = d.thPh; ta.setAttribute('aria-label', d.thPh); sb.type = 'submit'; nb.type = 'button';
+    rf.appendChild(ta); rf.appendChild(sb); v.appendChild(log); v.appendChild(note); v.appendChild(rf); v.appendChild(nb);
+    rf.addEventListener('submit', function (ev) {
+      ev.preventDefault(); var x = ta.value.trim(); if (!x || !th) return;
+      sb.disabled = true; lastAct = Date.now();
+      fetch(API + 'thread', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: th.t, message: x }) })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (j) { ta.value = ''; msgs = j.msgs || msgs; renderAll(); poll(true); })
+        .catch(function () { ta.classList.add('is-bad'); })
+        .then(function () { sb.disabled = false; });
+    });
+    ta.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) rf.requestSubmit(); });
+    nb.addEventListener('click', function () { th = null; store(null); msgs = []; clearTimeout(timer); forms.forEach(function (x) { x.hidden = false; if (x._th) x._th.hidden = true; }); setBadge(false); });
+    f.parentNode.insertBefore(v, f.nextSibling); f._th = v; return v;
+  }
+  function renderAll() {
+    forms.forEach(function (f) {
+      var v = view(f), d = f.dataset, log = v.querySelector('.fx-thread-log');
+      f.hidden = true; v.hidden = false; log.innerHTML = '';
+      msgs.forEach(function (m) {
+        var b = el('div', 'fx-msg ' + (m.w === 's' ? 'fx-msg-s' : 'fx-msg-v'));
+        b.appendChild(el('b', null, m.w === 's' ? d.thMe : d.thYou)); b.appendChild(el('span', 'fx-msg-t', tm(m.t)));
+        b.appendChild(el('p', null, m.x)); log.appendChild(b);
+      });
+      var answered = msgs.some(function (m) { return m.w === 's'; });
+      v.querySelector('.fx-thread-wait').textContent = answered ? '' : d.thWait + (th && th.mail ? d.thMail : '');
+      log.scrollTop = log.scrollHeight;
+    });
+  }
+  function setBadge(on) { var fb = document.getElementById('fxFab'); if (fb) fb.classList.toggle('has-new', !!on); }
+  function poll(soon) {
+    clearTimeout(timer); if (!th) return;
+    var idle = Date.now() - lastAct, delay = soon ? 4000 : idle < 6e5 ? 8000 : idle < 36e5 ? 30000 : 120000;
+    timer = setTimeout(function () {
+      if (document.hidden) return poll();
+      fetch(API + 'thread?t=' + encodeURIComponent(th.t), { cache: 'no-store' })
+        .then(function (r) { if (r.status === 404) { th = null; store(null); forms.forEach(function (x) { x.hidden = false; if (x._th) x._th.hidden = true; }); throw 0; } return r.json(); })
+        .then(function (j) {
+          var n = (j.msgs || []).length;
+          if (n !== msgs.length) { msgs = j.msgs; renderAll(); var pop = document.getElementById('fxPop'); if (pop && pop.hidden && msgs[n - 1].w === 's') setBadge(true); }
+          poll();
+        }).catch(function (x) { if (x !== 0) poll(); });
+    }, delay);
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && th) { lastAct = Date.now(); poll(true); } });
+  forms.forEach(function (f) {
     var btn = f.querySelector('.fx-cform-send'), label = btn.textContent, st = f.querySelector('.fx-cform-status');
     f.addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -27,21 +82,39 @@
       [c, m].forEach(function (x) { x.classList.toggle('is-bad', x.value.trim().length < (x === c ? 5 : 2)); });
       if (f.querySelector('.is-bad')) { f.querySelector('.is-bad').focus(); return; }
       btn.disabled = true; btn.textContent = btn.dataset.sending; st.textContent = ''; st.className = 'fx-cform-status';
-      fetch('/wp-json/fx/v1/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        name: f.elements.name.value.trim(), contact: c.value.trim(), message: m.value.trim(), website: f.elements.website.value,
+      var contact = c.value.trim(), text = m.value.trim();
+      fetch(API + 'contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        name: f.elements.name.value.trim(), contact: contact, message: text, website: f.elements.website.value,
         page: location.href, lang: document.documentElement.lang || root.getAttribute('lang') || '', t: Date.now() - t0 }) })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(function () { f.reset(); st.textContent = st.dataset.ok; st.classList.add('is-ok'); })
+        .then(function (j) {
+          f.reset();
+          if (j.token && j.live) {
+            th = { t: j.token, mail: /\S+@\S+\.\S+/.test(contact) }; store(th); lastAct = Date.now();
+            msgs = [{ w: 'v', x: text, t: Date.now() / 1000 }]; renderAll(); poll();
+          } else { st.textContent = st.dataset.ok; st.classList.add('is-ok'); }
+        })
         .catch(function () { st.textContent = st.dataset.err; st.classList.add('is-err'); })
         .then(function () { btn.disabled = false; btn.textContent = label; });
     });
   });
+  if (th && th.t && forms.length) {   // returning visitor with an open conversation
+    fetch(API + 'thread?t=' + encodeURIComponent(th.t), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) {
+        msgs = j.msgs || []; renderAll(); poll();
+        if (msgs.length && msgs[msgs.length - 1].w === 's' && (th.seen || 0) < msgs.length) setBadge(true);
+      })
+      .catch(function () { th = null; store(null); });
+  }
   // floating message button + popup; [data-fx-contact] and the calculator open it (optionally prefilled)
   var fab = document.getElementById('fxFab'), pop = document.getElementById('fxPop');
   function togglePop(open, text) {
     if (!pop) return;
     pop.hidden = !open; fab.setAttribute('aria-expanded', open);
-    if (open) { var ta = pop.querySelector('textarea'); if (text) ta.value = text; (text ? pop.querySelector('input[name=contact]') : ta).focus({ preventScroll: true }); }
+    if (open && th) { setBadge(false); th.seen = msgs.length; store(th); var lg = pop.querySelector('.fx-thread-log'); if (lg) lg.scrollTop = lg.scrollHeight; }
+    if (open && !(th && !text)) { var ta = pop.querySelector('textarea'); if (text && th) { forms.forEach(function (x) { x.hidden = false; if (x._th) x._th.hidden = true; }); }
+      if (text) ta.value = text; (text ? pop.querySelector('input[name=contact]') : ta).focus({ preventScroll: true }); }
   }
   window.fxContact = function (text) { togglePop(true, text); };
   if (fab && pop) {
