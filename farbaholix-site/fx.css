@@ -647,3 +647,17 @@ button.fx-vthumb, button.fx-vthumb:hover, button.fx-vthumb:focus { position: rel
   .fx-top, .fx.lights-on .fx-top { background: none; padding-bottom: 14px; }
   .fx-video-box { max-width: min(900px, calc((100dvh - 28px) * 16 / 9)); }
 }
+/* iOS/Brave enlarge text in landscape ("text inflation") – keep the designed sizes */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* service tiles: readable text on any photo */
+.fx-tile::after { background: linear-gradient(to top, rgba(14, 9, 4, .97) 0%, rgba(14, 9, 4, .88) 42%, rgba(14, 9, 4, .45) 66%, rgba(14, 9, 4, 0) 86%); }
+.fx-tile-t h3, .fx-tile-t p { text-shadow: 0 1px 3px rgba(0, 0, 0, .75), 0 0 14px rgba(0, 0, 0, .45); }
+.fx-tile-t h3 { overflow-wrap: break-word; }
+.fx-tile-go { white-space: nowrap; }
+/* medium widths (landscape phones, tablets): swipe row of ~3 tiles instead of 5 squeezed ones */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .fx-tiles { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 0 16px 4px; scroll-padding: 0 16px; scrollbar-width: none; }
+  .fx-tiles::-webkit-scrollbar { display: none; }
+  .fx-tile { flex: 0 0 31%; scroll-snap-align: start; }
+  .fx-swipe { display: block; margin: 10px 0 0; text-align: right; font-size: .8rem; color: var(--fx-muted); }
+}
