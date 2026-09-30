@@ -340,7 +340,7 @@ CAP.update({
  'wl-gastraum-abend': ("Die Ornamente setzen sich im Gastraum fort – am Abend", "The ornaments continue in the dining room – in the evening", "Орнаменти продовжуються в залі – увечері"),
  'wellenlaenge-welcome': ("„Welcome to Höll am Main“: Flügel am Tor als Fotospot", "“Welcome to Höll am Main”: wings on the gate as a photo spot", "«Welcome to Höll am Main»: крила на воротах як фотозона"),
 })
-CASE_PAGES['wellen'] = dict(case='wellen', hero='wellenlaenge-panorama', wide='wellenlaenge-fassade', date='2026-09-30', related='georgen',
+CASE_PAGES['wellen'] = dict(case='wellen', video=dict(src='vid-wellen', poster='vid-wellen-poster', len='0:50', lead={'de': 'Das Projekt in 50 Sekunden: von den ersten Skizzen und dem digitalen Entwurf bis zur fertigen Fassade, den Flügeln am Eingang und dem Porträt. Mit Ton; tippen Sie auf das Video, um es im Vollbild zu sehen.', 'en': 'The project in 50 seconds: from the first sketches and the digital design to the finished façade, the wings at the entrance and the portrait. With sound; tap the video to watch it full screen.', 'uk': 'Проєкт за 50 секунд: від перших ескізів і цифрового макета до готового фасаду, крил біля входу й портрета. Зі звуком; торкніться відео, щоб переглянути на весь екран.'}), hero='wellenlaenge-panorama', wide='wellenlaenge-fassade', date='2026-09-30', related='georgen',
   gallery=['wellenlaenge-panorama', 'wl-fassade-seite', 'wl-leiter', 'wellenlaenge-portrait', 'wellenlaenge-interieur', 'wl-gastraum-abend', 'wellenlaenge-fassade'], t={
  'de': dict(
   meta=("Restaurant Wandgestaltung: Wellenlänge in Rüsselsheim | Farbaholix",
