@@ -70,17 +70,17 @@ VOICES = [
 PRESS = [
     dict(pub='Offenbach-Post', date='2026-09-26', title='Große Wandkunst für große Zukunftsfrage', img='presse-offenbach-post', link=('projects', 'enso'), home=True, note={'de': 'Titelseite', 'en': 'front page', 'uk': 'перша шпальта'}),
     dict(pub='Offenbach-Post', date='2026-09-26', title='Luft kann man sehen und hören', img='presse-op-seite37', link=('projects', 'enso'), home=False, note={'de': 'Seite 37, Christina Langenbahn', 'en': 'page 37, Christina Langenbahn', 'uk': 'с. 37, Christina Langenbahn'}),
-    dict(pub='Kreis Offenbach', date=None, title='Mensch, Natur, Zusammenhalt – ENSO', img=None, link='https://www.kreis-offenbach.de/enso', home=False),
+    dict(pub='Kreis Offenbach', date=None, title='Mensch, Natur, Zusammenhalt – ENSO', img='enso-neu-isenburg', link='https://www.kreis-offenbach.de/enso', home=False),
     dict(pub='hessenschau.de (hr)', date='2024-11-27', title='FSV Frankfurt: Künstler verschönert Stadion am Bornheimer Hang', img='fsv-wappen-flammen', link='https://www.hessenschau.de/sport/fussball/regionalliga/fsv-frankfurt-kuenstler-verschoenert-stadion-am-bornheimer-hang-v1,fsv-grafitti-100.html', home=True),
-    dict(pub='hessenschau (Video)', date='2024-11-27', title='Große Kunst am Bornheimer Hang', img=None, link='https://www.hessenschau.de/panorama/riesiges-fsv-wappen-grosse-kunst-am-bornheimer-hang,video-204422.html', home=False),
-    dict(pub='sportschau.de (hr)', date='2024-11-27', title='FSV Frankfurt: Künstler verschönert Stadion am Bornheimer Hang', img=None, link='https://www.sportschau.de/regional/hr/hr-fsv-frankfurt-kuenstler-verschoenert-stadion-am-bornheimer-hang-100.html', home=False),
-    dict(pub='frankfurt.de', date='2025-10-02', title='Graffiti für Frieden und Freiheit', img=None, link='https://frankfurt.de/aktuelle-meldung/meldungen/graffiti-fuer-frieden-und-freiheit/', home=True),
+    dict(pub='hessenschau (Video)', date='2024-11-27', title='Große Kunst am Bornheimer Hang', img='fsv-stadion-arena', link='https://www.hessenschau.de/panorama/riesiges-fsv-wappen-grosse-kunst-am-bornheimer-hang,video-204422.html', home=False),
+    dict(pub='sportschau.de (hr)', date='2024-11-27', title='FSV Frankfurt: Künstler verschönert Stadion am Bornheimer Hang', img='fsv-panorama', link='https://www.sportschau.de/regional/hr/hr-fsv-frankfurt-kuenstler-verschoenert-stadion-am-bornheimer-hang-100.html', home=False),
+    dict(pub='frankfurt.de', date='2025-10-02', title='Graffiti für Frieden und Freiheit', img='bb-philokalist', link='https://frankfurt.de/aktuelle-meldung/meldungen/graffiti-fuer-frieden-und-freiheit/', home=True),
     dict(pub='Frankfurter Neue Presse', date='2026-04-29', title='Aus seiner Sprühdose kommen Blumen', img='georgen-presse', link=('georgen', 'quellen'), home=True, note={'de': 'Seite 32, Stefanie Wehr', 'en': 'page 32, Stefanie Wehr', 'uk': 'с. 32, Stefanie Wehr'}),
     dict(pub='Hochschule Sankt Georgen', date='2026-04-14', title='Kunstprojekt an der Mauer', img='georgen-strassenbahn', link='https://www.sankt-georgen.de/button-menue/mediathek/nachrichten-aus-sankt-georgen/detail/kunstprojekt-an-der-mauer-1100/', home=False),
     dict(pub='stefansoehngen.de', date='2025-09-04', title='Kreative Raumgestaltung mit Wirkung – Wie Slaviks Kunst Unternehmen in Szene setzt', img=None, link='https://stefansoehngen.de/kreative-raumgestaltung-mit-wirkung/', home=False),
     dict(pub='Вечірній Миколаїв', date='2021-09-14', title='В память о корабелах и шахматистах', img=None, link='https://vn.mk.ua/ru/v-pamyat-o-korabelah-i-shahmatistah/', home=False),
     dict(pub='Monochronicle', date=None, title='BVB – Artist profile', img=None, link='https://monochronicle.com/artist/bvb/', home=False),
-    dict(pub='Weltexpresso', date='2025-10-02', title='Graffiti für Frieden und Freiheit', img=None, link='https://weltexpresso.de/index.php/heimspiel/35600-graffiti-fuer-frieden-und-freiheit', home=False),
+    dict(pub='Weltexpresso', date='2025-10-02', title='Graffiti für Frieden und Freiheit', img='bb-iimori', link='https://weltexpresso.de/index.php/heimspiel/35600-graffiti-fuer-frieden-und-freiheit', home=False),
     dict(pub='Mykolaiv Future', date=None, title='Мурали Миколаєва: слідами street-художників', img=None, link='https://mykolaiv-future.com.ua/uk/articles-muraly-mykolayeva-slidamy-street-hudozhnykiv', home=False),
 ]
 def fdate(k, iso):
