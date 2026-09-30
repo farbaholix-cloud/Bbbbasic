@@ -340,7 +340,14 @@
       var startDist = Math.max(centre + window.scrollY - vh / 2, vh * 0.25);
       var p = ease(clamp(window.scrollY / startDist));
       var startX = (vw - size) / 2, startY = (vh * 0.55 - size) / 2;
-      logo.style.transform = 'translate(' + (startX + (MARGIN - startX) * p) + 'px,' + (startY + (MARGIN - startY) * p) + 'px) scale(' + (1 + (SMALL / size - 1) * p) + ')';
+      var x = startX + (MARGIN - startX) * p, y = startY + (MARGIN - startY) * p, sc = 1 + (SMALL / size - 1) * p;
+      // keep the badge below the language switcher / burger while it still reaches under them
+      var top = document.querySelector('.fx-top .fx-langs');
+      if (top) {
+        var tr = top.getBoundingClientRect(), over = x + size * sc - (tr.left - 8);
+        if (over > 0) y = Math.max(y, (tr.bottom + 8) * Math.min(1, over / 40));
+      }
+      logo.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + sc + ')';
       // brown at page top -> black with the video centred -> brown again further down
       var k = ease(clamp(Math.abs(centre - vh / 2) / startDist));
       var c = BLACK.map(function (b, i) { return Math.round(b + (BROWN[i] - b) * k); });

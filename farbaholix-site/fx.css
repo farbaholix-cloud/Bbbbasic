@@ -661,3 +661,4 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .fx-tile { flex: 0 0 31%; scroll-snap-align: start; }
   .fx-swipe { display: block; margin: 10px 0 0; text-align: right; font-size: .8rem; color: var(--fx-muted); }
 }
+@media (orientation: landscape) and (max-height: 600px) { .fx-logo:not(.fx-logo-static) { width: 52vmin; } }
