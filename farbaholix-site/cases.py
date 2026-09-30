@@ -50,7 +50,7 @@ SG_GAL = ['sg-strelitzien', 'sg-mauer-panorama', 'sg-mauer-fahnen', 'sg-strelitz
           'sg-mensa', 'sg-100-jahre', 'georgen-strassenbahn', 'sg-abend', 'sg-strasse', 'sg-grundierung', 'sg-slavik-monstera', 'sg-slavik-bluete', 'georgen-kuenstler', 'sg-farben', 'sg-partner', 'sg-caparol-malen', 'georgen-presse']
 
 CASE_PAGES = {
-'fsv': dict(case='fsv', hero='fsv-stadion-arena', wide='fsv-panorama', gallery=FSV_GAL, date='2024-11-27', related='georgen', t={
+'fsv': dict(video=dict(src='vid-fsv-film', poster='vid-fsv-film-poster', len='2:38', lead={'de': 'Der Projektfilm: anderthalb Jahre am Bornheimer Hang in 2:38 Minuten – vom Grundieren über Fassade, Kabinen und Wappen bis zum Spieltag. Mit Ton; tippen Sie auf das Video, um es im Vollbild zu sehen.', 'en': 'The project film: a year and a half at Bornheimer Hang in 2:38 minutes – from priming to the façade, dressing rooms and crest, all the way to match day. With sound; tap the video to watch it full screen.', 'uk': 'Фільм про проєкт: півтора року на Bornheimer Hang за 2:38 хвилини – від ґрунтування через фасад, роздягальні й герб до дня матчу. Зі звуком; торкніться відео, щоб переглянути на весь екран.'}), case='fsv', hero='fsv-stadion-arena', wide='fsv-panorama', gallery=FSV_GAL, date='2024-11-27', related='georgen', t={
  'de': dict(
   meta=("FSV Frankfurt Stadion: Graffiti am Bornheimer Hang | Farbaholix",
         "FSV Frankfurt Stadion am Bornheimer Hang: Graffiti-Künstler Slavik (Farbaholix) gestaltete Wappen (6 × 4 m), Fassade, Fanshop und Innenräume. Projektbericht mit Fotos und Presse."),

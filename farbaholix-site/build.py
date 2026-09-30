@@ -476,7 +476,7 @@ def page_case(k, key):
                  '<img loading="lazy" src="%s" alt="%s"><span class="fx-vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span><span class="fx-vlen">%s</span></button>'
                  '<div class="fx-vside"><p class="fx-vlead">%s</p>%s</div></div></section>' % (
             e(U['video_t']), img(Vd['src']), img(Vd['poster']), e(U['video_play']), img(Vd['poster']), e(MEDIA[Vd['src']].get('alt_de', '')), Vd.get('len', ''),
-            e(U['video_lead']), ('<p class="fx-vclips-t">%s</p><div class="fx-vclips">%s</div>' % (e(U['video_clips']), clips)) if clips else ''))
+            e(Vd['lead'][k] if 'lead' in Vd else U['video_lead']), ('<p class="fx-vclips-t">%s</p><div class="fx-vclips">%s</div>' % (e(U['video_clips']), clips)) if clips else ''))
     gal = [g for g in P['gallery'] if g != P['hero']]
     o.append('<section class="fx-sec" id="galerie"><h2>%s</h2><p class="fx-hint">%s</p><div class="fx-gal">%s</div></section>' % (
         e(T['gallery_t']), e(U['gallery_hint']), ''.join('<a class="fx-lb" data-lb="report" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a>' % (
