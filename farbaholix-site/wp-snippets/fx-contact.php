@@ -139,7 +139,9 @@ function fx_thread_post( WP_REST_Request $r ) {
 	fx_thread_add( $id, 'v', $msg );
 	$name    = get_post_meta( $id, 'fx_name', true );
 	$contact = get_post_meta( $id, 'fx_contact', true );
-	fx_notify( $id, 'Neue Nachricht: ' . ( $name ?: $contact ), "💬 Nachricht zu Anfrage #$id (Website)\nVon: " . ( $name ?: '–' ) . " · $contact\n\n$msg", is_email( $contact ) ? '<' . $contact . '>' : '' );
+	$th      = get_post_meta( $id, 'fx_thread', true );
+	$n       = is_array( $th ) ? count( array_filter( $th, function ( $x ) { return 'v' === $x['w']; } ) ) : 2;   // this client's message number in the conversation
+	fx_notify( $id, 'Neue Nachricht: ' . ( $name ?: $contact ), "💬 Anfrage #$id · Nachricht $n (Website)\nVon: " . ( $name ?: '–' ) . " · $contact\n\n$msg", is_email( $contact ) ? '<' . $contact . '>' : '' );
 	$th = get_post_meta( $id, 'fx_thread', true );
 	return array( 'ok' => true, 'msgs' => $th );
 }

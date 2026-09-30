@@ -361,7 +361,7 @@ html, body { margin: 0; background: var(--fx-brown); }
 .fx-partners-logos { display: flex; align-items: center; justify-content: center; gap: 26px; }
 .fx-partners-logos img { display: block; width: auto; opacity: .82; transition: opacity .2s; }
 .fx-partners-logos .fx-logo-mtn { height: 34px; }
-.fx-partners-logos .fx-logo-cap { height: 50px; }
+.fx-partners-logos .fx-logo-cap { height: 50px; opacity: 1; }
 .fx-partners-logos i { width: 1px; height: 36px; background: var(--fx-line); }
 @media (hover: hover) { .fx-partners-logos img:hover { opacity: 1; } }
 .fx-partners .fx-trust-line { margin-top: 14px; }
