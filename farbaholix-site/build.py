@@ -96,6 +96,7 @@ CASES = {  # key: (anchor id, main image, thumbs, on home)
  'cansativa': ('cansativa', 'cansativa-treppenhaus', ['cansativa-abkleben', 'cansativa-geruest', 'cansativa-detail', 'cansativa-lettering'], False),
  'enso': ('enso', 'enso-neu-isenburg', ['presse-offenbach-post', 'presse-op-seite37'], False),   # ENSO only on the projects page and in the press
 }
+CASE_VIDEOS = {'cansativa': dict(src='vid-cansativa', poster='vid-cansativa-poster', len='0:49')}   # case blocks without a report page
 CASE_PLACE = {'braubach': 'Frankfurt am Main, Braubachstraße', 'georgen': 'Frankfurt am Main', 'fsv': 'Frankfurt am Main', 'wellen': 'Rüsselsheim am Main', 'cansativa': 'Frankfurt am Main', 'enso': 'Neu-Isenburg'}
 
 WA = '4915172450347'   # WhatsApp Business (German number)
@@ -168,6 +169,12 @@ def photo_case(k, key, with_thumbs, artist=False):
     if with_thumbs and thumbs:
         th = '<div class="fx-thumbs">%s</div>' % ''.join('<a class="fx-lb" data-lb="%s" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a>' % (
             cid, img(t), e(CAP[t][('de', 'en', 'uk').index(k)] if t in CAP else title), img(t), e(title)) for t in thumbs)
+    vd = CASE_VIDEOS.get(key) or (CASE_PAGES.get(key) or {}).get('video')
+    if vd:   # video tile first in the thumbnail row: poster + play + length, opens the full-screen player
+        vt = ('<button type="button" class="fx-vthumb" data-video="%s" data-poster="%s" aria-label="%s"><img loading="lazy" src="%s" alt="%s">'
+              '<span class="fx-vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span><span class="fx-vlen">%s</span></button>') % (
+            img(vd['src']), img(vd['poster']), e(UI[k]['video_play']), img(vd['poster']), e(MEDIA[vd['src']].get('alt_de', title)), vd.get('len', ''))
+        th = th.replace('<div class="fx-thumbs">', '<div class="fx-thumbs">' + vt, 1) if th else '<div class="fx-thumbs">%s</div>' % vt
     main = '<img loading="lazy" src="%s" alt="%s">' % (img(im), e(title + ' – ' + facts[0]))
     main = ('<a class="fx-case-link" href="%s">%s</a>' % (report, main)) if report else ('<a class="fx-lb" data-lb="%s" href="%s" data-cap="%s">%s</a>' % (cid, img(im), e(title), main))
     h = ('<a href="%s">%s</a>' % (report, e(title))) if report else e(title)
