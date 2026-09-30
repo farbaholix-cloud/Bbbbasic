@@ -169,14 +169,18 @@ def photo_case(k, key, with_thumbs, artist=False):
     if with_thumbs and thumbs:
         th = '<div class="fx-thumbs">%s</div>' % ''.join('<a class="fx-lb" data-lb="%s" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a>' % (
             cid, img(t), e(CAP[t][('de', 'en', 'uk').index(k)] if t in CAP else title), img(t), e(title)) for t in thumbs)
-    vd = CASE_VIDEOS.get(key) or (CASE_PAGES.get(key) or {}).get('video')
+    vd = CASE_VIDEOS.get(key)   # a case with a report page shows its video only there (the photo gets a video badge instead)
+    rv = (CASE_PAGES.get(key) or {}).get('video') if report else None
     if vd:   # video tile first in the thumbnail row: poster + play + length, opens the full-screen player
         vt = ('<button type="button" class="fx-vthumb" data-video="%s" data-poster="%s" aria-label="%s"><img loading="lazy" src="%s" alt="%s">'
               '<span class="fx-vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span><span class="fx-vlen">%s</span></button>') % (
             img(vd['src']), img(vd['poster']), e(UI[k]['video_play']), img(vd['poster']), e(MEDIA[vd['src']].get('alt_de', title)), vd.get('len', ''))
         th = th.replace('<div class="fx-thumbs">', '<div class="fx-thumbs">' + vt, 1) if th else '<div class="fx-thumbs">%s</div>' % vt
     main = '<img loading="lazy" src="%s" alt="%s">' % (img(im), e(title + ' – ' + facts[0]))
-    main = ('<a class="fx-case-link" href="%s">%s</a>' % (report, main)) if report else ('<a class="fx-lb" data-lb="%s" href="%s" data-cap="%s">%s</a>' % (cid, img(im), e(title), main))
+    if rv:
+        main += ('<a class="fx-vbadge" href="%s#video" aria-label="%s"><span class="fx-vbadge-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span>%s<small>%s</small></a>') % (
+            report, e(UI[k]['video_t']), {'de': 'Video', 'en': 'Video', 'uk': 'Відео'}[k], rv.get('len', ''))
+    main = ('<div class="fx-case-wrap"><a class="fx-case-link" href="%s">%s</a>%s</div>' % (report, main.split('<a class="fx-vbadge"')[0], ('<a class="fx-vbadge"' + main.split('<a class="fx-vbadge"')[1]) if rv else '')) if report else ('<a class="fx-lb" data-lb="%s" href="%s" data-cap="%s">%s</a>' % (cid, img(im), e(title), main))
     h = ('<a href="%s">%s</a>' % (report, e(title))) if report else e(title)
     more = '<a class="fx-case-more" href="%s">%s →</a>' % (report, e(UI[k]['more'])) if report else ''
     return ('<figure class="fx-photo%s" id="%s"><div class="fx-stage">%s%s</div>%s'
