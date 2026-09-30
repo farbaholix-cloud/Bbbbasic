@@ -284,6 +284,14 @@
     else if (box && box.classList.contains('is-on')) { if (ev.key === 'ArrowRight') show(cur + 1); else if (ev.key === 'ArrowLeft') show(cur - 1); }
   });
 
+  // ---- Logo: on the home page it scrolls smoothly back to the very top (other pages link to the home page) ----
+  var homeLogo = document.getElementById('fxLogo');
+  if (homeLogo) homeLogo.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (root.classList.contains('menu-open')) toggleMenu(false);
+    if (location.hash) try { history.replaceState(history.state, '', location.pathname + location.search); } catch (err) {}
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
   // ---- Home: logo glides to the corner, background darkens around the video ----
   var logo = document.getElementById('fxLogo'), video = document.getElementById('fxVideo');
   if (logo && video) {

@@ -16,6 +16,7 @@ html, body { margin: 0; background: var(--fx-brown); }
 .fx-lang.is-on { background: var(--fx-gold); color: #1a1109 !important; }
 .fx-logo { position: fixed; left: 0; top: 0; z-index: 50; width: 72vmin; max-width: 420px; aspect-ratio: 1; transform-origin: 0 0; will-change: transform; filter: drop-shadow(0 10px 30px rgba(0,0,0,.45)); pointer-events: none; }
 .fx-logo img { width: 100%; height: 100%; }
+#fxLogo { pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .fx-intro { height: 55svh; }
 .fx-video-wrap { padding: 0 16px; }
 .fx-video { display: block; width: 100%; max-width: 900px; margin: 0 auto; aspect-ratio: 16 / 9; object-fit: cover; background: #000; border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }

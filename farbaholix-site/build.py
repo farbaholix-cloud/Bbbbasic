@@ -154,7 +154,7 @@ def chrome_top(k, page, static_logo):
     if static_logo:
         o.append('<a class="fx-logo fx-logo-static" href="%s"><img src="%s" alt="%s"></a>' % (url(k, 'home'), img('logo-badge'), e(L['logo_alt'])))
     else:
-        o.append('<div class="fx-logo" id="fxLogo"><img src="%s" alt="%s" fetchpriority="high"></div>' % (img('logo-badge'), e(L['logo_alt'])))
+        o.append('<a class="fx-logo" id="fxLogo" href="%s"><img src="%s" alt="%s" fetchpriority="high"></a>' % (url(k, 'home'), img('logo-badge'), e(L['logo_alt'])))
     return o
 
 def photo_case(k, key, with_thumbs, artist=False):
