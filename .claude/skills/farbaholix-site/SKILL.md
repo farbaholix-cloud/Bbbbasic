@@ -53,8 +53,8 @@ New page checklist:
 - Maik’s own works/credits must not appear on the site; no home address; WhatsApp Business +49 151 724 50347; VAT is charged since 2026 (no Kleinunternehmer text).
 - Sandbox browsers often fail to load farbaholix.de (`ERR_TOO_MANY_RETRIES`, proxy cert) – use `ignoreHTTPSErrors`, retry, or verify with `curl`/urllib instead of assuming the site is broken.
 
-## Contact form
-Forms post JSON to `/wp-json/fx/v1/contact` (WPCode snippet #918, source `wp-snippets/fx-contact.php`): saves a private `fx_lead` (admin → Anfragen), mails farbaholix@gmail.com, forwards to WhatsApp via CallMeBot when options `fx_cmb_phone` + `fx_cmb_key` are set (`wp/v2/settings`). The form never mentions WhatsApp; separate direct WhatsApp/E-Mail buttons sit beside it. Response `{ok, mail, wa}`.
+## Contact hub
+WPCode snippet #918 = `wp-snippets/fx-contact.php`, push with `python3 wpcode.py` (check syntax first: `php -l`). Form → `fx/v1/contact` → lead `fx_lead` (admin → Anfragen) + Gmail + WhatsApp (CallMeBot) + Telegram bot @Farbaholix_chat_bot. Slavik replies in Telegram with *reply* → website chat (`fx/v1/thread`, token in localStorage, fx.js) + e-mail copy; people who write to the bot get the reply in Telegram. Setup/rotate token: `POST fx/v1/tg-setup {token}` (admin; returns a one-time owner link if no chat is set). Bot token lives only in WP options, never in the repo.
 
 ## Optional: Royal MCP
 The site runs the Royal MCP plugin (`https://farbaholix.de/wp-json/royal-mcp/v1/mcp`, OAuth or API key). When it is added as a connector in claude.ai, a session can read/edit posts, pages and media directly – good for quick text fixes. Generated pages should still be changed through this build, or the next deploy overwrites manual edits.
