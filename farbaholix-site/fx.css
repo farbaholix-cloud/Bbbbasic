@@ -360,6 +360,9 @@ html, body { margin: 0; background: var(--fx-brown); }
 .fx-partners-t { margin: 0 0 12px; font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--fx-muted); }
 .fx-partners-logos { display: flex; align-items: center; justify-content: center; gap: 28px; width: 100%; max-width: 760px; box-sizing: border-box; margin: 0 auto; padding: 14px 20px; background: #fff; border-radius: 14px; box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .6); }
 .fx-partners-logos img { display: block; width: auto; }
+.fx-partners-logos a { display: block; border-radius: 8px; transition: transform .18s, opacity .18s; }
+@media (hover: hover) { .fx-partners-logos a:hover { transform: scale(1.05); } }
+.fx-partners-logos a:active { opacity: .7; }
 .fx-partners-logos .fx-logo-mtn { height: 32px; }
 .fx-partners-logos .fx-logo-cap { height: 50px; }
 .fx-partners-logos i { width: 1px; height: 36px; background: #e2ded7; }

@@ -287,7 +287,8 @@ def page_home(k):
     o.append('<div class="fx-ctas"><a class="fx-btn" href="#kontakt">%s</a><a class="fx-btn fx-btn-ghost" href="#projekte">%s</a></div>' % (e(L['cta1']), e(L['cta2'])))
     o.append('<div class="fx-stats">%s</div>' % ''.join('<div><b>%s</b><span>%s</span></div>' % (e(n), e(t)) for n, t in L['stats']))
     o.append('<div class="fx-partners"><p class="fx-partners-t">%s</p><div class="fx-partners-logos">'
-             '<img class="fx-logo-mtn" src="%s" alt="Montana Colors" width="560" height="150"><i aria-hidden="true"></i><img class="fx-logo-cap" src="%s" alt="Caparol" width="291" height="230"></div>'
+             '<a href="https://www.mtn-shop.de/" target="_blank" rel="noopener"><img class="fx-logo-mtn" src="%s" alt="Montana Colors" width="560" height="150"></a><i aria-hidden="true"></i>'
+             '<a href="https://www.caparol.de/" target="_blank" rel="noopener"><img class="fx-logo-cap" src="%s" alt="Caparol" width="291" height="230"></a></div>'
              '<p class="fx-trust-line">%s</p></div></section>' % (e(L['proud']), img('logo-montana'), img('logo-caparol'), e(L['trust'][3])))
     o.append('<section class="fx-sec" id="leistungen"><h2>%s</h2><div class="fx-tiles">' % e(L['s_services']))
     for (t, _), short, src, cat in zip(L['services'], L['services_short'], SERVICE_IMGS, CATS):
