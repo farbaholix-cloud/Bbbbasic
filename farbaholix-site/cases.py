@@ -224,7 +224,6 @@ UI = {
 }
 
 # ---- Braubachstraße: window paintings for German Unity Day 2025 (sources: Stadt Frankfurt / frankfurt-live 02.10.2025, visitfrankfurt)
-BB_CITY = 'https://frankfurt.de/aktuelle-meldung/meldungen/graffiti-fuer-frieden-und-freiheit/'
 BB_LIVE = 'https://www.frankfurt-live.com/graffiti-fuer-frieden-und-freiheit'
 BB_WELT = 'https://weltexpresso.de/index.php/heimspiel/35600-graffiti-fuer-frieden-und-freiheit'
 BB_RMV = 'https://www.rheinmainverlag.de/2025/10/02/graffiti-fuer-frieden-und-freiheit-in-frankfurt/'
@@ -255,7 +254,7 @@ CASE_PAGES['braubach'] = dict(case='braubach', hero='bb-philokalist', wide=None,
   quote=("Die Demokratie ist kein Geschenk, sondern muss immer wieder gelebt und verteidigt werden.", "Bürgermeisterin Nargess Eskandari-Grünberg zum Projekt, 1. Oktober 2025 (sinngemäß laut Stadt Frankfurt)"),
   review=None,
   gallery_t="Fotos der Schaufenster",
-  sources=[("Stadt Frankfurt am Main: „Graffiti für Frieden und Freiheit“ (02.10.2025)", BB_CITY), ("frankfurt-live.com: „Graffiti für Frieden und Freiheit“ (02.10.2025)", BB_LIVE),
+  sources=[("Stadt Frankfurt am Main, veröffentlicht auf frankfurt-live.com: „Graffiti für Frieden und Freiheit“ (02.10.2025)", BB_LIVE),
            ("Weltexpresso: „Graffiti für Frieden und Freiheit“", BB_WELT), ("Rhein Main Verlag: „Graffiti für Frieden und Freiheit in Frankfurt“ (02.10.2025)", BB_RMV),
            ("visitfrankfurt: „Jazz zum Dritten – 35 Jahre Deutsche Einheit“", BB_JAZZ)],
   faq=[("Was ist Schaufenster Graffiti?", "Malerei und Kalligrafie direkt auf der Schaufensterscheibe – mit Pinsel und Sprühdose. Sie wirkt von der Straße wie ein Plakat aus Licht und lässt sich später rückstandsfrei entfernen."),
@@ -282,7 +281,7 @@ CASE_PAGES['braubach'] = dict(case='braubach', hero='bb-philokalist', wide=None,
   quote=("Democracy is not a gift; it has to be lived and defended again and again.", "Mayor Nargess Eskandari-Grünberg on the project, 1 October 2025 (paraphrased by the City of Frankfurt, translated)"),
   review=None,
   gallery_t="Photos of the windows",
-  sources=[("City of Frankfurt: “Graffiti für Frieden und Freiheit” (2 Oct 2025, in German)", BB_CITY), ("frankfurt-live.com: “Graffiti für Frieden und Freiheit” (2 Oct 2025, in German)", BB_LIVE),
+  sources=[("City of Frankfurt, published on frankfurt-live.com: “Graffiti für Frieden und Freiheit” (2 Oct 2025, in German)", BB_LIVE),
            ("Weltexpresso: “Graffiti für Frieden und Freiheit” (in German)", BB_WELT), ("Rhein Main Verlag: “Graffiti für Frieden und Freiheit in Frankfurt” (2 Oct 2025, in German)", BB_RMV),
            ("visitfrankfurt: “Jazz zum Dritten – 35 Jahre Deutsche Einheit” (in German)", BB_JAZZ)],
   faq=[("What is window graffiti?", "Painting and calligraphy directly on the shop window – with brush and spray can. From the street it reads like a poster made of light, and it can be removed without residue later."),
@@ -309,7 +308,7 @@ CASE_PAGES['braubach'] = dict(case='braubach', hero='bb-philokalist', wide=None,
   quote=("Демократія – не подарунок, її треба знову й знову проживати й захищати.", "Бургомістерка Наргес Ескандарі-Грюнберг про проєкт, 1 жовтня 2025 (за переказом міста Франкфурт, переклад)"),
   review=None,
   gallery_t="Фото вітрин",
-  sources=[("Місто Франкфурт: «Graffiti für Frieden und Freiheit» (02.10.2025, німецькою)", BB_CITY), ("frankfurt-live.com: «Graffiti für Frieden und Freiheit» (02.10.2025, німецькою)", BB_LIVE),
+  sources=[("Місто Франкфурт, опубліковано на frankfurt-live.com: «Graffiti für Frieden und Freiheit» (02.10.2025, німецькою)", BB_LIVE),
            ("Weltexpresso: «Graffiti für Frieden und Freiheit» (німецькою)", BB_WELT), ("Rhein Main Verlag: «Graffiti für Frieden und Freiheit in Frankfurt» (02.10.2025, німецькою)", BB_RMV),
            ("visitfrankfurt: «Jazz zum Dritten – 35 Jahre Deutsche Einheit» (німецькою)", BB_JAZZ)],
   faq=[("Що таке графіті на вітринах?", "Розпис і каліграфія прямо на склі вітрини – пензлем і балончиком. З вулиці це виглядає як світловий плакат, а згодом його можна прибрати без слідів."),
