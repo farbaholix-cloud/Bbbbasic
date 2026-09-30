@@ -20,11 +20,11 @@ def img(key):  # new image under its SEO file name
     return MEDIA[key]['url']
 
 LANGS = {k: importlib.import_module('lang_' + k).L for k in ('de', 'en', 'uk')}
-PAGES = ('home', 'projects', 'opening', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach')
+PAGES = ('home', 'projects', 'opening', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach', 'wellen')
 URL = {  # WordPress slugs; the home pages are the Polylang front pages
-    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse'),
-    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse'),
-    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse'),
+    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse', wellen='projekte/restaurant-wandgestaltung-wellenlaenge'),
+    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse', wellen='projects/restaurant-mural-wellenlaenge'),
+    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse', wellen='proiekty/restoran-wellenlange'),
 }
 LANG_PATH = dict(de='', en='en/', uk='uk/')
 def url(k, page):
@@ -380,7 +380,7 @@ def page_magazine(k):
                       'author': {'@id': SITE + '#slavik'}, 'publisher': {'@id': SITE + '#farbaholix'}, 'image': image_obj(a['image'], a['image_alt']), 'url': url(k, 'magazine') + '#' + a['slug']})
     o.append('<section class="fx-sec" id="projektberichte"><h2>%s</h2><div class="fx-press">%s</div></section>' % (e(L['s_projects']), ''.join(
         '<a class="fx-press-card" href="%s"><div class="fx-press-img"><img loading="lazy" src="%s" alt="%s"></div><div class="fx-press-body"><span class="fx-press-pub">%s</span><h3>%s</h3><span class="fx-press-meta">%s →</span></div></a>' % (
-            url(k, c), img(CASE_PAGES[c]['hero']), e(CASE_PAGES[c]['t'][k]['h1']), e(CASE_PAGES[c]['t'][k]['kicker']), e(CASE_PAGES[c]['t'][k]['h1']), e(UI[k]['more'])) for c in ('georgen', 'fsv', 'braubach'))))
+            url(k, c), img(CASE_PAGES[c]['hero']), e(CASE_PAGES[c]['t'][k]['h1']), e(CASE_PAGES[c]['t'][k]['kicker']), e(CASE_PAGES[c]['t'][k]['h1']), e(UI[k]['more'])) for c in ('georgen', 'fsv', 'wellen', 'braubach'))))
     o.append('</div>')
     o.append(contact_open(k))
     return '\n'.join(o), graph
@@ -464,7 +464,7 @@ def page_case(k, key):
         {'@type': 'FAQPage', 'mainEntity': [{'@type': 'Question', 'name': a, 'acceptedAnswer': {'@type': 'Answer', 'text': b}} for a, b in T['faq']]}]
     return '\n'.join(o), graph
 
-BUILDERS = dict(braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
+BUILDERS = dict(wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
 
 def wrap(k, top, graph, page=None):
     css, js = open('fx.css').read(), open('fx.js').read()

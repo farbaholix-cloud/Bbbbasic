@@ -324,3 +324,103 @@ CAP.update({
  'cansativa-detail': ("Detailarbeit am Lettering", "Detail work on the lettering", "Детальна робота над леттерингом"),
  'cansativa-lettering': ("Markenschriftzug „cansativa“", "The “cansativa” brand lettering", "Фірмовий напис «cansativa»"),
 })
+
+# ---- Restaurant Wellenlänge / Höll am Main, Rüsselsheim (sources: hoellammain.de, Journal Frankfurt 30.01.2017)
+WL_RESTAURANT = 'https://www.hoellammain.de/restaurant'
+WL_ABOUT = 'https://www.hoellammain.de/uber-uns'
+WL_JOURNAL = 'https://essenundtrinken.journal-frankfurt.de/gastro_news/restauranttests-34/Neuer-Hotspot-in-Ruesselsheim-Hotel-Restaurant-Wellenlaenge-eroeffnet-mit-Star-Gaesten-28819.html'
+CAP.update({
+ 'wellenlaenge-fassade': ("Die ganze Fassade am Mainufer mit dem Schriftzug „Restaurant Wellenlänge“", "The whole facade on the Main riverbank with the “Restaurant Wellenlänge” lettering", "Увесь фасад на березі Майну з написом «Restaurant Wellenlänge»"),
+ 'wellenlaenge-panorama': ("Das Gebäude während der Arbeit – mit Gerüst und Leitern", "The building during the work – with scaffolding and ladders", "Будівля під час роботи – з риштуванням і драбинами"),
+ 'wl-fassade-seite': ("Seitenansicht: Welle, Taube und warme Abendtöne", "Side view: wave, dove and warm evening tones", "Вигляд збоку: хвиля, голуб і теплі вечірні тони"),
+ 'wl-leiter': ("Slavik auf der Leiter: Welle für Welle aus der Sprühdose", "Slavik on the ladder: wave by wave from the spray can", "Славік на драбині: хвиля за хвилею з балончика"),
+ 'wellenlaenge-portrait': ("Das Porträt am Eingang – mit „Höll“ auf dem Halsband", "The portrait at the entrance – with “Höll” on the collar", "Портрет біля входу – з написом «Höll» на чокері"),
+ 'wl-speisekarte': ("Das Porträt wurde zum Gesicht der Speisekarte (Quelle: hoellammain.de)", "The portrait became the face of the menu (source: hoellammain.de)", "Портрет став обличчям меню (джерело: hoellammain.de)"),
+ 'wellenlaenge-interieur': ("Chef’s Table: violette Ornamente mit dem Wellenlänge-Logo", "Chef’s table: violet ornaments with the Wellenlänge logo", "Chef’s Table: фіолетові орнаменти з логотипом Wellenlänge"),
+ 'wl-gastraum-abend': ("Die Ornamente setzen sich im Gastraum fort – am Abend", "The ornaments continue in the dining room – in the evening", "Орнаменти продовжуються в залі – увечері"),
+ 'wellenlaenge-welcome': ("„Welcome to Höll am Main“: Flügel am Tor als Fotospot", "“Welcome to Höll am Main”: wings on the gate as a photo spot", "«Welcome to Höll am Main»: крила на воротах як фотозона"),
+})
+CASE_PAGES['wellen'] = dict(case='wellen', hero='wellenlaenge-panorama', wide='wellenlaenge-fassade', date='2026-09-30', related='georgen',
+  gallery=['wellenlaenge-panorama', 'wl-fassade-seite', 'wl-leiter', 'wellenlaenge-portrait', 'wl-speisekarte', 'wellenlaenge-interieur', 'wl-gastraum-abend', 'wellenlaenge-welcome', 'wellenlaenge-fassade'], t={
+ 'de': dict(
+  meta=("Restaurant Wandgestaltung: Wellenlänge in Rüsselsheim | Farbaholix",
+        "Restaurant Wandgestaltung aus einer Hand: Fassaden-Mural, Porträt am Eingang, Chef’s Table und Fotospot für das Restaurant Wellenlänge im Hotel Höll am Main, Rüsselsheim."),
+  focus="Restaurant Wandgestaltung", kicker="Projektbericht", h1="Restaurant Wellenlänge: ein Haus, eine Handschrift",
+  lead="Restaurant Wandgestaltung als Gesamtkonzept: Für das Restaurant Wellenlänge im Business-Boutique-Hotel Höll am Main in Rüsselsheim gestaltete der Graffiti-Künstler Viacheslav „Slavik“ Balabaiev (Farbaholix) die Fassade am Mainufer, den Eingang, den Chef’s-Table-Bereich, den Gastraum und ein Tor als Fotospot – alles in einer Bildsprache.",
+  facts=[("Ort", "Hotel Höll am Main, Mainstraße 17, Rüsselsheim am Main"), ("Auftraggeber", "Höll am Main – Business-Boutique-Hotel mit Restaurant Wellenlänge"),
+         ("Umfang", "Fassade, Eingangsporträt, Chef’s Table, Gastraum, Tor"), ("Motive", "Wellen und Tauben, Frauenporträt, barocke Ornamente, Flügel"),
+         ("Technik", "Sprühdose, Arbeit von Leiter und Gerüst"), ("Branche", "Gastronomie und Hotellerie")],
+  sections=[
+   ("Das Haus am Main", ["<p>Das Höll am Main liegt direkt am Mainufer in Rüsselsheim. Das Haus wurde bereits 1836 als Gasthaus „Mainlust“ gegründet; die Familie Höll hat es umfassend renoviert und Anfang 2017 als Business-Boutique-Hotel mit dem Restaurant Wellenlänge eröffnet. Das Motto der Küche: „Kreative Küche genau auf Ihrer Wellenlänge“ – regionale Produkte, verbunden mit Geschmäckern aus aller Welt.</p>"]),
+   ("Die Idee: der Name wird zum Bild", ["<p>„Wellenlänge“ – der Name lieferte das Motiv. Die lange Fassade zum Main wurde zu einer einzigen Welle in Türkis, Weiß und warmen Abendtönen, durch die weiße Tauben fliegen. Darunter läuft der Schriftzug „Restaurant Wellenlänge“ über die ganze Front.</p>"]),
+   ("Restaurant Wandgestaltung vom Eingang bis zum Tisch", ["<ul><li><strong>Eingang:</strong> ein großes Frauenporträt in Pink- und Blautönen neben der Treppe, mit „Höll“ auf dem Halsband.</li>"
+                             "<li><strong>Chef’s Table:</strong> violette Barock-Ornamente mit dem Wellenlänge-Logo und einem grün leuchtenden Ornament-Bild.</li>"
+                             "<li><strong>Gastraum:</strong> die Ornamente setzen sich fort und geben dem Raum abends Tiefe.</li>"
+                             "<li><strong>Tor:</strong> pinkrote Flügel und „Welcome to Höll am Main“ – ein Fotospot für Gäste.</li></ul>"]),
+   ("Ein Porträt wird zur Marke", ["<p>Das Porträt vom Eingang blieb nicht an der Wand: Das Restaurant nutzt es heute als Cover seiner Speisekarte. Genau das ist der Sinn eines Gesamtkonzepts – die Kunst wird Teil der Marke, von der Fassade bis zur Karte auf dem Tisch.</p>"]),
+   ("So entstand die Fassade", ["<p>Gearbeitet wurde direkt vor Ort: vom Gerüst und von der Leiter aus, Welle für Welle mit der Sprühdose.</p>"]),
+  ],
+  quote=("Kreative Küche genau auf Ihrer Wellenlänge.", "Motto des Restaurants Wellenlänge (hoellammain.de)"),
+  review=None,
+  gallery_t="Fotos vom Projekt",
+  sources=[("Höll am Main: Restaurant Wellenlänge", WL_RESTAURANT), ("Höll am Main: Über uns", WL_ABOUT),
+           ("Journal Frankfurt: „Neuer Hotspot in Rüsselsheim – Hotel-Restaurant Wellenlänge eröffnet mit Star-Gästen“ (30.01.2017)", WL_JOURNAL)],
+  faq=[("Was gehört zu einer Restaurant Wandgestaltung?", "Alles, was Gäste sehen: Fassade und Schriftzug, Eingang, Gastraum, besondere Bereiche wie ein Chef’s Table – und gern ein Fotospot, der in sozialen Netzwerken geteilt wird."),
+       ("Wo ist das Restaurant Wellenlänge?", "Im Hotel Höll am Main, Mainstraße 17 in Rüsselsheim am Main, direkt am Mainufer."),
+       ("Kann Farbaholix auch mein Restaurant gestalten?", "Ja – von einer einzelnen Wand bis zum Gesamtkonzept. Einen ersten Richtwert gibt der Preisrechner, für Neueröffnungen gibt es das Eröffnungspaket.")],
+ ),
+ 'en': dict(
+  meta=("Restaurant Mural: Wellenlänge in Rüsselsheim | Farbaholix",
+        "A restaurant mural as a complete concept: facade, entrance portrait, chef’s table and photo spot for Restaurant Wellenlänge at Hotel Höll am Main, Rüsselsheim."),
+  focus="restaurant mural", kicker="Case study", h1="Restaurant Wellenlänge: one house, one signature",
+  lead="A restaurant mural as a complete concept: for Restaurant Wellenlänge at the business boutique hotel Höll am Main in Rüsselsheim, graffiti artist Viacheslav “Slavik” Balabaiev (Farbaholix) painted the facade on the Main riverbank, the entrance, the chef’s table area, the dining room and a gate as a photo spot – all in one visual language.",
+  facts=[("Location", "Hotel Höll am Main, Mainstraße 17, Rüsselsheim am Main"), ("Client", "Höll am Main – business boutique hotel with Restaurant Wellenlänge"),
+         ("Scope", "Facade, entrance portrait, chef’s table, dining room, gate"), ("Motifs", "Waves and doves, female portrait, baroque ornaments, wings"),
+         ("Technique", "Spray paint, work from ladder and scaffolding"), ("Sector", "Restaurants and hotels")],
+  sections=[
+   ("The house on the Main", ["<p>Höll am Main sits right on the riverbank in Rüsselsheim. The house was founded back in 1836 as the inn “Mainlust”; the Höll family renovated it thoroughly and opened it in early 2017 as a business boutique hotel with Restaurant Wellenlänge. The kitchen’s motto: “creative cuisine exactly on your wavelength” – regional produce combined with flavours from around the world.</p>"]),
+   ("The idea: the name becomes the image", ["<p>“Wellenlänge” means wavelength – and the name supplied the motif. The long facade facing the Main became a single wave in turquoise, white and warm evening tones, with white doves flying through it. Below, the lettering “Restaurant Wellenlänge” runs along the whole front.</p>"]),
+   ("A restaurant mural from the entrance to the table", ["<ul><li><strong>Entrance:</strong> a large female portrait in pink and blue next to the stairs, with “Höll” on her collar.</li>"
+                             "<li><strong>Chef’s table:</strong> violet baroque ornaments with the Wellenlänge logo and a glowing green ornament panel.</li>"
+                             "<li><strong>Dining room:</strong> the ornaments continue and give the room depth in the evening.</li>"
+                             "<li><strong>Gate:</strong> pink-red wings and “Welcome to Höll am Main” – a photo spot for guests.</li></ul>"]),
+   ("A portrait becomes a brand", ["<p>The entrance portrait did not stay on the wall: the restaurant now uses it as the cover of its menu. That is the point of a complete concept – the art becomes part of the brand, from the facade to the menu on the table.</p>"]),
+   ("How the facade was made", ["<p>The work was done on site: from scaffolding and ladders, wave by wave with spray paint.</p>"]),
+  ],
+  quote=("Creative cuisine exactly on your wavelength.", "Motto of Restaurant Wellenlänge (hoellammain.de, translated)"),
+  review=None,
+  gallery_t="Photos of the project",
+  sources=[("Höll am Main: Restaurant Wellenlänge (in German)", WL_RESTAURANT), ("Höll am Main: About us (in German)", WL_ABOUT),
+           ("Journal Frankfurt: “Neuer Hotspot in Rüsselsheim – Hotel-Restaurant Wellenlänge eröffnet mit Star-Gästen” (30 Jan 2017, in German)", WL_JOURNAL)],
+  faq=[("What does a restaurant mural project include?", "Everything guests see: facade and lettering, entrance, dining room, special areas such as a chef’s table – and ideally a photo spot that gets shared on social media."),
+       ("Where is Restaurant Wellenlänge?", "At Hotel Höll am Main, Mainstraße 17 in Rüsselsheim am Main, right on the Main riverbank."),
+       ("Can Farbaholix design my restaurant too?", "Yes – from a single wall to a complete concept. The price calculator gives a first estimate, and there is an opening package for new venues.")],
+ ),
+ 'uk': dict(
+  meta=("Wellenlänge: розпис ресторану в Рюссельсгаймі | Farbaholix",
+        "Ресторан Wellenlänge в готелі Höll am Main: фасадний мурал, портрет біля входу, Chef’s Table і фотозона – оформлення ресторану від Farbaholix в одному стилі."),
+  focus="Wellenlänge", kicker="Кейс", h1="Ресторан Wellenlänge: один дім, один почерк",
+  lead="Ресторан Wellenlänge в бізнес-бутик-готелі Höll am Main у Рюссельсгаймі отримав цілісне оформлення: графіті-художник В’ячеслав «Славік» Балабаєв (Farbaholix) розписав фасад на березі Майну, вхід, зону Chef’s Table, зал і ворота-фотозону – все в одній візуальній мові.",
+  facts=[("Місце", "Готель Höll am Main, Mainstraße 17, Рюссельсгайм-на-Майні"), ("Замовник", "Höll am Main – бізнес-бутик-готель із рестораном Wellenlänge"),
+         ("Обсяг", "Фасад, портрет біля входу, Chef’s Table, зал, ворота"), ("Мотиви", "Хвилі й голуби, жіночий портрет, барокові орнаменти, крила"),
+         ("Техніка", "Балончики, робота з драбини й риштування"), ("Галузь", "Ресторани й готелі")],
+  sections=[
+   ("Дім на березі Майну", ["<p>Höll am Main стоїть просто на березі Майну в Рюссельсгаймі. Дім заснували ще 1836 року як заїжджий двір «Mainlust»; родина Гьолль ґрунтовно його оновила й на початку 2017 року відкрила як бізнес-бутик-готель із рестораном Wellenlänge. Девіз кухні: «Креативна кухня саме на вашій хвилі» – регіональні продукти в поєднанні зі смаками з усього світу.</p>"]),
+   ("Ідея: назва стає образом", ["<p>«Wellenlänge» означає «довжина хвилі» – і назва підказала мотив. Довгий фасад до Майну став однією хвилею в бірюзових, білих і теплих вечірніх тонах, крізь яку летять білі голуби. Нижче по всьому фасаду йде напис «Restaurant Wellenlänge».</p>"]),
+   ("Wellenlänge від входу до столу", ["<ul><li><strong>Вхід:</strong> великий жіночий портрет у рожевих і синіх тонах біля сходів, з написом «Höll» на чокері.</li>"
+                             "<li><strong>Chef’s Table:</strong> фіолетові барокові орнаменти з логотипом Wellenlänge і зеленим орнаментальним панно.</li>"
+                             "<li><strong>Зал:</strong> орнаменти продовжуються й додають простору глибини ввечері.</li>"
+                             "<li><strong>Ворота:</strong> рожево-червоні крила й «Welcome to Höll am Main» – фотозона для гостей.</li></ul>"]),
+   ("Портрет стає брендом", ["<p>Портрет біля входу не залишився лише на стіні: ресторан використовує його як обкладинку свого меню. У цьому сенс цілісної концепції – мистецтво стає частиною бренду, від фасаду до меню на столі.</p>"]),
+   ("Як створювався фасад", ["<p>Робота йшла на місці: з риштування й драбини, хвиля за хвилею балончиками.</p>"]),
+  ],
+  quote=("Креативна кухня саме на вашій хвилі.", "Девіз ресторану Wellenlänge (hoellammain.de, переклад)"),
+  review=None,
+  gallery_t="Фото проєкту",
+  sources=[("Höll am Main: ресторан Wellenlänge (німецькою)", WL_RESTAURANT), ("Höll am Main: про нас (німецькою)", WL_ABOUT),
+           ("Journal Frankfurt: «Neuer Hotspot in Rüsselsheim – Hotel-Restaurant Wellenlänge eröffnet mit Star-Gästen» (30.01.2017, німецькою)", WL_JOURNAL)],
+  faq=[("Що входить в оформлення ресторану?", "Усе, що бачать гості: фасад і напис, вхід, зал, особливі зони на кшталт Chef’s Table – і бажано фотозона, якою діляться в соцмережах."),
+       ("Де знаходиться ресторан Wellenlänge?", "У готелі Höll am Main, Mainstraße 17, Рюссельсгайм-на-Майні, просто на березі Майну."),
+       ("Чи може Farbaholix оформити мій ресторан?", "Так – від однієї стіни до повної концепції. Перший орієнтир дасть калькулятор ціни, для відкриттів є пакет «Відкриття».")],
+ ),
+})

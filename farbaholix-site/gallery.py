@@ -81,6 +81,8 @@ EXTRA = [
  ('fsv-stadion-arena', 'facade', {'de': 'FSV Frankfurt: Stadionfassade am Bornheimer Hang', 'en': 'FSV Frankfurt: stadium facade at Bornheimer Hang', 'uk': 'FSV Frankfurt: фасад стадіону на Борнгаймер Ганг'}),
  ('fsv-wappen-flammen', 'indoor', {'de': 'FSV-Wappen in blauen Flammen, Innenraum', 'en': 'FSV crest in blue flames, interior', 'uk': 'Герб FSV у синьому полум’ї, інтер’єр'}),
  ('fsv-immer-weiter', 'indoor', {'de': '„Immer weiter“ – Innenraum im FSV-Stadion', 'en': '“Immer weiter” – interior of the FSV stadium', 'uk': '«Immer weiter» – інтер’єр стадіону FSV'}),
+ ('wl-fassade-seite', 'facade', {'de': 'Restaurant Wellenlänge: Fassaden-Mural mit Welle und Taube', 'en': 'Restaurant Wellenlänge: facade mural with wave and dove', 'uk': 'Ресторан Wellenlänge: фасадний мурал із хвилею й голубом'}),
+ ('wl-gastraum-abend', 'indoor', {'de': 'Restaurant Wellenlänge: violette Ornamente im Gastraum', 'en': 'Restaurant Wellenlänge: violet ornaments in the dining room', 'uk': 'Ресторан Wellenlänge: фіолетові орнаменти в залі'}),
  ('wellenlaenge-panorama', 'facade', {'de': 'Restaurant Wellenlänge, Rüsselsheim – Fassaden-Mural', 'en': 'Restaurant Wellenlänge, Rüsselsheim – facade mural', 'uk': 'Ресторан Wellenlänge, Рюссельсгайм – мурал на фасаді'}),
  ('wellenlaenge-interieur', 'indoor', {'de': 'Restaurant Wellenlänge – ornamentale Wände', 'en': 'Restaurant Wellenlänge – ornamental walls', 'uk': 'Ресторан Wellenlänge – орнаментальні стіни'}),
  ('wellenlaenge-welcome', 'objects', {'de': '„Welcome“-Flügel als Fotospot am Tor', 'en': '“Welcome” wings as a photo spot on the gate', 'uk': 'Крила «Welcome» – фотозона на воротах'}),

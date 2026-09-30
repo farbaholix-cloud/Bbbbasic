@@ -86,7 +86,7 @@
 ### Проекты
 Все кейсы с фото и миниатюрами (миниатюры открываются в лайтбоксе): Sankt Georgen, FSV Frankfurt, Braubachstraße, Wellenlänge, Cansativa, ENSO Neu-Isenburg. У FSV, Sankt Georgen и Braubachstraße есть ссылки на статьи. Schema: CollectionPage и VisualArtwork.
 
-### Кейсы (статьи) FSV Frankfurt, Sankt Georgen, Braubachstraße
+### Кейсы (статьи) FSV Frankfurt, Sankt Georgen, Braubachstraße, Restaurant Wellenlänge
 Хлебные крошки → подпись «Projektbericht» → H1 → лид (готовый короткий ответ для Google и ИИ) → главное фото → блок «Projekt auf einen Blick» (место, заказчик, повод, сроки, объём, материалы) → 4–5 разделов → [панорама] → большая цитата → [отзыв заказчика] → галерея (FSV 10 фото, Sankt Georgen 24, лайтбокс) → «Presse und Quellen» → FAQ → призыв к действию (калькулятор / запрос) → ссылка на другой кейс и «Все проекты» → контакт.
 
 - **FSV:** стадион на Bornheimer Hang (с 2026 года BBBank Arena, раньше PSD Bank Arena). Фасад, герб ~6 × 4 м, фан-шоп, коридоры, пандус. 1,5 года, к 125-летию клуба. Источники: hessenschau (статья и видео), sportschau, пресс-релиз города Франкфурт о южной трибуне.
