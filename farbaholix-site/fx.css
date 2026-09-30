@@ -642,3 +642,8 @@ button.fx-vthumb, button.fx-vthumb:hover, button.fx-vthumb:focus { position: rel
 .fx-vthumb .fx-vlen { right: 6px; bottom: 6px; padding: 1px 6px; font-size: .68rem; }
 @media (hover: hover) { button.fx-vthumb:hover .fx-vplay { transform: scale(1.1); } }
 .fx-thumbs:has(.fx-vthumb) { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+/* phone in landscape: no gradient band from the header over the video, and the home video fits the screen height */
+@media (orientation: landscape) and (max-height: 600px) {
+  .fx-top, .fx.lights-on .fx-top { background: none; padding-bottom: 14px; }
+  .fx-video-box { max-width: min(900px, calc((100dvh - 28px) * 16 / 9)); }
+}
