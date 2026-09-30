@@ -707,3 +707,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .fx-cform-compact .fx-att-ic { width: 40px; height: 40px; } .fx-cform-compact .fx-att-ic svg { width: 21px; height: 21px; }
 .fx-cform-compact .fx-att-tx b { font-size: .92rem; } .fx-cform-compact .fx-att-tx small { font-size: .74rem; }
 @media (prefers-reduced-motion: reduce) { .fx-paint-fg, .fx-paint-can, .fx-cheer { transition: none; } .fx-paint-can.is-shake, .fx-cheer.is-on, .fx-att-th, .fx-cform .fx-cform-send.is-ready, .fx-att.is-busy .fx-att-ic { animation: none; } }
+.fx-press-img { position: relative; }
+.fx-press-img .fx-press-logo { position: absolute; left: 12px; bottom: 12px; width: auto; height: 30px; object-fit: contain; filter: none; border-radius: 7px; box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+@media (min-width: 760px) { .fx-press-img .fx-press-logo { height: 26px; } }

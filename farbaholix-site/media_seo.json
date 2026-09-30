@@ -403,8 +403,48 @@
 "alt_de": "Cansativa Group Treppenhaus mit Firmen-Timeline"
 },
 "presse-hessenschau": {
-"id": 1547,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-hessenschau-graffiti-kuenstler-viacheslav-balabaiev-fsv-hr.webp",
+"id": 1562,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-hessenschau-graffiti-kuenstler-viacheslav-balabaiev-fsv.webp",
 "alt_de": "Graffiti-Künstler Viacheslav Balabaiev mit Spraydose am FSV-Stadion Bornheimer Hang in Frankfurt (Foto: hr / hessenschau.de)"
+},
+"plogo-hessenschau": {
+"id": 1554,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/hessenschau-logo.png",
+"alt_de": "Logo hessenschau"
+},
+"plogo-sportschau": {
+"id": 1555,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/sportschau-logo.png",
+"alt_de": "Logo sportschau"
+},
+"plogo-op": {
+"id": 1556,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/offenbach-post-op-online-logo.png",
+"alt_de": "Logo Offenbach-Post / op-online.de"
+},
+"plogo-fnp": {
+"id": 1557,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/frankfurter-neue-presse-logo.png",
+"alt_de": "Logo Frankfurter Neue Presse"
+},
+"plogo-sg": {
+"id": 1558,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/hochschule-sankt-georgen-logo.png",
+"alt_de": "Logo Hochschule Sankt Georgen"
+},
+"plogo-welt": {
+"id": 1559,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/weltexpresso-logo.png",
+"alt_de": "Logo Weltexpresso"
+},
+"plogo-ko": {
+"id": 1560,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/kreis-offenbach-logo.png",
+"alt_de": "Logo Kreis Offenbach"
+},
+"plogo-fl": {
+"id": 1561,
+"url": "https://farbaholix.de/wp-content/uploads/2026/09/frankfurt-live-logo.png",
+"alt_de": "Logo Frankfurt Live"
 }
 }

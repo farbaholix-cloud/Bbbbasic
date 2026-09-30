@@ -203,13 +203,18 @@ def works_grid(k, nums):
     return ('<div class="fx-grid">%s</div><div hidden>%s</div><p class="fx-more fx-more-btn"><button type="button" class="fx-btn fx-btn-ghost" data-go-open="all">%s (%d) →</button><a class="fx-more-ig" href="%s" target="_blank" rel="noopener">%s%s →</a></p>%s' % (
         shown, rest, e(UI[k]['all_works']), total, IG, SVG_IG, e(LANGS[k]['insta_more']), overlay))
 
+PRESS_LOGOS = {'Offenbach-Post': 'plogo-op', 'Kreis Offenbach': 'plogo-ko', 'hessenschau.de (hr)': 'plogo-hessenschau', 'hessenschau (Video)': 'plogo-hessenschau',
+               'sportschau.de (hr)': 'plogo-sportschau', 'frankfurt-live.com': 'plogo-fl', 'Frankfurter Neue Presse': 'plogo-fnp', 'Hochschule Sankt Georgen': 'plogo-sg', 'Weltexpresso': 'plogo-welt'}
+
 def press_cards(k, items):
     L = LANGS[k]; o = ['<div class="fx-press">']
     for p in items:
         internal = not isinstance(p['link'], str)
         link = url(k, p['link'][0]) + '#' + p['link'][1] if internal else p['link']
         meta = ' · '.join(x for x in (fdate(k, p['date']), p.get('note', {}).get(k, '')) if x)
-        pic = '<div class="fx-press-img"><img loading="lazy" src="%s" alt="%s – %s"></div>' % (img(p['img']), e(p['pub']), e(p['title'])) if p['img'] else ''
+        lg = PRESS_LOGOS.get(p['pub'])
+        badge = '<img class="fx-press-logo" loading="lazy" src="%s" alt="%s">' % (img(lg), e(MEDIA[lg]['alt_de'])) if lg else ''
+        pic = '<div class="fx-press-img"><img loading="lazy" src="%s" alt="%s – %s">%s</div>' % (img(p['img']), e(p['pub']), e(p['title']), badge) if p['img'] else ''
         o.append('<a class="fx-press-card%s" href="%s"%s>%s<div class="fx-press-body"><span class="fx-press-pub">%s</span><h3 lang="%s">%s</h3><span class="fx-press-meta">%s%s →</span></div></a>' % (
             '' if p['img'] else ' fx-press-text', link, '' if internal else ' target="_blank" rel="noopener"', pic, e(p['pub']),
             'ru' if p['pub'] == 'Вечірній Миколаїв' else ('uk' if 'Mykolaiv' in p['pub'] else 'de'), e(p['title']), e(meta + ' · ' if meta else ''), e(L['press_project'] if internal else L['press_more'])))
