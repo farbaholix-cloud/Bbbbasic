@@ -176,7 +176,7 @@
 | Royal MCP | MCP-сервер для Claude: `https://farbaholix.de/wp-json/royal-mcp/v1/mcp` (OAuth или ключ) |
 | Contact Form 7 | форм на сайте больше нет, можно отключить |
 | WP File Manager | риск безопасности, отключить, если не нужен |
-| WPCode | сниппет #918 «fx-contact» (`wp-snippets/fx-contact.php`): REST `POST /wp-json/fx/v1/contact` → заявка в админке «Anfragen» (CPT `fx_lead`), письмо на farbaholix@gmail.com, пересылка в WhatsApp через CallMeBot. Настройки: `fx_cmb_phone`, `fx_cmb_key`, `fx_lead_mail`. Защита: ловушка, таймер < 2,5 с, лимит 5 заявок за 15 мин с IP |
+| WPCode | сниппет #918 «fx-contact» (`wp-snippets/fx-contact.php`): REST `POST /wp-json/fx/v1/contact` → заявка в админке «Anfragen» (CPT `fx_lead`), письмо на farbaholix@gmail.com, пересылка в WhatsApp через CallMeBot. Настройки: `fx_cmb_phone`, `fx_cmb_key` (активен с 30.09.2026), `fx_lead_mail`. Datenschutz (страница 430, п. 4 и 4a) описывает форму и пересылку; копия в `wp-pages/`. Защита: ловушка, таймер < 2,5 с, лимит 5 заявок за 15 мин с IP |
 | Better Search Replace | служебный |
 
 ---
@@ -209,5 +209,3 @@ python3 deploy.py home fsv            # только выбранные стра
 - В Royal MCP выключить запись опций и тем. Отключить WP File Manager и Contact Form 7, если они не нужны.
 - Прислать оригиналы фото из коллажей FSV и Sankt Georgen: сейчас в галереях увеличенные вырезки (исходно 110–470 px).
 - Отправить sitemap в Google Search Console.
-- Активировать CallMeBot и записать ключ в `fx_cmb_key`, иначе заявки приходят только на почту.
-- Дополнить Datenschutz: контактная форма, хранение заявок, пересылка через CallMeBot/WhatsApp.
