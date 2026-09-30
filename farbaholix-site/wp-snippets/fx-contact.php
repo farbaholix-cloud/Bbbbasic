@@ -168,6 +168,13 @@ function fx_tg_webhook( WP_REST_Request $r ) {
 	$admin = (string) get_option( 'fx_tg_chat' );
 	$text  = (string) ( $m['text'] ?? ( $m['caption'] ?? '' ) );
 	$media = ! isset( $m['text'] );
+	$claim = (string) get_option( 'fx_tg_claim' );
+	if ( $claim && hash_equals( '/start ' . $claim, trim( $text ) ) ) {   // owner link from tg-setup: t.me/<bot>?start=<claim>
+		update_option( 'fx_tg_chat', $chat, false );
+		delete_option( 'fx_tg_claim' );
+		fx_tg( 'sendMessage', array( 'chat_id' => $chat, 'text' => "✅ Бот подключён к farbaholix.de.\nСюда будут приходить все заявки с сайта и сообщения клиентов из Telegram. Чтобы ответить – сделай реплай на сообщение (свайп влево)." ) );
+		return array( 'ok' => true );
+	}
 
 	if ( $admin && $chat === $admin ) {   // Slavik
 		$rid = (string) ( $m['reply_to_message']['message_id'] ?? '' );
@@ -254,18 +261,10 @@ function fx_tg_setup( WP_REST_Request $r ) {
 		return new WP_Error( 'fx_tg', 'token invalid', array( 'status' => 400 ) );
 	}
 	update_option( 'fx_tg_bot', $me['username'], false );
-	$who = null;
-	if ( ! get_option( 'fx_tg_chat' ) ) {   // Slavik must have sent /start to the bot before
-		fx_tg( 'deleteWebhook', array() );
-		$ups = (array) fx_tg( 'getUpdates', array( 'allowed_updates' => array( 'message' ) ) );
-		foreach ( array_reverse( $ups ) as $up ) {
-			$mm = $up['message'] ?? null;
-			if ( $mm && 'private' === ( $mm['chat']['type'] ?? '' ) ) {
-				update_option( 'fx_tg_chat', (string) $mm['chat']['id'], false );
-				$who = trim( ( $mm['from']['first_name'] ?? '' ) . ' @' . ( $mm['from']['username'] ?? '' ) );
-				break;
-			}
-		}
+	$claim = '';
+	if ( ! get_option( 'fx_tg_chat' ) ) {   // the owner opens t.me/<bot>?start=<claim> once
+		$claim = wp_generate_password( 24, false, false );
+		update_option( 'fx_tg_claim', $claim, false );
 	}
 	$secret = (string) get_option( 'fx_tg_secret' );
 	if ( ! $secret ) {
@@ -273,9 +272,14 @@ function fx_tg_setup( WP_REST_Request $r ) {
 		update_option( 'fx_tg_secret', $secret, false );
 	}
 	$hook = fx_tg( 'setWebhook', array( 'url' => rest_url( 'fx/v1/tg/' . $secret ), 'secret_token' => $secret, 'allowed_updates' => array( 'message' ), 'drop_pending_updates' => true ) );
-	$chat = (string) get_option( 'fx_tg_chat' );
-	if ( $chat && $who ) {
-		fx_tg( 'sendMessage', array( 'chat_id' => $chat, 'text' => "✅ Бот подключён к farbaholix.de.\nСюда будут приходить все заявки с сайта и сообщения клиентов из Telegram. Чтобы ответить – сделай реплай на сообщение." ) );
+	foreach ( array( '' => 'de', 'en' => 'en', 'uk' => 'uk', 'ru' => 'uk' ) as $lc => $l ) {
+		$d = array(
+			'de' => array( 'Direkter Chat mit Slavik von Farbaholix – Graffiti, Murals und Wandgestaltung in Frankfurt am Main. Schreiben Sie Ihre Idee, gern mit Fotos der Wand: Slavik antwortet persönlich.', 'Graffiti & Wandgestaltung Frankfurt · farbaholix.de' ),
+			'en' => array( 'Direct chat with Slavik from Farbaholix – graffiti, murals and wall design in Frankfurt am Main. Send your idea, photos of the wall are welcome: Slavik answers personally.', 'Graffiti & murals in Frankfurt · farbaholix.de' ),
+			'uk' => array( 'Прямий чат зі Славіком із Farbaholix – графіті, мурали й розпис стін у Франкфурті-на-Майні. Напишіть свою ідею, можна з фото стіни: Славік відповідає особисто.', 'Графіті й розпис стін у Франкфурті · farbaholix.de' ),
+		)[ $l ];
+		fx_tg( 'setMyDescription', array( 'description' => $d[0], 'language_code' => $lc ) );
+		fx_tg( 'setMyShortDescription', array( 'short_description' => $d[1], 'language_code' => $lc ) );
 	}
-	return array( 'ok' => true, 'bot' => $me['username'], 'chat' => (bool) $chat, 'who' => $who, 'webhook' => (bool) $hook );
+	return array( 'ok' => true, 'bot' => $me['username'], 'chat' => (bool) get_option( 'fx_tg_chat' ), 'claim' => $claim ? 'https://t.me/' . $me['username'] . '?start=' . $claim : '', 'webhook' => (bool) $hook );
 }

@@ -99,7 +99,7 @@ CASES = {  # key: (anchor id, main image, thumbs, on home)
 CASE_PLACE = {'braubach': 'Frankfurt am Main, Braubachstraße', 'georgen': 'Frankfurt am Main', 'fsv': 'Frankfurt am Main', 'wellen': 'Rüsselsheim am Main', 'cansativa': 'Frankfurt am Main', 'enso': 'Neu-Isenburg'}
 
 WA = '4915172450347'   # WhatsApp Business (German number)
-TG_BOT = ''   # Telegram bot username (fx/v1/tg-setup); empty = no Telegram button
+TG_BOT = 'Farbaholix_chat_bot'   # Telegram bot username (fx/v1/tg-setup); empty = no Telegram button
 SAME_AS = ['https://www.instagram.com/farbaholix/', 'https://www.facebook.com/farbaholix', 'https://www.linkedin.com/company/farbaholix/', 'https://t.me/farbaholix']
 
 # ---------------- structured data (schema.org) ----------------
