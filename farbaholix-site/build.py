@@ -233,12 +233,15 @@ def th_attrs(k):   # texts for the chat view that replaces the form after sendin
     return ' '.join('data-%s="%s"' % (a, e(L[b])) for a, b in (('th-you', 'th_you'), ('th-me', 'th_me'), ('th-wait', 'th_wait'), ('th-mail', 'th_mail'), ('th-ph', 'th_ph'), ('th-send', 'th_send'), ('th-new', 'th_new')))
 
 def direct_buttons(k, small=False):
+    """Three direct channels (they open the visitor's own app) – cards with brand icon, label and handle."""
     L = LANGS[k]
-    tg = '<a class="fx-direct-btn" href="https://t.me/%s" target="_blank" rel="noopener">%s<span>%s</span></a>' % (TG_USER, SVG_TG, e(L['direct_tg']))
-    return ('<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">'
-            '<a class="fx-direct-btn" href="https://wa.me/%s?text=%s" target="_blank" rel="noopener">%s<span>%s</span></a>%s'
-            '<a class="fx-direct-btn" href="mailto:%s">%s<span>%s</span></a></div></div>') % (
-            ' fx-direct-sm' if small else '', e(L['direct_t']), WA, urllib.parse.quote(L['direct_hello']), SVG_WA, e(L['direct_wa']), tg, MAIL, SVG_MAIL, e(L['direct_mail']))
+    go = '<svg class="fx-d-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>'
+    items = (('wa', 'https://wa.me/%s?text=%s' % (WA, urllib.parse.quote(L['direct_hello'])), SVG_WA, L['direct_wa'], '+49 151 724 50347', True),
+             ('tg', 'https://t.me/%s' % TG_USER, SVG_TG, L['direct_tg'], '@' + TG_USER, True),
+             ('mail', 'mailto:%s' % MAIL, SVG_MAIL, L['direct_mail'], MAIL, False))
+    btns = ''.join('<a class="fx-direct-btn fx-d-%s" href="%s"%s><span class="fx-d-ic">%s</span><span class="fx-d-tx"><b>%s</b><small>%s</small></span>%s</a>' % (
+        c, e(h), ' target="_blank" rel="noopener"' if blank else '', ic, e(lbl), e(sub), go) for c, h, ic, lbl, sub, blank in items)
+    return '<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">%s</div></div>' % (' fx-direct-sm' if small else '', e(L['direct_t']), btns)
 
 def call_card(k):
     L = LANGS[k]
