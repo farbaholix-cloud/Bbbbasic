@@ -1,8 +1,8 @@
 /* Farbaholix contact hub (WPCode snippet 918, source: farbaholix-site/wp-snippets/fx-contact.php)
    - POST /wp-json/fx/v1/contact     website form → "Anfrage" (wp-admin) + e-mail + WhatsApp (CallMeBot) + Telegram
    - GET/POST /wp-json/fx/v1/thread   the visitor's conversation on the website (token from /contact)
-   - POST /wp-json/fx/v1/tg/<secret>  Telegram webhook: Slavik answers with "reply" → website / e-mail / Telegram visitor;
-                                      visitors who write to the bot are forwarded to Slavik (and to WhatsApp + e-mail)
+   - POST /wp-json/fx/v1/tg/<secret>  Telegram webhook: Slavik answers with "reply" → website chat + e-mail copy;
+                                      the bot is closed to everyone else (they are pointed to @slavik_ffm)
    - POST /wp-json/fx/v1/tg-setup     admin only: save bot token, find Slavik's chat, set the webhook
    Options: fx_cmb_phone, fx_cmb_key, fx_lead_mail, fx_tg_token, fx_tg_chat, fx_tg_bot, fx_tg_secret */
 add_action( 'init', function () {
@@ -145,15 +145,6 @@ function fx_thread_post( WP_REST_Request $r ) {
 }
 
 /* ---------- Telegram ---------- */
-function fx_tg_texts( $lang ) {
-	$l = in_array( $lang, array( 'uk', 'ru' ), true ) ? 'uk' : ( 'de' === $lang ? 'de' : 'en' );
-	$t = array(
-		'de' => array( 'hi' => "Hallo! 👋 Hier schreiben Sie direkt an Slavik von Farbaholix – Graffiti und Wandgestaltung in Frankfurt.\n\nWorum geht es? Wand, Ort, Größe, Idee – gern auch mit Fotos.", 'ack' => 'Danke! Ihre Nachricht ist angekommen – Slavik antwortet hier persönlich, meist noch am selben Tag.' ),
-		'en' => array( 'hi' => "Hi! 👋 This chat goes straight to Slavik from Farbaholix – graffiti and murals in Frankfurt.\n\nWhat's it about? Wall, place, size, idea – photos are welcome.", 'ack' => 'Thank you! Your message has arrived – Slavik will answer here personally, usually the same day.' ),
-		'uk' => array( 'hi' => "Привіт! 👋 Тут ви пишете напряму Славіку з Farbaholix – графіті та розписи стін у Франкфурті.\n\nПро що йдеться? Стіна, місце, розмір, ідея – можна з фото.", 'ack' => 'Дякую! Повідомлення надійшло – Славік відповість тут особисто, зазвичай того ж дня.' ),
-	);
-	return $t[ $l ];
-}
 function fx_tg_webhook( WP_REST_Request $r ) {
 	$secret = (string) get_option( 'fx_tg_secret' );
 	if ( ! $secret || ! hash_equals( $secret, (string) $r['s'] ) || ! hash_equals( $secret, (string) $r->get_header( 'x_telegram_bot_api_secret_token' ) ) ) {
@@ -209,42 +200,13 @@ function fx_tg_webhook( WP_REST_Request $r ) {
 		return array( 'ok' => true );
 	}
 
-	// a visitor writing to the bot
-	$from = (array) ( $m['from'] ?? array() );
-	$lang = sanitize_key( $from['language_code'] ?? '' );
-	$tx   = fx_tg_texts( $lang );
-	if ( 0 === strpos( $text, '/start' ) ) {
-		fx_tg( 'sendMessage', array( 'chat_id' => $chat, 'text' => $tx['hi'] ) );
-		return array( 'ok' => true );
-	}
-	if ( ! fx_rate( 'tg' . $chat, 30, HOUR_IN_SECONDS ) ) {
-		return array( 'ok' => true );
-	}
-	$name = trim( ( $from['first_name'] ?? '' ) . ' ' . ( $from['last_name'] ?? '' ) );
-	$user = ! empty( $from['username'] ) ? '@' . $from['username'] : '';
-	$id   = fx_lead_by( 'fx_tg_user', $chat );
-	$new  = ! $id;
-	if ( $new ) {
-		$id = wp_insert_post( array( 'post_type' => 'fx_lead', 'post_status' => 'private', 'post_title' => 'Telegram: ' . trim( "$name $user" ) . ' – ' . wp_date( 'd.m.Y H:i' ), 'post_content' => 'Telegram ' . trim( "$name $user" ) ) );
-		foreach ( array( 'fx_src' => 'tg', 'fx_tg_user' => $chat, 'fx_name' => $name, 'fx_contact' => $user ?: 'Telegram', 'fx_lang' => $lang ) as $k => $v ) {
-			update_post_meta( $id, $k, $v );
-		}
-	}
-	$body = $text ?: '';
-	if ( $media ) {
-		$body = '[Foto/Datei]' . ( $text ? ' ' . $text : '' );
-	}
-	fx_thread_add( $id, 'v', $body );
-	fx_notify( $id, 'Telegram: ' . ( $name ?: $user ), "💬 Telegram #$id · " . trim( "$name $user" ) . "\n\n" . $body );
-	if ( $media && $admin ) {
-		$c = fx_tg( 'copyMessage', array( 'chat_id' => $admin, 'from_chat_id' => $chat, 'message_id' => $m['message_id'] ) );
-		if ( $c ) {
-			add_post_meta( $id, 'fx_tg_mid', (string) $c['message_id'] );
-		}
-	}
-	$th = get_post_meta( $id, 'fx_thread', true );
-	if ( $new || ( is_array( $th ) && 1 === count( array_filter( $th, function ( $x ) { return 'v' === $x['w']; } ) ) ) ) {
-		fx_tg( 'sendMessage', array( 'chat_id' => $chat, 'text' => $tx['ack'] ) );
+	// anyone else: the bot is Slavik's private inbox – point strangers to his personal account, forward nothing
+	if ( fx_rate( 'tgx' . $chat, 3, HOUR_IN_SECONDS ) ) {
+		$l = sanitize_key( $m['from']['language_code'] ?? '' );
+		$t = in_array( $l, array( 'uk', 'ru' ), true ) ? 'Це службовий бот Farbaholix. Напишіть Славіку напряму: @slavik_ffm – або через форму на https://farbaholix.de'
+			: ( 'de' === $l ? 'Das ist ein interner Bot von Farbaholix. Schreiben Sie Slavik direkt: @slavik_ffm – oder über das Formular auf https://farbaholix.de'
+			: 'This is an internal Farbaholix bot. Please write to Slavik directly: @slavik_ffm – or use the form on https://farbaholix.de' );
+		fx_tg( 'sendMessage', array( 'chat_id' => $chat, 'text' => $t ) );
 	}
 	return array( 'ok' => true );
 }
@@ -274,9 +236,9 @@ function fx_tg_setup( WP_REST_Request $r ) {
 	$hook = fx_tg( 'setWebhook', array( 'url' => rest_url( 'fx/v1/tg/' . $secret ), 'secret_token' => $secret, 'allowed_updates' => array( 'message' ), 'drop_pending_updates' => true ) );
 	foreach ( array( '' => 'de', 'en' => 'en', 'uk' => 'uk', 'ru' => 'uk' ) as $lc => $l ) {
 		$d = array(
-			'de' => array( 'Direkter Chat mit Slavik von Farbaholix – Graffiti, Murals und Wandgestaltung in Frankfurt am Main. Schreiben Sie Ihre Idee, gern mit Fotos der Wand: Slavik antwortet persönlich.', 'Graffiti & Wandgestaltung Frankfurt · farbaholix.de' ),
-			'en' => array( 'Direct chat with Slavik from Farbaholix – graffiti, murals and wall design in Frankfurt am Main. Send your idea, photos of the wall are welcome: Slavik answers personally.', 'Graffiti & murals in Frankfurt · farbaholix.de' ),
-			'uk' => array( 'Прямий чат зі Славіком із Farbaholix – графіті, мурали й розпис стін у Франкфурті-на-Майні. Напишіть свою ідею, можна з фото стіни: Славік відповідає особисто.', 'Графіті й розпис стін у Франкфурті · farbaholix.de' ),
+			'de' => array( 'Interner Bot von Farbaholix. Für Anfragen schreiben Sie Slavik direkt: @slavik_ffm – oder über das Formular auf farbaholix.de.', 'Interner Bot · Kontakt: @slavik_ffm' ),
+			'en' => array( 'Internal Farbaholix bot. For enquiries please write to Slavik directly: @slavik_ffm – or use the form on farbaholix.de.', 'Internal bot · contact: @slavik_ffm' ),
+			'uk' => array( 'Службовий бот Farbaholix. Із запитами пишіть Славіку напряму: @slavik_ffm – або через форму на farbaholix.de.', 'Службовий бот · контакт: @slavik_ffm' ),
 		)[ $l ];
 		fx_tg( 'setMyDescription', array( 'description' => $d[0], 'language_code' => $lc ) );
 		fx_tg( 'setMyShortDescription', array( 'short_description' => $d[1], 'language_code' => $lc ) );

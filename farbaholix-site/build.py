@@ -99,7 +99,7 @@ CASES = {  # key: (anchor id, main image, thumbs, on home)
 CASE_PLACE = {'braubach': 'Frankfurt am Main, Braubachstraße', 'georgen': 'Frankfurt am Main', 'fsv': 'Frankfurt am Main', 'wellen': 'Rüsselsheim am Main', 'cansativa': 'Frankfurt am Main', 'enso': 'Neu-Isenburg'}
 
 WA = '4915172450347'   # WhatsApp Business (German number)
-TG_BOT = 'Farbaholix_chat_bot'   # Telegram bot username (fx/v1/tg-setup); empty = no Telegram button
+TG_USER = 'slavik_ffm'   # Telegram button → Slavik's personal account (the bot @Farbaholix_chat_bot is only his inbox for the form)
 SAME_AS = ['https://www.instagram.com/farbaholix/', 'https://www.facebook.com/farbaholix', 'https://www.linkedin.com/company/farbaholix/', 'https://t.me/farbaholix']
 
 # ---------------- structured data (schema.org) ----------------
@@ -234,7 +234,7 @@ def th_attrs(k):   # texts for the chat view that replaces the form after sendin
 
 def direct_buttons(k, small=False):
     L = LANGS[k]
-    tg = ('<a class="fx-direct-btn" href="https://t.me/%s?start=site" target="_blank" rel="noopener">%s<span>%s</span></a>' % (TG_BOT, SVG_TG, e(L['direct_tg']))) if TG_BOT else ''
+    tg = '<a class="fx-direct-btn" href="https://t.me/%s" target="_blank" rel="noopener">%s<span>%s</span></a>' % (TG_USER, SVG_TG, e(L['direct_tg']))
     return ('<div class="fx-direct%s"><p class="fx-direct-t">%s</p><div class="fx-direct-btns">'
             '<a class="fx-direct-btn" href="https://wa.me/%s?text=%s" target="_blank" rel="noopener">%s<span>%s</span></a>%s'
             '<a class="fx-direct-btn" href="mailto:%s">%s<span>%s</span></a></div></div>') % (
