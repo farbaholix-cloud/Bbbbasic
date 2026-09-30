@@ -1,5 +1,5 @@
 /* Farbaholix contact hub (WPCode snippet 918, source: farbaholix-site/wp-snippets/fx-contact.php)
-   - POST /wp-json/fx/v1/contact     website form → "Anfrage" (wp-admin) + e-mail + WhatsApp (CallMeBot) + Telegram
+   - POST /wp-json/fx/v1/contact     website form (multipart, up to 4 images img0..img3) → "Anfrage" (wp-admin) + e-mail + WhatsApp (CallMeBot) + Telegram
    - GET/POST /wp-json/fx/v1/thread   the visitor's conversation on the website (token from /contact)
    - POST /wp-json/fx/v1/tg/<secret>  Telegram webhook: Slavik answers with "reply" → website chat + e-mail copy;
                                       the bot is closed to everyone else (they are pointed to @slavik_ffm)
@@ -46,6 +46,61 @@ function fx_tg( $method, $args ) {
 	$j = json_decode( wp_remote_retrieve_body( $res ), true );
 	return ! empty( $j['ok'] ) ? $j['result'] : null;
 }
+/* Telegram call with file uploads (multipart); $files = field => absolute path */
+function fx_tg_files( $method, $args, $files ) {
+	$tok = (string) get_option( 'fx_tg_token' );
+	if ( ! $tok ) {
+		return null;
+	}
+	$b    = wp_generate_password( 24, false );
+	$body = '';
+	foreach ( $args as $k => $v ) {
+		$body .= "--$b\r\nContent-Disposition: form-data; name=\"$k\"\r\n\r\n" . ( is_array( $v ) ? wp_json_encode( $v ) : $v ) . "\r\n";
+	}
+	foreach ( $files as $k => $path ) {
+		$body .= "--$b\r\nContent-Disposition: form-data; name=\"$k\"; filename=\"" . basename( $path ) . "\"\r\nContent-Type: " . wp_check_filetype( $path )['type'] . "\r\n\r\n" . file_get_contents( $path ) . "\r\n";
+	}
+	$body .= "--$b--\r\n";
+	$res   = wp_remote_post( 'https://api.telegram.org/bot' . $tok . '/' . $method, array( 'timeout' => 30, 'headers' => array( 'Content-Type' => 'multipart/form-data; boundary=' . $b ), 'body' => $body ) );
+	if ( is_wp_error( $res ) ) {
+		return null;
+	}
+	$j = json_decode( wp_remote_retrieve_body( $res ), true );
+	return ! empty( $j['ok'] ) ? $j['result'] : null;
+}
+/* images from the form: only real JPEG/PNG/GIF/WebP (checked by content, not by name), max 4 × 8 MB,
+   stored under uploads/fx-leads/ with random names; returns list of array( path, url ) */
+function fx_take_images( WP_REST_Request $r ) {
+	$files = $r->get_file_params();
+	$ok    = array( IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif', IMAGETYPE_WEBP => 'webp' );
+	$up    = wp_upload_dir();
+	$dir   = trailingslashit( $up['basedir'] ) . 'fx-leads/' . gmdate( 'Y/m' );
+	$out   = array();
+	for ( $i = 0; $i < 4; $i++ ) {
+		$f = $files[ 'img' . $i ] ?? null;
+		if ( ! $f || ! empty( $f['error'] ) || ! is_uploaded_file( $f['tmp_name'] ) || $f['size'] > 8 * MB_IN_BYTES ) {
+			continue;
+		}
+		$info = @getimagesize( $f['tmp_name'] );
+		if ( ! $info || ! isset( $ok[ $info[2] ] ) || $info[0] < 16 || $info[1] < 16 || $info[0] * $info[1] > 60e6 ) {
+			continue;
+		}
+		if ( ! wp_mkdir_p( $dir ) ) {
+			break;
+		}
+		foreach ( array( dirname( $dir ), $dir ) as $d ) {   // no directory listings
+			if ( ! file_exists( "$d/index.php" ) ) {
+				file_put_contents( "$d/index.php", '<?php // silence' );
+			}
+		}
+		$name = wp_generate_password( 24, false, false ) . '.' . $ok[ $info[2] ];
+		if ( move_uploaded_file( $f['tmp_name'], "$dir/$name" ) ) {
+			@chmod( "$dir/$name", 0644 );
+			$out[] = array( 'path' => "$dir/$name", 'url' => trailingslashit( $up['baseurl'] ) . 'fx-leads/' . gmdate( 'Y/m' ) . '/' . $name );
+		}
+	}
+	return $out;
+}
 function fx_lead_by( $key, $value ) {
 	$ids = get_posts( array( 'post_type' => 'fx_lead', 'post_status' => 'any', 'meta_key' => $key, 'meta_value' => (string) $value, 'fields' => 'ids', 'posts_per_page' => 1, 'orderby' => 'date', 'order' => 'DESC' ) );
 	return $ids ? (int) $ids[0] : 0;
@@ -58,17 +113,18 @@ function fx_thread_add( $id, $who, $text ) {
 	wp_update_post( array( 'ID' => $id, 'post_content' => get_post_field( 'post_content', $id ) . "\n\n[" . wp_date( 'd.m.Y H:i' ) . '] ' . ( 's' === $who ? 'Slavik' : 'Kunde' ) . ":\n" . $text ) );
 }
 /* one message to Slavik on every channel: e-mail, WhatsApp (CallMeBot), Telegram (the Telegram message is linked to the lead for replies) */
-function fx_notify( $id, $subject, $text, $reply_to = '' ) {
+function fx_notify( $id, $subject, $text, $reply_to = '', $imgs = array() ) {
 	$out     = array( 'mail' => false, 'wa' => false, 'tg' => false );
 	$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
 	if ( $reply_to ) {
 		$headers[] = 'Reply-To: ' . $reply_to;
 	}
-	$out['mail'] = (bool) wp_mail( get_option( 'fx_lead_mail' ) ?: 'farbaholix@gmail.com', $subject, $text, $headers );
+	$out['mail'] = (bool) wp_mail( get_option( 'fx_lead_mail' ) ?: 'farbaholix@gmail.com', $subject, $text, $headers, wp_list_pluck( $imgs, 'path' ) );
+	$wa_text     = $imgs ? $text . "\n\n📎 " . implode( "\n", wp_list_pluck( $imgs, 'url' ) ) : $text;
 	$phone       = preg_replace( '/[^0-9+]/', '', (string) get_option( 'fx_cmb_phone' ) );
 	$apikey      = (string) get_option( 'fx_cmb_key' );
 	if ( $phone && $apikey ) {
-		$res       = wp_remote_get( 'https://api.callmebot.com/whatsapp.php?phone=' . rawurlencode( $phone ) . '&text=' . rawurlencode( mb_substr( $text, 0, 1500 ) ) . '&apikey=' . rawurlencode( $apikey ), array( 'timeout' => 12 ) );
+		$res       = wp_remote_get( 'https://api.callmebot.com/whatsapp.php?phone=' . rawurlencode( $phone ) . '&text=' . rawurlencode( mb_substr( $wa_text, 0, 1500 ) ) . '&apikey=' . rawurlencode( $apikey ), array( 'timeout' => 12 ) );
 		$out['wa'] = ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res );
 	}
 	$chat = (string) get_option( 'fx_tg_chat' );
@@ -77,6 +133,26 @@ function fx_notify( $id, $subject, $text, $reply_to = '' ) {
 		if ( $m ) {
 			add_post_meta( $id, 'fx_tg_mid', (string) $m['message_id'] );
 			$out['tg'] = true;
+			if ( $imgs ) {   // the photos follow as a reply to the enquiry – replying to a photo reaches the client too
+				$reply = array( 'message_id' => $m['message_id'] );
+				if ( 1 === count( $imgs ) ) {
+					$ph = fx_tg_files( 'sendPhoto', array( 'chat_id' => $chat, 'reply_parameters' => $reply ), array( 'photo' => $imgs[0]['path'] ) );
+					$ph = $ph ? array( $ph ) : array();
+				} else {
+					$media = array();
+					$att   = array();
+					foreach ( $imgs as $i => $img ) {
+						$media[]       = array( 'type' => 'photo', 'media' => 'attach://p' . $i );
+						$att[ 'p' . $i ] = $img['path'];
+					}
+					$ph = (array) fx_tg_files( 'sendMediaGroup', array( 'chat_id' => $chat, 'media' => $media, 'reply_parameters' => $reply ), $att );
+				}
+				foreach ( $ph as $x ) {
+					if ( isset( $x['message_id'] ) ) {
+						add_post_meta( $id, 'fx_tg_mid', (string) $x['message_id'] );
+					}
+				}
+			}
 		}
 	}
 	return $out;
@@ -87,7 +163,7 @@ function fx_live() {
 
 /* ---------- website form ---------- */
 function fx_contact_submit( WP_REST_Request $r ) {
-	$p = (array) $r->get_json_params();
+	$p = (array) $r->get_params();   // multipart (with images) or JSON
 	if ( ! empty( $p['website'] ) || ( isset( $p['t'] ) && (int) $p['t'] < 2500 ) ) {   // honeypot / filled in under 2.5 s = bot
 		return array( 'ok' => true );
 	}
@@ -102,14 +178,17 @@ function fx_contact_submit( WP_REST_Request $r ) {
 	if ( ! fx_rate( 'ip' . ( $_SERVER['REMOTE_ADDR'] ?? '' ), 5, 15 * MINUTE_IN_SECONDS ) ) {
 		return new WP_Error( 'fx_rate', 'rate', array( 'status' => 429 ) );
 	}
-	$text  = "Neue Anfrage – farbaholix.de\nName: " . ( $name ?: '–' ) . "\nKontakt: $contact\nSprache: " . strtoupper( $lang ) . "\n\n$msg\n\nSeite: $page";
-	$id    = wp_insert_post( array( 'post_type' => 'fx_lead', 'post_status' => 'private', 'post_title' => ( $name ?: $contact ) . ' – ' . wp_date( 'd.m.Y H:i' ), 'post_content' => $text ) );
+	$imgs  = fx_take_images( $r );
+	$n_img = count( $imgs ) ? "\n📎 " . count( $imgs ) . ' ' . ( 1 === count( $imgs ) ? 'Foto' : 'Fotos' ) : '';
+	$text  = "Neue Anfrage – farbaholix.de\nName: " . ( $name ?: '–' ) . "\nKontakt: $contact\nSprache: " . strtoupper( $lang ) . "\n\n$msg$n_img\n\nSeite: $page";
+	$id    = wp_insert_post( array( 'post_type' => 'fx_lead', 'post_status' => 'private', 'post_title' => ( $name ?: $contact ) . ' – ' . wp_date( 'd.m.Y H:i' ), 'post_content' => $text . ( $imgs ? "\n\nBilder:\n" . implode( "\n", wp_list_pluck( $imgs, 'url' ) ) : '' ) ) );
 	$token = wp_generate_password( 32, false, false );
 	foreach ( array( 'fx_src' => 'web', 'fx_token' => $token, 'fx_name' => $name, 'fx_contact' => $contact, 'fx_lang' => $lang, 'fx_page' => $page ) as $k => $v ) {
 		update_post_meta( $id, $k, $v );
 	}
-	update_post_meta( $id, 'fx_thread', array( array( 'w' => 'v', 'x' => $msg, 't' => time() ) ) );
-	$sent = fx_notify( $id, 'Neue Anfrage: ' . ( $name ?: $contact ), "📩 Anfrage #$id (Website)\n" . $text, is_email( $contact ) ? ( $name ? $name . ' ' : '' ) . '<' . $contact . '>' : '' );
+	update_post_meta( $id, 'fx_imgs', $imgs );
+	update_post_meta( $id, 'fx_thread', array( array( 'w' => 'v', 'x' => $msg . ( $imgs ? "\n📎 ×" . count( $imgs ) : '' ), 't' => time() ) ) );
+	$sent = fx_notify( $id, 'Neue Anfrage: ' . ( $name ?: $contact ), "📩 Anfrage #$id (Website)\n" . $text, is_email( $contact ) ? ( $name ? $name . ' ' : '' ) . '<' . $contact . '>' : '', $imgs );
 	return array_merge( array( 'ok' => true, 'token' => $token, 'live' => fx_live() ), $sent );
 }
 

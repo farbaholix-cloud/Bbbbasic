@@ -27,6 +27,8 @@ L = dict(
   form_t='Send a message', form_lead='A real person reads every message – usually you get an answer the same day.',
   f_name='Your name', f_contact='E-mail or phone *', f_msg='What’s it about? Wall, place, idea … *', f_send='Send message', f_sending='Sending …',
   f_ok='Thank you! Your message has arrived – I’ll get back to you shortly.', f_err='Sorry, that didn’t work. Please write to me directly by e-mail or WhatsApp.',
+  f_att='Attach a photo of the wall', f_att_sub='or a sketch, idea, inspiration · up to 4 images', f_att_bad='Images only (JPG, PNG, WebP, HEIC) – this file was not attached.', f_att_max='Up to 4 images.', f_att_rm='Remove image',
+  ch_name='Nice to meet you, {n}!', ch_contact='Perfect – that’s how I’ll reach you.', ch_msg='Sounds exciting!', ch_img='A photo says more than 1000 words 👌', ch_ready='All set – just hit send.',
   f_consent='By sending, you agree that your details are processed to handle your enquiry ({ds}).', f_ds='privacy policy',
   direct_t='Prefer to write directly?', direct_wa='WhatsApp', direct_mail='E-mail', direct_tg='Telegram', insta_sub='New walls, process and backstage – follow us', insta_more='More on Instagram', th_you='You', th_me='Slavik', th_wait='Slavik will answer right here – usually the same day. Feel free to leave the page: the answer stays saved in this browser.', th_mail=' You will also get it by e-mail.', th_ph='Add something …', th_send='Send', th_new='New enquiry', direct_hello='Hi Slavik, ',
   fab_label='Send Slavik a message', bubble_write='Write',

@@ -28,6 +28,8 @@ L = dict(
   form_t='Nachricht schreiben', form_lead='Ein echter Mensch liest jede Nachricht – meist antworte ich noch am selben Tag.',
   f_name='Ihr Name', f_contact='E-Mail oder Telefon *', f_msg='Worum geht es? Wand, Ort, Idee … *', f_send='Nachricht senden', f_sending='Wird gesendet …',
   f_ok='Danke! Ihre Nachricht ist angekommen – ich melde mich in Kürze.', f_err='Das hat leider nicht geklappt. Bitte schreiben Sie direkt per E-Mail oder WhatsApp.',
+  f_att='Foto der Wand anhängen', f_att_sub='oder Skizze, Idee, Inspiration · bis zu 4 Bilder', f_att_bad='Nur Bilder (JPG, PNG, WebP, HEIC) – diese Datei wurde nicht angehängt.', f_att_max='Maximal 4 Bilder.', f_att_rm='Bild entfernen',
+  ch_name='Freut mich, {n}!', ch_contact='Perfekt – so erreiche ich Sie.', ch_msg='Klingt spannend!', ch_img='Ein Foto sagt mehr als 1000 Worte 👌', ch_ready='Alles bereit – einfach absenden.',
   f_consent='Mit dem Absenden stimmen Sie zu, dass Ihre Angaben zur Bearbeitung der Anfrage verarbeitet werden ({ds}).', f_ds='Datenschutz',
   direct_t='Lieber direkt schreiben?', direct_wa='WhatsApp', direct_mail='E-Mail', direct_tg='Telegram', insta_sub='Neue Wände, Prozess und Backstage – folgen Sie uns', insta_more='Mehr auf Instagram', th_you='Sie', th_me='Slavik', th_wait='Slavik antwortet hier im Chat – meist noch am selben Tag. Sie können die Seite ruhig verlassen: Die Antwort bleibt in diesem Browser gespeichert.', th_mail=' Zusätzlich kommt sie per E-Mail.', th_ph='Noch etwas ergänzen …', th_send='Senden', th_new='Neue Anfrage', direct_hello='Hallo Slavik, ',
   fab_label='Nachricht an Slavik schreiben', bubble_write='Schreiben',

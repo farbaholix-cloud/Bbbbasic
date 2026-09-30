@@ -227,14 +227,22 @@ def contact_form(k, compact=False):
     """Neutral enquiry form – posts to /wp-json/fx/v1/contact (stored in wp-admin, e-mailed and forwarded to the owner)."""
     L = LANGS[k]
     consent = e(L['f_consent']).replace('{ds}', '<a href="/datenschutzerklarung/">%s</a>' % e(L['f_ds']))
-    return ('<form class="fx-cform%s" data-fx-form novalidate %s><p class="fx-cform-lead">%s</p>'
+    fx_attrs = ' '.join('data-%s="%s"' % (a.replace('_', '-'), e(L[a])) for a in ('ch_name', 'ch_contact', 'ch_msg', 'ch_img', 'ch_ready', 'f_att_bad', 'f_att_max', 'f_att_rm'))
+    paint = ('<div class="fx-paint" aria-hidden="true"><svg viewBox="0 0 300 18" preserveAspectRatio="none"><defs><linearGradient id="fxPg%s" x1="0" x2="1">'
+             '<stop offset="0" stop-color="#d9b26a"/><stop offset=".45" stop-color="#f0854b"/><stop offset=".75" stop-color="#e0457b"/><stop offset="1" stop-color="#8a63ff"/></linearGradient></defs>'
+             '<path class="fx-paint-bg" d="M4 10 C 60 4, 110 15, 160 9 S 250 5, 296 10"/><path class="fx-paint-fg" stroke="url(#fxPg%s)" pathLength="100" d="M4 10 C 60 4, 110 15, 160 9 S 250 5, 296 10"/></svg>'
+             '<span class="fx-paint-can">%s</span></div><p class="fx-cheer" aria-live="polite"></p>') % ('c' if compact else 'm', 'c' if compact else 'm', SVG_CAN)
+    attach = ('<label class="fx-att"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif" multiple>'
+              '<span class="fx-att-ic">%s</span><span class="fx-att-tx"><b>%s</b><small>%s</small></span><span class="fx-att-plus" aria-hidden="true">+</span></label>'
+              '<div class="fx-att-list"></div><p class="fx-att-err" role="alert"></p>') % (SVG_PHOTO, e(L['f_att']), e(L['f_att_sub']))
+    return ('<form class="fx-cform%s" data-fx-form novalidate %s %s><p class="fx-cform-lead">%s</p>' + paint + 
             '<input type="text" name="name" autocomplete="name" placeholder="%s" aria-label="%s" maxlength="120">'
             '<input type="text" name="contact" autocomplete="email" inputmode="email" required placeholder="%s" aria-label="%s" maxlength="160">'
-            '<textarea name="message" rows="%d" required placeholder="%s" aria-label="%s" maxlength="5000"></textarea>'
+            '<textarea name="message" rows="%d" required placeholder="%s" aria-label="%s" maxlength="5000"></textarea>' + attach + 
             '<input type="text" name="website" tabindex="-1" autocomplete="off" class="fx-hp" aria-hidden="true">'
             '<button type="submit" class="fx-btn fx-cform-send" data-sending="%s">%s</button><p class="fx-cform-note">%s</p>'
             '<p class="fx-cform-status" role="status" aria-live="polite" data-ok="%s" data-err="%s"></p></form>') % (
-            ' fx-cform-compact' if compact else '', th_attrs(k), e(L['form_lead']), e(L['f_name']), e(L['f_name']), e(L['f_contact']), e(L['f_contact']),
+            ' fx-cform-compact' if compact else '', th_attrs(k), fx_attrs, e(L['form_lead']), e(L['f_name']), e(L['f_name']), e(L['f_contact']), e(L['f_contact']),
             3 if compact else 5, e(L['f_msg']), e(L['f_msg']), e(L['f_sending']), e(L['f_send']), consent, e(L['f_ok']), e(L['f_err']))
 
 def th_attrs(k):   # texts for the chat view that replaces the form after sending (fx.js)
@@ -244,6 +252,8 @@ def th_attrs(k):   # texts for the chat view that replaces the form after sendin
 SVG_PHONE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M5 3.5h3.2l1.6 4.2-2.2 1.4a11 11 0 0 0 7.3 7.3l1.4-2.2 4.2 1.6V19a1.5 1.5 0 0 1-1.6 1.5C10.8 20 4 13.2 3.5 5.1A1.5 1.5 0 0 1 5 3.5z"/></svg>'
 SVG_FB = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2.3H8v3h2.5V21z"/></svg>'
 SVG_LI = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.9 8.8H3.8V20h3.1zM5.3 3.5a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM20.2 13.6c0-3-1.6-4.9-4.2-4.9-1.4 0-2.4.8-2.8 1.5V8.8h-3V20h3.1v-5.8c0-1.5.6-2.6 2-2.6s1.8 1.2 1.8 2.7V20h3.1z"/></svg>'
+SVG_PHOTO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3.5 7.5A2 2 0 0 1 5.5 5.5h2.3l1.4-2h5.6l1.4 2h2.3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>'
+SVG_CAN = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="8" width="9" height="14" rx="2" fill="#f3ece0"/><rect x="7" y="12" width="9" height="5" fill="#e0457b"/><rect x="9.5" y="4.5" width="4" height="3.5" rx="1" fill="#cfc6b8"/><rect x="10.5" y="2.5" width="2" height="2" fill="#1a1109"/><circle cx="4" cy="3" r="1" fill="#f0854b"/><circle cx="6" cy="1.6" r=".8" fill="#e0457b"/><circle cx="3" cy="5.6" r=".7" fill="#d9b26a"/></svg>'
 SVG_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/></svg>'
 
 def direct_buttons(k, small=False):
