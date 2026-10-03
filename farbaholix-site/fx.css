@@ -737,3 +737,4 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .fx-smi-pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 12px; }
 .fx-smi-pics img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .fx-smi-arch > div p { margin: 0 0 10px; }
+.fx-smi-bvb { display: block; margin-top: 6px; width: max-content; padding: 2px 8px; border-radius: 999px; background: var(--fx-gold); color: #1a1109; font-size: .7rem; font-weight: 800; }

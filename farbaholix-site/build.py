@@ -20,11 +20,11 @@ def img(key):  # new image under its SEO file name
     return MEDIA[key]['url']
 
 LANGS = {k: importlib.import_module('lang_' + k).L for k in ('de', 'en', 'uk')}
-PAGES = ('home', 'projects', 'opening', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach', 'wellen', 'smi')
+PAGES = ('home', 'projects', 'opening', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach', 'wellen', 'smi', 'altersport')
 URL = {  # WordPress slugs; the home pages are the Polylang front pages
-    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse', wellen='projekte/restaurant-wandgestaltung-wellenlaenge', smi='smi-bvb'),
-    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse', wellen='projects/restaurant-mural-wellenlaenge', smi='smi-bvb-en'),
-    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse', wellen='proiekty/restoran-wellenlange', smi='smi-bvb-uk'),
+    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse', wellen='projekte/restaurant-wandgestaltung-wellenlaenge', smi='smi-bvb', altersport='altersport'),
+    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse', wellen='projects/restaurant-mural-wellenlaenge', smi='smi-bvb-en', altersport='altersport-en'),
+    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse', wellen='proiekty/restoran-wellenlange', smi='smi-bvb-uk', altersport='altersport-uk'),
 }
 LANG_PATH = dict(de='', en='en/', uk='uk/')
 def url(k, page):
@@ -550,7 +550,39 @@ def page_smiarchiv():
     o.append('</div>')
     return '\n'.join(o), []
 
-BUILDERS = dict(smi=page_smi, wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
+# ---- hidden page: media reports about the youth NGO "Alter-Sport" (same format as smi-bvb) ----
+import altersport as AS
+ALT_ARCHIV = SITE + 'altersport-archiv/'
+
+def page_altersport(k):
+    U = AS.UI[k]; o = chrome_top(k, 'altersport', True)
+    o.append('<section class="fx-hero fx-case-hero fx-smi-hero"><p class="fx-kicker">%s</p><h1>%s</h1><p class="fx-lead">%s</p><p class="fx-smi-note">%s</p></section>' % (e(U['kicker']), e(U['title']), e(U['lead']), e(U['note'])))
+    o.append('<section class="fx-sec"><h2>%s</h2><ol class="fx-smi-bio">%s</ol></section>' % (e(U['bio_t']), ''.join('<li><b>%s</b> %s</li>' % (e(a), e(b)) for a, b in AS.BIO[k])))
+    items = []
+    for it in AS.ITEMS:
+        links = '<a href="%s" target="_blank" rel="noopener">%s ↗</a> · <a href="%s#%s">%s</a>' % (e(it['url']), e(U['orig']), ALT_ARCHIV, it['id'], e(U['arch']))
+        qs = ''.join('<blockquote class="fx-smi-q"><p lang="%s">„%s“</p>%s</blockquote>' % (it['lang'], e(q), ('<p class="fx-smi-tr">%s</p>' % e(t[k])) if t.get(k) else '') for q, t in it['quotes'])
+        pics = ''.join('<a class="fx-lb" data-lb="alt-%s" href="%s"><img loading="lazy" src="%s" alt="%s"></a>' % (it['id'], img(i), img(i), e(MEDIA[i]['alt_de'])) for i in it['imgs'] if i in MEDIA)
+        items.append('<article class="fx-smi-item fx-smi-ok" id="%s"><div class="fx-smi-date">%s%s</div><div class="fx-smi-body"><p class="fx-smi-out">%s</p><h3 lang="%s">%s</h3><p>%s</p>%s%s<p class="fx-smi-links">%s</p><p class="fx-smi-st">%s · %s</p></div></article>' % (
+            it['id'], e(it['date']), ('<span class="fx-smi-bvb">%s</span>' % e(U['bvb'])) if it['bvb'] else '', e(it['outlet']), it['lang'], e(it['head']), e(it['sum'][k]), qs,
+            ('<div class="fx-smi-pics">%s</div>' % pics) if pics else '', links, e(U['status']['ok' if pics else 'txt']), e(U['orig_lang'][it['lang']])))
+    o.append('<section class="fx-sec"><h2>%s</h2><div class="fx-smi-tl">%s</div><p class="fx-smi-credit">%s</p></section>' % (e(U['tl_t']), ''.join(items), e(U['credit'])))
+    o.append('</div>')
+    o.append(contact_open(k))
+    return '\n'.join(o), []
+
+def page_altersportarchiv():
+    o = chrome_top('de', 'altersport', True)
+    o.append('<section class="fx-hero fx-case-hero fx-smi-hero"><p class="fx-kicker">Alter-Sport · Archiv</p><h1>Archivkopien der Presseberichte</h1><p class="fx-lead">Volltexte, gesichert am %s – im Originalwortlaut. Quelle und Originallink stehen bei jedem Artikel. <a href="%s">← zur Übersicht</a></p></section>' % (AS.ARCHIVED, url('de', 'altersport')))
+    for it in AS.ITEMS:
+        x = AS.EX[it['k']]
+        pics = ''.join('<a class="fx-lb" data-lb="alta-%s" href="%s"><img loading="lazy" src="%s" alt="%s"></a>' % (it['id'], img(i), img(i), e(MEDIA[i]['alt_de'])) for i in it['imgs'] if i in MEDIA)
+        o.append('<article class="fx-sec fx-smi-arch" id="%s"><p class="fx-smi-out">%s · %s</p><h2 lang="%s">%s</h2><p class="fx-smi-links"><a href="%s" target="_blank" rel="noopener">%s ↗</a></p><div lang="%s">%s</div>%s</article>' % (
+            it['id'], e(it['outlet']), e(it['date']), it['lang'], e(x['title']), e(it['url']), e(it['url']), it['lang'], ''.join('<p>%s</p>' % e(p) for p in x['paras']), ('<div class="fx-smi-pics">%s</div>' % pics) if pics else ''))
+    o.append('</div>')
+    return '\n'.join(o), []
+
+BUILDERS = dict(smi=page_smi, altersport=page_altersport, wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
 
 def wrap(k, top, graph, page=None):
     css, js = open('fx.css').read(), open('fx.js').read()
@@ -573,3 +605,6 @@ if __name__ == '__main__':
     if SB.EX:   # password-protected archive page needs the local archive (not in git)
         top, graph = page_smiarchiv(); wp, local = wrap('de', top, graph, 'smiarchiv')
         open('page_smiarchiv_de.txt', 'w').write(wp); open('local_smiarchiv_de.html', 'w').write(local)
+    if AS.EX:
+        top, graph = page_altersportarchiv(); wp, local = wrap('de', top, graph, 'altersportarchiv')
+        open('page_altersportarchiv_de.txt', 'w').write(wp); open('local_altersportarchiv_de.html', 'w').write(local)
