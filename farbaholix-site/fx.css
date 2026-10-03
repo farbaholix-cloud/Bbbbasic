@@ -738,3 +738,22 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .fx-smi-pics img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .fx-smi-arch > div p { margin: 0 0 10px; }
 .fx-smi-bvb { display: block; margin-top: 6px; width: max-content; padding: 2px 8px; border-radius: 999px; background: var(--fx-gold); color: #1a1109; font-size: .7rem; font-weight: 800; }
+
+/* ---- wide desktop: use the width (mobile/tablet unchanged) ---- */
+@media (min-width: 1101px) {
+  .fx-hero, .fx-sec { max-width: 1240px; padding-left: 24px; padding-right: 24px; }
+  .fx-video, .fx-video-box { max-width: 1060px; }
+  .fx-sec:has(> .fx-photo + .fx-photo) > .fx-photo:not(.fx-photo-sm) { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); grid-template-areas: "s c" "t c"; grid-template-rows: auto 1fr; column-gap: 40px; margin-bottom: 72px; }
+  .fx-sec:has(> .fx-photo + .fx-photo) > .fx-photo:not(.fx-photo-sm) > .fx-stage { grid-area: s; }
+  .fx-sec:has(> .fx-photo + .fx-photo) > .fx-photo:not(.fx-photo-sm) > .fx-thumbs { grid-area: t; align-self: start; }
+  .fx-sec:has(> .fx-photo + .fx-photo) > .fx-photo:not(.fx-photo-sm) > figcaption { grid-area: c; align-self: center; padding: 0; font-size: 1rem; }
+  .fx-sec:has(> .fx-photo + .fx-photo) > .fx-photo:not(.fx-photo-sm) > figcaption h3 { font-size: 1.45rem; margin-bottom: 12px; }
+  .fx-sec:has(> .fx-photo + .fx-photo) > .fx-photo:not(.fx-photo-sm):nth-of-type(even) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); grid-template-areas: "c s" "c t"; }
+  .fx-grid:has(> :nth-child(5)) { grid-template-columns: repeat(5, 1fr); gap: 22px 12px; }
+  .fx-press { grid-template-columns: repeat(4, 1fr); }
+  .fx-voices { gap: 18px; }
+  /* sub pages: reading column for text, full width only where there is a grid */
+  .fx-sub .fx-sec { max-width: 968px; }
+  .fx-sub .fx-sec:has(.fx-grid > :nth-child(5), .fx-gal, .fx-press, .fx-logos, .fx-photo + .fx-photo, .fx-contact-grid, .fx-vgrid, .fx-go-grid, .fx-tiles, .fx-voices, .fx-steps) { max-width: 1240px; }
+  .fx-sub .fx-text p { max-width: none; }
+}
