@@ -26,3 +26,8 @@
 .fx-btn, .fx-call-btn, .fx-btn-wa, .fx-direct-btn, .fx-form input[type=submit], button.fx-btn, .fx-cform-send, .fx-calc-send, .fx-thread-send, #fxMini {
   font-family: Unbounded, Manrope, sans-serif !important; font-weight: 600 !important; letter-spacing: .03em; font-size: .86rem;
 }
+
+/* service tiles: title box always 2 lines, description box 3 lines – text blocks are equally tall, so titles line up at the top; break only at soft hyphens */
+.fx-tile { container-type: inline-size; }
+.fx-tile-t h3 { overflow-wrap: normal; hyphens: manual; font-size: .95rem; font-size: clamp(.74rem, 6.6cqw, 1rem); line-height: 1.22; min-height: 2.44em; }
+.fx-tile-t p { min-height: 4.05em; }
