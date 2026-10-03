@@ -61,7 +61,7 @@ VOICES = [
      'uk': 'Славік, засновник Farbaholix, упродовж півтора року виконував художнє оформлення нашого футбольного стадіону. Креативність, виконання, гнучкість і надійність були на найвищому рівні. Я беззастережно й наполегливо рекомендую Славіка.',
      'en': 'Slavik, founder of Farbaholix, carried out the artistic design of our football stadium over a period of one and a half years. Creativity, execution, flexibility and reliability were at the very highest level. I recommend Slavik without reservation and emphatically.'}),
     ('Slavik ist in erster Linie ein guter Mensch und zugleich ein Künstler mit echter Leidenschaft und Professionalität. Seine Kunst verbindet Menschen, schafft Atmosphäre und verleiht Räumen eine besondere Bedeutung. Ich empfehle Slavik meinen Freunden und Bekannten mit voller Überzeugung. Seine Arbeit zeichnet sich durch Engagement, Zuverlässigkeit und eine starke kreative Vision aus.',
-     'Dr. Stefan Söhngen', 'Brückenbauer, Netzwerker, Speaker, Autor', 56, {
+     'Dr. Stefan Söhngen', 'Brückenbauer, Netzwerker, Speaker, Autor', 'voice-soehngen', {
      'uk': 'Славік – насамперед хороша людина і водночас художник зі справжньою пристрастю та професіоналізмом. Його мистецтво об’єднує людей, створює атмосферу й надає просторам особливого значення. Я з повною переконаністю рекомендую Славіка своїм друзям і знайомим. Його роботу вирізняють відданість, надійність і сильне творче бачення.',
      'en': 'Slavik is first and foremost a good person and at the same time an artist with genuine passion and professionalism. His art connects people, creates atmosphere and gives spaces a special meaning. I recommend Slavik to my friends and acquaintances with full conviction. His work is characterised by commitment, reliability and a strong creative vision.'}),
 ]
@@ -336,7 +336,7 @@ def page_home(k):
     o.append('<section class="fx-sec" id="stimmen"><h2>%s</h2><div class="fx-voices">' % e(L['s_voices']))
     for q, n, r, im, tr in VOICES:
         t = '<p class="fx-tr"><span>%s:</span> %s</p>' % (e(L['translated']), e(tr[k])) if k in tr else ''
-        o.append('<blockquote class="fx-voice"><p lang="de">„%s“</p>%s<footer><img loading="lazy" src="%s" alt="%s"><span><b>%s</b><br><span lang="de">%s</span></span></footer></blockquote>' % (e(q), t, old(im), e(n), e(n), e(r)))
+        o.append('<blockquote class="fx-voice"><p lang="de">„%s“</p>%s<footer><img loading="lazy" src="%s" alt="%s"><span><b>%s</b><br><span lang="de">%s</span></span></footer></blockquote>' % (e(q), t, img(im) if isinstance(im, str) else old(im), e(n), e(n), e(r)))
     o.append('</div></section>')
     o.append('<section class="fx-sec" id="partner"><h2>%s</h2><div class="fx-logos"><img loading="lazy" src="%s" alt="%s"></div></section>' % (e(L['s_partners']), img('partner-kunden-logos'), e(L['partners_alt'])))
     o.append('<section class="fx-sec" id="presse"><h2>%s</h2>%s</section>' % (e(L['s_press']), press_cards(k, [p for p in PRESS if p['home']])))
