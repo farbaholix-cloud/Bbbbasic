@@ -6318,11 +6318,28 @@ def _gh_headers():
 
 
 def _remote_sha():
-    """Текущий SHA ветки на GitHub. Лёгкий запрос — отдаёт только хеш."""
+    """SHA последнего коммита ветки, который МЕНЯЛ код ботов (папку friedman_bot/).
+
+    Раньше бралась голова ветки целиком. Но на эту же ветку пишет и работа над
+    сайтом farbaholix.de (farbaholix-site/, altersport/ — десятки коммитов в день),
+    и авто-деплой на КАЖДЫЙ такой коммит качал код и перезапускал всех агентов,
+    хотя в ботах не менялось ни строчки: с 27.09 было 66 коммитов, из них
+    friedman_bot/ трогали 4. Теперь «новая версия» = только коммит, задевший
+    friedman_bot/. Файлы качаются по этому SHA — в нём то же состояние
+    friedman_bot/, что и в голове ветки. Ошибка API — исключение, а не откат к
+    голове ветки: лишний перезапуск хуже пропущенной проверки (через 15 мин снова)."""
+    import urllib.parse
     import urllib.request
-    req = urllib.request.Request(f"{REPO_API}/commits/{BRANCH}", headers=_gh_headers())
+    h = dict(_gh_headers())
+    h["Accept"] = "application/vnd.github+json"
+    req = urllib.request.Request(
+        f"{REPO_API}/commits?sha={urllib.parse.quote(BRANCH, safe='')}"
+        "&path=friedman_bot&per_page=1", headers=h)
     with urllib.request.urlopen(req, timeout=20) as r:
-        return r.read().decode().strip()
+        data = jsonlib.loads(r.read().decode())
+    if not data or not isinstance(data, list) or not data[0].get("sha"):
+        raise RuntimeError("GitHub не вернул ни одного коммита friedman_bot/")
+    return data[0]["sha"]
 
 
 def _files_listed_in(bot_source):
