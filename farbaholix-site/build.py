@@ -1,5 +1,5 @@
 """Builds the Farbaholix preview pages in DE / EN / UA: home, projects, opening package, about Slavik, magazine."""
-import json, html, importlib, base64, urllib.parse
+import os, json, html, importlib, base64, urllib.parse
 
 SITE = 'https://farbaholix.de/'
 U = SITE + 'wp-content/uploads/'
@@ -586,6 +586,9 @@ BUILDERS = dict(smi=page_smi, altersport=page_altersport, wellen=lambda k: page_
 
 def wrap(k, top, graph, page=None):
     css, js = open('fx.css').read(), open('fx.js').read()
+    # FX_FONTS = base URL of the self-hosted woff2 files (fonts/); unset keeps the system font stack
+    if os.environ.get('FX_FONTS'):
+        css = open('fx-fontface.css').read().replace('__FX_FONT__', os.environ['FX_FONTS'].rstrip('/')) + '\n' + css + '\n' + open('fx-fonts.css').read()
     if page == 'calc': js += '\nvar FX_CALC_TEXT = ' + json.dumps(CALC_JS_TEXT[k], ensure_ascii=False) + ';\n' + open('calc.js').read()
     # scripts ship base64-encoded so WordPress' texturize can never alter them
     js64 = base64.b64encode(js.encode('utf-8')).decode('ascii')
