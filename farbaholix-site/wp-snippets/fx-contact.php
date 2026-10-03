@@ -326,3 +326,15 @@ function fx_tg_setup( WP_REST_Request $r ) {
 	}
 	return array( 'ok' => true, 'bot' => $me['username'], 'chat' => (bool) get_option( 'fx_tg_chat' ), 'claim' => $claim ? 'https://t.me/' . $me['username'] . '?start=' . $claim : '', 'webhook' => (bool) $hook );
 }
+
+/* self-hosted web fonts (OFL): admins may upload .woff2 to the media library */
+add_filter( 'upload_mimes', function ( $m ) {
+	if ( current_user_can( 'manage_options' ) ) { $m['woff2'] = 'font/woff2'; }
+	return $m;
+} );
+add_filter( 'wp_check_filetype_and_ext', function ( $d, $file, $filename ) {
+	if ( current_user_can( 'manage_options' ) && strtolower( substr( $filename, -6 ) ) === '.woff2' ) {
+		$d['ext'] = 'woff2'; $d['type'] = 'font/woff2'; $d['proper_filename'] = $filename;
+	}
+	return $d;
+}, 10, 3 );

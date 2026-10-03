@@ -584,11 +584,13 @@ def page_altersportarchiv():
 
 BUILDERS = dict(smi=page_smi, altersport=page_altersport, wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
 
+FONT_BASE = MEDIA['font-unbounded-latin']['url'].rsplit('/', 1)[0]
+
 def wrap(k, top, graph, page=None):
     css, js = open('fx.css').read(), open('fx.js').read()
-    # FX_FONTS = base URL of the self-hosted woff2 files (fonts/); unset keeps the system font stack
-    if os.environ.get('FX_FONTS'):
-        css = open('fx-fontface.css').read().replace('__FX_FONT__', os.environ['FX_FONTS'].rstrip('/')) + '\n' + css + '\n' + open('fx-fonts.css').read()
+    # self-hosted OFL fonts (media library, uploaded from fonts/); FX_FONTS overrides the base URL, e.g. for a local preview
+    fonts = os.environ.get('FX_FONTS') or FONT_BASE
+    css = open('fx-fontface.css').read().replace('__FX_FONT__', fonts.rstrip('/')) + '\n' + css + '\n' + open('fx-fonts.css').read()
     if page == 'calc': js += '\nvar FX_CALC_TEXT = ' + json.dumps(CALC_JS_TEXT[k], ensure_ascii=False) + ';\n' + open('calc.js').read()
     # scripts ship base64-encoded so WordPress' texturize can never alter them
     js64 = base64.b64encode(js.encode('utf-8')).decode('ascii')

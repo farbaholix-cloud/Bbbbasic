@@ -701,5 +701,40 @@
 "id": 1807,
 "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-retro-2026.webp",
 "alt_de": "Альтер-Спорт, Миколаїв: Сухий док \"Океану\", скейт-парк і загиблий випускник ліцею: чим запам'яталося 11 вересня у Корабельному"
+},
+"font-manrope-latin": {
+"id": 1819,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/manrope-latin.woff2",
+"alt_de": "Schrift Manrope (OFL)"
+},
+"font-manrope-cyrillic": {
+"id": 1820,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/manrope-cyrillic.woff2",
+"alt_de": ""
+},
+"font-unbounded-latin": {
+"id": 1821,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/unbounded-latin.woff2",
+"alt_de": ""
+},
+"font-unbounded-cyrillic": {
+"id": 1822,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/unbounded-cyrillic.woff2",
+"alt_de": ""
+},
+"font-jetbrains-mono-latin": {
+"id": 1823,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/jetbrains-mono-latin.woff2",
+"alt_de": ""
+},
+"font-jetbrains-mono-cyrillic": {
+"id": 1824,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/jetbrains-mono-cyrillic.woff2",
+"alt_de": ""
+},
+"font-farbaholix-fonts-OFL": {
+"id": 1825,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-fonts-OFL.txt",
+"alt_de": ""
 }
 }

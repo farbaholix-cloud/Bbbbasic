@@ -62,3 +62,6 @@ The site runs the Royal MCP plugin (`https://farbaholix.de/wp-json/royal-mcp/v1/
 
 ## Hidden media archive (smi-bvb)
 Pages `smi` (DE/EN/UK, slugs smi-bvb / smi-bvb-en / smi-bvb-uk) and `smiarchiv_de` (password-protected full texts) are noindex and must never be linked from any other page, menu or sitemap. Data in `smi_bvb.py`; full article copies in `farbaholix-site/archive/smi-bvb/` (gitignored, public repo). `deploy.py` skips pages whose build file is missing.
+
+## Fonts (self-hosted, SIL OFL 1.1)
+Unbounded (headings, menu, numbers, buttons), Manrope (text), JetBrains Mono (labels/meta). Own subsets built with fontTools from the full variable fonts in github.com/google/fonts: `latin` (incl. arrows → ← ↗, ≈, €) and `cyrillic`, weight axis cut to 400–800 (Mono 400–700). Files + licence texts in `farbaholix-site/fonts/`, uploaded to the media library (`font-*` keys in `media_seo.json`, licence `farbaholix-fonts-OFL.txt`); woff2 uploads are allowed for admins by a filter in snippet 918. `fx-fontface.css` (@font-face, `__FX_FONT__` placeholder) + `fx-fonts.css` (typography layer) are added by `wrap()`; `FX_FONTS=fonts` points a local preview at the repo files (file:// pages cannot load the server fonts because of CORS). Never load fonts from Google/CDNs (DSGVO).
