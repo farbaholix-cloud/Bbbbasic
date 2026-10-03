@@ -222,3 +222,8 @@ python3 deploy.py home fsv            # только выбранные стра
 - Полные копии статей (raw HTML, текст, фото) лежат в `farbaholix-site/archive/smi-bvb/` — в git **не** коммитятся (репо публичный, чужие тексты). Без этой папки сборка пропускает только страницу архива.
 - Все четыре страницы: Rank Math `noindex, nofollow, noarchive, noimageindex`; ни одна страница сайта на них не ссылается.
 - `/altersport/`, `/en/altersport-en/`, `/uk/altersport-uk/` (страница `altersport`): тот же формат — публикации СМИ о молодёжной организации «Альтер-Спорт» (Николаев, 2012–2019, 46 записей). Данные — `altersport.py`; полные тексты — `/altersport-archiv/` (тот же пароль), копии в `farbaholix-site/archive/altersport/` (не в git).
+
+## Отдельный сайт «Альтер-Спорт» (подарок Роланду Байрозяну, не связан с farbaholix.de)
+- Адрес: https://farbaholix-cloud.github.io/Bbbbasic/altersport/ (UA), `en/`, `de/` — GitHub Pages этого репозитория.
+- Генератор: `farbaholix-site/altersport_site.py` → пишет в `/altersport/` (тексты на 3 языках, факты только из СМИ, список источников в подвале).
+- Pages раздаёт ветку **gh-pages** (там же «Мой График» и `bedbug/`). После правок: `python3 farbaholix-site/altersport_site.py`, затем скопировать папку `altersport/` в ветку gh-pages (worktree) и запушить.
