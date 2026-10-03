@@ -68,7 +68,7 @@ VOICES = [
 
 # press: headline stays in the original language; link = original article or our project
 PRESS = [
-    dict(pub='Offenbach-Post', date='2026-09-26', title='Große Wandkunst für große Zukunftsfrage', img='presse-offenbach-post', link=('projects', 'enso'), home=True, note={'de': 'Titelseite', 'en': 'front page', 'uk': 'перша шпальта'}),
+    dict(pub='Offenbach-Post', date='2026-09-26', title='Große Wandkunst für große Zukunftsfrage', img='presse-op-slavik', link=('projects', 'enso'), home=True, note={'de': 'Titelseite', 'en': 'front page', 'uk': 'перша шпальта'}),
     dict(pub='Offenbach-Post', date='2026-09-26', title='Luft kann man sehen und hören', img='presse-op-seite37', link=('projects', 'enso'), home=False, note={'de': 'Seite 37, Christina Langenbahn', 'en': 'page 37, Christina Langenbahn', 'uk': 'с. 37, Christina Langenbahn'}),
     dict(pub='Kreis Offenbach', date=None, title='Mensch, Natur, Zusammenhalt – ENSO', img='enso-neu-isenburg', link='https://www.kreis-offenbach.de/enso', home=False),
     dict(pub='hessenschau.de (hr)', date='2024-11-27', title='FSV Frankfurt: Künstler verschönert Stadion am Bornheimer Hang', img='presse-hessenschau', link='https://www.hessenschau.de/sport/fussball/regionalliga/fsv-frankfurt-kuenstler-verschoenert-stadion-am-bornheimer-hang-v1,fsv-grafitti-100.html', home=True),
