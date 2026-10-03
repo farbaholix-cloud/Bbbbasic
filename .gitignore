@@ -13,3 +13,7 @@ friedman_bot/brief_sample.jpg
 friedman_bot/backups/
 friedman_bot/.last_exam
 friedman_bot/.deploy_fail
+
+# farbaholix: local copies of third-party press articles (backup only, not for the public repo)
+farbaholix-site/archive/
+farbaholix-site/*.zip

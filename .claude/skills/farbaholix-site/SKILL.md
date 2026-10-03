@@ -58,3 +58,7 @@ WPCode snippet #918 = `wp-snippets/fx-contact.php`, push with `python3 wpcode.py
 
 ## Optional: Royal MCP
 The site runs the Royal MCP plugin (`https://farbaholix.de/wp-json/royal-mcp/v1/mcp`, OAuth or API key). When it is added as a connector in claude.ai, a session can read/edit posts, pages and media directly – good for quick text fixes. Generated pages should still be changed through this build, or the next deploy overwrites manual edits.
+
+
+## Hidden media archive (smi-bvb)
+Pages `smi` (DE/EN/UK, slugs smi-bvb / smi-bvb-en / smi-bvb-uk) and `smiarchiv_de` (password-protected full texts) are noindex and must never be linked from any other page, menu or sitemap. Data in `smi_bvb.py`; full article copies in `farbaholix-site/archive/smi-bvb/` (gitignored, public repo). `deploy.py` skips pages whose build file is missing.
