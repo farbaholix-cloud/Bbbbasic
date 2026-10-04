@@ -8168,11 +8168,17 @@ async def cmd_siri(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             ip = r.read().decode().strip()
     except Exception:
         ip = "IP-сервера"
-    text = SIRI_HOWTO.format(url=f"http://{ip}:8765/api/voice", key=key)
+    url = f"http://{ip}:8765/api/voice"
+    text = SIRI_HOWTO.format(url="адрес — следующим сообщением", key="ключ — третьим сообщением")
     try:
         await ctx.bot.send_message(chat_id, text, parse_mode="Markdown")
     except Exception:
         await ctx.bot.send_message(chat_id, text.replace("*", "").replace("_", "").replace("`", ""))
+    # Адрес и ключ — отдельными сообщениями без разметки: внутри инструкции
+    # Markdown их съедал (строка адреса приходила пустой), а так их удобно
+    # скопировать долгим нажатием и вставить в команду.
+    await ctx.bot.send_message(chat_id, url)
+    await ctx.bot.send_message(chat_id, key)
 
 
 async def cmd_ux(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
