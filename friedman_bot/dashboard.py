@@ -553,7 +553,7 @@ def api_voice(payload):
             key = (r["value"] if r else "") or ""
     except Exception:
         pass
-    got = str(payload.get("key") or "")
+    got = str(payload.get("key") or payload.get("_qkey") or "")
     if not key or not hmac.compare_digest(got.encode(), key.encode()):
         return {"ok": False, "say": "Ключ не подходит. Возьми новый у Секретаря командой slash siri."}
     text = " ".join(str(payload.get("text") or "").split())[:2000]
@@ -6298,12 +6298,24 @@ class Handler(BaseHTTPRequestHandler):
         payload = json.loads(self.rfile.read(length)) if length else {}
 
         # голос из Siri: своя проверка по ключу, без сессии дашборда
+        # Ключ можно передать прямо в адресе (?k=…) — так в быстрой команде на одно
+        # поле меньше. Ответ — ПРОСТЫМ ТЕКСТОМ: его сразу берёт «Произнести текст»,
+        # без шага «Получить значение словаря» (?json=1 — прежний JSON-ответ).
         if path == "/api/voice":
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            if not isinstance(payload, dict):
+                payload = {}
+            if qs.get("k"):
+                payload["_qkey"] = qs["k"][0]
             try:
                 res = api_voice(payload)
-            except Exception as e:
+            except Exception:
                 res = {"ok": False, "say": "Сервер споткнулся. Попробуй позже."}
-            self._send(json.dumps(res, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+            if qs.get("json"):
+                self._send(json.dumps(res, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+            else:
+                self._send((res.get("say") or "").encode(), "text/plain; charset=utf-8")
             return
 
         # разблокировка кругом — второй POST без сессии

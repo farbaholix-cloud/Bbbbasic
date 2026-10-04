@@ -8127,23 +8127,16 @@ async def voice_inbox_job(ctx: ContextTypes.DEFAULT_TYPE):
                 log.error(f"voice tg: {e}")
 
 
-SIRI_HOWTO = """🎙 *Siri → Секретарь* (быстрая команда «Идея»)
+SIRI_HOWTO = """🎙 *Siri → Секретарь* — быстрая команда «Идея»
 
-*1. Собери команду* — приложение «Команды» → «+»:
-① «Запросить ввод» → Текст, вопрос: _Что записать?_
-② «Получить содержимое URL»:
-   • URL: `{url}`
-   • Метод: *POST*, Тело запроса: *JSON*
-   • поле `key` (Текст): `{key}`
-   • поле `text` (Текст): переменная «Введённый текст»
-③ «Получить значение из словаря» → ключ `say`
-④ «Показать результат» → «Значение из словаря»
-Назови команду *Идея*.
+Три действия в приложении «Команды»:
+1. *Диктовать текст*
+2. *Получить содержимое URL* — адрес ниже, метод POST, тело JSON, одно поле `text` = «Продиктованный текст»
+3. *Произнести текст* — «Содержимое URL-адреса»
+Имя команды — *Идея*.
 
-*2. Как запускать на 14 Pro*
-• Зажми боковую кнопку → «Идея» → надиктуй → Siri зачитает ответ.
-• Двойной тап по задней крышке: Настройки → Универсальный доступ → Касание → Касание задней панели → Двойное касание → *Идея*.
-• Пункт управления / экран блокировки: «+» → «Команды» → *Идея*.
+Следующим сообщением — твой адрес с ключом внутри: зажми его → «Скопировать».
+Подробная инструкция по слайдам — у Claude Code.
 
 Ключ даёт только право ЗАПИСАТЬ мысль (не читать базу), не больше 30 записей в час, каждая дублируется сюда. Попал в чужие руки — /siri новый."""
 
@@ -8168,8 +8161,8 @@ async def cmd_siri(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             ip = r.read().decode().strip()
     except Exception:
         ip = "IP-сервера"
-    url = f"http://{ip}:8765/api/voice"
-    text = SIRI_HOWTO.format(url="адрес — следующим сообщением", key="ключ — третьим сообщением")
+    url = f"http://{ip}:8765/api/voice?k={key}"
+    text = SIRI_HOWTO
     try:
         await ctx.bot.send_message(chat_id, text, parse_mode="Markdown")
     except Exception:
@@ -8177,8 +8170,7 @@ async def cmd_siri(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     # Адрес и ключ — отдельными сообщениями без разметки: внутри инструкции
     # Markdown их съедал (строка адреса приходила пустой), а так их удобно
     # скопировать долгим нажатием и вставить в команду.
-    await ctx.bot.send_message(chat_id, url)
-    await ctx.bot.send_message(chat_id, key)
+    await ctx.bot.send_message(chat_id, url, disable_web_page_preview=True)
 
 
 async def cmd_ux(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
