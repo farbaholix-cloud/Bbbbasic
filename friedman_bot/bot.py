@@ -3138,33 +3138,9 @@ def maybe_update_lawyer_summary():
         log.error(f"maybe_update_lawyer_summary: {e}")
 
 
-async def ai_converse(update: Update, user_text: str, source: str = "text"):
-    save_chat_id(update.effective_chat.id)
-
-    # Запоминаем ПОСЛЕ ответа, а не до: get_context() читает ту же таблицу, и
-    # запись «вперёд» дублировала текущее сообщение — один раз в истории, второй
-    # раз как «НОВОЕ СООБЩЕНИЕ», занимая место в окне памяти впустую.
-    resp = await asyncio.get_event_loop().run_in_executor(None, lambda: ask_claude_sync(user_text))
-
-    reply = resp.get("reply", "")
-    actions = resp.get("actions", [])
-    applied = apply_actions(actions)
-
-    if not reply:
-        # Фоллбэк: старый механизм. Раньше отсюда выходили молча — обмен целиком
-        # выпадал из памяти, и следующий вопрос Секретарь встречал с чистого листа.
-        remember("user", user_text)
-        remember("assistant", "(сохранила в парковку без ответа)")
-        await save_and_reply(update, user_text, source=source)
-        return
-
-    remember("user", user_text)
-    remember("assistant", reply)
-    # Досворачиваем то, что вышло за окно, — в фоне, ответ уже ушёл человеку.
-    asyncio.get_event_loop().run_in_executor(None, maybe_update_secretary_summary)
-
-    prefix = f"🎤 _{user_text}_\n\n" if source == "voice" else ""
-
+def _applied_lines(applied):
+    """Строки «что сделано» по результатам apply_actions — одни и те же для
+    ответа в Telegram и для голосового моста (Siri)."""
     extras = []
     for kind, item_id, text, area, pri in applied:
         if kind == "save":
@@ -3206,6 +3182,37 @@ async def ai_converse(update: Update, user_text: str, source: str = "text"):
         elif kind == "invoice":
             extras.append(f"🧾 _{text}_ — PDF ниже")
 
+    return extras
+
+
+async def ai_converse(update: Update, user_text: str, source: str = "text"):
+    save_chat_id(update.effective_chat.id)
+
+    # Запоминаем ПОСЛЕ ответа, а не до: get_context() читает ту же таблицу, и
+    # запись «вперёд» дублировала текущее сообщение — один раз в истории, второй
+    # раз как «НОВОЕ СООБЩЕНИЕ», занимая место в окне памяти впустую.
+    resp = await asyncio.get_event_loop().run_in_executor(None, lambda: ask_claude_sync(user_text))
+
+    reply = resp.get("reply", "")
+    actions = resp.get("actions", [])
+    applied = apply_actions(actions)
+
+    if not reply:
+        # Фоллбэк: старый механизм. Раньше отсюда выходили молча — обмен целиком
+        # выпадал из памяти, и следующий вопрос Секретарь встречал с чистого листа.
+        remember("user", user_text)
+        remember("assistant", "(сохранила в парковку без ответа)")
+        await save_and_reply(update, user_text, source=source)
+        return
+
+    remember("user", user_text)
+    remember("assistant", reply)
+    # Досворачиваем то, что вышло за окно, — в фоне, ответ уже ушёл человеку.
+    asyncio.get_event_loop().run_in_executor(None, maybe_update_secretary_summary)
+
+    prefix = f"🎤 _{user_text}_\n\n" if source == "voice" else ""
+
+    extras = _applied_lines(applied)
     msg = prefix + reply
     if extras:
         msg += "\n\n" + "\n".join(extras)
@@ -8035,6 +8042,144 @@ async def cmd_startpage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                  "Сработает при следующем открытии.")
 
 
+# ─── Голосовой мост: Siri → Секретарь ─────────────────────────────────────────
+# iPhone 14 Pro: боковая кнопка (Siri: «Идея»), Back Tap или кнопка в пункте
+# управления запускают быструю команду, она шлёт надиктованный текст на дашборд
+# (/api/voice с ключом). Дашборд кладёт его в voice_inbox и ждёт ответ; здесь
+# Секретарь обрабатывает очередь ТЕМ ЖЕ путём, что и сообщение в Telegram
+# (идея → парковка, дело с датой → календарь, «напомни» → напоминание), пишет
+# ответ обратно (его зачитывает Siri) и дублирует в Telegram.
+VOICE_INBOX_DDL = ("CREATE TABLE IF NOT EXISTS voice_inbox (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                   " ts TEXT DEFAULT CURRENT_TIMESTAMP, text TEXT, status TEXT DEFAULT 'new',"
+                   " reply TEXT)")
+_voice_busy = False
+
+
+def _plain(text):
+    """Текст для голоса Siri: без Markdown и без эмодзи-мусора."""
+    t = re.sub(r"[_*`]", "", text or "")
+    t = re.sub(r"[\U0001F000-\U0001FAFF☀-➿️]", "", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _voice_take():
+    with db() as conn:
+        conn.execute(VOICE_INBOX_DDL)
+        r = conn.execute("SELECT id, text FROM voice_inbox WHERE status='new' "
+                         "ORDER BY id LIMIT 1").fetchone()
+        if r:
+            conn.execute("UPDATE voice_inbox SET status='work' WHERE id=?", (r["id"],))
+        return dict(r) if r else None
+
+
+def _voice_process_sync(text):
+    resp = ask_claude_sync(text) or {}
+    reply = resp.get("reply") or ""
+    applied = apply_actions(resp.get("actions") or [])
+    if not reply and not applied:
+        # модель промолчала — не теряем мысль: в парковку как есть
+        applied = apply_actions([{"type": "save", "text": text}])
+        reply = "Записал в парковку."
+    remember("user", f"[Siri] {text}")
+    remember("assistant", reply)
+    return reply, applied
+
+
+async def voice_inbox_job(ctx: ContextTypes.DEFAULT_TYPE):
+    """Каждые 3 с: одна запись из очереди Siri → Секретарь → ответ Siri + Telegram."""
+    global _voice_busy
+    if _voice_busy:
+        return
+    try:
+        item = _voice_take()
+    except Exception as e:
+        log.error(f"voice take: {e}")
+        return
+    if not item:
+        return
+    _voice_busy = True
+    status, say, tg = "done", "", ""
+    try:
+        reply, applied = await asyncio.to_thread(_voice_process_sync, item["text"])
+        extras = _applied_lines(applied)
+        say = _plain(reply)[:300]
+        tg = f"🎙 Siri: _{item['text']}_\n\n{reply}" + ("\n\n" + "\n".join(extras) if extras else "")
+    except Exception as e:
+        log.error(f"voice process: {e}")
+        status = "error"
+        try:
+            apply_actions([{"type": "save", "text": item["text"]}])
+            say = "Секретарь споткнулся, но мысль сохранил в парковку."
+        except Exception:
+            say = "Не смог сохранить. Повтори позже."
+        tg = f"🎙 Siri: _{item['text']}_\n\n⚠️ {say}"
+    finally:
+        _voice_busy = False
+    try:
+        with db() as conn:
+            conn.execute("UPDATE voice_inbox SET status=?, reply=? WHERE id=?",
+                         (status, say, item["id"]))
+    except Exception as e:
+        log.error(f"voice save reply: {e}")
+    cid = get_chat_id()
+    if cid and tg:
+        try:
+            await ctx.bot.send_message(cid, tg, parse_mode="Markdown")
+        except Exception:
+            try:
+                await ctx.bot.send_message(cid, tg.replace("_", ""))
+            except Exception as e:
+                log.error(f"voice tg: {e}")
+
+
+SIRI_HOWTO = """🎙 *Siri → Секретарь* (быстрая команда «Идея»)
+
+*1. Собери команду* — приложение «Команды» → «+»:
+① «Запросить ввод» → Текст, вопрос: _Что записать?_
+② «Получить содержимое URL»:
+   • URL: `{url}`
+   • Метод: *POST*, Тело запроса: *JSON*
+   • поле `key` (Текст): `{key}`
+   • поле `text` (Текст): переменная «Введённый текст»
+③ «Получить значение из словаря» → ключ `say`
+④ «Показать результат» → «Значение из словаря»
+Назови команду *Идея*.
+
+*2. Как запускать на 14 Pro*
+• Зажми боковую кнопку → «Идея» → надиктуй → Siri зачитает ответ.
+• Двойной тап по задней крышке: Настройки → Универсальный доступ → Касание → Касание задней панели → Двойное касание → *Идея*.
+• Пункт управления / экран блокировки: «+» → «Команды» → *Идея*.
+
+Ключ даёт только право ЗАПИСАТЬ мысль (не читать базу), не больше 30 записей в час, каждая дублируется сюда. Попал в чужие руки — /siri новый."""
+
+
+async def cmd_siri(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/siri — инструкция и ключ для быстрой команды «Идея»; /siri новый — сменить ключ."""
+    import secrets as _secrets
+    import urllib.request
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    key = _settings_get("voice_key")
+    if not key or (ctx.args and ctx.args[0].lower() in ("новый", "new", "сменить")):
+        key = _secrets.token_urlsafe(18)
+        _settings_set("voice_key", key)
+        if ctx.args:
+            await ctx.bot.send_message(chat_id, "🔑 Ключ заменён — старая команда больше не сработает. "
+                                                "Впиши новый ключ в шаг ② команды «Идея».")
+    try:
+        with urllib.request.urlopen("https://api.ipify.org", timeout=8) as r:
+            ip = r.read().decode().strip()
+    except Exception:
+        ip = "IP-сервера"
+    text = SIRI_HOWTO.format(url=f"http://{ip}:8765/api/voice", key=key)
+    try:
+        await ctx.bot.send_message(chat_id, text, parse_mode="Markdown")
+    except Exception:
+        await ctx.bot.send_message(chat_id, text.replace("*", "").replace("_", "").replace("`", ""))
+
+
 async def cmd_ux(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """/ux [дней] — отчёт по интерфейсу прямо сейчас (по умолчанию за 7 дней)."""
     chat_id = update.effective_chat.id
@@ -8559,6 +8704,7 @@ COMMANDS_HELP = (
     "• /status — здоровье всей системы\n"
     "• /ux — как ты пользуешься дашбордом и что улучшить (сам — по понедельникам)\n"
     "• /startpage — с какой вкладки открывается дашборд (/startpage мостик — вернуть как было)\n"
+    "• /siri — записывать идеи голосом через Siri (боковая кнопка → «Идея»)\n"
     "• /update — обновить всё вручную (/update force — без экзамена)\n"
     "• /update_iphone — обновить только дашборд iPhone (боты не перезапускаются)\n"
     "• /update_mac — обновить только Mac-дашборд\n"
@@ -8648,6 +8794,7 @@ def main():
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("ux", cmd_ux))
     app.add_handler(CommandHandler("startpage", cmd_startpage))
+    app.add_handler(CommandHandler("siri", cmd_siri))
     app.add_handler(CommandHandler("update_mac", cmd_update_mac))
     app.add_handler(CommandHandler("update_iphone", cmd_update_iphone))
     app.add_handler(CommandHandler("rollback_import", cmd_rollback_import))
@@ -8671,6 +8818,7 @@ def main():
 
     jq = app.job_queue
     jq.run_repeating(check_reminders, interval=60, first=10)
+    jq.run_repeating(voice_inbox_job, interval=3, first=15)   # Siri → Секретарь
     jq.run_repeating(auto_update, interval=900, first=60)  # авто-деплой: раз в 15 мин (4 req/h)
     jq.run_repeating(watchdog_children, interval=300, first=120)  # сторож упавших процессов
     backup_t = time(3, 30, tzinfo=BERLIN) if BERLIN else time(3, 30)
