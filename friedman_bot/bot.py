@@ -5292,28 +5292,23 @@ async def render_owner_brief(bot, chat_id: int, verbose: bool = False):
 
 
 async def sunday_bridge(ctx: ContextTypes.DEFAULT_TYPE):
+    """Воскресенье 19:00: приглашение к разбору недели.
+
+    Строки «закрыто задач» и «движение денег» (приходы/затраты) убраны по просьбе
+    владельца: мостик — про взгляд вперёд, а не про отчёт. Остаётся только то,
+    что ждёт решения, — открытые дела."""
     chat_id = get_chat_id()
     if not chat_id:
         return
-    week_ago = datetime.now().strftime("%Y-%m-%d", )
     with db() as conn:
-        closed_week = conn.execute(
-            "SELECT COUNT(*) FROM chaos WHERE done=1 AND created_at >= date('now','-7 days')"
-        ).fetchone()[0]
         open_count = conn.execute("SELECT COUNT(*) FROM chaos WHERE done=0").fetchone()[0]
         high_count = conn.execute(
             "SELECT COUNT(*) FROM chaos WHERE done=0 AND priority='high'"
         ).fetchone()[0]
-        fin_week = conn.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM finance WHERE created_at >= date('now','-7 days')"
-        ).fetchone()[0]
 
     msg = (
         "⚓ *Воскресный мостик*\n\n"
-        f"За неделю:\n"
-        f"✅ закрыто задач: {closed_week}\n"
-        f"📋 открыто сейчас: {open_count}" + (f" (🔴 {high_count} срочных)" if high_count else "") + "\n"
-        f"💰 движение денег: {fin_week:+.2f}€\n\n"
+        f"📋 открыто сейчас: {open_count}" + (f" (🔴 {high_count} срочных)" if high_count else "") + "\n\n"
         "Давай разберём неделю? Напиши /bridge — займёт 5 минут.\n"
         "_Система живёт только когда мостик регулярный._"
     )
