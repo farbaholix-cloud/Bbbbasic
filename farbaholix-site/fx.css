@@ -757,3 +757,12 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .fx-sub .fx-sec:has(.fx-grid > :nth-child(5), .fx-gal, .fx-press, .fx-logos, .fx-photo + .fx-photo, .fx-contact-grid, .fx-vgrid, .fx-go-grid, .fx-tiles, .fx-voices, .fx-steps) { max-width: 1240px; }
   .fx-sub .fx-text p { max-width: none; }
 }
+
+/* calculator beta notice */
+.fx-beta { margin: 22px 0 0; padding: 18px 20px 18px 22px; border-radius: 16px; border: 2px solid #e8a33c; border-left-width: 6px; background: rgba(232, 163, 60, .12); }
+.fx-beta strong { display: block; font-family: Unbounded, Manrope, system-ui, sans-serif; font-weight: 800; font-size: clamp(1.6rem, 6vw, 2.4rem); line-height: 1.05; letter-spacing: .04em; text-transform: uppercase; color: #f0b04a; }
+.fx-beta strong::before { content: "⚠ "; font-size: .8em; }
+.fx .fx-beta p { margin: 10px 0 0; font-size: 1.05rem; line-height: 1.55; color: var(--fx-text); max-width: none; }
+.fx.lights-on .fx-lit .fx-beta { background: #fff4e0; border-color: #d98a1c; }
+.fx.lights-on .fx-lit .fx-beta strong { color: #b5650a; }
+.fx.lights-on .fx-lit .fx-beta p { color: #3a2a12; }

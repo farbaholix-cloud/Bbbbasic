@@ -421,7 +421,7 @@ def page_calc(k):
     def chips(name, opts, default):
         return ''.join('<label class="fx-chip"><input type="radio" name="%s" value="%s"%s>%s</label>' % (name, v, ' checked' if v == default else '', e(t)) for v, t in opts)
     defaults = dict(what='indoor', detail='medium', height='h1', design='ours', surface='ready', when='normal')
-    o.append('<div class="fx-lit fx-lit-page" id="fxLit"><section class="fx-sec fx-page-head"><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead fx-lead-left">%s</p></section>' % (e(C['kicker']), e(C['h1']), e(C['lead'])))
+    o.append('<div class="fx-lit fx-lit-page" id="fxLit"><section class="fx-sec fx-page-head"><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead fx-lead-left">%s</p><aside class="fx-beta" role="note"><strong>%s</strong><p>%s</p></aside></section>' % (e(C['kicker']), e(C['h1']), e(C['lead']), e(C['beta'][0]), e(C['beta'][1])))
     q = C['q']
     f = ['<section class="fx-sec"><form class="fx-calc" id="fxCalc" onsubmit="return false">']
     f.append('<fieldset><legend>%s</legend><div class="fx-chips">%s</div></fieldset>' % (e(q['what']), chips('what', C['o']['what'], defaults['what'])))
