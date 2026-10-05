@@ -309,6 +309,28 @@ def main():
               any(t["target"] == "вкладка:cal" for t in st.get("hard_to_reach", [])))
     step("журнал действий (UX)", t_ux)
 
+    def t_voice():
+        # Голосовой мост Siri → Секретарь: чужой ключ отбивается, запись встаёт
+        # в очередь, Секретарь разбирает её тем же путём, что и Telegram.
+        import dashboard
+        bot._settings_set("voice_key", "экзамен-ключ")
+        r = dashboard.api_voice({"key": "чужой", "text": "x"})
+        check("Siri: чужой ключ не пускают", r.get("ok") is False)
+        dashboard.VOICE_WAIT_S = 0
+        r = dashboard.api_voice({"key": "экзамен-ключ", "text": "Экзамен: идея голосом"})
+        check("Siri: запись встаёт в очередь", r.get("ok") is True and
+              q("SELECT 1 FROM voice_inbox WHERE text='Экзамен: идея голосом' AND status='new'"))
+        real = bot.ask_claude_sync
+        bot.ask_claude_sync = lambda t: {"reply": "", "actions": []}   # модель промолчала
+        try:
+            item = bot._voice_take()
+            reply, applied = bot._voice_process_sync(item["text"])
+        finally:
+            bot.ask_claude_sync = real
+        check("Siri: мысль не теряется, даже если модель промолчала",
+              q("SELECT 1 FROM chaos WHERE text='Экзамен: идея голосом'"), str(applied))
+    step("голосовой мост (Siri)", t_voice)
+
     def t_svod():
         import report_pages
         c = sqlite3.connect(db_path)

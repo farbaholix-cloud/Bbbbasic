@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.49"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.50"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -532,6 +532,55 @@ def api_move(payload):
 UX_KEEP_DAYS = 180
 
 START_PAGES = ("plan", "cal", "fin", "proj", "hap", "mind")
+
+# ─── Голосовой мост Siri → Секретарь ──────────────────────────────────────────
+# Быстрая команда «Идея» на iPhone шлёт сюда надиктованный текст с ключом
+# (ключ выдаёт /siri у Секретаря). Ключ даёт ТОЛЬКО право положить мысль в
+# очередь: прочитать базу или что-то удалить им нельзя. Не больше 30 записей в
+# час. Секретарь разбирает очередь (voice_inbox) и пишет ответ — его ждём до
+# 50 с, чтобы Siri сразу зачитала результат; не дождались — «Принял».
+VOICE_PER_HOUR = 30
+VOICE_WAIT_S = 50
+_voice_hits = []
+
+
+def api_voice(payload):
+    import hmac
+    key = ""
+    try:
+        with db() as conn:
+            r = conn.execute("SELECT value FROM settings WHERE key='voice_key'").fetchone()
+            key = (r["value"] if r else "") or ""
+    except Exception:
+        pass
+    got = str(payload.get("key") or payload.get("_qkey") or "")
+    if not key or not hmac.compare_digest(got.encode(), key.encode()):
+        return {"ok": False, "say": "Ключ не подходит. Возьми новый у Секретаря командой slash siri."}
+    text = " ".join(str(payload.get("text") or "").split())[:2000]
+    if not text:
+        return {"ok": False, "say": "Я ничего не расслышал. Попробуй ещё раз."}
+    now = time.time()
+    while _voice_hits and now - _voice_hits[0] > 3600:
+        _voice_hits.pop(0)
+    if len(_voice_hits) >= VOICE_PER_HOUR:
+        return {"ok": False, "say": "Слишком много записей за час. Подожди немного."}
+    _voice_hits.append(now)
+    with db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS voice_inbox (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                     " ts TEXT DEFAULT CURRENT_TIMESTAMP, text TEXT, status TEXT DEFAULT 'new',"
+                     " reply TEXT)")
+        vid = conn.execute("INSERT INTO voice_inbox(text) VALUES(?)", (text,)).lastrowid
+    deadline = now + VOICE_WAIT_S
+    while time.time() < deadline:
+        time.sleep(0.7)
+        try:
+            with db() as conn:
+                r = conn.execute("SELECT status, reply FROM voice_inbox WHERE id=?", (vid,)).fetchone()
+        except Exception:
+            continue
+        if r and r["status"] in ("done", "error"):
+            return {"ok": r["status"] == "done", "say": r["reply"] or "Готово."}
+    return {"ok": True, "say": "Принял. Секретарь ответит в Телеграме."}
 
 
 def start_page():
@@ -6248,7 +6297,28 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         payload = json.loads(self.rfile.read(length)) if length else {}
 
-        # разблокировка кругом — единственный POST без сессии
+        # голос из Siri: своя проверка по ключу, без сессии дашборда
+        # Ключ можно передать прямо в адресе (?k=…) — так в быстрой команде на одно
+        # поле меньше. Ответ — ПРОСТЫМ ТЕКСТОМ: его сразу берёт «Произнести текст»,
+        # без шага «Получить значение словаря» (?json=1 — прежний JSON-ответ).
+        if path == "/api/voice":
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            if not isinstance(payload, dict):
+                payload = {}
+            if qs.get("k"):
+                payload["_qkey"] = qs["k"][0]
+            try:
+                res = api_voice(payload)
+            except Exception:
+                res = {"ok": False, "say": "Сервер споткнулся. Попробуй позже."}
+            if qs.get("json"):
+                self._send(json.dumps(res, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+            else:
+                self._send((res.get("say") or "").encode(), "text/plain; charset=utf-8")
+            return
+
+        # разблокировка кругом — второй POST без сессии
         if path == "/api/unlock":
             global _last_seen
             result = _set_session(payload)
