@@ -122,7 +122,7 @@ def ld_base(k):
            'description': L['org_desc'], 'telephone': '+49 151 72450347', 'email': 'farbaholix@gmail.com',
            'address': {'@type': 'PostalAddress', 'addressLocality': 'Frankfurt am Main', 'addressRegion': 'Hessen', 'addressCountry': 'DE'},
            'areaServed': ['Frankfurt am Main', 'Rhein-Main', 'Offenbach', 'Neu-Isenburg', 'Darmstadt', 'Rüsselsheim'],
-           'founder': {'@id': SITE + '#slavik'}, 'sameAs': SAME_AS, 'knowsLanguage': ['de', 'en', 'uk', 'ru'],
+           'founder': {'@id': SITE + '#slavik'}, 'member': [{'@id': SITE + '#slavik'}, {'@type': 'Person', 'name': 'Maik Füller', 'jobTitle': 'Künstler'}], 'sameAs': SAME_AS, 'knowsLanguage': ['de', 'en', 'uk', 'ru'],
            'makesOffer': [{'@type': 'Offer', 'itemOffered': {'@type': 'Service', 'name': t, 'description': d}} for t, d in L['services']]}
     return [org, person, {'@type': 'WebSite', '@id': SITE + '#website', 'url': SITE, 'name': 'Farbaholix', 'inLanguage': ['de', 'en', 'uk'], 'publisher': {'@id': SITE + '#farbaholix'}}]
 

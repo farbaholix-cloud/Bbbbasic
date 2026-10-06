@@ -50,7 +50,7 @@ New page checklist:
 - Never post the classic edit form with `post_title=''` – it wipes titles.
 - Python strings with Ukrainian/English apostrophes: use double-quoted strings (`"Об'єкт"`), editors may turn `'` into `’`.
 - The “lamp” effect (`.fx.lights-on`) switches sections inside `.fx-lit` to a light background: every new text element there needs a dark `lights-on` colour rule, otherwise it is invisible.
-- Maik’s own works/credits must not appear on the site; no home address; WhatsApp Business +49 151 724 50347; VAT is charged since 2026 (no Kleinunternehmer text).
+- Maik Füller is named as a team member in the Farbaholix description (`about` text, schema `member`) since Oct 2026 – the old ban on mentioning him is lifted; his own works are still not in the gallery unless Slavik asks; no home address; WhatsApp Business +49 151 724 50347; VAT is charged since 2026 (no Kleinunternehmer text).
 - Sandbox browsers often fail to load farbaholix.de (`ERR_TOO_MANY_RETRIES`, proxy cert) – use `ignoreHTTPSErrors`, retry, or verify with `curl`/urllib instead of assuming the site is broken.
 
 ## Contact hub
