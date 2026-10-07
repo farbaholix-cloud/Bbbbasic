@@ -427,6 +427,16 @@
     if (location.hash) try { history.replaceState(history.state, '', location.pathname + location.search); } catch (err) {}
     window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   });
+  // ---- Home video: poster first, the clip loads after the page has rendered (lighter mobile file on phones) ----
+  (function () {
+    var v = document.getElementById('fxVideo'); if (!v || !v.getAttribute('data-src')) return;
+    var go = function () {
+      if (v.getAttribute('src')) return;
+      v.src = window.matchMedia('(max-width: 760px)').matches ? (v.getAttribute('data-src-m') || v.getAttribute('data-src')) : v.getAttribute('data-src');
+      v.play().catch(function () {});
+    };
+    if (document.readyState === 'complete') setTimeout(go, 600); else window.addEventListener('load', function () { setTimeout(go, 600); });
+  })();
   // ---- Home: logo glides to the corner, background darkens around the video ----
   var logo = document.getElementById('fxLogo'), video = document.getElementById('fxVideo');
   if (logo && video) {

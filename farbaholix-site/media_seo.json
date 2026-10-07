@@ -736,5 +736,15 @@
 "id": 1825,
 "url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-fonts-OFL.txt",
 "alt_de": ""
+},
+"vid-hero-mobil": {
+"id": 2020,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-video-mobil.mp4",
+"alt_de": "Farbaholix Graffiti Frankfurt – Video (mobil)"
+},
+"vid-hero-poster": {
+"id": 2021,
+"url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-video-poster.webp",
+"alt_de": "Farbaholix Graffiti Frankfurt – Wandgestaltung, Video-Standbild"
 }
 }

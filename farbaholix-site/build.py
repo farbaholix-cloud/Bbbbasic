@@ -1,5 +1,5 @@
 """Builds the Farbaholix preview pages in DE / EN / UA: home, projects, opening package, about Slavik, magazine."""
-import os, json, html, importlib, base64, urllib.parse
+import os, re, json, html, importlib, base64, urllib.parse
 
 SITE = 'https://farbaholix.de/'
 U = SITE + 'wp-content/uploads/'
@@ -310,8 +310,8 @@ def page_home(k):
     SERVICE_IMGS = [SIZES.get(u, {'t': u})['t'] for u in (img('tile-fassaden'), img('tile-innenraeume'), old(44), img('cansativa-lettering'))]   # 768px versions
     L = LANGS[k]; o = chrome_top(k, 'home', False)
     o.append('<div class="fx-intro"></div>')
-    o.append('<div class="fx-video-wrap"><div class="fx-video-box"><video class="fx-video" id="fxVideo" src="%s2026/06/farbaholix_video1.mp4" autoplay muted loop playsinline preload="metadata" aria-label="Farbaholix Graffiti Frankfurt" data-video="%s2026/06/farbaholix_video1.mp4"></video>'
-             '<button type="button" class="fx-vfull" data-video="%s2026/06/farbaholix_video1.mp4" aria-label="Vollbild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div></div>' % (U, U, U))
+    o.append('<div class="fx-video-wrap"><div class="fx-video-box"><video class="fx-video" id="fxVideo" poster="%s" muted loop playsinline preload="none" aria-label="Farbaholix Graffiti Frankfurt" data-src="%s2026/06/farbaholix_video1.mp4" data-src-m="%s" data-video="%s2026/06/farbaholix_video1.mp4"></video>'
+             '<button type="button" class="fx-vfull" data-video="%s2026/06/farbaholix_video1.mp4" aria-label="Vollbild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div></div>' % (img('vid-hero-poster'), U, img('vid-hero-mobil'), U, U))
     o.append('<section class="fx-hero"><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead">%s</p>' % (e(L['tagline']), e(L['h1']), e(L['lead'])))
     o.append('<div class="fx-ctas"><a class="fx-btn" href="#kontakt">%s</a><a class="fx-btn fx-btn-ghost" href="#projekte">%s</a></div>' % (e(L['cta1']), e(L['cta2'])))
     o.append('<div class="fx-stats">%s</div>' % ''.join('<div><b>%s</b><span>%s</span></div>' % (e(n), e(t)) for n, t in L['stats']))
@@ -586,11 +586,18 @@ BUILDERS = dict(smi=page_smi, altersport=page_altersport, wellen=lambda k: page_
 
 FONT_BASE = MEDIA['font-unbounded-latin']['url'].rsplit('/', 1)[0]
 
+def mincss(c):
+    # comments out, whitespace collapsed; spaces kept inside calc() (+/-) and strings
+    c = re.sub(r'/\*.*?\*/', '', c, flags=re.S)
+    c = re.sub(r'\s+', ' ', c)
+    return re.sub(r'\s*([{};,])\s*', r'\1', c).replace(';}', '}').strip()
+
 def wrap(k, top, graph, page=None):
     css, js = open('fx.css').read(), open('fx.js').read()
     # self-hosted OFL fonts (media library, uploaded from fonts/); FX_FONTS overrides the base URL, e.g. for a local preview
     fonts = os.environ.get('FX_FONTS') or FONT_BASE
     css = open('fx-fontface.css').read().replace('__FX_FONT__', fonts.rstrip('/')) + '\n' + css + '\n' + open('fx-fonts.css').read()
+    css = mincss(css)
     if page == 'calc': js += '\nvar FX_CALC_TEXT = ' + json.dumps(CALC_JS_TEXT[k], ensure_ascii=False) + ';\n' + open('calc.js').read()
     # scripts ship base64-encoded so WordPress' texturize can never alter them
     js64 = base64.b64encode(js.encode('utf-8')).decode('ascii')

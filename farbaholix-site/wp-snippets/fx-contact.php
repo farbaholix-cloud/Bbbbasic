@@ -338,3 +338,6 @@ add_filter( 'wp_check_filetype_and_ext', function ( $d, $file, $filename ) {
 	}
 	return $d;
 }, 10, 3 );
+
+/* Elementor must not pull Google Fonts from Google's servers (DSGVO; the site uses its own self-hosted fonts) */
+add_filter( 'elementor/frontend/print_google_fonts', '__return_false' );
