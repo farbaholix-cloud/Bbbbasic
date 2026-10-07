@@ -391,8 +391,8 @@
       goBuilt = true;
       document.body.appendChild(go);   // escape the page's stacking context so it covers header and chat button
       var src = byGroup('works');
-      src.filter(function (a) { return a.dataset.recent; }).concat(src.filter(function (a) { return !a.dataset.recent; })).forEach(function (a) {   // recent projects first
-        var t = document.createElement('button'); t.type = 'button'; t.className = 'fx-go-tile'; t._src = a;
+      src.slice().sort(function (x, y) { var o = function (z) { return z.dataset.ord ? +z.dataset.ord : 999; }; return o(x) - o(y); }).forEach(function (a) {   // composed order (build.py compose_gallery)
+        var t = document.createElement('button'); t.type = 'button'; t.className = 'fx-go-tile is-' + (a.dataset.shape || 'sq'); t._src = a;
         t.innerHTML = '<img loading="lazy" decoding="async" alt="">'; t.firstChild.src = a.dataset.thumb || a.href; t.firstChild.alt = a.dataset.cap || '';
         t.onclick = function () { openList(goList, goList.indexOf(a)); };
         goGrid.appendChild(t);

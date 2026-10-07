@@ -10,6 +10,8 @@ from articles import ARTICLES
 from calc_texts import CALC
 from cases import CASE_PAGES, CAP, UI
 from workshops import WS, WS_PHOTOS
+from portfolio_works import PF
+GMETA = json.load(open('gallery_meta.json'))
 from gallery import GALLERY, CATS, CAT, EXTRA as _EXTRA_ALL, HIDE_EXTRA, HIDE_OLD
 EXTRA = [x for x in _EXTRA_ALL if x[0] not in HIDE_EXTRA]
 SIZES = json.load(open('gallery_sizes.json'))
@@ -189,18 +191,93 @@ def photo_case(k, key, with_thumbs, artist=False):
             '<figcaption><h3>%s</h3><p>%s</p><span class="fx-meta">%s</span>%s</figcaption></figure>') % (
             ' fx-photo-artist' if artist else '', cid, a, main, th, h, e(text), e(' · '.join(facts)), more)
 
+def compose_gallery(items):
+    """Order + tile shapes for the "all works" mosaic.
+    items: dicts with t (thumb url), proj, prio (lower = earlier). Returns items with ord/shape set.
+    Keeps the priority order roughly (sliding window), but picks inside the window the tile that differs most
+    in colour and brightness from the last ones, never repeats a project back to back and keeps panoramas apart."""
+    import colorsys, math
+    for it in items:
+        w, h, lum, hue, sat = GMETA.get(it['t'], [1, 1, .5, 0, 0])
+        ar = w / h
+        it['ar'], it['lum'], it['hue'], it['sat'] = ar, lum, hue, sat
+        it['shape'] = 'pano' if ar >= 2.3 else 'wide' if ar >= 1.6 else 'tall' if ar <= .74 else 'sq'
+    pool = sorted(items, key=lambda x: x['prio']); out = []
+    def dist(a, b):
+        dh = min(abs(a['hue'] - b['hue']), 1 - abs(a['hue'] - b['hue'])) * 2 * min(a['sat'], b['sat']) * 2
+        return dh + abs(a['lum'] - b['lum']) * 1.6 + abs(a['sat'] - b['sat'])
+    while pool:
+        win = pool[:7]
+        def score(c):
+            sc = -win.index(c) * .12
+            for back, wgt in ((1, 1.0), (2, .5), (3, .25)):
+                if len(out) >= back:
+                    o = out[-back]; sc += dist(c, o) * wgt
+                    if o['proj'] == c['proj']: sc -= 1.5 * wgt
+            if c['shape'] in ('pano', 'wide') and any(o['shape'] in ('pano', 'wide') for o in out[-3:]): sc -= .8
+            if c['shape'] == 'tall' and out and out[-1]['shape'] == 'tall': sc -= .5
+            return sc
+        skipped = win[0].setdefault('skip', 0)
+        best = win[0] if skipped >= 4 else max(win, key=score)   # nothing waits longer than 4 rounds
+        if best is not win[0]: win[0]['skip'] += 1
+        pool.remove(best); out.append(best)
+    # feature tiles: bright, saturated, roughly square-ish works every ~9 tiles become 2x2
+    last = -9
+    for i, it in enumerate(out):
+        if i - last >= 9 and it['shape'] in ('sq', 'wide') and .9 <= it['ar'] <= 1.9 and (it['sat'] > .28 or it.get('recent')):
+            it['shape'] = 'big'; last = i
+    # simulate CSS grid "dense" packing (6 columns desktop, 3 mobile); while holes remain above the last row,
+    # turn the last non-square tile into a square so later squares can fill the gaps
+    SPAN = {6: {'sq': (1, 1), 'wide': (2, 1), 'pano': (3, 1), 'tall': (1, 2), 'big': (2, 2)},
+            3: {'sq': (1, 1), 'wide': (2, 1), 'pano': (3, 1), 'tall': (1, 2), 'big': (2, 2)}}
+    def holes(cols):
+        grid = []
+        def free(r, c, w, h):
+            for rr in range(r, r + h):
+                while len(grid) <= rr: grid.append([False] * cols)
+                for cc in range(c, c + w):
+                    if cc >= cols or grid[rr][cc]: return False
+            return True
+        for it in out:
+            w, h = SPAN[cols][it['shape']]; r = 0; placed = False
+            while not placed:
+                for c in range(cols):
+                    if free(r, c, w, h):
+                        for rr in range(r, r + h):
+                            for cc in range(c, c + w): grid[rr][cc] = True
+                        placed = True; break
+                r += 1
+        last = max(i for i, row in enumerate(grid) if any(row))
+        return sum(row.count(False) for row in grid[:last])
+    for _ in range(60):
+        if holes(6) == 0 and holes(3) == 0: break
+        cand = [it for it in out if it['shape'] != 'sq']
+        if not cand: break
+        cand[-1]['shape'] = 'sq'
+    for i, it in enumerate(out): it['ord'] = i
+    return out
+
 def works_grid(k, nums):
     """10 works on the page + every portfolio photo as a hidden lightbox link (data-cat) + the "all works" overview skeleton."""
     L = LANGS[k]; caps = {n: c[k] for n, c in GALLERY if n not in HIDE_OLD}
     sz = lambda u: SIZES.get(u, {'t': u, 'l': u})
-    def link(url, cap, cat, inner='', hidden=False, recent=False):
-        return '<a class="fx-lb" data-lb="works" data-cat="%s" data-thumb="%s" href="%s" data-cap="%s"%s%s>%s</a>' % (cat, sz(url)['t'], sz(url)['l'], e(cap), ' data-recent="1"' if recent else '', ' hidden' if hidden else '', inner)
+    def link(url, cap, cat, inner='', hidden=False, recent=False, extra=''):
+        return '<a class="fx-lb" data-lb="works" data-cat="%s" data-thumb="%s" href="%s" data-cap="%s"%s%s%s>%s</a>' % (cat, sz(url)['t'], sz(url)['l'], e(cap), ' data-recent="1"' if recent else '', extra, ' hidden' if hidden else '', inner)
+    items = []
+    for i, (key, cat, cap) in enumerate(EXTRA):
+        u = img(key); items.append(dict(u=u, t=sz(u)['t'], cap=cap[k], cat=cat, proj=key.split('-')[0], prio=i, recent=True))
+    for i, (key, cat, de, en, uk) in enumerate(PF):
+        u = img('pf-' + key); items.append(dict(u=u, t=sz(u)['t'], cap={'de': de, 'en': en, 'uk': uk}[k], cat=cat, proj='pf' + key.split('_')[0], prio=20 + i * 1.6))
+    for i, (n, c) in enumerate(caps.items()):
+        u = old(n); items.append(dict(u=u, t=sz(u)['t'], cap=c, cat=CAT[n], proj='o%d' % n, prio=22 + i * 1.6, n=n))
+    comp = compose_gallery(items)
+    ordmap = {it['t']: (it['ord'], it['shape']) for it in comp}
+    attrs = lambda u: ' data-ord="%d" data-shape="%s"' % ordmap.get(sz(u)['t'], (999, 'sq'))
     shown = ''.join('<figure class="fx-photo fx-photo-sm">%s<figcaption>%s</figcaption></figure>' % (
-        link(old(n), caps.get(n, WORK_ALT[k][n]), CAT[n], '<img loading="lazy" src="%s" alt="%s">' % (sz(old(n))['t'], e(WORK_ALT[k][n] + ' – Farbaholix'))), e(WORK_ALT[k][n])) for n in nums)
-    rest = ''.join(link(img(key), cap[k], cat, hidden=True, recent=True) for key, cat, cap in EXTRA)
-    rest += ''.join(link(old(n), c, CAT[n], hidden=True) for n, c in caps.items() if n not in nums)
-    total = len(EXTRA) + len(caps)
-    counts = {c: sum(1 for _, cc, _ in EXTRA if cc == c) + sum(1 for n in caps if CAT[n] == c) for c in CATS}
+        link(old(n), caps.get(n, WORK_ALT[k][n]), CAT[n], '<img loading="lazy" src="%s" alt="%s">' % (sz(old(n))['t'], e(WORK_ALT[k][n] + ' – Farbaholix')), extra=attrs(old(n))), e(WORK_ALT[k][n])) for n in nums)
+    rest = ''.join(link(it['u'], it['cap'], it['cat'], hidden=True, recent=it.get('recent', False), extra=attrs(it['u'])) for it in comp if it.get('n') not in nums)
+    total = len(comp)
+    counts = {c: sum(1 for it in comp if it['cat'] == c) for c in CATS}
     chips = '<button type="button" class="is-on" data-cat="all">%s <span>%d</span></button>' % (e(L['go_all']), total)
     chips += ''.join('<button type="button" data-cat="%s">%s <span>%d</span></button>' % (c, e(L['services'][i][0]), counts[c]) for i, c in enumerate(CATS) if counts[c])
     overlay = ('<div class="fx-go" id="fxGo" hidden role="dialog" aria-modal="true" aria-label="%s"><div class="fx-go-head"><div class="fx-go-top"><h2>%s</h2>'

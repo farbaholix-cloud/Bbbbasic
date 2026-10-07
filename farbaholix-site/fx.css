@@ -797,3 +797,13 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .fx-pf-sm .fx-pf-tx b { font-size: .8rem; }
 .fx.lights-on .fx-lit .fx-pf-sm { color: #8a5a12 !important; border-color: rgba(138, 90, 18, .45); }
 @media (prefers-reduced-motion: reduce) { .fx-pf:hover .fx-pf-ic svg { animation: none; } }
+
+/* "all works" mosaic: square rows, shapes from compose_gallery (pano / wide / tall / big), dense packing */
+.fx-go-grid { grid-auto-flow: dense; grid-auto-rows: calc((100vw - 12px) / 3); }
+.fx-go-grid .fx-go-tile { aspect-ratio: auto; height: 100%; }
+.fx-go-tile.is-wide { grid-column: span 2; }
+.fx-go-tile.is-pano { grid-column: span 3; }
+.fx-go-tile.is-tall { grid-row: span 2; }
+.fx-go-tile.is-big { grid-column: span 2; grid-row: span 2; }
+@media (min-width: 700px) { .fx-go-grid { grid-auto-rows: calc((min(100vw, 1400px) - 28px - 18px - 16px) / 4); } }
+@media (min-width: 1100px) { .fx-go-grid { grid-auto-rows: calc((min(100vw, 1400px) - 28px - 30px - 16px) / 6); } }
