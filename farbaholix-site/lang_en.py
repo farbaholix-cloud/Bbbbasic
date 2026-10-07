@@ -19,7 +19,7 @@ L = dict(
     ('Hip-hop & graffiti workshops', 'For teams, schools and kids: graffiti, DJing, b-boying and MCing. In German, English, Ukrainian and Russian.'),
     ('Objects & lettering', 'Custom sneakers, bikes, chalkboards, café menus, canvases, calligraphy and wildstyle.'),
   ],
-  stats=[('20+', 'years on the wall'), ('1,000+', 'projects'), ('2,500 m²', 'largest single surface')],
+  stats=[('20+', 'years on the wall'), ('1,000+', 'projects')],
   services_short=['Big walls for brands, cities and stadiums.', 'Offices, restaurants, clubs – all the way to UV neon.', 'Graffiti, DJing, b-boying, MCing – for teams and kids.', 'Lettering, sneakers, bikes, chalkboards, calligraphy.'],
   promo_short='Concept, wall and event from one source.',
   svc_more='Swipe for more',

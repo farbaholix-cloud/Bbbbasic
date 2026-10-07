@@ -20,7 +20,7 @@ L = dict(
     ('Hip-Hop- & Graffiti-Workshops', 'Für Teams, Schulen und Kinder: Graffiti, DJing, B-Boying und MCing. Auf Deutsch, Englisch, Ukrainisch und Russisch.'),
     ('Objekte & Lettering', 'Custom Sneakers, Fahrräder, Kreidetafeln, Café-Menüs, Leinwände, Kalligrafie und Wildstyle.'),
   ],
-  stats=[('20+', 'Jahre an der Wand'), ('1.000+', 'Projekte'), ('2.500 m²', 'größte Einzelfläche')],
+  stats=[('20+', 'Jahre an der Wand'), ('1.000+', 'Projekte')],
   services_short=['Große Wände für Marken, Städte und Stadien.', 'Büros, Restaurants, Clubs – bis zur UV-Neonwelt.', 'Graffiti, DJing, B-Boying, MCing – für Teams und Kids.', 'Lettering, Sneaker, Bikes, Tafeln, Kalligrafie.'],
   promo_short='Konzept, Wand und Event aus einer Hand.',
   svc_more='Wischen für mehr',
