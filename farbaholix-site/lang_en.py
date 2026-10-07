@@ -58,6 +58,7 @@ L = dict(
     ('Can you apply our corporate design?', 'Yes. We bring your company’s logo, colours and style onto the wall – from the reception area to the facade.'),
     ('Do you work outside Frankfurt?', 'Yes, across the Rhine-Main region – for example in Neu-Isenburg, Rüsselsheim and Darmstadt. Projects further away on request.'),
     ('Which languages are workshops held in?', 'German, English, Ukrainian and Russian.'),
+    ("Farbaholix or Farbaholics – how is the name spelled?", "Farbaholix – from the German “Farbe” (paint) and “-aholic”: addicted to paint. The logo reading “Farbaholix – Frankfurt Mural Movement” is signed on our walls in Frankfurt and the Rhine-Main area. If you searched for “Farbaholics”, “Farbaholic” or “Mural Movement”, you are in the right place."),
   ],
   s_contact='Contact', contact_lead='Tell us about your wall – we’ll get back to you quickly.', phone_l='Phone', city='Frankfurt am Main, Germany',
 
