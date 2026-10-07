@@ -807,3 +807,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .fx-go-tile.is-big { grid-column: span 2; grid-row: span 2; }
 @media (min-width: 700px) { .fx-go-grid { grid-auto-rows: calc((min(100vw, 1400px) - 28px - 18px - 16px) / 4); } }
 @media (min-width: 1100px) { .fx-go-grid { grid-auto-rows: calc((min(100vw, 1400px) - 28px - 30px - 16px) / 6); } }
+/* thumbnails only (lightbox shows the untouched photo): gentle lift, stronger for dark or washed-out shots */
+.fx-go-tile.tone-ok img { filter: saturate(1.08) contrast(1.04); }
+.fx-go-tile.tone-dull img { filter: saturate(1.28) contrast(1.08) brightness(1.02); }
+.fx-go-tile.tone-dark img { filter: brightness(1.16) contrast(1.06) saturate(1.12); }

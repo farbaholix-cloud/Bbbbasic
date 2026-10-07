@@ -393,7 +393,7 @@
       var src = byGroup('works');
       src.slice().sort(function (x, y) { var o = function (z) { return z.dataset.ord ? +z.dataset.ord : 999; }; return o(x) - o(y); }).forEach(function (a) {   // composed order (build.py compose_gallery)
         var t = document.createElement('button'); t.type = 'button'; t.className = 'fx-go-tile is-' + (a.dataset.shape || 'sq'); t._src = a;
-        t.innerHTML = '<img loading="lazy" decoding="async" alt="">'; t.firstChild.src = a.dataset.thumb || a.href; t.firstChild.alt = a.dataset.cap || '';
+        t.innerHTML = '<img loading="lazy" decoding="async" alt="">'; t.firstChild.src = a.dataset.thumb || a.href; t.firstChild.alt = a.dataset.cap || ''; if (a.dataset.fp) t.firstChild.style.objectPosition = a.dataset.fp; t.classList.add('tone-' + (a.dataset.tone || 'ok'));
         t.onclick = function () { openList(goList, goList.indexOf(a)); };
         goGrid.appendChild(t);
       });

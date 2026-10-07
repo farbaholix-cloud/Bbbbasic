@@ -12,6 +12,7 @@ from cases import CASE_PAGES, CAP, UI
 from workshops import WS, WS_PHOTOS
 from portfolio_works import PF
 GMETA = json.load(open('gallery_meta.json'))
+GFOCUS = json.load(open('gallery_focus.json'))   # object-position per thumb (faces / people / saliency, manual fixes)
 from gallery import GALLERY, CATS, CAT, EXTRA as _EXTRA_ALL, HIDE_EXTRA, HIDE_OLD
 EXTRA = [x for x in _EXTRA_ALL if x[0] not in HIDE_EXTRA]
 SIZES = json.load(open('gallery_sizes.json'))
@@ -72,13 +73,15 @@ VOICES = [
 
 # press: headline stays in the original language; link = original article or our project
 PRESS = [
+    dict(pub='Newcomers Network Frankfurt', date='2026-09-25', title={'de': 'Newcomers Reception 2026 im Kaisersaal des Römers', 'en': 'Newcomers Reception 2026 in the Römer’s Kaisersaal', 'uk': 'Newcomers Reception 2026 у Кайзерзалі ратуші Römer'}, img='newcomers-2026', link='https://newcomers-network-frankfurt.de/', home=True, more={'de': 'Zur Website', 'en': 'Visit website', 'uk': 'На сайт'},
+         note={'de': 'Verleihung der Newcomers Awards', 'en': 'Newcomers Awards ceremony', 'uk': 'вручення Newcomers Awards'}),
     dict(pub='Offenbach-Post', date='2026-09-26', title='Große Wandkunst für große Zukunftsfrage', img='presse-op-slavik', link=('projects', 'enso'), home=True, note={'de': 'Titelseite', 'en': 'front page', 'uk': 'перша шпальта'}),
     dict(pub='Offenbach-Post', date='2026-09-26', title='Luft kann man sehen und hören', img='presse-op-seite37', link=('projects', 'enso'), home=False, note={'de': 'Seite 37, Christina Langenbahn', 'en': 'page 37, Christina Langenbahn', 'uk': 'с. 37, Christina Langenbahn'}),
     dict(pub='Kreis Offenbach', date=None, title='Mensch, Natur, Zusammenhalt – ENSO', img='enso-neu-isenburg', link='https://www.kreis-offenbach.de/enso', home=False),
     dict(pub='hessenschau.de (hr)', date='2024-11-27', title='FSV Frankfurt: Künstler verschönert Stadion am Bornheimer Hang', img='presse-hessenschau', link='https://www.hessenschau.de/sport/fussball/regionalliga/fsv-frankfurt-kuenstler-verschoenert-stadion-am-bornheimer-hang-v1,fsv-grafitti-100.html', home=True),
     dict(pub='hessenschau (Video)', date='2024-11-27', title='Große Kunst am Bornheimer Hang', img='fsv-stadion-arena', link='https://www.hessenschau.de/panorama/riesiges-fsv-wappen-grosse-kunst-am-bornheimer-hang,video-204422.html', home=False),
     dict(pub='sportschau.de (hr)', date='2024-11-27', title='FSV Frankfurt: Künstler verschönert Stadion am Bornheimer Hang', img='fsv-panorama', link='https://www.sportschau.de/regional/hr/hr-fsv-frankfurt-kuenstler-verschoenert-stadion-am-bornheimer-hang-100.html', home=False),
-    dict(pub='frankfurt-live.com', date='2025-10-02', title='Graffiti für Frieden und Freiheit', img='presse-frankfurt-live', link='https://www.frankfurt-live.com/graffiti-fuer-frieden-und-freiheit', home=True),
+    dict(pub='frankfurt-live.com', date='2025-10-02', title='Graffiti für Frieden und Freiheit', img='presse-frankfurt-live', link='https://www.frankfurt-live.com/graffiti-fuer-frieden-und-freiheit', home=False),
     dict(pub='Frankfurter Neue Presse', date='2026-04-29', title='Aus seiner Sprühdose kommen Blumen', img='presse-fnp', link='https://www.fnp.de/frankfurt/viacheslav-balabaiev-verschoenert-die-mauer-von-sankt-georgen-94283566.html', home=True, note={'de': 'Seite 32, Stefanie Wehr', 'en': 'page 32, Stefanie Wehr', 'uk': 'с. 32, Stefanie Wehr'}),
     dict(pub='Hochschule Sankt Georgen', date='2026-04-14', title='Kunstprojekt an der Mauer', img='georgen-strassenbahn', link='https://www.sankt-georgen.de/button-menue/mediathek/nachrichten-aus-sankt-georgen/detail/kunstprojekt-an-der-mauer-1100/', home=False),
     dict(pub='stefansoehngen.de', date='2025-09-04', title='Kreative Raumgestaltung mit Wirkung – Wie Slaviks Kunst Unternehmen in Szene setzt', img=None, link='https://stefansoehngen.de/kreative-raumgestaltung-mit-wirkung/', home=False),
@@ -202,14 +205,14 @@ def compose_gallery(items):
         ar = w / h
         it['ar'], it['lum'], it['hue'], it['sat'] = ar, lum, hue, sat
         it['shape'] = 'pano' if ar >= 2.3 else 'wide' if ar >= 1.6 else 'tall' if ar <= .74 else 'sq'
-    pool = sorted(items, key=lambda x: x['prio']); out = []
+    pool = sorted(items, key=lambda x: x['prio']); out = [pool.pop(0)]   # first tile = newest, most colourful work
     def dist(a, b):
         dh = min(abs(a['hue'] - b['hue']), 1 - abs(a['hue'] - b['hue'])) * 2 * min(a['sat'], b['sat']) * 2
         return dh + abs(a['lum'] - b['lum']) * 1.6 + abs(a['sat'] - b['sat'])
     while pool:
         win = pool[:7]
         def score(c):
-            sc = -win.index(c) * .12
+            sc = -win.index(c) * .12 + (c['sat'] * 1.5 + min(c['lum'], .6) if len(out) < 14 else 0)   # bright, saturated works open the gallery
             for back, wgt in ((1, 1.0), (2, .5), (3, .25)):
                 if len(out) >= back:
                     o = out[-back]; sc += dist(c, o) * wgt
@@ -222,14 +225,16 @@ def compose_gallery(items):
         if best is not win[0]: win[0]['skip'] += 1
         pool.remove(best); out.append(best)
     # feature tiles: bright, saturated, roughly square-ish works every ~9 tiles become 2x2
-    last = -9
+    out[0]['shape'] = 'big'
+    last = 0
     for i, it in enumerate(out):
-        if i - last >= 9 and it['shape'] in ('sq', 'wide') and .9 <= it['ar'] <= 1.9 and (it['sat'] > .28 or it.get('recent')):
+        if i and i - last >= 9 and it['shape'] in ('sq', 'wide') and .9 <= it['ar'] <= 1.9 and (it['sat'] > .28 or it.get('recent')):
             it['shape'] = 'big'; last = i
     # simulate CSS grid "dense" packing (6 columns desktop, 3 mobile); while holes remain above the last row,
     # turn the last non-square tile into a square so later squares can fill the gaps
     SPAN = {6: {'sq': (1, 1), 'wide': (2, 1), 'pano': (3, 1), 'tall': (1, 2), 'big': (2, 2)},
-            3: {'sq': (1, 1), 'wide': (2, 1), 'pano': (3, 1), 'tall': (1, 2), 'big': (2, 2)}}
+            3: {'sq': (1, 1), 'wide': (2, 1), 'pano': (3, 1), 'tall': (1, 2), 'big': (2, 2)},
+            4: {'sq': (1, 1), 'wide': (2, 1), 'pano': (3, 1), 'tall': (1, 2), 'big': (2, 2)}}
     def holes(cols):
         grid = []
         def free(r, c, w, h):
@@ -254,6 +259,29 @@ def compose_gallery(items):
         cand = [it for it in out if it['shape'] != 'sq']
         if not cand: break
         cand[-1]['shape'] = 'sq'
+    def cells():
+        return sum(SPAN[6][it['shape']][0] * SPAN[6][it['shape']][1] for it in out)
+    def rows_full(cols):   # no holes and the last row is complete
+        grid = []
+        for it in out:
+            w, h = SPAN[cols][it['shape']]; r = 0
+            while True:
+                while len(grid) < r + h: grid.append([False] * cols)
+                c = next((c for c in range(cols - w + 1) if all(not grid[rr][cc] for rr in range(r, r + h) for cc in range(c, c + w))), None)
+                if c is not None:
+                    for rr in range(r, r + h):
+                        for cc in range(c, c + w): grid[rr][cc] = True
+                    break
+                r += 1
+        return all(all(row) for row in grid)
+    import random
+    rnd = random.Random(7); tail = [it for it in out[-24:] if it['shape'] in ('sq', 'wide', 'tall')]
+    base = {id(it): it['shape'] for it in tail}
+    for _ in range(4000):
+        if rows_full(6) and rows_full(3) and rows_full(4): break
+        for it in tail: it['shape'] = base[id(it)]
+        for it in rnd.sample(tail, min(len(tail), rnd.randint(1, 5))):
+            it['shape'] = rnd.choice(['sq', 'wide'] if it['ar'] >= 1.15 else ['sq', 'tall'] if it['ar'] <= .85 else ['sq'])
     for i, it in enumerate(out): it['ord'] = i
     return out
 
@@ -272,7 +300,11 @@ def works_grid(k, nums):
         u = old(n); items.append(dict(u=u, t=sz(u)['t'], cap=c, cat=CAT[n], proj='o%d' % n, prio=22 + i * 1.6, n=n))
     comp = compose_gallery(items)
     ordmap = {it['t']: (it['ord'], it['shape']) for it in comp}
-    attrs = lambda u: ' data-ord="%d" data-shape="%s"' % ordmap.get(sz(u)['t'], (999, 'sq'))
+    def attrs(u):
+        t = sz(u)['t']; o, shp = ordmap.get(t, (999, 'sq')); fp = GFOCUS.get(t, [50, 50])
+        w, h, lum, hue, sat = GMETA.get(t, [1, 1, .5, 0, .3])
+        tone = 'dark' if lum < .28 else 'dull' if sat < .2 else 'ok'
+        return ' data-ord="%d" data-shape="%s" data-fp="%g%% %g%%" data-tone="%s"' % (o, shp, fp[0], fp[1], tone)
     shown = ''.join('<figure class="fx-photo fx-photo-sm">%s<figcaption>%s</figcaption></figure>' % (
         link(old(n), caps.get(n, WORK_ALT[k][n]), CAT[n], '<img loading="lazy" src="%s" alt="%s">' % (sz(old(n))['t'], e(WORK_ALT[k][n] + ' – Farbaholix')), extra=attrs(old(n))), e(WORK_ALT[k][n])) for n in nums)
     rest = ''.join(link(it['u'], it['cap'], it['cat'], hidden=True, recent=it.get('recent', False), extra=attrs(it['u'])) for it in comp if it.get('n') not in nums)
@@ -292,6 +324,7 @@ PRESS_LOGOS = {'Offenbach-Post': 'plogo-op', 'Kreis Offenbach': 'plogo-ko', 'hes
 def press_cards(k, items):
     L = LANGS[k]; o = ['<div class="fx-press">']
     for p in items:
+        if isinstance(p['title'], dict): p = dict(p, title=p['title'][k])
         internal = not isinstance(p['link'], str)
         link = url(k, p['link'][0]) + '#' + p['link'][1] if internal else p['link']
         meta = ' · '.join(x for x in (fdate(k, p['date']), p.get('note', {}).get(k, '')) if x)
@@ -300,7 +333,7 @@ def press_cards(k, items):
         pic = '<div class="fx-press-img"><img loading="lazy" src="%s" alt="%s – %s">%s</div>' % (img(p['img']), e(p['pub']), e(p['title']), badge) if p['img'] else ''
         o.append('<a class="fx-press-card%s" href="%s"%s>%s<div class="fx-press-body"><span class="fx-press-pub">%s</span><h3 lang="%s">%s</h3><span class="fx-press-meta">%s%s →</span></div></a>' % (
             '' if p['img'] else ' fx-press-text', link, '' if internal else ' target="_blank" rel="noopener"', pic, e(p['pub']),
-            'ru' if p['pub'] == 'Вечірній Миколаїв' else ('uk' if 'Mykolaiv' in p['pub'] else 'de'), e(p['title']), e(meta + ' · ' if meta else ''), e(L['press_project'] if internal else L['press_more'])))
+            'ru' if p['pub'] == 'Вечірній Миколаїв' else ('uk' if 'Mykolaiv' in p['pub'] else k if p['pub'].startswith('Newcomers') else 'de'), e(p['title']), e(meta + ' · ' if meta else ''), e(L['press_project'] if internal else p.get('more', {}).get(k, L['press_more']))))
     o.append('</div>')
     return ''.join(o)
 

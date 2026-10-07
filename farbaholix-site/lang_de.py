@@ -99,7 +99,7 @@ L = dict(
   a_quote='Ich lebe jetzt hier und möchte diesen Ort schöner machen.', a_quote_src='Slavik gegenüber dem Hessischen Rundfunk, 2024',
   a_photos=[('slavik-sankt-georgen-monstera', 'Slavik malt eine Monstera an der Campusmauer von Sankt Georgen in Frankfurt'),
             ('slavik-graffiti-auto', 'Slavik vor einem Graffiti mit Sportwagen'),
-            ('newcomers-reception', 'Slavik bei der Newcomers Reception im Frankfurter Römer, September 2026')],
+            ('newcomers-2026', 'Slavik bei der Newcomers Reception im Frankfurter Römer, September 2026')],
   a_timeline_t='Chronik',
   a_timeline=[('2004', 'Erste Graffiti in Mykolajiw'), ('2007', 'Betreut die Dormashina Hall of Fame'), ('2009', 'Gründet die erste Graffiti-Schule der Ukraine'), ('2021', 'Mural über Werften und Schach in Mykolajiw, ca. 150 m²'), ('2022', 'Umzug nach Frankfurt am Main'), ('2024', 'Stadiongestaltung FSV Frankfurt – Bericht im hr'), ('2025', 'Braubachstraße zum Tag der Deutschen Einheit; Start am Sankt-Georgen-Mural'), ('2026', 'Sankt-Georgen-Mural fertiggestellt; ENSO-Wandbild in Neu-Isenburg – Titelseite der Offenbach-Post')],
   a_press_t='Presse & Quellen',

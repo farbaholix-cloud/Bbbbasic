@@ -72,6 +72,7 @@ CAT.update({n: 'objects' for n in (38, 39, 40, 42)})
 CAT[53] = 'indoor'   # photorealistic Nike sneaker wall – shown with the interiors (Oct 2026)
 # recent projects shown first in "all works" (media_seo keys)
 EXTRA = [
+ ('hibiskus-mural', 'facade', {'de': 'Hibiskus, Libelle und Wildblumen an einer Gartenmauer', 'en': 'Hibiscus, dragonfly and wild flowers on a garden wall', 'uk': 'Гібіскус, бабка й польові квіти на садовій стіні'}),
  ('sg-mauer-panorama', 'facade', {'de': 'Sankt Georgen: die ganze Blumenmauer an der Straße, Frankfurt', 'en': 'Sankt Georgen: the whole flower wall by the road, Frankfurt', 'uk': 'Sankt Georgen: уся квіткова стіна біля дороги, Франкфурт'}),
  ('sg-hummel', 'facade', {'de': 'Hummel und weiße Blüten, Mauer von Sankt Georgen', 'en': 'Bumblebee and white blossoms, Sankt Georgen wall', 'uk': 'Джміль і білі квіти, стіна Sankt Georgen'}),
  ('sg-pinke-bluete', 'facade', {'de': 'Pinke Tropenpflanze an der Campusmauer von Sankt Georgen', 'en': 'Pink tropical plant on the Sankt Georgen campus wall', 'uk': 'Рожева тропічна рослина на стіні кампусу Sankt Georgen'}),
