@@ -9,7 +9,8 @@ MEDIA = json.load(open('media_seo.json'))
 from articles import ARTICLES
 from calc_texts import CALC
 from cases import CASE_PAGES, CAP, UI
-from gallery import GALLERY, CATS, CAT, EXTRA
+from gallery import GALLERY, CATS, CAT, EXTRA as _EXTRA_ALL, HIDE_EXTRA, HIDE_OLD
+EXTRA = [x for x in _EXTRA_ALL if x[0] not in HIDE_EXTRA]
 SIZES = json.load(open('gallery_sizes.json'))
 ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
 e = html.escape
@@ -31,7 +32,7 @@ def url(k, page):
     return SITE + LANG_PATH[k] + ('' if page == 'home' else URL[k][page] + '/')
 
 HOME_WORKS = [11, 6, 17, 23, 27, 7, 12, 10, 29, 35]
-OPENING_WORKS = [9, 30, 25, 32, 20, 42]
+OPENING_WORKS = [9, 30, 25, 32, 20, 7]
 WORK_ALT = {
  'de': {11: 'Hip-Hop-Porträtwand in einer Bar', 6: 'Billardraum mit Gangster-Porträts', 17: 'Fitnessstudio-Mural: Bodybuilder', 23: 'Unterwasser-Mural an einem Aquapark',
         27: 'Realistischer Sportwagen als Graffiti', 7: 'Neon-Lounge mit UV-Farben', 12: 'Büro mit Weltkarte an der Wand', 10: 'Basketballhalle mit Streifen-Design',
@@ -189,7 +190,7 @@ def photo_case(k, key, with_thumbs, artist=False):
 
 def works_grid(k, nums):
     """10 works on the page + every portfolio photo as a hidden lightbox link (data-cat) + the "all works" overview skeleton."""
-    L = LANGS[k]; caps = {n: c[k] for n, c in GALLERY}
+    L = LANGS[k]; caps = {n: c[k] for n, c in GALLERY if n not in HIDE_OLD}
     sz = lambda u: SIZES.get(u, {'t': u, 'l': u})
     def link(url, cap, cat, inner='', hidden=False, recent=False):
         return '<a class="fx-lb" data-lb="works" data-cat="%s" data-thumb="%s" href="%s" data-cap="%s"%s%s>%s</a>' % (cat, sz(url)['t'], sz(url)['l'], e(cap), ' data-recent="1"' if recent else '', ' hidden' if hidden else '', inner)

@@ -92,3 +92,7 @@ EXTRA = [
  ('bb-iimori', 'objects', {'de': 'Schaufenster mit Willy-Brandt-Zitat, Braubachstraße', 'en': 'Shop window with a Willy Brandt quote, Braubachstraße', 'uk': 'Вітрина з цитатою Віллі Брандта, Braubachstrasse'}),
  ('bb-salon', 'objects', {'de': 'Schaufenster „Demokratie lebt vom Mitmachen“', 'en': 'Shop window “Demokratie lebt vom Mitmachen”', 'uk': 'Вітрина «Demokratie lebt vom Mitmachen»'}),
 ]
+
+# hidden from the "all works" overview on Slavik's request (Oct 2026); project pages keep their own photos
+HIDE_EXTRA = {'sg-mauer-panorama', 'sg-monstera-detail', 'wl-fassade-seite', 'enso-neu-isenburg', 'bb-philokalist', 'bb-iimori'}
+HIDE_OLD = {39, 40, 42, 44, 45, 46, 47, 48, 49, 50, 51, 52}
