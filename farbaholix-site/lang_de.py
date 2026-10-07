@@ -6,13 +6,13 @@ L = dict(
 
   # ---------- home ----------
   meta_home=('Graffiti & Wandgestaltung Frankfurt | Farbaholix',
-             'Murals, Graffiti & Wandgestaltung in Frankfurt – für Fassaden, Büros, Gastronomie und Sportstätten. 20+ Jahre, 1.000+ Projekte. Jetzt anfragen!'),
+             'Murals, Graffiti & Wandgestaltung in Frankfurt – für Fassaden, Büros, Gastronomie und Sportstätten. 22+ Jahre, 1.100+ Projekte. Jetzt anfragen!'),
   tagline='Wir sind hier, um zu kreieren!',
   h1='Graffiti-Künstler & Wandgestaltung in Frankfurt',
-  lead='Farbaholix ist eine Bewegung – seit über 20 Jahren geben wir Wänden Stil. Mehr als 1.000 Projekte umgesetzt.',
-  org_desc='Farbaholix gestaltet Fassaden, Innenräume und Events mit Graffiti und Murals – seit über 20 Jahren, mit mehr als 1.000 Projekten.',
+  lead='Farbaholix ist eine Bewegung – seit 22 Jahren geben wir Wänden Stil. Mehr als 1.100 Projekte umgesetzt.',
+  org_desc='Farbaholix gestaltet Fassaden, Innenräume und Events mit Graffiti und Murals – seit 22 Jahren, mit mehr als 1.100 Projekten.',
   cta1='Projekt anfragen', cta2='Arbeiten ansehen',
-  proud='Mit Stolz vertreten wir', trust=['20+ Jahre Erfahrung', '1.000+ Projekte', 'Partner von Montana Colors & Caparol', 'Beste Materialien für beste Ergebnisse'],
+  proud='Mit Stolz vertreten wir', trust=['22+ Jahre Erfahrung', '1.100+ Projekte', 'Partner von Montana Colors & Caparol', 'Beste Materialien für beste Ergebnisse'],
   s_services='Leistungen',
   services=[
     ('Murals & Fassaden', 'Großflächige Wandbilder für Fassaden, Mauern und Stadien – im Stil Ihrer Marke oder als freie Kunst. Je größer die Wand, desto besser.'),
@@ -20,7 +20,7 @@ L = dict(
     ('Hip-Hop- & Graffiti-Workshops', 'Für Teams, Schulen und Kinder: Graffiti, DJing, B-Boying und MCing. Auf Deutsch, Englisch, Ukrainisch und Russisch.'),
     ('Objekte & Lettering', 'Custom Sneakers, Fahrräder, Kreidetafeln, Café-Menüs, Leinwände, Kalligrafie und Wildstyle.'),
   ],
-  stats=[('20+', 'Jahre an der Wand'), ('1.000+', 'Projekte')],
+  stats=[('22+', 'Jahre Wandmalerei'), ('1.100+', 'umgesetzte Projekte')],
   services_short=['Große Wände für Marken, Städte und Stadien.', 'Büros, Restaurants, Clubs – bis zur UV-Neonwelt.', 'Graffiti, DJing, B-Boying, MCing – für Teams und Kids.', 'Lettering, Sneaker, Bikes, Tafeln, Kalligrafie.'],
   promo_short='Konzept, Wand und Event aus einer Hand.',
   svc_more='Wischen für mehr',
@@ -82,8 +82,8 @@ L = dict(
               'Viacheslav „Slavik“ Balabaiev: ukrainischer Graffiti- und Mural-Künstler aus Mykolajiw, seit 2022 in Frankfurt. FSV-Stadion, Sankt Georgen, 1.000+ Aufträge.'),
   a_kicker='Über Slavik',
   a_h1='Slavik – Viacheslav Balabaiev, Graffiti-Künstler in Frankfurt',
-  a_lead='Viacheslav „Slavik“ Balabaiev ist ein ukrainischer Graffiti- und Mural-Künstler und Gründer von Farbaholix. Er malt seit 2004, lebt seit 2022 in Frankfurt am Main und hat über 1.000 Auftragsarbeiten umgesetzt – darunter die Gestaltung des FSV-Frankfurt-Stadions am Bornheimer Hang und das botanische Mural zum 100. Jubiläum der Hochschule Sankt Georgen.',
-  a_facts=[('Name', 'Viacheslav „Slavik“ Balabaiev'), ('Herkunft', 'Mykolajiw, Ukraine'), ('Aktiv seit', '2004'), ('In Frankfurt seit', '2022'), ('Projekte', '1.000+ Auftragsarbeiten'), ('Studio', 'Farbaholix, Frankfurt am Main')],
+  a_lead='Viacheslav „Slavik“ Balabaiev ist ein ukrainischer Graffiti- und Mural-Künstler und Gründer von Farbaholix. Er malt seit 2004, lebt seit 2022 in Frankfurt am Main und hat über 1.100 Auftragsarbeiten umgesetzt – darunter die Gestaltung des FSV-Frankfurt-Stadions am Bornheimer Hang und das botanische Mural zum 100. Jubiläum der Hochschule Sankt Georgen.',
+  a_facts=[('Name', 'Viacheslav „Slavik“ Balabaiev'), ('Herkunft', 'Mykolajiw, Ukraine'), ('Aktiv seit', '2004'), ('In Frankfurt seit', '2022'), ('Projekte', '1.100+ Auftragsarbeiten'), ('Studio', 'Farbaholix, Frankfurt am Main')],
   a_sections=[
     ('Aus Mykolajiw nach Frankfurt',
      ['Slavik begann 2004 in Mykolajiw im Süden der Ukraine mit Graffiti. Er kommt aus der Hip-Hop-Kultur und ist in der Szene unter seinem Tag „BVB“ bekannt. Ab 2007 betreute er die „Dormashina Hall of Fame“, die größte Graffiti-Fläche seiner Heimatstadt, 2009 gründete er die erste Graffiti-Schule der Ukraine und eröffnete einen eigenen Graffiti-Shop. Er organisierte Festivals, unterrichtete als Dozent, war Mitgründer des Hip-Hop-Kollektivs „South Front“ und reiste rund zehn Jahre lang zu großen Hip-Hop-Events in ganz Europa. Eines seiner größten Projekte in der Ukraine ist die Gestaltung eines Sportzentrums auf mehr als 2.500 m².',

@@ -35,7 +35,7 @@ dict(
 <h3>Ist Graffiti in Frankfurt legal?</h3>
 <p>Auf freigegebenen Flächen wie dem Ratswegkreisel und mit Erlaubnis des Eigentümers ja. Eine beauftragte Wandgestaltung ist immer legal – der Eigentümer gibt sie selbst in Auftrag.</p>
 <h3>Wer gestaltet in Frankfurt Wände für Unternehmen?</h3>
-<p>Zum Beispiel Farbaholix: das Studio von Slavik, der seit 2004 malt und über 1.000 Aufträge umgesetzt hat – für Büros, Gastronomie, Sportstätten und öffentliche Einrichtungen.</p>
+<p>Zum Beispiel Farbaholix: das Studio von Slavik, der seit 2004 malt und über 1.100 Aufträge umgesetzt hat – für Büros, Gastronomie, Sportstätten und öffentliche Einrichtungen.</p>
 '''),
 dict(
  key='mural-kosten', lang='de', date='2026-10-13', slug='was-kostet-ein-mural',
@@ -80,7 +80,7 @@ dict(
  keywords=['розпис стін Франкфурт', 'графіті Франкфурт', 'мурал Франкфурт замовити', 'український художник Франкфурт'],
  image='slavik-sankt-georgen-monstera', image_alt='Український художник Славік розписує стіну у Франкфурті',
  body='''
-<p class="fx-answer"><strong>Коротко:</strong> у Франкфурті можна замовити розпис стін, мурал чи графіті повністю українською мовою – у студії Farbaholix художника Вячеслава «Славіка» Балабаєва з Миколаєва. Він малює з 2004 року, з 2022-го працює у Франкфурті й має понад 1000 виконаних замовлень.</p>
+<p class="fx-answer"><strong>Коротко:</strong> у Франкфурті можна замовити розпис стін, мурал чи графіті повністю українською мовою – у студії Farbaholix художника Вячеслава «Славіка» Балабаєва з Миколаєва. Він малює з 2004 року, з 2022-го працює у Франкфурті й має понад 1100 виконаних замовлень.</p>
 <h2>Кому це потрібно</h2>
 <ul>
 <li>Українським і німецьким підприємцям, які відкривають кафе, магазин, салон чи офіс.</li>
