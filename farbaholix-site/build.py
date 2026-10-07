@@ -118,13 +118,13 @@ def ld_base(k):
               'knowsAbout': ['Graffiti', 'Mural', 'Street Art', 'Wandgestaltung', 'Hip-Hop', 'Kalligrafie', 'Interior Design'],
               'subjectOf': [p['link'] for p in PRESS if isinstance(p['link'], str)]}
     org = {'@type': ['ProfessionalService', 'LocalBusiness'], '@id': SITE + '#farbaholix', 'name': 'Farbaholix',
-           'alternateName': ['Farbaholix – Frankfurt Mural Movement', 'Farbaholix Mural Movement', 'Frankfurt Mural Movement', 'Farbaholics', 'Farbaholic'], 'slogan': 'Frankfurt Mural Movement', 'url': SITE, 'logo': img('logo-badge'), 'image': [img('fsv-stadion-arena'), img('sg-strelitzien')],
+           'alternateName': ['Farbaholix – Frankfurt Mural Movement', 'Farbaholix Mural Movement', 'Frankfurt Mural Movement', 'Farbaholics', 'Farbaholic', 'Farbaholik', 'Farbaholiks', 'Farboholik', 'Farboholix', 'Farboholics', 'Farbeholix', 'Farbeholic', 'Farba Holix', 'Farb-a-holix', 'Фарбаголікс', 'Фарбахолікс', 'Фарбахоликс', 'Фарбохолик'], 'slogan': 'Frankfurt Mural Movement', 'url': SITE, 'logo': img('logo-badge'), 'image': [img('fsv-stadion-arena'), img('sg-strelitzien')],
            'description': L['org_desc'], 'telephone': '+49 151 72450347', 'email': 'farbaholix@gmail.com',
            'address': {'@type': 'PostalAddress', 'addressLocality': 'Frankfurt am Main', 'addressRegion': 'Hessen', 'addressCountry': 'DE'},
            'areaServed': ['Frankfurt am Main', 'Rhein-Main', 'Offenbach', 'Neu-Isenburg', 'Darmstadt', 'Rüsselsheim'],
            'founder': {'@id': SITE + '#slavik'}, 'member': [{'@id': SITE + '#slavik'}, {'@type': 'Person', 'name': 'Maik Füller', 'jobTitle': 'Künstler'}], 'sameAs': SAME_AS, 'knowsLanguage': ['de', 'en', 'uk', 'ru'],
            'makesOffer': [{'@type': 'Offer', 'itemOffered': {'@type': 'Service', 'name': t, 'description': d}} for t, d in L['services']]}
-    return [org, person, {'@type': 'WebSite', '@id': SITE + '#website', 'url': SITE, 'name': 'Farbaholix', 'alternateName': ['Farbaholix – Frankfurt Mural Movement', 'Farbaholics'], 'inLanguage': ['de', 'en', 'uk'], 'publisher': {'@id': SITE + '#farbaholix'}}]
+    return [org, person, {'@type': 'WebSite', '@id': SITE + '#website', 'url': SITE, 'name': 'Farbaholix', 'alternateName': ['Farbaholix – Frankfurt Mural Movement', 'Farbaholics', 'Farbaholik', 'Farboholik'], 'inLanguage': ['de', 'en', 'uk'], 'publisher': {'@id': SITE + '#farbaholix'}}]
 
 def image_obj(key, caption):
     return {'@type': 'ImageObject', 'contentUrl': img(key), 'caption': caption, 'creator': {'@id': SITE + '#slavik'},

@@ -59,7 +59,7 @@ L = dict(
     ('Können Sie unser Corporate Design umsetzen?', 'Ja. Wir übertragen Logo, Farben und Stil Ihres Unternehmens auf die Wand – vom Empfangsbereich bis zur Fassade.'),
     ('Arbeiten Sie auch außerhalb von Frankfurt?', 'Ja, im gesamten Rhein-Main-Gebiet – zum Beispiel in Neu-Isenburg, Rüsselsheim und Darmstadt. Projekte weiter weg auf Anfrage.'),
     ('In welchen Sprachen finden Workshops statt?', 'Auf Deutsch, Englisch, Ukrainisch und Russisch.'),
-    ("Farbaholix oder Farbaholics – wie schreibt man den Namen?", "Farbaholix – aus „Farbe“ und „-aholic“: süchtig nach Farbe. Das Logo mit dem Schriftzug „Farbaholix – Frankfurt Mural Movement“ steht auf unseren Wänden in Frankfurt und im Rhein-Main-Gebiet. Wer nach „Farbaholics“, „Farbaholic“ oder „Mural Movement“ sucht, ist hier richtig."),
+    ("Farbaholix oder Farbaholics – wie schreibt man den Namen?", "Farbaholix – aus „Farbe“ und „-aholic“: süchtig nach Farbe. Das Logo mit dem Schriftzug „Farbaholix – Frankfurt Mural Movement“ steht auf unseren Wänden in Frankfurt und im Rhein-Main-Gebiet. Ob Sie nach „Farbaholics“, „Farbaholic“, „Farbaholik“, „Farboholik“, „Farboholix“, „Farbeholix“ oder „Farba Holix“ gesucht haben oder nach „Mural Movement“ – Sie sind hier richtig."),
   ],
   s_contact='Kontakt', contact_lead='Erzählen Sie uns von Ihrer Wand – wir melden uns schnell zurück.', phone_l='Telefon', city='Frankfurt am Main, Deutschland',
 
