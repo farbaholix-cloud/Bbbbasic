@@ -9,6 +9,7 @@ MEDIA = json.load(open('media_seo.json'))
 from articles import ARTICLES
 from calc_texts import CALC
 from cases import CASE_PAGES, CAP, UI
+from workshops import WS, WS_PHOTOS
 from gallery import GALLERY, CATS, CAT, EXTRA as _EXTRA_ALL, HIDE_EXTRA, HIDE_OLD
 EXTRA = [x for x in _EXTRA_ALL if x[0] not in HIDE_EXTRA]
 SIZES = json.load(open('gallery_sizes.json'))
@@ -21,11 +22,11 @@ def img(key):  # new image under its SEO file name
     return MEDIA[key]['url']
 
 LANGS = {k: importlib.import_module('lang_' + k).L for k in ('de', 'en', 'uk')}
-PAGES = ('home', 'projects', 'opening', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach', 'wellen', 'smi', 'altersport')
+PAGES = ('home', 'projects', 'opening', 'workshops', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach', 'wellen', 'smi', 'altersport')
 URL = {  # WordPress slugs; the home pages are the Polylang front pages
-    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse', wellen='projekte/restaurant-wandgestaltung-wellenlaenge', smi='smi-bvb', altersport='altersport'),
-    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse', wellen='projects/restaurant-mural-wellenlaenge', smi='smi-bvb-en', altersport='altersport-en'),
-    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse', wellen='proiekty/restoran-wellenlange', smi='smi-bvb-uk', altersport='altersport-uk'),
+    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse', wellen='projekte/restaurant-wandgestaltung-wellenlaenge', smi='smi-bvb', altersport='altersport', workshops='graffiti-workshop'),
+    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse', wellen='projects/restaurant-mural-wellenlaenge', smi='smi-bvb-en', altersport='altersport-en', workshops='workshops'),
+    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse', wellen='proiekty/restoran-wellenlange', smi='smi-bvb-uk', altersport='altersport-uk', workshops='vorkshopy'),
 }
 LANG_PATH = dict(de='', en='en/', uk='uk/')
 def url(k, page):
@@ -201,7 +202,7 @@ def works_grid(k, nums):
     total = len(EXTRA) + len(caps)
     counts = {c: sum(1 for _, cc, _ in EXTRA if cc == c) + sum(1 for n in caps if CAT[n] == c) for c in CATS}
     chips = '<button type="button" class="is-on" data-cat="all">%s <span>%d</span></button>' % (e(L['go_all']), total)
-    chips += ''.join('<button type="button" data-cat="%s">%s <span>%d</span></button>' % (c, e(L['services'][i][0]), counts[c]) for i, c in enumerate(CATS))
+    chips += ''.join('<button type="button" data-cat="%s">%s <span>%d</span></button>' % (c, e(L['services'][i][0]), counts[c]) for i, c in enumerate(CATS) if counts[c])
     overlay = ('<div class="fx-go" id="fxGo" hidden role="dialog" aria-modal="true" aria-label="%s"><div class="fx-go-head"><div class="fx-go-top"><h2>%s</h2>'
                '<button type="button" class="fx-go-x" aria-label="%s">%s</button></div><div class="fx-go-cats" role="tablist">%s</div></div><div class="fx-go-grid"></div></div>') % (
                e(L['go_title']), e(L['go_title']), e(L['close_label']), ICON_X, chips)
@@ -322,6 +323,9 @@ def page_home(k):
              '<p class="fx-trust-line">%s</p></div></section>' % (e(L['proud']), img('logo-montana'), img('logo-caparol'), e(L['trust'][3])))
     o.append('<section class="fx-sec" id="leistungen"><h2>%s</h2><div class="fx-tiles">' % e(L['s_services']))
     for (t, _), short, src, cat in zip(L['services'], L['services_short'], SERVICE_IMGS, CATS):
+        if cat == 'workshop':   # workshops have their own page
+            o.append('<a class="fx-tile" href="%s"><img loading="lazy" src="%s" alt="%s"><div class="fx-tile-t"><h3>%s</h3><p>%s</p><span class="fx-tile-go">%s →</span></div></a>' % (url(k, 'workshops'), src, e(t), e(t), e(short), e(L['promo_a'])))
+            continue
         o.append('<a class="fx-tile" href="#arbeiten" data-go-open="%s"><img loading="lazy" src="%s" alt="%s"><div class="fx-tile-t"><h3>%s</h3><p>%s</p><span class="fx-tile-go">%s →</span></div></a>' % (cat, src, e(t), e(t).replace('Innenraumgestaltung', 'Innenraum&shy;gestaltung'), e(short), e(L['tile_more'])))
     o.append('<a class="fx-tile fx-tile-promo" href="%s"><img loading="lazy" src="%s" alt="%s"><div class="fx-tile-t"><h3>%s</h3><p>%s</p><span class="fx-tile-go">%s →</span></div></a></div>' % (
         url(k, 'opening'), old(30), e(L['promo_t']), e(L['promo_t']), e(L['promo_short']), e(L['promo_a'])))
@@ -373,6 +377,26 @@ def page_opening(k):
     o.append(contact_open(k))
     graph = ld_base(k) + [breadcrumb(k, L['o_title'], 'opening'),
                           {'@type': 'Service', 'name': L['o_title'], 'description': L['o_text'], 'provider': {'@id': SITE + '#farbaholix'}, 'areaServed': 'Frankfurt am Main', 'url': url(k, 'opening')}]
+    return '\n'.join(o), graph
+
+def page_workshops(k):
+    L = LANGS[k]; W = WS[k]; o = chrome_top(k, 'workshops', True)
+    caps = {n: c[k] for n, c in GALLERY}
+    o.append('<div class="fx-lit fx-lit-page" id="fxLit"><section class="fx-sec fx-page-head"><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead fx-lead-left">%s</p><a class="fx-btn" href="#kontakt">%s</a></section>' % (
+        e(W['kicker']), e(W['h1']), e(W['lead']), e(W['cta'])))
+    o.append('<section class="fx-sec"><h2>%s</h2><div class="fx-ws-who">%s</div></section>' % (e(W['who_t']), ''.join('<div><b>%s</b><span>%s</span></div>' % (e(a), e(b)) for a, b in W['who'])))
+    o.append('<section class="fx-sec fx-text"><h2>%s</h2><ul class="fx-list">%s</ul></section>' % (e(W['learn_t']), ''.join('<li>%s</li>' % e(x) for x in W['learn'])))
+    o.append('<section class="fx-sec"><h2>%s</h2><ol class="fx-steps">%s</ol></section>' % (e(W['steps_t']), ''.join('<li><b>%s</b><span>%s</span></li>' % (e(a), e(b)) for a, b in W['steps'])))
+    sz = lambda u: SIZES.get(u, {'t': u, 'l': u})
+    o.append('<section class="fx-sec" id="fotos"><h2>%s</h2><div class="fx-grid">%s</div></section>' % (e(W['photos_t']), ''.join(
+        '<figure class="fx-photo fx-photo-sm"><a class="fx-lb" data-lb="ws" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a><figcaption>%s</figcaption></figure>' % (
+            sz(old(n))['l'], e(caps[n]), sz(old(n))['t'], e(caps[n] + ' – Farbaholix'), e(caps[n])) for n in WS_PHOTOS)))
+    more = '<p class="fx-more"><a href="%s#graffiti-workshop-frankfurt">%s</a></p>' % (url(k, 'magazine'), e(W['more'])) if W['more'] else ''
+    o.append('<section class="fx-sec" id="faq"><h2>%s</h2>%s%s</section></div>' % (e(L['s_faq']), ''.join('<details class="fx-faq"><summary>%s</summary><p>%s</p></details>' % (e(q), e(a)) for q, a in W['faq']), more))
+    o.append(contact_open(k))
+    graph = ld_base(k) + [breadcrumb(k, W['kicker'], 'workshops'),
+                          {'@type': 'Service', 'name': W['h1'], 'description': W['lead'], 'serviceType': 'Graffiti-Workshop', 'provider': {'@id': SITE + '#farbaholix'}, 'areaServed': 'Frankfurt am Main', 'availableLanguage': ['de', 'en', 'uk', 'ru'], 'url': url(k, 'workshops')},
+                          {'@type': 'FAQPage', 'mainEntity': [{'@type': 'Question', 'name': q, 'acceptedAnswer': {'@type': 'Answer', 'text': a}} for q, a in W['faq']]}]
     return '\n'.join(o), graph
 
 def page_about(k):
@@ -583,7 +607,7 @@ def page_altersportarchiv():
     o.append('</div>')
     return '\n'.join(o), []
 
-BUILDERS = dict(smi=page_smi, altersport=page_altersport, wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
+BUILDERS = dict(workshops=lambda k: page_workshops(k), smi=page_smi, altersport=page_altersport, wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
 
 FONT_BASE = MEDIA['font-unbounded-latin']['url'].rsplit('/', 1)[0]
 

@@ -69,6 +69,7 @@ CAT = {n: 'facade' for n in (1, 2, 3, 4, 5, 22, 23, 24, 25, 26, 27, 28, 29, 30, 
 CAT.update({n: 'indoor' for n in range(6, 22)})
 CAT.update({n: 'workshop' for n in range(44, 54)})
 CAT.update({n: 'objects' for n in (38, 39, 40, 42)})
+CAT[53] = 'indoor'   # photorealistic Nike sneaker wall – shown with the interiors (Oct 2026)
 # recent projects shown first in "all works" (media_seo keys)
 EXTRA = [
  ('sg-mauer-panorama', 'facade', {'de': 'Sankt Georgen: die ganze Blumenmauer an der Straße, Frankfurt', 'en': 'Sankt Georgen: the whole flower wall by the road, Frankfurt', 'uk': 'Sankt Georgen: уся квіткова стіна біля дороги, Франкфурт'}),
