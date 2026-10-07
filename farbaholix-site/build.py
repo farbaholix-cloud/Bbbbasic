@@ -287,12 +287,19 @@ def call_card(k):
             '<p class="fx-call-hook">%s</p><a class="fx-call-btn" href="tel:+4915172450347"><span class="fx-call-ring" aria-hidden="true">📞</span>%s</a><p class="fx-call-micro">%s</p></div>') % (
             img('slavik-portrait'), e(L['call_role']), e(L['call_on']), e(L['call_off']), e(L['call_on']), e(L['call_hook']), e(L['call_btn']), e(L['call_micro']))
 
+PF_T = {'de': ('Portfolio herunterladen', 'PDF · 22 Seiten · 17 MB'), 'en': ('Download portfolio', 'PDF · 22 pages · 17 MB'), 'uk': ('Завантажити портфоліо', 'PDF · 22 сторінки · 17 МБ')}
+SVG_DL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>'
+def portfolio_btn(k, small=False):
+    t, sub = PF_T[k]
+    return ('<a class="fx-pf%s" href="%s" download="Farbaholix-Slavik-Portfolio.pdf" target="_blank" rel="noopener">'
+            '<span class="fx-pf-ic">%s</span><span class="fx-pf-tx"><b>%s</b><small>%s</small></span></a>') % (' fx-pf-sm' if small else '', MEDIA['portfolio-pdf']['url'], SVG_DL, e(t), e(sub))
+
 def contact_section(k):
     L = LANGS[k]
     return ('<section class="fx-sec" id="kontakt"><h2>%s</h2><p>%s</p><div class="fx-contact-grid">%s<div class="fx-cform-card"><h3>%s</h3>%s</div></div>%s'
-            '<p class="fx-city">%s%s</p></section>') % (
+            '<p class="fx-city">%s%s</p><p class="fx-pf-contact">%s</p></section>') % (
             e(L['s_contact']), e(L['contact_lead']), call_card(k), e(L['form_t']), contact_form(k), direct_buttons(k),
-            SVG_PIN, e(L['city']))
+            SVG_PIN, e(L['city']), portfolio_btn(k, True))
 
 def contact_open(k):   # kept name: every page ends with the contact section
     return contact_section(k)
@@ -346,8 +353,8 @@ def page_home(k):
     o.append('<section class="fx-sec" id="partner"><h2>%s</h2><div class="fx-logos"><img loading="lazy" src="%s" alt="%s"></div></section>' % (e(L['s_partners']), img('partner-kunden-logos'), e(L['partners_alt'])))
     o.append('<section class="fx-sec" id="presse"><h2>%s</h2>%s</section>' % (e(L['s_press']), press_cards(k, [p for p in PRESS if p['home']])))
     o.append('<section class="fx-sec" id="ablauf"><h2>%s</h2><ol class="fx-steps">%s</ol></section>' % (e(L['s_process']), ''.join('<li><b>%s</b><span>%s</span></li>' % (e(a), e(b)) for a, b in L['steps'])))
-    o.append('<section class="fx-sec fx-about-sec" id="ueber"><img class="fx-about-img" loading="lazy" src="%s" alt="%s"><div><h2>%s</h2><p class="fx-about">%s</p><a class="fx-btn fx-btn-ghost" href="%s">%s →</a></div></section>' % (
-        img('slavik-portrait'), e(L['a_h1']), e(L['s_about']), e(L['about']), url(k, 'about'), e(L['about_more'])))
+    o.append('<section class="fx-sec fx-about-sec" id="ueber"><img class="fx-about-img" loading="lazy" src="%s" alt="%s"><div><h2>%s</h2><p class="fx-about">%s</p><div class="fx-pf-row"><a class="fx-btn fx-btn-ghost" href="%s">%s →</a>%s</div></div></section>' % (
+        img('slavik-portrait'), e(L['a_h1']), e(L['s_about']), e(L['about']), url(k, 'about'), e(L['about_more']), portfolio_btn(k)))
     o.append('<section class="fx-sec" id="faq"><h2>%s</h2>%s</section>' % (e(L['s_faq']), ''.join('<details class="fx-faq"><summary>%s</summary><p>%s</p></details>' % (e(q), e(a)) for q, a in L['faq'])))
     o.append(contact_open(k))
     graph = ld_base(k) + [{'@type': 'WebPage', '@id': url(k, 'home'), 'name': L['meta_home'][0], 'description': L['meta_home'][1], 'inLanguage': k, 'about': {'@id': SITE + '#farbaholix'}},
@@ -401,8 +408,8 @@ def page_workshops(k):
 
 def page_about(k):
     L = LANGS[k]; o = chrome_top(k, 'about', True)
-    o.append('<div class="fx-lit fx-lit-page" id="fxLit"><section class="fx-sec fx-page-head fx-about-head"><img class="fx-portrait" src="%s" alt="%s" fetchpriority="high"><div><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead fx-lead-left">%s</p></div></section>' % (
-        img('slavik-portrait'), e(L['a_h1']), e(L['a_kicker']), e(L['a_h1']), e(L['a_lead'])))
+    o.append('<div class="fx-lit fx-lit-page" id="fxLit"><section class="fx-sec fx-page-head fx-about-head"><img class="fx-portrait" src="%s" alt="%s" fetchpriority="high"><div><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead fx-lead-left">%s</p>%s</div></section>' % (
+        img('slavik-portrait'), e(L['a_h1']), e(L['a_kicker']), e(L['a_h1']), e(L['a_lead']), portfolio_btn(k)))
     o.append('<section class="fx-sec"><dl class="fx-facts-table">%s</dl></section>' % ''.join('<div><dt>%s</dt><dd>%s</dd></div>' % (e(a), e(b)) for a, b in L['a_facts']))
     for i, (h, paras) in enumerate(L['a_sections']):
         o.append('<section class="fx-sec fx-text"><h2>%s</h2>%s</section>' % (e(h), ''.join('<p>%s</p>' % e(p) for p in paras)))

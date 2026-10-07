@@ -777,3 +777,23 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .fx.lights-on .fx-lit .fx-ws-who b { color: #8a5a12; }
 .fx.lights-on .fx-lit .fx-ws-who span { color: #4a4a4f; }
 @media (min-width: 1101px) { .fx-sub #fotos .fx-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* portfolio PDF download button */
+.fx-pf-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.fx-pf { display: inline-flex; align-items: center; gap: 12px; margin-top: 18px; padding: 10px 20px 10px 10px; border-radius: 999px; text-decoration: none !important;
+  background: linear-gradient(135deg, #f0d49a, #d9b26a 55%, #b8883e); color: #1a1109 !important; box-shadow: 0 10px 26px -10px rgba(217, 178, 106, .7); transition: transform .2s, box-shadow .2s; }
+.fx-pf-row .fx-pf { margin-top: 0; }
+.fx-pf:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -10px rgba(217, 178, 106, .9); }
+.fx-pf-ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #1a1109; }
+.fx-pf-ic svg { width: 20px; height: 20px; fill: none; stroke: #f0d49a; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.fx-pf:hover .fx-pf-ic svg { animation: fxPfDrop .8s ease-in-out infinite; }
+@keyframes fxPfDrop { 0%, 100% { transform: translateY(-1px); } 50% { transform: translateY(2px); } }
+.fx-pf-tx { display: flex; flex-direction: column; line-height: 1.15; text-align: left; }
+.fx-pf-tx b { font-family: Unbounded, Manrope, sans-serif; font-weight: 600; font-size: .9rem; letter-spacing: .02em; }
+.fx-pf-tx small { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .7rem; opacity: .75; margin-top: 3px; }
+.fx-pf-contact { text-align: center; margin: 22px 0 0; }
+.fx-pf-sm { margin-top: 0; padding: 7px 16px 7px 7px; background: transparent; color: var(--fx-gold-2) !important; border: 1px solid rgba(217, 178, 106, .55); box-shadow: none; }
+.fx-pf-sm .fx-pf-ic { width: 32px; height: 32px; background: rgba(217, 178, 106, .15); }
+.fx-pf-sm .fx-pf-tx b { font-size: .8rem; }
+.fx.lights-on .fx-lit .fx-pf-sm { color: #8a5a12 !important; border-color: rgba(138, 90, 18, .45); }
+@media (prefers-reduced-motion: reduce) { .fx-pf:hover .fx-pf-ic svg { animation: none; } }
