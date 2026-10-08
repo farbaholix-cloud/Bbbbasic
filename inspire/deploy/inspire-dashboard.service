@@ -1,0 +1,12 @@
+[Unit]
+Description=Inspire dashboard
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/inspire
+ExecStart=/usr/bin/python3 dashboard.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

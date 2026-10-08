@@ -1,0 +1,12 @@
+[Unit]
+Description=Inspire Telegram bot
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/inspire
+ExecStart=/usr/bin/python3 bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
