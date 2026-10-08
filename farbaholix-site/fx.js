@@ -382,7 +382,10 @@
   function goFilter(cat) {
     Array.prototype.forEach.call(go.querySelectorAll('.fx-go-cats button'), function (b) { var on = b.dataset.cat === cat; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on); if (on) b.scrollIntoView({ inline: 'center', block: 'nearest' }); });
     goList = [];
-    Array.prototype.forEach.call(goGrid.children, function (t) { var on = cat === 'all' || t._src.dataset.cat === cat; t.hidden = !on; if (on) goList.push(t._src); });
+    var key = cat === 'all' ? 'ord' : 'o' + cat.charAt(0).toUpperCase() + cat.slice(1), skey = cat === 'all' ? 'shape' : 's' + cat.charAt(0).toUpperCase() + cat.slice(1);
+    var tiles = Array.prototype.slice.call(goGrid.children);
+    tiles.forEach(function (t) { var on = cat === 'all' || t._src.dataset.cat === cat; t.hidden = !on; t.className = t.className.replace(/\bis-(sq|wide|pano|tall|big)\b/, 'is-' + (t._src.dataset[skey] || 'sq')); });
+    tiles.sort(function (x, y) { var o = function (z) { var v = z._src.dataset[key]; return v === undefined ? 999 : +v; }; return o(x) - o(y); }).forEach(function (t) { goGrid.appendChild(t); if (!t.hidden) goList.push(t._src); });
     go.scrollTop = 0;
   }
   function goOpen(cat) {

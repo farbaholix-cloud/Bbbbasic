@@ -275,13 +275,13 @@ def compose_gallery(items):
                 r += 1
         return all(all(row) for row in grid)
     import random
-    rnd = random.Random(7); tail = [it for it in out[-24:] if it['shape'] in ('sq', 'wide', 'tall')]
+    rnd = random.Random(7); tail = [it for it in (out[-24:] if len(out) > 40 else out) if it['shape'] in ('sq', 'wide', 'tall', 'big')]
     base = {id(it): it['shape'] for it in tail}
-    for _ in range(4000):
+    for _ in range(4000 if len(out) > 40 else 30000):
         if rows_full(6) and rows_full(3) and rows_full(4): break
         for it in tail: it['shape'] = base[id(it)]
         for it in rnd.sample(tail, min(len(tail), rnd.randint(1, 5))):
-            it['shape'] = rnd.choice(['sq', 'wide'] if it['ar'] >= 1.15 else ['sq', 'tall'] if it['ar'] <= .85 else ['sq'])
+            it['shape'] = rnd.choice((['sq', 'wide'] if it['ar'] >= 1.15 else ['sq', 'tall'] if it['ar'] <= .85 else ['sq']) + (['big'] if .8 <= it['ar'] <= 1.9 and len(out) <= 40 else []))
     for i, it in enumerate(out): it['ord'] = i
     return out
 
@@ -298,13 +298,16 @@ def works_grid(k, nums):
         u = img('pf-' + key); items.append(dict(u=u, t=sz(u)['t'], cap={'de': de, 'en': en, 'uk': uk}[k], cat=cat, proj='pf' + key.split('_')[0], prio=20 + i * 1.6))
     for i, (n, c) in enumerate(caps.items()):
         u = old(n); items.append(dict(u=u, t=sz(u)['t'], cap=c, cat=CAT[n], proj='o%d' % n, prio=22 + i * 1.6, n=n))
+    import copy
+    percat = {c: {it['t']: (x['ord'], x['shape']) for it, x in zip([i for i in items if i['cat'] == c], compose_gallery(copy.deepcopy([i for i in items if i['cat'] == c])))} for c in CATS if any(i['cat'] == c for i in items)}
     comp = compose_gallery(items)
     ordmap = {it['t']: (it['ord'], it['shape']) for it in comp}
     def attrs(u):
         t = sz(u)['t']; o, shp = ordmap.get(t, (999, 'sq')); fp = GFOCUS.get(t, [50, 50])
         w, h, lum, hue, sat = GMETA.get(t, [1, 1, .5, 0, .3])
         tone = 'dark' if lum < .28 else 'dull' if sat < .2 else 'ok'
-        return ' data-ord="%d" data-shape="%s" data-fp="%g%% %g%%" data-tone="%s"' % (o, shp, fp[0], fp[1], tone)
+        pc = ''.join(' data-o-%s="%d" data-s-%s="%s"' % (c, percat[c][t][0], c, percat[c][t][1]) for c in percat if t in percat[c])
+        return ' data-ord="%d" data-shape="%s" data-fp="%g%% %g%%" data-tone="%s"%s' % (o, shp, fp[0], fp[1], tone, pc)
     shown = ''.join('<figure class="fx-photo fx-photo-sm">%s<figcaption>%s</figcaption></figure>' % (
         link(old(n), caps.get(n, WORK_ALT[k][n]), CAT[n], '<img loading="lazy" src="%s" alt="%s">' % (sz(old(n))['t'], e(WORK_ALT[k][n] + ' – Farbaholix')), extra=attrs(old(n))), e(WORK_ALT[k][n])) for n in nums)
     rest = ''.join(link(it['u'], it['cap'], it['cat'], hidden=True, recent=it.get('recent', False), extra=attrs(it['u'])) for it in comp if it.get('n') not in nums)
