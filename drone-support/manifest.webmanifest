@@ -1,0 +1,9 @@
+{
+  "name": "Облік відділу підтримки БпЛА",
+  "short_name": "Підтримка",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eef1f2",
+  "theme_color": "#1d55c4",
+  "lang": "uk"
+}
