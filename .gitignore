@@ -17,3 +17,6 @@ friedman_bot/.deploy_fail
 # farbaholix: local copies of third-party press articles (backup only, not for the public repo)
 farbaholix-site/archive/
 farbaholix-site/*.zip
+
+# drone-support: server-side database
+drone-support/backend/data/
