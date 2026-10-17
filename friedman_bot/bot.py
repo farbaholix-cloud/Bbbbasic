@@ -6876,7 +6876,7 @@ def _backstage_welcome(d):
     import time as _t
     import urllib.request
     import urllib.parse
-    if _settings_get("backstage_welcome2"):  # 2 — ссылка через порт дашборда (:8765/bs)
+    if _settings_get("backstage_welcome3"):  # 3 — по подписке, без ключа, с демо-входом
         return
     for _ in range(30):  # ждём, пока панель поднимется
         try:
@@ -6889,22 +6889,18 @@ def _backstage_welcome(d):
         link, ip = _backstage_new_client(d, "farbaholix", "Farbaholix", reset=True)
     if not link:
         log.error(f"backstage welcome: клиент не создан: {ip}")
-        _settings_set("backstage_welcome2", "skip")
+        _settings_set("backstage_welcome3", "skip")
         return
-    has_key = bool(_backstage_env(d).get("ANTHROPIC_API_KEY"))
-    text = ("🎬 Backstage готов!\n\n"
+    text = ("🎬 Backstage готов! Команда работает по твоей подписке Claude — ничего докупать не нужно.\n\n"
             f"Твоя панель (нажми и открой):\n{link}\n\n"
-            "Сохрани эту ссылку — это твой вход.")
-    if not has_key:
-        text += ("\n\nЧтобы команда начала отвечать, пришли мне сюда ключ Claude API "
-                 "обычным сообщением (он начинается с sk-ant-). Взять его: console.anthropic.com → API Keys.")
+            f"Демо для показа людям:\n{_backstage_url(ip)}/\nимя Canon, пин-код 1111")
     cid = get_chat_id()
     if not cid or not TOKEN:
         return
     try:
         data = urllib.parse.urlencode({"chat_id": cid, "text": text, "disable_web_page_preview": "true"}).encode()
         urllib.request.urlopen(f"https://api.telegram.org/bot{TOKEN}/sendMessage", data=data, timeout=20)
-        _settings_set("backstage_welcome2", "sent")
+        _settings_set("backstage_welcome3", "sent")
     except Exception as e:
         log.error(f"backstage welcome send: {e}")
 
@@ -6955,9 +6951,9 @@ async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"Ключ админки (никому не пересылай):\n{env.get('BACKSTAGE_ADMIN_KEY', '— появится после первого запуска')}",
         f"\nИнструкция для клиентов:\n{base}/guide",
         f"\nКлиентов: {n_clients}",
-        ("Ключ Claude API: ✅ задан" if env.get("ANTHROPIC_API_KEY")
-         else "Ключ Claude API: ❌ не задан — чат команды молчит.\n"
-              "Возьми ключ на console.anthropic.com → API Keys и пришли:\n/backstagekey sk-ant-…"),
+        ("Команда работает по ключу Claude API" if env.get("ANTHROPIC_API_KEY")
+         else "Команда работает по твоей подписке Claude"),
+        "Демо-вход: имя Canon, пин-код 1111",
         "\nНовый клиент: /backstageclient код Название [бюджет$]\nнапример /backstageclient farbaholix Farbaholix 50",
     ]
     if not alive:

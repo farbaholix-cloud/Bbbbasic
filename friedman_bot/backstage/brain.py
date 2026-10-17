@@ -6,7 +6,13 @@
 Claude API (console.anthropic.com) с предоплаченным балансом — каждый вызов
 считается в долларах и записывается в usage по клиенту.
 
-Модели (меняются в .env или для отдельного клиента в админке):
+Два способа работы:
+  • по подписке (по умолчанию, пока нет ключа API) — через `claude` CLI с OAuth-токеном
+    владельца, как боты Фридмана. Ничего не докупается, лимиты — лимиты подписки.
+  • по ключу Claude API — если в .env задан ANTHROPIC_API_KEY: расход в $ по клиентам,
+    месячные бюджеты, самые мощные модели.
+
+Модели в режиме API (меняются в .env или для отдельного клиента в админке):
   BACKSTAGE_MODEL_CHAT  — повседневный чат с командой, по умолчанию claude-opus-5-5
   BACKSTAGE_MODEL_DEEP  — «Глубокий анализ», по умолчанию claude-fable-5-1,
                           самая мощная из общедоступных моделей Claude
@@ -14,6 +20,7 @@ Claude API (console.anthropic.com) с предоплаченным баланс�
 import os
 import re
 import json
+import base64
 import logging
 from datetime import datetime
 
@@ -70,6 +77,16 @@ def client():
 
 class BudgetExceeded(Exception):
     pass
+
+
+CLAUDE_BIN = os.environ.get("CLAUDE_BIN") or os.path.expanduser("~/.local/bin/claude")
+CLI_MODEL_CHAT = os.environ.get("BACKSTAGE_CLI_MODEL_CHAT", "opus")
+CLI_MODEL_DEEP = os.environ.get("BACKSTAGE_CLI_MODEL_DEEP", "opus")
+
+
+def backend():
+    """'api' — есть ключ Claude API; иначе 'cli' — работаем по подписке владельца."""
+    return "api" if os.environ.get("ANTHROPIC_API_KEY") else "cli"
 
 
 # ─── Системный промпт агента ─────────────────────────────────────────────────
@@ -338,6 +355,8 @@ def _usage(resp):
 
 
 def check_budget(c):
+    if backend() != "api":
+        return  # по подписке денег не считаем — работаем в её лимитах
     budget = float(c["monthly_budget"] or 0)
     if budget > 0 and store.spent_this_month(c["id"]) >= budget:
         raise BudgetExceeded(
@@ -447,7 +466,10 @@ def chat(client_id, agent_id, text, attachments=None, deep=False):
         note = "\n\n📎 " + ", ".join(a.get("name", "файл") for a in attachments)
     store.add_message(client_id, agent_id, "user", text + note, {"deep": deep})
     ctx = {}
-    if deep:
+    if backend() == "cli":
+        model = CLI_MODEL_DEEP if deep else CLI_MODEL_CHAT
+        answer = cli_agent(c, agent_id, text, hist, deep=deep, attachments=attachments, ctx=ctx)
+    elif deep:
         model = c.get("model_deep") or MODEL_DEEP
         answer = run_agent(c, agent_id, text, hist, model=model, effort=EFFORT_DEEP, kind="deep",
                            attachments=attachments, ctx=ctx, max_tokens=64000)
@@ -468,3 +490,155 @@ POTENTIAL_PROMPT = """Проведи глубокий первый анализ 
 5. Сохрани 2–3 главных вывода в базу опыта.
 
 В конце — три шага на эту неделю."""
+
+
+# ─── Режим подписки: claude CLI ──────────────────────────────────────────────
+# CLI не умеет вызывать наши инструменты дашборда, поэтому агент отвечает JSON:
+# {"reply": "...", "actions": [...]} — действия те же, что у инструментов API.
+# Майя может поручить работу специалистам (action "ask"): они отвечают, и Майя
+# делает второй проход уже с их ответами.
+
+CLI_FORMAT = """ФОРМАТ ОТВЕТА — строго один JSON-объект, без текста вокруг и без ```:
+{"reply": "ответ клиенту (markdown можно)", "actions": [ ... ]}
+actions — изменения дашборда и базы опыта, пустой список, если менять нечего. Виды:
+{"type":"dashboard_add_widget","kind":"kpi|chart|table|board|list|note","title":"...","size":"s|m|l","config":{...},"data":{...}}
+{"type":"dashboard_update_widget","widget_id":1,"title":"...","config":{...},"data":{...}}
+{"type":"dashboard_delete_widget","widget_id":1}
+{"type":"board_add_card","widget_id":1,"text":"...","column":0}
+{"type":"board_move_card","widget_id":1,"card_id":2,"column":1}
+{"type":"list_add_item","widget_id":1,"text":"...","date":"YYYY-MM-DD"}
+{"type":"chart_add_point","widget_id":1,"label":"2026-10","value":100,"series":"..."}
+{"type":"kpi_set","widget_id":1,"value":100,"delta":"..."}
+{"type":"table_add_row","widget_id":1,"cells":["...","..."]}
+{"type":"save_insight","title":"...","body":"...","tags":"..."}
+Форматы data: kpi {value, delta}; chart {labels:[...], series:[{name, values:[...]}]}; table {rows:[[...]]};
+board {cards:[{id, col, text}]}; list {items:[{id, text, date, done}]}; note {text}.
+config: kpi {unit, goal}; chart {type: line|bar|pie|doughnut, unit}; table {columns:[...]}; board {columns:[...]}."""
+
+CLI_ASK = """
+Ты можешь поручить задачу специалистам: {"type":"ask","agent":"ruben|hanna|konrad|noa|tarik|iris|ben","task":"всё нужное для задачи"}.
+Если поручаешь — в reply коротко скажи, кого зовёшь; их ответы придут тебе следующим сообщением, и ты сведёшь итог."""
+
+
+def _parse_cli_json(text):
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = t.strip("`")
+        t = t[t.find("{"):]
+    a, b = t.find("{"), t.rfind("}")
+    if a >= 0 and b > a:
+        try:
+            obj = json.loads(t[a:b + 1])
+            if isinstance(obj, dict) and "reply" in obj:
+                acts = obj.get("actions") or []
+                return str(obj.get("reply") or ""), [x for x in acts if isinstance(x, dict)]
+        except Exception:
+            pass
+    return t, []  # модель ответила простым текстом — показываем как есть
+
+
+def _cli_call(c, kind, system, prompt, tools, model, timeout):
+    import subprocess
+    if not os.path.exists(CLAUDE_BIN):
+        raise RuntimeError("не найден claude CLI на сервере (~/.local/bin/claude)")
+    argv = [CLAUDE_BIN, "-p", "--append-system-prompt", system, "--model", model,
+            "--output-format", "json", "--max-turns", "12" if tools else "3"]
+    argv += ["--allowedTools", ",".join(tools)] if tools else ["--tools", ""]
+    env = {**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
+    # промпт — через stdin: большой текст в argv даёт E2BIG (урок ботов Фридмана)
+    p = subprocess.run(argv, input=prompt, capture_output=True, text=True, timeout=timeout, env=env)
+    out = (p.stdout or "").strip()
+    try:
+        j = json.loads(out)
+    except Exception:
+        if p.returncode != 0:
+            raise RuntimeError(f"claude CLI: {(p.stderr or out)[-300:]}")
+        return out
+    u = j.get("usage") or {}
+    store.log_usage(c["id"], kind, f"cli:{model}", {
+        "input": u.get("input_tokens", 0) or 0, "output": u.get("output_tokens", 0) or 0,
+        "cache_read": u.get("cache_read_input_tokens", 0) or 0,
+        "cache_write": u.get("cache_creation_input_tokens", 0) or 0, "web": 0},
+        float(j.get("total_cost_usd") or 0))  # условная цена: по подписке не списывается
+    if j.get("is_error") and not j.get("result"):
+        raise RuntimeError(f"claude CLI: {j.get('subtype') or 'ошибка'}")
+    return j.get("result") or ""
+
+
+def _cli_system(agent_id, lead):
+    text = system_prompt(agent_id)[0]["text"]
+    text += "\n\n## Как отвечать в этой панели\n\n" + CLI_FORMAT + (CLI_ASK if lead else "")
+    return text
+
+
+def _history_text(hist):
+    if not hist:
+        return ""
+    lines = [("КЛИЕНТ: " if m["role"] == "user" else "ТЫ: ") + m["text"] for m in hist[-16:]]
+    return "ПРЕДЫДУЩАЯ ПЕРЕПИСКА:\n" + "\n\n".join(lines) + "\n\n"
+
+
+def _apply(c, agent_id, actions, ctx, notes):
+    for a in actions:
+        name = a.get("type")
+        if name == "ask":
+            continue
+        try:
+            run_tool(c, agent_id, name, a, ctx)
+        except Exception as e:  # noqa: BLE001
+            notes.append(f"не вышло {name}: {e}")
+
+
+def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=None, depth=0):
+    import tempfile
+    ctx = ctx if ctx is not None else {}
+    lead = bool(AGENTS[agent_id].get("lead")) and depth == 0
+    model = CLI_MODEL_DEEP if deep else CLI_MODEL_CHAT
+    tools = []
+    if AGENTS[agent_id].get("web") or AGENTS[agent_id].get("lead") or deep:
+        tools += ["WebSearch", "WebFetch"]
+    files = []
+    extra = ""
+    for a in attachments or []:
+        if a.get("text") is not None:
+            extra += f"\n\nВЛОЖЕНИЕ «{a.get('name', 'файл')}»:\n{a['text'][:60000]}"
+        elif a.get("data"):
+            ext = ".pdf" if a.get("media_type") == "application/pdf" else ".png" if "png" in a.get("media_type", "") else ".jpg"
+            f = tempfile.NamedTemporaryFile(prefix="bs_att_", suffix=ext, delete=False)
+            f.write(base64.b64decode(a["data"]))
+            f.close()
+            files.append(f.name)
+    if files:
+        tools.append("Read")
+        extra += "\n\nКлиент приложил файлы — прочитай их инструментом Read: " + ", ".join(files)
+    try:
+        prompt = (f"<context>\n{context_block(c, agent_id)}\n</context>\n\n{_history_text(hist)}"
+                  f"НОВОЕ СООБЩЕНИЕ КЛИЕНТА:\n{user_text}{extra}")
+        system = _cli_system(agent_id, lead)
+        timeout = 900 if deep else 420
+        kind = ("deep" if deep else "chat") if depth == 0 else f"specialist:{agent_id}"
+        reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt, tools, model, timeout))
+        notes = []
+        _apply(c, agent_id, actions, ctx, notes)
+        asks = [a for a in actions if a.get("type") == "ask" and a.get("agent") in AGENTS
+                and not AGENTS[a["agent"]].get("lead")][:4]
+        if lead and asks:
+            answers = []
+            for a in asks:
+                ctx.setdefault("consulted", []).append(a["agent"])
+                sub = cli_agent(c, a["agent"], str(a.get("task", "")), [], deep=deep, ctx=ctx, depth=1)
+                answers.append(f"### {AGENTS[a['agent']]['name']} ({AGENTS[a['agent']]['role']})\n{sub}")
+            prompt2 = (prompt + f"\n\nТВОЙ ПЕРВЫЙ ОТВЕТ: {reply}\n\nОТВЕТЫ СПЕЦИАЛИСТОВ:\n\n" + "\n\n".join(answers) +
+                       "\n\nСведи итог для клиента. Действия из первого ответа уже применены — не повторяй их. "
+                       "Новых поручений не давай.")
+            reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt2, tools, model, timeout))
+            _apply(c, agent_id, [a for a in actions if a.get("type") != "ask"], ctx, notes)
+        if notes:
+            log.warning("cli actions: %s", notes)
+        return reply.strip() or "(пустой ответ)"
+    finally:
+        for f in files:
+            try:
+                os.unlink(f)
+            except OSError:
+                pass

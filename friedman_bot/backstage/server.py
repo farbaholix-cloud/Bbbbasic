@@ -278,15 +278,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({
                 "name": c["name"], "slug": c["slug"], "profile": c["profile"], "lang": c["lang"],
                 "budget": c["monthly_budget"], "spent": round(store.spent_this_month(cid), 4),
-                "model_chat": c["model_chat"] or brain.MODEL_CHAT, "model_deep": c["model_deep"] or brain.MODEL_DEEP,
+                "model_chat": (c["model_chat"] or brain.MODEL_CHAT) if brain.backend() == "api" else f"{brain.CLI_MODEL_CHAT} (подписка)",
+                "model_deep": (c["model_deep"] or brain.MODEL_DEEP) if brain.backend() == "api" else f"{brain.CLI_MODEL_DEEP} (подписка)",
                 "telegram": bool(c["tg_token"]), "share_insights": c["share_insights"],
+                "backend": brain.backend(), "demo": c["slug"] == store.DEMO_SLUG,
                 "agents": brain.AGENTS, "version": VERSION})
         if path == "/api/widgets":
             ws = store.list_widgets(cid)
             for w in ws:  # системный KPI «Бюджет ИИ» считается сервером
                 if w["config"].get("system") == "budget":
-                    w["data"] = {"value": round(store.spent_this_month(cid), 2),
-                                 "delta": f"из ${c['monthly_budget']:.0f}"}
+                    if brain.backend() == "cli":  # по подписке денег нет — показываем, сколько работала команда
+                        n = sum(r["n"] for r in store.usage_summary(cid, days=31))
+                        w.update(title="Работа команды", config={**w["config"], "unit": ""})
+                        w["data"] = {"value": n, "delta": "запросов за 31 день · по подписке"}
+                    else:
+                        w["data"] = {"value": round(store.spent_this_month(cid), 2),
+                                     "delta": f"из ${c['monthly_budget']:.0f}"}
             return self._json(ws)
         if path == "/api/messages":
             agent = (q.get("agent") or ["maya"])[0]
@@ -406,10 +413,11 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     store.init()
+    store.ensure_demo()
     if not ADMIN_KEY:
         log.warning("BACKSTAGE_ADMIN_KEY не задан — админка закрыта")
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        log.warning("ANTHROPIC_API_KEY не задан — чат с командой работать не будет")
+        log.info("ANTHROPIC_API_KEY не задан — команда работает по подписке через claude CLI")
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
     scheme = "http"
     if TLS_CERT and TLS_KEY:

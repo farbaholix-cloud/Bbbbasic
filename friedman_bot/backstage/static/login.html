@@ -12,6 +12,8 @@
   form.card{padding:22px;margin-top:28px}
   form button{width:100%;margin-top:16px;padding:12px}
   .err{color:var(--bad);margin-top:10px;min-height:1.2em}
+  .hint{color:var(--muted);opacity:.75;font-size:13px;text-align:center;margin:4px 0 0}
+  .hint b{font-weight:600}
   footer{margin-top:28px;text-align:center}
 </style>
 </head><body>
@@ -19,15 +21,16 @@
   <h1 class="brand">BACKSTAGE<span>.</span></h1>
   <p class="muted">Закулисная команда ИИ-агентов для художников, музыкантов и авторов. Создавай своё — остальное берёт команда.</p>
   <form class="card" id="f">
-    <label for="slug">Код проекта</label>
-    <input id="slug" autocomplete="username" autocapitalize="none" placeholder="например, farbaholix" required>
-    <label for="key">Ключ доступа</label>
-    <input id="key" type="password" autocomplete="current-password" required>
+    <label for="slug">Имя</label>
+    <input id="slug" autocomplete="username" autocapitalize="none" placeholder="Canon" required>
+    <label for="key">Пин-код</label>
+    <input id="key" type="password" autocomplete="current-password" placeholder="1111" required>
     <button class="primary" type="submit">Войти</button>
     <div class="err" id="err"></div>
+    <p class="hint">Демо-вход: имя <b>Canon</b>, пин-код <b>1111</b></p>
   </form>
   <footer class="small muted">
-    Ключ выдаёт агентство. Проще всего — открыть персональную ссылку из письма.<br>
+    Своё имя и пин-код выдаёт агентство — или открой персональную ссылку.<br>
     <a href="guide">Что умеет панель</a>
   </footer>
 </main>

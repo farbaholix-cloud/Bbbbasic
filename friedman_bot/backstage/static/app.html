@@ -450,8 +450,10 @@ $("#btnClear").onclick = async () => { if (confirm("Очистить переп�
 async function refreshMe() {
   ME = await api("api/me");
   $("#who").textContent = ME.name;
-  const b = $("#budget"); b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
-  b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : "";
+  const b = $("#budget");
+  if (ME.backend === "cli") { b.textContent = ME.demo ? "демо" : "подписка"; b.title = "Команда работает по подписке Claude"; }
+  else { b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
+    b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : ""; }
 }
 $("#btnAdd").onclick = () => { $("#addTitle").value = ""; $("#dlgAdd").returnValue = ""; $("#dlgAdd").showModal(); };
 $("#dlgAdd").onclose = async () => {

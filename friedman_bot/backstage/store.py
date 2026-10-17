@@ -124,10 +124,10 @@ def hash_key(key: str) -> str:
 
 # ─── Клиенты ─────────────────────────────────────────────────────────────────
 
-def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0, lang: str = "ru"):
+def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0, lang: str = "ru", key: str = None):
     """Создаёт клиента со стартовым дашбордом. Возвращает (client_id, access_key) —
     ключ показывается один раз, в базе лежит только его хэш."""
-    key = secrets.token_urlsafe(18)
+    key = key or secrets.token_urlsafe(18)
     with db() as conn:
         cur = conn.execute(
             "INSERT INTO clients (slug, name, key_hash, profile, monthly_budget, lang, created) "
@@ -188,6 +188,21 @@ def update_client(client_id: int, **fields):
     sets = ", ".join(f"{k}=?" for k in fields)
     with db() as conn:
         conn.execute(f"UPDATE clients SET {sets} WHERE id=?", (*fields.values(), client_id))
+
+
+DEMO_SLUG, DEMO_PIN = "canon", "1111"
+
+
+def ensure_demo():
+    """Демо-вход для показа: имя Canon, пин 1111 (подсказка видна на странице входа).
+    Все, кто входит в демо, видят один и тот же дашборд — личного туда не писать."""
+    with db() as conn:
+        if conn.execute("SELECT 1 FROM clients WHERE slug=?", (DEMO_SLUG,)).fetchone():
+            return
+    create_client(DEMO_SLUG, "Canon · демо",
+                  "Демо-проект. DJ и музыкальный автор (пример: DJ Can-On, Киев). Цель на 12 месяцев — "
+                  "запустить YouTube-канал с миксами, найти гранты на культурные проекты и коллаборации "
+                  "с клубами и фестивалями.", budget=5.0, key=DEMO_PIN)
 
 
 # ─── Сессии ──────────────────────────────────────────────────────────────────
