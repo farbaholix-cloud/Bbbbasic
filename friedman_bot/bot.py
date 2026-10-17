@@ -6496,8 +6496,18 @@ def _download_code(d, sha, exam=True):
         if tok:
             h["Authorization"] = f"Bearer {tok}"
         req = urllib.request.Request(f"{RAW_BASE}/{sha}/friedman_bot/{f}", headers=h)
-        with urllib.request.urlopen(req, timeout=40) as r:
-            data = r.read()
+        # GitHub иногда отвечает медленно («The read operation timed out»): файлов
+        # много, и один такой ответ ронял весь деплой. Три попытки с паузой.
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    data = r.read()
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                import time as _t
+                _t.sleep(3 * (attempt + 1))
         if len(data) < 100:
             raise RuntimeError(f"{f}: подозрительно мал ({len(data)} б)")
         tmp_path = os.path.join(tmpdir, f.replace("/", "__"))
