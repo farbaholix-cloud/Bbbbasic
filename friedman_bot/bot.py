@@ -3297,6 +3297,10 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
+    # Ключ Claude API для Backstage можно прислать просто сообщением
+    if text.startswith("sk-ant-") and update.effective_chat.id == get_chat_id():
+        await _accept_backstage_key(update, ctx, "".join(text.split()))
+        return
     await _ensure_kbd_cleared(update)
 
     if text == "📋 Хаос":
@@ -6834,11 +6838,67 @@ def _restart_backstage(d):
             _start_backstage_proc(d, "server.py", "backstage.log", BACKSTAGE_PORT)
             _start_backstage_proc(d, "telegram_bridge.py", "backstage_tg.log")
             log.info("Backstage запущен (supervised)")
+            _backstage_welcome(d)
         except Exception as e:
             log.error(f"start backstage: {e}")
         finally:
             lock.release()
     _bs_threading.Thread(target=work, daemon=True, name="start-backstage").start()
+
+
+def _backstage_new_client(d, slug, name, budget=None):
+    """Завести клиента через manage.py. Возвращает (ссылка или None, текст ответа)."""
+    import sys
+    try:
+        ip = _public_ip()
+    except Exception:
+        ip = "<IP-сервера>"
+    args = [sys.executable, "manage.py", "add", slug, name] + ([str(budget)] if budget else [])
+    r = subprocess.run(args, cwd=os.path.join(d, "backstage"), capture_output=True, text=True, timeout=60,
+                       env={**os.environ, "PYTHONPATH": _backstage_deps(d),
+                            "BACKSTAGE_PUBLIC_URL": f"http://{ip}:{BACKSTAGE_PORT}"})
+    m = re.search(r"https?://\S+/c/\S+", r.stdout or "")
+    if m:
+        return m.group(0), ip
+    err = (r.stdout or "") + (r.stderr or "")
+    return None, ("exists" if "UNIQUE" in err else _scrub_tokens(err[-400:]))
+
+
+def _backstage_welcome(d):
+    """Один раз после первого запуска: сам заводит панель Farbaholix и присылает
+    владельцу готовую ссылку — без команд и настроек."""
+    import time as _t
+    import urllib.request
+    import urllib.parse
+    if _settings_get("backstage_welcome"):
+        return
+    for _ in range(30):  # ждём, пока панель поднимется
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{BACKSTAGE_PORT}/", timeout=2)
+            break
+        except Exception:
+            _t.sleep(1)
+    link, ip = _backstage_new_client(d, "farbaholix", "Farbaholix", 50)
+    if not link:
+        log.error(f"backstage welcome: клиент не создан: {ip}")
+        _settings_set("backstage_welcome", "skip")
+        return
+    has_key = bool(_backstage_env(d).get("ANTHROPIC_API_KEY"))
+    text = ("🎬 Backstage готов!\n\n"
+            f"Твоя панель (нажми и открой):\n{link}\n\n"
+            "Сохрани эту ссылку — это твой вход.")
+    if not has_key:
+        text += ("\n\nЧтобы команда начала отвечать, пришли мне сюда ключ Claude API "
+                 "обычным сообщением (он начинается с sk-ant-). Взять его: console.anthropic.com → API Keys.")
+    cid = get_chat_id()
+    if not cid or not TOKEN:
+        return
+    try:
+        data = urllib.parse.urlencode({"chat_id": cid, "text": text, "disable_web_page_preview": "true"}).encode()
+        urllib.request.urlopen(f"https://api.telegram.org/bot{TOKEN}/sendMessage", data=data, timeout=20)
+        _settings_set("backstage_welcome", "sent")
+    except Exception as e:
+        log.error(f"backstage welcome send: {e}")
 
 
 def _restart_backstage_tg(d):
@@ -6897,31 +6957,32 @@ async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await ctx.bot.send_message(chat_id, "\n".join(lines), disable_web_page_preview=True)
 
 
-async def cmd_backstagekey(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Принять ключ Claude API для Backstage, сохранить в backstage/.env и перезапустить.
-    Сообщение с ключом сразу удаляем из чата."""
+async def _accept_backstage_key(update: Update, ctx: ContextTypes.DEFAULT_TYPE, key: str):
+    """Сохранить ключ Claude API для Backstage и перезапустить панель. Сообщение с ключом удаляем."""
     chat_id = update.effective_chat.id
-    owner = get_chat_id()
-    if owner and chat_id != owner:
-        return
-    key = "".join((update.message.text or "").partition(" ")[2].split())
     try:
         await ctx.bot.delete_message(chat_id, update.message.message_id)
     except Exception:
         pass
     if not re.match(r"^sk-ant-[A-Za-z0-9_-]{20,}$", key):
-        await ctx.bot.send_message(chat_id, "Это не похоже на ключ Claude API. Пришли так: /backstagekey sk-ant-…")
+        await ctx.bot.send_message(chat_id, "Это не похоже на ключ Claude API — он начинается с sk-ant-.")
         return
     d = os.path.dirname(os.path.abspath(__file__))
     _backstage_env_set(d, "ANTHROPIC_API_KEY", key)
     _restart_backstage(d)
-    await ctx.bot.send_message(chat_id, "✅ Ключ Claude API сохранён, Backstage перезапускается. "
-                                        "Сообщение с ключом удалено. Ссылки — /backstage")
+    await ctx.bot.send_message(chat_id, "✅ Ключ принят (сообщение с ним я удалил). "
+                                        "Через минуту команда в Backstage начнёт отвечать.")
+
+
+async def cmd_backstagekey(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    owner = get_chat_id()
+    if owner and update.effective_chat.id != owner:
+        return
+    await _accept_backstage_key(update, ctx, "".join((update.message.text or "").partition(" ")[2].split()))
 
 
 async def cmd_backstageclient(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Завести клиента Backstage и прислать его персональную ссылку."""
-    import sys
     chat_id = update.effective_chat.id
     owner = get_chat_id()
     if owner and chat_id != owner:
@@ -6931,24 +6992,19 @@ async def cmd_backstageclient(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if len(parts) >= 3 and re.fullmatch(r"\d+(\.\d+)?", parts[-1]):
         budget = parts.pop()
     if len(parts) < 2 or not re.fullmatch(r"[a-z0-9-]{2,40}", parts[0].lower()):
-        await ctx.bot.send_message(chat_id, "Так: /backstageclient код Название [бюджет$]\n"
-                                            "код — латиница, цифры, дефис. Например: /backstageclient dj-can-on DJ Can-On 30")
+        await ctx.bot.send_message(chat_id, "Так: /backstageclient код Имя\nНапример: /backstageclient dj-can-on DJ Can-On")
         return
     d = os.path.dirname(os.path.abspath(__file__))
-    try:
-        ip = _public_ip()
-    except Exception:
-        ip = "<IP-сервера>"
-    args = [sys.executable, "manage.py", "add", parts[0].lower(), " ".join(parts[1:])] + ([budget] if budget else [])
-    r = subprocess.run(args, cwd=os.path.join(d, "backstage"), capture_output=True, text=True, timeout=60,
-                       env={**os.environ, "PYTHONPATH": _backstage_deps(d),
-                            "BACKSTAGE_PUBLIC_URL": f"http://{ip}:{BACKSTAGE_PORT}"})
-    out = (r.stdout or "").strip() or _scrub_tokens((r.stderr or "")[-500:])
-    if r.returncode != 0 and "UNIQUE" in out:
-        out = "Клиент с таким кодом уже есть. Новый ключ — в админке (/backstage)."
-    await ctx.bot.send_message(chat_id, out + ("\n\nОтправь клиенту ссылку и инструкцию: "
-                                               f"http://{ip}:{BACKSTAGE_PORT}/guide" if r.returncode == 0 else ""),
-                               disable_web_page_preview=True)
+    link, info = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _backstage_new_client(d, parts[0].lower(), " ".join(parts[1:]), budget))
+    if link:
+        msg = (f"✅ Клиент создан. Отправь ему эту ссылку — это его вход:\n{link}\n\n"
+               f"Инструкция для него: http://{info}:{BACKSTAGE_PORT}/guide")
+    elif info == "exists":
+        msg = "Такой клиент уже есть. Новую ссылку для него можно сделать в админке (/backstage)."
+    else:
+        msg = f"Не получилось: {info}"
+    await ctx.bot.send_message(chat_id, msg, disable_web_page_preview=True)
 
 
 def _restart_finance(d):
