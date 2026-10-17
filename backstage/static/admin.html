@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Backstage — админка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  section.card{padding:16px;margin-top:16px}
+  .t-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:500}
+  td input{padding:4px 6px;min-width:70px}
+  .form4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  @media (max-width:700px){.form4{grid-template-columns:1fr 1fr}}
+  .link{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:var(--soft);padding:10px;border-radius:8px;word-break:break-all}
+  .ins{padding:10px 0;border-bottom:1px solid var(--line)}
+</style>
+</head><body>
+<main>
+  <div class="row"><h1>BACKSTAGE · админка</h1><div class="grow"></div><button class="ghost" id="out">Выйти</button></div>
+
+  <section class="card" id="login">
+    <label>Ключ владельца (BACKSTAGE_ADMIN_KEY из .env)</label>
+    <div class="row"><input type="password" id="akey"><button class="primary" id="alogin">Войти</button></div>
+  </section>
+
+  <div id="panel" class="hidden">
+    <section class="card">
+      <h2>Платформа</h2>
+      <p class="small" id="cfg"></p>
+    </section>
+
+    <section class="card">
+      <h2>Новый клиент</h2>
+      <div class="form4">
+        <div><label>Код (латиница)</label><input id="nslug" placeholder="dj-can-on"></div>
+        <div><label>Название</label><input id="nname" placeholder="DJ Can-On"></div>
+        <div><label>Бюджет ИИ, $/мес</label><input id="nbudget" value="20"></div>
+        <div><label>Язык</label><select id="nlang"><option>ru</option><option>uk</option><option>de</option><option>en</option></select></div>
+      </div>
+      <label>Профиль практики (можно пусто — клиент заполнит сам)</label>
+      <textarea id="nprofile" rows="3"></textarea>
+      <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="ncreate">Создать</button></div>
+      <div id="nres"></div>
+    </section>
+
+    <section class="card">
+      <h2>Клиенты</h2>
+      <div class="t-wrap"><table><thead><tr><th>Клиент</th><th>Месяц / бюджет</th><th>Всего</th><th>Модель чата</th><th>Модель анализа</th><th>Telegram</th><th></th></tr></thead>
+        <tbody id="clients"></tbody></table></div>
+      <p class="small muted">Пустая модель = значение по умолчанию из .env. Бюджет 0 = без лимита.</p>
+    </section>
+
+    <section class="card">
+      <h2>База опыта</h2>
+      <p class="small muted">Выводы, которые команда сохранила по ходу работы. «В плейбук» — запись станет видна агентам всех клиентов. Перед этим проверь, что в ней нет имён, сумм и контактов.</p>
+      <div id="ins"></div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { $("#login").classList.remove("hidden"); $("#panel").classList.add("hidden"); throw new Error("auth"); }
+  if (!r.ok) { alert(j.error || r.statusText); throw new Error(j.error); }
+  return j;
+};
+const full = (p) => location.origin + p;
+
+async function load() {
+  const cfg = await api("/api/admin/config");
+  $("#login").classList.add("hidden"); $("#panel").classList.remove("hidden");
+  const usage = await api("/api/admin/usage");
+  const tot = usage.reduce((s, r) => s + r.cost, 0);
+  $("#cfg").innerHTML = `Версия ${esc(cfg.version)} · чат: <b>${esc(cfg.model_chat)}</b> (effort ${esc(cfg.effort_chat)}) · глубокий анализ: <b>${esc(cfg.model_deep)}</b> (effort ${esc(cfg.effort_deep)})<br>
+    Ключ Claude API: ${cfg.api_key_set ? "✅ задан" : "❌ не задан — чат не работает"} · расход всех клиентов за 31 день: <b>$${tot.toFixed(2)}</b>`;
+  const cl = await api("/api/admin/clients");
+  $("#clients").innerHTML = cl.map(c => `<tr data-id="${c.id}">
+    <td><b>${esc(c.name)}</b><br><span class="small muted">${esc(c.slug)}${c.active ? "" : " · отключён"}</span></td>
+    <td>$${c.spent_month.toFixed(2)} / <input data-f="monthly_budget" value="${c.monthly_budget}" style="width:70px"></td>
+    <td>$${c.spent_total.toFixed(2)}</td>
+    <td><input data-f="model_chat" value="${esc(c.model_chat)}" placeholder="${esc(cfg.model_chat)}"></td>
+    <td><input data-f="model_deep" value="${esc(c.model_deep)}" placeholder="${esc(cfg.model_deep)}"></td>
+    <td>${c.tg_connected ? "✅" : "—"}</td>
+    <td><button data-a="save">Сохранить</button> <button data-a="key">Новый ключ</button>
+      <button data-a="toggle">${c.active ? "Отключить" : "Включить"}</button></td></tr>`).join("");
+  $("#clients").onclick = async (e) => {
+    const a = e.target.dataset.a; if (!a) return;
+    const tr = e.target.closest("tr"), id = tr.dataset.id, c = cl.find(x => x.id == id);
+    if (a === "save") {
+      const body = {}; tr.querySelectorAll("input[data-f]").forEach(i => body[i.dataset.f] = i.dataset.f === "monthly_budget" ? Number(i.value) || 0 : i.value.trim());
+      await api(`/api/admin/clients/${id}`, body); load();
+    }
+    if (a === "toggle") { await api(`/api/admin/clients/${id}`, {active: c.active ? 0 : 1}); load(); }
+    if (a === "key" && confirm(`Выдать ${c.name} новый ключ? Старая ссылка перестанет работать.`)) {
+      const r = await api(`/api/admin/clients/${id}/reset_key`, {});
+      prompt("Новая персональная ссылка (скопируй и отправь клиенту):", full(r.link));
+    }
+  };
+  const ins = await api("/api/admin/insights");
+  $("#ins").innerHTML = ins.length ? ins.map(i => `<div class="ins" data-id="${i.id}">
+    <div class="row"><b class="grow">${esc(i.title)}</b><span class="chip">${esc(i.client_name || "?")} · ${esc(i.agent || "")}</span>
+      <span class="chip">${i.shared ? "в плейбуке" : "у клиента"}</span></div>
+    <textarea rows="3" data-body>${esc(i.body)}</textarea>
+    <div class="row" style="margin-top:6px"><span class="small muted grow">${esc(i.tags)} · ${esc(i.created)}${i.share_insights ? "" : " · клиент НЕ разрешил делиться"}</span>
+      ${i.shared ? '<button data-a="unshare">Убрать из плейбука</button>' : `<button data-a="share" ${i.share_insights ? "" : "disabled"}>В плейбук</button>`}
+      <button data-a="del">Удалить</button></div></div>`).join("") : '<p class="muted">Пока пусто.</p>';
+  $("#ins").onclick = async (e) => {
+    const a = e.target.dataset.a; if (!a) return;
+    const box = e.target.closest(".ins"), id = box.dataset.id;
+    if (a === "del") { if (confirm("Удалить запись?")) await api(`/api/admin/insights/${id}/delete`, {}); }
+    else await api(`/api/admin/insights/${id}`, {shared: a === "share" ? 1 : 0, body: box.querySelector("[data-body]").value});
+    load();
+  };
+}
+$("#alogin").onclick = async () => { await api("/api/admin/login", {key: $("#akey").value}); load(); };
+$("#akey").onkeydown = (e) => { if (e.key === "Enter") $("#alogin").click(); };
+$("#ncreate").onclick = async () => {
+  const r = await api("/api/admin/clients", {slug: $("#nslug").value, name: $("#nname").value, budget: Number($("#nbudget").value) || 20,
+    lang: $("#nlang").value, profile: $("#nprofile").value});
+  $("#nres").innerHTML = `<p>Готово. Персональная ссылка — показывается <b>один раз</b>, отправь её клиенту вместе с <a href="/guide" target="_blank">инструкцией</a>:</p>
+    <div class="link">${esc(full(r.link))}</div><p class="small muted">Код: ${esc(r.slug)} · ключ: ${esc(r.key)}</p>`;
+  load();
+};
+$("#out").onclick = async () => { await fetch("/api/logout", {method: "POST", body: "{}"}); location.reload(); };
+load().catch(() => {});
+</script>
+</body></html>

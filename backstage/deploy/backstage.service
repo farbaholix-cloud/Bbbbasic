@@ -1,0 +1,15 @@
+[Unit]
+Description=Backstage — панель клиентов и чат с командой ИИ-агентов
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=backstage
+WorkingDirectory=/opt/backstage/backstage
+ExecStart=/opt/backstage/venv/bin/python server.py
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

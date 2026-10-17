@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#141311">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Backstage — панель</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
+    padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:22px}
+  header h1 span{color:var(--accent)}
+  .layout{display:grid;grid-template-columns:1fr 420px;gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-content:start}
+  .w{padding:14px;min-width:0;display:flex;flex-direction:column}
+  .w.s{grid-column:span 1}.w.m{grid-column:span 2}.w.l{grid-column:span 4}
+  .w-head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .w-head h3{font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .w.s .w-head h3{white-space:normal}
+  .w-tools{display:flex;gap:2px;opacity:.55}
+  .w:hover .w-tools{opacity:1}
+  .w-tools button{padding:2px 6px;border:none;background:transparent;color:var(--muted);font-size:14px}
+  .kpi-val{font-family:Oswald,sans-serif;font-size:34px;line-height:1.1}
+  .bar{height:6px;border-radius:9px;background:var(--soft);overflow:hidden;margin-top:8px}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .chart-box{position:relative;height:220px}
+  table.t{width:100%;border-collapse:collapse;font-size:14px}
+  table.t th,table.t td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top}
+  table.t th{color:var(--muted);font-weight:500}
+  .t-wrap{overflow-x:auto}
+  .board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,1fr);gap:10px;overflow-x:auto;padding-bottom:4px}
+  .col{background:var(--soft);border-radius:10px;padding:8px;min-height:80px}
+  .col h4{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .kcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 8px;margin-bottom:6px;font-size:14px}
+  .kcard .acts{display:flex;gap:2px;margin-top:4px}
+  .kcard .acts button{padding:1px 6px;font-size:12px}
+  .col input{font-size:13px;padding:6px 8px}
+  ul.items{list-style:none;margin:0;padding:0}
+  ul.items li{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--line)}
+  ul.items li.done span.tx{text-decoration:line-through;color:var(--muted)}
+  ul.items input[type=checkbox]{width:auto;margin-top:3px}
+  ul.items .date{font-size:12px;color:var(--muted);white-space:nowrap}
+  ul.items .date.soon{color:var(--bad)}
+  .note{white-space:pre-wrap}
+  /* чат */
+  .chat{position:sticky;top:70px;height:calc(100vh - 86px);display:flex;flex-direction:column;overflow:hidden}
+  .agents{display:flex;gap:6px;overflow-x:auto;padding:10px;border-bottom:1px solid var(--line)}
+  .agents button{white-space:nowrap;border-radius:999px;padding:5px 10px;font-size:13px}
+  .agents button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:92%;padding:9px 12px;border-radius:12px;font-size:14px;overflow-wrap:anywhere}
+  .msg.user{align-self:flex-end;background:var(--accent);color:var(--accent-ink);white-space:pre-wrap}
+  .msg.assistant{align-self:flex-start;background:var(--soft)}
+  .msg.assistant p{margin:.4em 0}.msg.assistant ul{margin:.3em 0;padding-left:1.2em}
+  .msg.assistant h4{margin:.6em 0 .2em;font-size:14px}
+  .msg.assistant code{background:var(--panel);padding:0 4px;border-radius:4px}
+  .msg .meta{font-size:11px;opacity:.7;margin-top:4px}
+  .composer{border-top:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:8px}
+  .composer textarea{min-height:44px;max-height:180px}
+  .atts{display:flex;gap:6px;flex-wrap:wrap}
+  .thinking{align-self:flex-start;color:var(--muted);font-size:13px}
+  .thinking::after{content:"";display:inline-block;width:1.2em;animation:dots 1.4s steps(4) infinite}
+  @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+  .empty{color:var(--muted);text-align:center;margin:auto;padding:20px;font-size:14px}
+  nav.tabs{display:none}
+  .show-m{display:none}
+  @media (max-width:1000px){.show-m{display:inline}}
+  @media (max-width:1000px){
+    .layout{grid-template-columns:1fr;padding:12px 16px 80px}
+    .grid{grid-template-columns:repeat(2,1fr)}
+    .w.m,.w.l{grid-column:span 2}
+    .chat{position:static;height:calc(100vh - 150px);height:calc(100dvh - 150px)}
+    header{flex-wrap:nowrap;gap:6px}
+    header h1{font-size:17px}
+    header{padding-left:12px;padding-right:12px}
+    header #who{display:none}
+    header .chip{white-space:nowrap}
+    header button{padding:7px 10px}
+    body[data-tab=dash] .chat{display:none}
+    body[data-tab=chat] .grid{display:none}
+    nav.tabs{display:flex;position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);
+      padding-bottom:env(safe-area-inset-bottom);z-index:20}
+    nav.tabs button{flex:1;border:none;border-radius:0;background:transparent;padding:12px 4px;color:var(--muted)}
+    nav.tabs button.on{color:var(--accent);font-weight:600}
+    header .hide-m{display:none}
+  }
+  @media (max-width:520px){.grid{grid-template-columns:1fr}.w.s,.w.m,.w.l{grid-column:span 1}}
+  .ed-grid{width:100%;font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:140px}
+</style>
+</head><body data-tab="dash">
+<header>
+  <h1>BACKSTAGE<span>.</span></h1>
+  <span class="chip" id="who">…</span>
+  <span class="chip" id="budget" title="Расход ИИ в этом месяце">$0</span>
+  <div class="grow"></div>
+  <button class="primary" id="btnPotential"><span class="hide-m">Проверка потенциала</span><span class="show-m">Потенциал</span></button>
+  <button id="btnAdd" title="Добавить виджет">+<span class="hide-m"> Виджет</span></button>
+  <button id="btnSettings" title="Настройки">⚙</button>
+  <a class="hide-m small" href="/guide" target="_blank">Инструкция</a>
+  <button class="ghost small hide-m" id="btnLogout">Выйти</button>
+</header>
+
+<div class="layout">
+  <section class="grid" id="grid"></section>
+  <aside class="card chat" id="chat">
+    <div class="agents" id="agents"></div>
+    <div class="msgs" id="msgs"></div>
+    <div class="composer">
+      <div class="atts" id="atts"></div>
+      <textarea id="input" rows="2" placeholder="Напиши команде: задачу, вопрос, цифры, ссылку…"></textarea>
+      <div class="row">
+        <label class="row small muted" style="margin:0;gap:6px;width:auto" title="Самая мощная модель, веб-поиск, дольше и дороже">
+          <input type="checkbox" id="deep" style="width:auto"> Глубокий анализ
+        </label>
+        <div class="grow"></div>
+        <input type="file" id="file" class="hidden" multiple accept="image/*,application/pdf,.txt,.csv,.md,.json">
+        <button class="ghost" id="btnAttach" title="Приложить файл">📎</button>
+        <button class="ghost" id="btnClear" title="Очистить переписку с этим агентом">🧹</button>
+        <button class="primary" id="btnSend">Отправить</button>
+      </div>
+    </div>
+  </aside>
+</div>
+<nav class="tabs">
+  <button data-tab="dash" class="on">Дашборд</button>
+  <button data-tab="chat">Команда</button>
+</nav>
+
+<dialog id="dlgEdit"><form method="dialog" id="fEdit"></form></dialog>
+<dialog id="dlgAdd">
+  <form method="dialog">
+    <h2>Новый виджет</h2>
+    <label>Тип</label>
+    <select id="addKind">
+      <option value="kpi">KPI — одно число с целью</option>
+      <option value="chart">График — линия, столбцы, круг</option>
+      <option value="table">Таблица</option>
+      <option value="board">Доска проектов (канбан)</option>
+      <option value="list">Список с датами и галочками</option>
+      <option value="note">Заметка</option>
+    </select>
+    <label>Название</label><input id="addTitle" placeholder="например, Подписчики YouTube">
+    <p class="small muted">Можно и проще: напиши в чат «добавь график подписчиков по неделям» — команда соберёт виджет сама.</p>
+    <div class="row" style="margin-top:14px"><div class="grow"></div>
+      <button value="cancel">Отмена</button><button class="primary" id="addOk" value="ok">Создать</button></div>
+  </form>
+</dialog>
+<dialog id="dlgPotential">
+  <form method="dialog">
+    <h2>Проверка потенциала</h2>
+    <p class="small muted">Расскажи о практике: что делаешь, где, для кого, главная цель на 12 месяцев, сколько часов в неделю уходит на админку.
+      Майя соберёт команду, самая мощная модель Claude найдёт в интернете гранты и заказы и перестроит дашборд под план.
+      Анализ идёт несколько минут и стоит заметно дороже обычного сообщения.</p>
+    <textarea id="potText" rows="8"></textarea>
+    <div class="row" style="margin-top:14px"><div class="grow"></div>
+      <button value="cancel">Отмена</button><button class="primary" id="potOk" value="ok">Запустить анализ</button></div>
+  </form>
+</dialog>
+<dialog id="dlgSettings">
+  <form method="dialog">
+    <h2>Настройки</h2>
+    <label>Профиль практики — команда читает его перед каждым ответом</label>
+    <textarea id="setProfile" rows="6"></textarea>
+    <label class="row" style="gap:8px"><input type="checkbox" id="setShare" style="width:auto">
+      Делиться обезличенными выводами с общим плейбуком агентства</label>
+    <h3 style="margin-top:18px">Telegram</h3>
+    <p class="small muted">Свой бот, который пишет той же команде. В Telegram открой @BotFather → /newbot → скопируй токен сюда.
+      Потом напиши своему боту /start. Подробно — в <a href="/guide#telegram" target="_blank">инструкции</a>.</p>
+    <input id="setTg" placeholder="123456789:AA…  (пусто — отключить)">
+    <p class="small" id="tgState"></p>
+    <h3 style="margin-top:18px">Расход</h3>
+    <p class="small" id="usageLine"></p>
+    <h3 style="margin-top:18px">База опыта</h3>
+    <div id="insList" class="small"></div>
+    <div class="row" style="margin-top:14px"><button type="button" class="ghost" id="btnLogout2">Выйти</button><a href="/guide" target="_blank" class="small">Инструкция</a><div class="grow"></div>
+      <button value="cancel">Закрыть</button><button class="primary" id="setOk" value="ok">Сохранить</button></div>
+  </form>
+</dialog>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (r.status === 401) { location.href = "/"; throw new Error("auth"); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+const toast = (t) => { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), 3500); };
+
+const LS = {get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: k => { try { localStorage.removeItem(k); } catch {} }};
+let ME = null, WIDGETS = [], AGENT = "maya", CHARTS = {}, ATTS = [];
+
+// ─── Markdown-lite для ответов команды (сначала экранируем, потом размечаем) ───
+function md(src) {
+  const lines = esc(src).split("\n"); let out = "", list = false;
+  const inline = (s) => s.replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])[*_]([^*_\n]+)[*_](?=[\s).,!?:;]|$)/g, "$1<i>$2</i>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  for (const l of lines) {
+    const li = l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+    if (li) { if (!list) { out += "<ul>"; list = true; } out += `<li>${inline(li[1])}</li>`; continue; }
+    if (list) { out += "</ul>"; list = false; }
+    const h = l.match(/^#{1,4}\s+(.*)/);
+    if (h) out += `<h4>${inline(h[1])}</h4>`;
+    else if (l.trim()) out += `<p>${inline(l)}</p>`;
+  }
+  return out + (list ? "</ul>" : "");
+}
+
+// ─── Дашборд ───
+async function loadWidgets() {
+  WIDGETS = await api("/api/widgets");
+  renderGrid();
+}
+function renderGrid() {
+  Object.values(CHARTS).forEach(c => c.destroy()); CHARTS = {};
+  const g = $("#grid"); g.innerHTML = "";
+  if (!WIDGETS.length) g.innerHTML = `<div class="empty card" style="grid-column:1/-1">Дашборд пуст. Нажми «+ Виджет» или попроси команду в чате.</div>`;
+  WIDGETS.forEach((w, i) => {
+    const el = document.createElement("div");
+    el.className = `card w ${w.size || "m"}`;
+    el.innerHTML = `<div class="w-head"><h3 title="${esc(w.title)}">${esc(w.title)}</h3>
+      <div class="w-tools">
+        <button data-a="up" title="Выше">↑</button><button data-a="down" title="Ниже">↓</button>
+        ${w.config.system ? "" : '<button data-a="edit" title="Редактировать">✎</button><button data-a="del" title="Удалить">✕</button>'}
+      </div></div><div class="w-body"></div>`;
+    el.querySelector(".w-tools").onclick = (e) => { const a = e.target.dataset.a; if (a) widgetAction(w, i, a); };
+    renderBody(w, el.querySelector(".w-body"));
+    g.append(el);
+  });
+}
+const num = (v) => (typeof v === "number" ? v.toLocaleString("ru-RU") : esc(v ?? "—"));
+function renderBody(w, b) {
+  const d = w.data || {}, c = w.config || {};
+  if (w.kind === "kpi") {
+    const goal = Number(c.goal) || 0, val = Number(d.value) || 0;
+    b.innerHTML = `<div class="kpi-val">${num(d.value)}<span class="muted" style="font-size:18px"> ${esc(c.unit || "")}</span></div>
+      <div class="small muted">${esc(d.delta || "")}${goal ? ` · цель ${num(goal)} ${esc(c.unit || "")}` : ""}</div>
+      ${goal ? `<div class="bar"><i style="width:${Math.min(100, val / goal * 100)}%"></i></div>` : ""}`;
+  } else if (w.kind === "chart") {
+    b.innerHTML = `<div class="chart-box"><canvas></canvas></div>`;
+    const css = getComputedStyle(document.documentElement);
+    const pal = ["#d9572b", "#3f8fc9", "#3f9b6b", "#c98a1a", "#9b5fc0", "#c4452f"];
+    const type = c.type || "line", round = type === "pie" || type === "doughnut";
+    CHARTS[w.id] = new Chart(b.querySelector("canvas"), {
+      type, data: {labels: d.labels || [], datasets: (d.series || []).map((s, i) => ({
+        label: s.name, data: s.values || [], borderColor: round ? css.getPropertyValue("--panel") : pal[i % 6],
+        backgroundColor: round ? (d.labels || []).map((_, j) => pal[j % 6]) : pal[i % 6] + (type === "line" ? "33" : "cc"),
+        tension: .3, fill: type === "line", spanGaps: true}))},
+      options: {maintainAspectRatio: false, plugins: {legend: {display: round || (d.series || []).length > 1,
+        labels: {color: css.getPropertyValue("--muted")}}},
+        scales: round ? {} : {x: {ticks: {color: css.getPropertyValue("--muted")}, grid: {display: false}},
+          y: {ticks: {color: css.getPropertyValue("--muted")}, grid: {color: css.getPropertyValue("--line")}}}}
+    });
+  } else if (w.kind === "table") {
+    const cols = c.columns || [], rows = d.rows || [];
+    b.innerHTML = `<div class="t-wrap"><table class="t"><thead><tr>${cols.map(x => `<th>${esc(x)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map(x => `<td>${md(String(x)).replace(/^<p>|<\/p>$/g, "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      ${rows.length ? "" : '<p class="small muted">Пусто. ✎ — добавить строки.</p>'}`;
+  } else if (w.kind === "board") {
+    const cols = c.columns || ["Входящие", "В работе", "Готово"], cards = d.cards || [];
+    b.innerHTML = `<div class="board">${cols.map((name, ci) => `<div class="col"><h4>${esc(name)}</h4>
+      ${cards.filter(k => (k.col || 0) === ci).map(k => `<div class="kcard">${md(k.text).replace(/^<p>|<\/p>$/g, "")}
+        <div class="acts">${ci > 0 ? `<button data-m="${k.id}" data-d="-1">←</button>` : ""}${ci < cols.length - 1 ? `<button data-m="${k.id}" data-d="1">→</button>` : ""}
+        <div class="grow"></div><button data-x="${k.id}">✕</button></div></div>`).join("")}
+      <input placeholder="+ карточка" data-add="${ci}"></div>`).join("")}</div>`;
+    b.onclick = (e) => {
+      const m = e.target.dataset.m, x = e.target.dataset.x;
+      if (m) { const k = cards.find(k => k.id == m); k.col = (k.col || 0) + Number(e.target.dataset.d); saveData(w, {...d, cards}); }
+      if (x) saveData(w, {...d, cards: cards.filter(k => k.id != x)});
+    };
+    b.querySelectorAll("input[data-add]").forEach(inp => inp.onkeydown = (e) => {
+      if (e.key === "Enter" && inp.value.trim()) {
+        const id = Math.max(0, ...cards.map(k => k.id || 0)) + 1;
+        saveData(w, {...d, cards: [...cards, {id, col: Number(inp.dataset.add), text: inp.value.trim()}]});
+      }
+    });
+  } else if (w.kind === "list") {
+    const items = d.items || [], today = new Date().toISOString().slice(0, 10);
+    const soon = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    const sorted = [...items].sort((a, b) => (a.done - b.done) || String(a.date || "9").localeCompare(String(b.date || "9")));
+    b.innerHTML = `<ul class="items">${sorted.map(it => `<li class="${it.done ? "done" : ""}">
+      <input type="checkbox" data-t="${it.id}" ${it.done ? "checked" : ""}>
+      <span class="tx grow">${md(it.text).replace(/^<p>|<\/p>$/g, "")}</span>
+      ${it.date ? `<span class="date ${!it.done && it.date <= soon ? "soon" : ""}">${esc(it.date)}</span>` : ""}
+      <button class="ghost small" data-x="${it.id}" style="padding:0 4px">✕</button></li>`).join("")}</ul>
+      <div class="row" style="margin-top:8px"><input placeholder="+ пункт" class="grow" data-new><input type="date" style="width:140px" data-date></div>`;
+    b.onchange = (e) => { const t = e.target.dataset.t; if (t) { items.find(i => i.id == t).done = e.target.checked; saveData(w, {...d, items}); } };
+    b.onclick = (e) => { const x = e.target.dataset.x; if (x) saveData(w, {...d, items: items.filter(i => i.id != x)}); };
+    const inp = b.querySelector("[data-new]");
+    inp.onkeydown = (e) => { if (e.key === "Enter" && inp.value.trim()) {
+      const id = Math.max(0, ...items.map(i => i.id || 0)) + 1;
+      saveData(w, {...d, items: [...items, {id, text: inp.value.trim(), date: b.querySelector("[data-date]").value, done: false}]}); } };
+  } else if (w.kind === "note") {
+    b.innerHTML = `<div class="note">${md(d.text || "")}</div>`;
+  }
+}
+async function saveData(w, data) {
+  await api(`/api/widgets/${w.id}`, {data});
+  await loadWidgets();
+}
+async function widgetAction(w, i, a) {
+  if (a === "del") { if (confirm(`Удалить «${w.title}»?`)) { await api(`/api/widgets/${w.id}/delete`, {}); loadWidgets(); } return; }
+  if (a === "up" || a === "down") {
+    const ids = WIDGETS.map(x => x.id), j = a === "up" ? i - 1 : i + 1;
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    await api("/api/widgets/reorder", {ids}); return loadWidgets();
+  }
+  if (a === "edit") openEditor(w);
+}
+
+// ─── Редактор виджета: заголовок, размер и данные в простом текстовом виде ───
+const SEP = ";";
+function toGrid(w) {
+  const d = w.data || {}, c = w.config || {};
+  if (w.kind === "chart") return [["Подпись", ...(d.series || []).map(s => s.name)].join(SEP),
+    ...(d.labels || []).map((l, i) => [l, ...(d.series || []).map(s => s.values?.[i] ?? "")].join(SEP))].join("\n");
+  if (w.kind === "table") return [(c.columns || []).join(SEP), ...(d.rows || []).map(r => r.join(SEP))].join("\n");
+  return "";
+}
+function fromGrid(kind, text) {
+  const rows = text.split("\n").map(l => l.split(SEP).map(x => x.trim())).filter(r => r.some(Boolean));
+  const head = rows.shift() || [];
+  if (kind === "chart") return {data: {labels: rows.map(r => r[0]), series: head.slice(1).map((name, j) => ({name,
+    values: rows.map(r => r[j + 1] === "" || r[j + 1] === undefined ? null : Number(String(r[j + 1]).replace(",", ".")))}))}, config: {columns: undefined}};
+  return {data: {rows}, config: {columns: head}};
+}
+function openEditor(w) {
+  const f = $("#fEdit"), c = w.config || {}, d = w.data || {};
+  let extra = "";
+  if (w.kind === "kpi") extra = `<label>Значение</label><input name="value" value="${esc(d.value ?? "")}">
+    <label>Подпись под числом</label><input name="delta" value="${esc(d.delta || "")}">
+    <div class="row"><div class="grow"><label>Единица</label><input name="unit" value="${esc(c.unit || "")}"></div>
+    <div class="grow"><label>Цель</label><input name="goal" value="${esc(c.goal ?? "")}"></div></div>`;
+  if (w.kind === "chart") extra = `<label>Вид</label><select name="type">${["line", "bar", "pie", "doughnut"].map(t =>
+    `<option ${c.type === t ? "selected" : ""} value="${t}">${{line: "Линия", bar: "Столбцы", pie: "Круг", doughnut: "Кольцо"}[t]}</option>`).join("")}</select>
+    <label>Данные: первая строка — названия серий, дальше «подпись; значение; значение…»</label>
+    <textarea name="grid" class="ed-grid">${esc(toGrid(w))}</textarea>`;
+  if (w.kind === "table") extra = `<label>Первая строка — колонки, дальше строки; ячейки через «;»</label>
+    <textarea name="grid" class="ed-grid">${esc(toGrid(w))}</textarea>`;
+  if (w.kind === "board") extra = `<label>Колонки доски, по одной на строку</label>
+    <textarea name="cols" rows="5">${esc((c.columns || []).join("\n"))}</textarea>`;
+  if (w.kind === "note") extra = `<label>Текст (можно **жирный**, списки через «- », ссылки)</label>
+    <textarea name="text" rows="10">${esc(d.text || "")}</textarea>`;
+  f.innerHTML = `<h2>Виджет</h2><label>Название</label><input name="title" value="${esc(w.title)}">
+    <label>Размер</label><select name="size">${[["s", "Маленький"], ["m", "Средний"], ["l", "Во всю ширину"]].map(([v, t]) =>
+      `<option value="${v}" ${w.size === v ? "selected" : ""}>${t}</option>`).join("")}</select>
+    ${extra}<div class="row" style="margin-top:14px"><div class="grow"></div><button value="cancel">Отмена</button>
+    <button class="primary" value="ok">Сохранить</button></div>`;
+  const dlg = $("#dlgEdit");
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "ok") return;
+    const v = Object.fromEntries(new FormData(f));
+    let config = {...c}, data = {...d};
+    if (w.kind === "kpi") { data.value = Number(String(v.value).replace(",", ".")) || 0; data.delta = v.delta; config.unit = v.unit; config.goal = Number(v.goal) || 0; }
+    if (w.kind === "chart") { const r = fromGrid("chart", v.grid); data = r.data; config.type = v.type; }
+    if (w.kind === "table") { const r = fromGrid("table", v.grid); data = r.data; config.columns = r.config.columns; }
+    if (w.kind === "board") config.columns = v.cols.split("\n").map(s => s.trim()).filter(Boolean);
+    if (w.kind === "note") data.text = v.text;
+    await api(`/api/widgets/${w.id}`, {title: v.title, size: v.size, config, data});
+    loadWidgets();
+  };
+  dlg.returnValue = ""; dlg.showModal();
+}
+
+// ─── Чат с командой ───
+function renderAgents() {
+  $("#agents").innerHTML = Object.entries(ME.agents).map(([id, a]) =>
+    `<button data-id="${id}" class="${id === AGENT ? "on" : ""}" title="${esc(a.role)}">${a.emoji} ${esc(a.name)}</button>`).join("");
+  $("#agents").onclick = (e) => { const id = e.target.closest("button")?.dataset.id; if (id) { AGENT = id; renderAgents(); loadMsgs(); } };
+}
+async function loadMsgs() {
+  const list = await api(`/api/messages?agent=${AGENT}`);
+  const box = $("#msgs"), a = ME.agents[AGENT];
+  box.innerHTML = list.length ? "" : `<div class="empty">${a.emoji} <b>${esc(a.name)}</b>, ${esc(a.role.toLowerCase())}.<br>
+    ${AGENT === "maya" ? "Пиши мне обо всём — я раздам задачи команде и сведу ответ." : "Можно напрямую, но обычно быстрее через Майю."}</div>`;
+  list.forEach(m => addMsg(m.role, m.text, m.meta));
+  box.scrollTop = box.scrollHeight;
+}
+function addMsg(role, text, meta = {}) {
+  const el = document.createElement("div");
+  el.className = `msg ${role}`;
+  if (role === "user") el.textContent = text;
+  else {
+    el.innerHTML = md(text);
+    const bits = [];
+    if (meta.consulted?.length) bits.push("позвала: " + meta.consulted.map(id => ME.agents[id]?.name || id).join(", "));
+    if (meta.changed) bits.push("дашборд обновлён");
+    if (meta.model) bits.push(meta.model);
+    if (bits.length) el.insertAdjacentHTML("beforeend", `<div class="meta">${esc(bits.join(" · "))}</div>`);
+  }
+  $("#msgs").append(el);
+  $("#msgs").scrollTop = $("#msgs").scrollHeight;
+}
+async function send(extra = {}) {
+  const text = $("#input").value.trim();
+  if (!text && !extra.potential) return;
+  const deep = $("#deep").checked;
+  if (text) addMsg("user", text + (ATTS.length ? "\n📎 " + ATTS.map(a => a.name).join(", ") : ""));
+  $("#input").value = ""; $("#btnSend").disabled = true;
+  const wait = document.createElement("div");
+  wait.className = "thinking";
+  wait.textContent = (extra.potential || deep) ? "Глубокий анализ идёт, это займёт несколько минут" : `${ME.agents[AGENT].name} думает`;
+  $("#msgs").append(wait); $("#msgs").scrollTop = $("#msgs").scrollHeight;
+  try {
+    const {job} = await api("/api/chat", {agent: AGENT, text, deep, attachments: ATTS, ...extra});
+    ATTS = []; renderAtts();
+    LS.set("bs_job", job);
+    const res = await pollJob(job);
+    wait.remove();
+    addMsg("assistant", res.text, res);
+    if (res.changed) loadWidgets();
+  } catch (e) { wait.remove(); addMsg("assistant", "⚠️ " + e.message); }
+  finally { $("#btnSend").disabled = false; LS.del("bs_job"); refreshMe(); }
+}
+async function pollJob(job) {
+  for (;;) {
+    await new Promise(r => setTimeout(r, 2000));
+    const j = await api(`/api/job/${job}`);
+    if (j.status === "done") return j.result;
+    if (j.status === "error") throw new Error(j.error);
+  }
+}
+function renderAtts() {
+  $("#atts").innerHTML = ATTS.map((a, i) => `<span class="chip">📎 ${esc(a.name)} <button class="ghost" data-i="${i}" style="padding:0">✕</button></span>`).join("");
+}
+$("#atts").onclick = (e) => { const i = e.target.dataset.i; if (i !== undefined) { ATTS.splice(i, 1); renderAtts(); } };
+$("#btnAttach").onclick = () => $("#file").click();
+$("#file").onchange = async (e) => {
+  for (const f of e.target.files) {
+    if (f.size > 20 * 1024 * 1024) { toast(`${f.name}: больше 20 МБ`); continue; }
+    const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(",")[1]); fr.readAsDataURL(f); });
+    ATTS.push({name: f.name, media_type: f.type || "text/plain", data: b64});
+  }
+  e.target.value = ""; renderAtts();
+};
+$("#btnSend").onclick = () => send();
+$("#input").onkeydown = (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); };
+$("#btnClear").onclick = async () => { if (confirm("Очистить переписку с этим агентом? Дашборд и база опыта останутся.")) { await api("/api/messages/clear", {agent: AGENT}); loadMsgs(); } };
+
+// ─── Шапка, диалоги, вкладки ───
+async function refreshMe() {
+  ME = await api("/api/me");
+  $("#who").textContent = ME.name;
+  const b = $("#budget"); b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
+  b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : "";
+}
+$("#btnAdd").onclick = () => { $("#addTitle").value = ""; $("#dlgAdd").returnValue = ""; $("#dlgAdd").showModal(); };
+$("#dlgAdd").onclose = async () => {
+  if ($("#dlgAdd").returnValue !== "ok") return;
+  const kind = $("#addKind").value;
+  const presets = {kpi: [{unit: "", goal: 0}, {value: 0}], chart: [{type: "line"}, {labels: [], series: [{name: "Значение", values: []}]}],
+    table: [{columns: ["Колонка 1", "Колонка 2"]}, {rows: []}], board: [{columns: ["Входящие", "В работе", "Готово"]}, {cards: []}],
+    list: [{}, {items: []}], note: [{}, {text: ""}]};
+  const w = await api("/api/widgets", {kind, title: $("#addTitle").value || "Новый виджет", config: presets[kind][0], data: presets[kind][1],
+    size: kind === "kpi" ? "s" : kind === "board" ? "l" : "m"});
+  await loadWidgets(); openEditor(w);
+};
+$("#btnPotential").onclick = () => { $("#potText").value = ME.profile || ""; $("#dlgPotential").returnValue = ""; $("#dlgPotential").showModal(); };
+$("#dlgPotential").onclose = () => {
+  if ($("#dlgPotential").returnValue !== "ok") return;
+  AGENT = "maya"; renderAgents(); setTab("chat");
+  $("#input").value = $("#potText").value;
+  loadMsgs().then(() => send({potential: true}));
+};
+$("#btnSettings").onclick = async () => {
+  $("#setProfile").value = ME.profile || ""; $("#setShare").checked = !!ME.share_insights; $("#setTg").value = "";
+  $("#tgState").textContent = ME.telegram ? "✅ Бот подключён. Новый токен заменит старый." : "Бот не подключён.";
+  const u = await api("/api/usage");
+  const tot = u.reduce((s, r) => s + r.cost, 0), n = u.reduce((s, r) => s + r.n, 0);
+  $("#usageLine").textContent = `За 31 день: ${n} запросов к Claude, $${tot.toFixed(2)}. Чат: ${ME.model_chat}, глубокий анализ: ${ME.model_deep}.`;
+  const ins = await api("/api/insights");
+  $("#insList").innerHTML = ins.length ? ins.map(i => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">
+    <b>${esc(i.title)}</b> <span class="chip">${i.shared ? "общий плейбук" : "мой"}</span><br>${esc(i.body)}
+    ${i.shared ? "" : `<button class="ghost small" data-del="${i.id}">удалить</button>`}</div>`).join("") : '<span class="muted">Пока пусто. Команда сохраняет сюда то, что стоит запомнить.</span>';
+  $("#insList").onclick = async (e) => { const id = e.target.dataset.del; if (id) { await api(`/api/insights/${id}/delete`, {}); e.target.parentElement.remove(); } };
+  $("#dlgSettings").returnValue = ""; $("#dlgSettings").showModal();
+};
+$("#dlgSettings").onclose = async () => {
+  if ($("#dlgSettings").returnValue !== "ok") return;
+  await api("/api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0});
+  const tg = $("#setTg").value.trim();
+  if (tg) { try { await api("/api/telegram", {token: tg}); toast("Бот подключён — напиши ему /start"); } catch (e) { toast(e.message); } }
+  refreshMe();
+};
+const logout = async () => { await api("/api/logout", {}); location.href = "/"; };
+$("#btnLogout").onclick = logout; $("#btnLogout2").onclick = logout;
+function setTab(t) {
+  document.body.dataset.tab = t;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  if (t === "dash") Object.values(CHARTS).forEach(c => c.resize());
+}
+document.querySelector("nav.tabs").onclick = (e) => { const t = e.target.dataset.tab; if (t) setTab(t); };
+
+(async () => {
+  await refreshMe(); renderAgents();
+  await Promise.all([loadWidgets(), loadMsgs()]);
+  // Вкладку закрыли посреди ответа — подхватываем задачу, ответ не теряется (он и так сохранён в переписке)
+  const pending = LS.get("bs_job");
+  if (pending) pollJob(pending).then(() => { loadMsgs(); loadWidgets(); }).catch(() => {}).finally(() => LS.del("bs_job"));
+  setInterval(() => { if (!document.hidden && !document.activeElement.closest?.(".grid") && !document.querySelector("dialog[open]")) loadWidgets(); }, 60000);  // Telegram-мост мог поменять дашборд
+})();
+</script>
+</body></html>

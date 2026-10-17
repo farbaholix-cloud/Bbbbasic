@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Backstage — вход</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  main{max-width:420px;margin:0 auto;padding:12vh 16px 40px}
+  .brand{font-size:40px;line-height:1}
+  .brand span{color:var(--accent)}
+  form.card{padding:22px;margin-top:28px}
+  form button{width:100%;margin-top:16px;padding:12px}
+  .err{color:var(--bad);margin-top:10px;min-height:1.2em}
+  footer{margin-top:28px;text-align:center}
+</style>
+</head><body>
+<main>
+  <h1 class="brand">BACKSTAGE<span>.</span></h1>
+  <p class="muted">Закулисная команда ИИ-агентов для художников, музыкантов и авторов. Создавай своё — остальное берёт команда.</p>
+  <form class="card" id="f">
+    <label for="slug">Код проекта</label>
+    <input id="slug" autocomplete="username" autocapitalize="none" placeholder="например, farbaholix" required>
+    <label for="key">Ключ доступа</label>
+    <input id="key" type="password" autocomplete="current-password" required>
+    <button class="primary" type="submit">Войти</button>
+    <div class="err" id="err"></div>
+  </form>
+  <footer class="small muted">
+    Ключ выдаёт агентство. Проще всего — открыть персональную ссылку из письма.<br>
+    <a href="/guide">Что умеет панель</a>
+  </footer>
+</main>
+<script>
+if (location.search.includes("bad=1")) document.getElementById("err").textContent = "Ссылка недействительна — проверь ключ или попроси новый.";
+document.getElementById("f").onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await fetch("/api/login", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({slug: slug.value, key: key.value})});
+  if (r.ok) location.href = "/app";
+  else document.getElementById("err").textContent = (await r.json()).error || "Не получилось войти";
+};
+</script>
+</body></html>

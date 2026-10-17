@@ -1,0 +1,15 @@
+[Unit]
+Description=Backstage — Telegram-мост (боты клиентов)
+After=network-online.target backstage.service
+Wants=network-online.target
+
+[Service]
+User=backstage
+WorkingDirectory=/opt/backstage/backstage
+ExecStart=/opt/backstage/venv/bin/python telegram_bridge.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
