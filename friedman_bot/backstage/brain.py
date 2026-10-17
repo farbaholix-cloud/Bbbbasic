@@ -17,7 +17,10 @@ import json
 import logging
 from datetime import datetime
 
-import anthropic
+try:
+    import anthropic
+except ImportError:  # библиотека ещё ставится — панель работает, чат ответит ошибкой
+    anthropic = None
 
 import store
 
@@ -55,6 +58,8 @@ _client = None
 
 def client():
     global _client
+    if anthropic is None:
+        raise RuntimeError("библиотека anthropic ещё не установлена на сервере — попробуй через пару минут")
     if _client is None:
         # Ключ берётся из ANTHROPIC_API_KEY (.env рядом с сервером)
         _client = anthropic.Anthropic(max_retries=3)
@@ -344,8 +349,16 @@ def _call(model, effort, system, tools, messages, max_tokens):
               output_config={"effort": effort}, betas=[FALLBACK_BETA], fallbacks="default")
     if tools:
         kw["tools"] = tools
-    with client().beta.messages.stream(**kw) as s:
-        return s.get_final_message()
+    try:
+        with client().beta.messages.stream(**kw) as s:
+            return s.get_final_message()
+    except TypeError:
+        # Старый SDK на сервере ещё не знает fallbacks/output_config — шлём их в теле запроса
+        for k in ("output_config", "fallbacks", "betas"):
+            kw.pop(k, None)
+        with client().messages.stream(**kw, extra_headers={"anthropic-beta": FALLBACK_BETA},
+                                      extra_body={"output_config": {"effort": effort}, "fallbacks": "default"}) as s:
+            return s.get_final_message()
 
 
 def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kind="chat",
@@ -382,7 +395,9 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
     for _ in range(MAX_TOOL_ROUNDS):
         try:
             resp = _call(model, effort, system, tools, messages, max_tokens)
-        except anthropic.BadRequestError as e:
+        except Exception as e:
+            if anthropic is None or not isinstance(e, anthropic.BadRequestError):
+                raise
             # Модель без поддержки веб-поиска этой версии — повторяем без него
             if "web_search" in str(e) and any(t.get("name") == "web_search" for t in tools):
                 log.warning("web_search не принят моделью %s, повтор без поиска: %s", model, e)

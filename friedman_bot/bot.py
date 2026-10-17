@@ -6292,7 +6292,16 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "finance_inbox/invoices_2026H2.json",
                 "finance_inbox/bank_2026-07.json",
                 "finance_inbox/bank_2026-08.json",
-                "finance_inbox/bank_2026-09.json"]
+                "finance_inbox/bank_2026-09.json",
+                # Backstage — платформа агентства (панель клиентов, порт 8800)
+                "backstage/server.py", "backstage/brain.py", "backstage/store.py",
+                "backstage/telegram_bridge.py", "backstage/manage.py", "backstage/README.md",
+                "backstage/agents/agents.json", "backstage/agents/_common.md",
+                "backstage/agents/maya.md", "backstage/agents/ruben.md", "backstage/agents/hanna.md",
+                "backstage/agents/konrad.md", "backstage/agents/noa.md", "backstage/agents/tarik.md",
+                "backstage/agents/iris.md", "backstage/agents/ben.md", "backstage/packs/README.md",
+                "backstage/static/style.css", "backstage/static/login.html", "backstage/static/app.html",
+                "backstage/static/guide.html", "backstage/static/admin.html"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -6736,6 +6745,210 @@ def _restart_director(d):
     subprocess.Popen([sys.executable, "director_bot.py"], cwd=d,
                      stdout=logf, stderr=logf, start_new_session=True)
     log.info("Директор-бот запущен (supervised)")
+
+
+# ─── Backstage — платформа агентства (папка backstage/, порт 8800) ────────────
+# Панель клиентов Backstage AI Agency живёт на этом же сервере и приезжает тем же
+# авто-деплоем, что и боты. Секретарь только держит её процессы живыми; своя база
+# backstage/backstage.db, свои ключи в backstage/.env (не в git). Ключ Claude API
+# владелец присылает командой /backstagekey, ключ админки генерируется сам.
+
+BACKSTAGE_PORT = 8800
+import threading as _bs_threading
+_backstage_lock = _bs_threading.Lock()  # один запуск за раз (сторож + деплой)
+
+
+def _backstage_env_path(d):
+    return os.path.join(d, "backstage", ".env")
+
+
+def _backstage_env(d):
+    env = {}
+    try:
+        with open(_backstage_env_path(d)) as f:
+            for line in f:
+                k, sep, v = line.strip().partition("=")
+                if sep and not k.startswith("#"):
+                    env[k.strip()] = v.strip()
+    except FileNotFoundError:
+        pass
+    return env
+
+
+def _backstage_env_set(d, key, val):
+    env = _backstage_env(d)
+    env[key] = val
+    path = _backstage_env_path(d)
+    with open(path, "w") as f:
+        f.write("".join(f"{k}={v}\n" for k, v in env.items()))
+    os.chmod(path, 0o600)
+
+
+def _backstage_deps(d):
+    return os.path.join(d, "backstage", ".pydeps")
+
+
+def _backstage_prepare(d):
+    """Долгое (pip) — только здесь и только в фоне. Ключ админки — один раз.
+    Библиотеки Backstage ставятся в отдельную папку backstage/.pydeps (pip --target),
+    а не в общий Python: так новая версия anthropic и её зависимости не могут
+    задеть библиотеки, на которых работают боты."""
+    import sys
+    import secrets as _secrets
+    if not _backstage_env(d).get("BACKSTAGE_ADMIN_KEY"):
+        _backstage_env_set(d, "BACKSTAGE_ADMIN_KEY", _secrets.token_urlsafe(24))
+    _backstage_env_set(d, "BACKSTAGE_PORT", str(BACKSTAGE_PORT))
+    deps = _backstage_deps(d)
+    if os.path.isdir(os.path.join(deps, "anthropic")) and os.path.isdir(os.path.join(deps, "dotenv")):
+        return
+    r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--upgrade", "--target", deps,
+                        "anthropic", "python-dotenv"], capture_output=True, text=True, timeout=900)
+    if r.returncode != 0:
+        log.error(f"backstage pip: {(r.stderr or '')[-400:]}")
+
+
+def _start_backstage_proc(d, script, logname, port=None):
+    import sys
+    bd = os.path.join(d, "backstage")
+    subprocess.run(f"pkill -9 -f 'backstage/{script}'; true", shell=True)
+    if port:
+        subprocess.run(f"fuser -k {port}/tcp 2>/dev/null; true", shell=True)
+    logf = open(f"/tmp/{logname}", "ab")
+    env = {**os.environ, "PYTHONPATH": _backstage_deps(d), "PYTHONUNBUFFERED": "1"}
+    subprocess.Popen([sys.executable, os.path.join(bd, script)], cwd=bd, env=env,
+                     stdout=logf, stderr=logf, start_new_session=True)
+
+
+def _restart_backstage(d):
+    """Поднять панель и Telegram-мост Backstage. Возвращается сразу: установка
+    зависимостей и запуск идут в фоновом потоке (сторож зовёт это синхронно)."""
+    if not os.path.exists(os.path.join(d, "backstage", "server.py")):
+        return
+    lock = _backstage_lock
+    if not lock.acquire(blocking=False):
+        return  # уже поднимаем
+
+    def work():
+        try:
+            _backstage_prepare(d)
+            _start_backstage_proc(d, "server.py", "backstage.log", BACKSTAGE_PORT)
+            _start_backstage_proc(d, "telegram_bridge.py", "backstage_tg.log")
+            log.info("Backstage запущен (supervised)")
+        except Exception as e:
+            log.error(f"start backstage: {e}")
+        finally:
+            lock.release()
+    _bs_threading.Thread(target=work, daemon=True, name="start-backstage").start()
+
+
+def _restart_backstage_tg(d):
+    if os.path.exists(os.path.join(d, "backstage", "telegram_bridge.py")):
+        _start_backstage_proc(d, "telegram_bridge.py", "backstage_tg.log")
+
+
+def _public_ip():
+    import urllib.request
+    with urllib.request.urlopen("https://api.ipify.org", timeout=8) as r:
+        return r.read().decode().strip()
+
+
+async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Ссылки и состояние панели Backstage: адрес, админка, ключи, клиенты."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    d = os.path.dirname(os.path.abspath(__file__))
+    env = _backstage_env(d)
+    try:
+        ip = _public_ip()
+    except Exception:
+        ip = "<IP-сервера>"
+    base = f"http://{ip}:{BACKSTAGE_PORT}"
+    alive = False
+    try:
+        import urllib.request
+        urllib.request.urlopen(f"http://127.0.0.1:{BACKSTAGE_PORT}/", timeout=4)
+        alive = True
+    except Exception:
+        pass
+    n_clients = "?"
+    try:
+        con = sqlite3.connect(os.path.join(d, "backstage", "backstage.db"), timeout=5)
+        n_clients = con.execute("SELECT COUNT(*) FROM clients").fetchone()[0]
+        con.close()
+    except Exception:
+        pass
+    lines = [
+        "🎬 Backstage — платформа агентства",
+        ("🟢 работает" if alive else "🔴 не отвечает — подниму сам, проверь через минуту (/backstage)"),
+        f"\nВход клиентов:\n{base}",
+        f"\nАдминка:\n{base}/admin",
+        f"Ключ админки (никому не пересылай):\n{env.get('BACKSTAGE_ADMIN_KEY', '— появится после первого запуска')}",
+        f"\nИнструкция для клиентов:\n{base}/guide",
+        f"\nКлиентов: {n_clients}",
+        ("Ключ Claude API: ✅ задан" if env.get("ANTHROPIC_API_KEY")
+         else "Ключ Claude API: ❌ не задан — чат команды молчит.\n"
+              "Возьми ключ на console.anthropic.com → API Keys и пришли:\n/backstagekey sk-ant-…"),
+        "\nНовый клиент: /backstageclient код Название [бюджет$]\nнапример /backstageclient farbaholix Farbaholix 50",
+    ]
+    if not alive:
+        _restart_backstage(d)
+    await ctx.bot.send_message(chat_id, "\n".join(lines), disable_web_page_preview=True)
+
+
+async def cmd_backstagekey(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Принять ключ Claude API для Backstage, сохранить в backstage/.env и перезапустить.
+    Сообщение с ключом сразу удаляем из чата."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    key = "".join((update.message.text or "").partition(" ")[2].split())
+    try:
+        await ctx.bot.delete_message(chat_id, update.message.message_id)
+    except Exception:
+        pass
+    if not re.match(r"^sk-ant-[A-Za-z0-9_-]{20,}$", key):
+        await ctx.bot.send_message(chat_id, "Это не похоже на ключ Claude API. Пришли так: /backstagekey sk-ant-…")
+        return
+    d = os.path.dirname(os.path.abspath(__file__))
+    _backstage_env_set(d, "ANTHROPIC_API_KEY", key)
+    _restart_backstage(d)
+    await ctx.bot.send_message(chat_id, "✅ Ключ Claude API сохранён, Backstage перезапускается. "
+                                        "Сообщение с ключом удалено. Ссылки — /backstage")
+
+
+async def cmd_backstageclient(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Завести клиента Backstage и прислать его персональную ссылку."""
+    import sys
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    parts = (update.message.text or "").split()[1:]
+    budget = None
+    if len(parts) >= 3 and re.fullmatch(r"\d+(\.\d+)?", parts[-1]):
+        budget = parts.pop()
+    if len(parts) < 2 or not re.fullmatch(r"[a-z0-9-]{2,40}", parts[0].lower()):
+        await ctx.bot.send_message(chat_id, "Так: /backstageclient код Название [бюджет$]\n"
+                                            "код — латиница, цифры, дефис. Например: /backstageclient dj-can-on DJ Can-On 30")
+        return
+    d = os.path.dirname(os.path.abspath(__file__))
+    try:
+        ip = _public_ip()
+    except Exception:
+        ip = "<IP-сервера>"
+    args = [sys.executable, "manage.py", "add", parts[0].lower(), " ".join(parts[1:])] + ([budget] if budget else [])
+    r = subprocess.run(args, cwd=os.path.join(d, "backstage"), capture_output=True, text=True, timeout=60,
+                       env={**os.environ, "PYTHONPATH": _backstage_deps(d),
+                            "BACKSTAGE_PUBLIC_URL": f"http://{ip}:{BACKSTAGE_PORT}"})
+    out = (r.stdout or "").strip() or _scrub_tokens((r.stderr or "")[-500:])
+    if r.returncode != 0 and "UNIQUE" in out:
+        out = "Клиент с таким кодом уже есть. Новый ключ — в админке (/backstage)."
+    await ctx.bot.send_message(chat_id, out + ("\n\nОтправь клиенту ссылку и инструкцию: "
+                                               f"http://{ip}:{BACKSTAGE_PORT}/guide" if r.returncode == 0 else ""),
+                               disable_web_page_preview=True)
 
 
 def _restart_finance(d):
@@ -7360,6 +7573,7 @@ async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"🌐 Дашборд (жизнь):\nhttp://{ip}:8765\n\n"
             f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8765/biz\n\n"
+            f"🎬 Backstage (панель агентства):\nhttp://{ip}:{BACKSTAGE_PORT}  · подробности /backstage\n\n"
             f"Сохрани как PWA в Safari:\nПоделиться → На экран «Домой»")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Не удалось узнать IP: {e}")
@@ -7747,6 +7961,7 @@ def _status_report_sync() -> str:
         ("Продавец", "sales_bot.py", "/tmp/sales.log", get_sales_token),
         ("Директор", "director_bot.py", "/tmp/director.log", get_director_token),
         ("Дашборд", "dashboard.py", "/tmp/dash.log", None),
+        ("Backstage", "backstage/server.py", "/tmp/backstage.log", None),
     )
     for name, pat, logp, token_fn in procs:
         if token_fn and not token_fn():
@@ -8259,6 +8474,8 @@ async def watchdog_children(ctx: ContextTypes.DEFAULT_TYPE):
         ("Директор", "director_bot.py", _restart_director, get_director_token),
         ("Финансист", "finance_bot.py", _restart_finance, get_finance_token),
         ("Дашборд", "dashboard.py", _restart_dashboard, None),
+        ("Backstage", "backstage/server.py", _restart_backstage, None),
+        ("Backstage Telegram", "backstage/telegram_bridge.py", _restart_backstage_tg, None),
     )
     for name, pat, restart, token_fn in checks:
         if token_fn and not token_fn():
@@ -8697,7 +8914,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.07b"  # видимая метка сборки бота
+BOT_VERSION = "09.08"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (
@@ -8795,6 +9012,9 @@ def main():
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("svod", cmd_svod))
     app.add_handler(CommandHandler("ip", cmd_ip))
+    app.add_handler(CommandHandler("backstage", cmd_backstage))
+    app.add_handler(CommandHandler("backstagekey", cmd_backstagekey))
+    app.add_handler(CommandHandler("backstageclient", cmd_backstageclient))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("ux", cmd_ux))
@@ -8866,6 +9086,12 @@ def main():
         _restart_director(os.path.dirname(os.path.abspath(__file__)))
     except Exception as e:
         log.error(f"start director: {e}")
+
+    # Backstage — панель агентства (backstage/server.py + Telegram-мост), в фоне
+    try:
+        _restart_backstage(os.path.dirname(os.path.abspath(__file__)))
+    except Exception as e:
+        log.error(f"start backstage: {e}")
 
     log.info("Секретарь запущен 🗂")
     app.run_polling(drop_pending_updates=False)

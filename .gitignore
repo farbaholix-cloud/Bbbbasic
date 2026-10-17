@@ -19,7 +19,8 @@ farbaholix-site/archive/
 farbaholix-site/*.zip
 
 # Backstage: база клиентов, ключи и сертификаты живут только на сервере
-backstage/*.db
-backstage/*.db-*
-backstage/.env
-backstage/tls/
+friedman_bot/backstage/*.db
+friedman_bot/backstage/*.db-*
+friedman_bot/backstage/.env
+friedman_bot/backstage/tls/
+friedman_bot/backstage/.pydeps/

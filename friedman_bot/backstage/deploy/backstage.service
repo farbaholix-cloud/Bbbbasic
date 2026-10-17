@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 User=backstage
-WorkingDirectory=/opt/backstage/backstage
+WorkingDirectory=/opt/backstage/friedman_bot/backstage
 ExecStart=/opt/backstage/venv/bin/python server.py
 Restart=always
 RestartSec=3

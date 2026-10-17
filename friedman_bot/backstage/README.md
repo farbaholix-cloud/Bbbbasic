@@ -30,7 +30,7 @@ backstage/
   agents/             промпты команды: _common.md + по файлу на агента, agents.json — состав
   packs/              справочники для агентов (_all/ — всем, <agent>/ — одному)
   static/             login, app (дашборд+чат), guide, admin
-  deploy/             systemd-юниты и update.sh
+  deploy/             systemd-юниты для отдельной установки
 ```
 
 Стек как у дашборда Фридмана: стандартная библиотека Python (`ThreadingHTTPServer`) + SQLite, плюс официальный SDK `anthropic`. Фреймворков нет, сборки фронтенда нет.
@@ -54,54 +54,51 @@ backstage/
 
 Цены за 1M токенов: Fable 5.1 — $10 вход / $50 выход, Opus 5.5 — $4 / $20; веб-поиск — $10 за 1000 запросов. Системные промпты кэшируются, повторное чтение стоит в 20–40 раз дешевле. У каждого клиента есть месячный лимит: при исчерпании команда замолкает до нового месяца или пока ты не поднимешь лимит.
 
-## Установка на сервер
+## Запуск на сервере Фридмана (основной путь)
 
-Пример для Ubuntu/Debian. Код живёт в `/opt/backstage`, сервисы работают от отдельного пользователя `backstage`.
+Backstage живёт в `friedman_bot/backstage/` и приезжает на сервер **тем же авто-деплоем**, что и боты: Секретарь раз в 15 минут тянет новый код с рабочей ветки, сдаёт экзамен и перезапускается. Дальше он сам:
+
+- ставит библиотеки Backstage (`anthropic`, `python-dotenv`) в отдельную папку `backstage/.pydeps` — общий Python ботов не трогается;
+- генерирует ключ админки и пишет его в `backstage/.env` (не в git);
+- поднимает `server.py` (порт 8800) и `telegram_bridge.py`, сторож перезапускает их, если упали;
+- показывает Backstage в `/status` и `/ip`.
+
+Команды Секретарю в Telegram (только владельцу):
+
+| Команда | Что делает |
+|---|---|
+| `/backstage` | ссылки: вход, админка, ключ админки, инструкция; состояние и число клиентов |
+| `/backstagekey sk-ant-…` | сохраняет ключ Claude API и перезапускает панель; сообщение с ключом удаляется |
+| `/backstageclient код Название [бюджет$]` | заводит клиента и присылает его персональную ссылку |
+
+Порт 8800 должен быть открыт снаружи так же, как 8765 для дашборда. Если `/backstage` пишет «работает», а с телефона не открывается — на сервере закрыт порт: `sudo ufw allow 8800/tcp` (или правило в панели хостинга).
+
+Логи: `/tmp/backstage.log`, `/tmp/backstage_tg.log`.
+
+## Отдельная установка (если когда-нибудь понадобится другой сервер)
 
 ```bash
-# 1. Пользователь и код
 sudo adduser --system --group --home /opt/backstage backstage
 sudo -u backstage git clone https://github.com/farbaholix-cloud/bbbbasic.git /opt/backstage
-#   если репозиторий приватный — понадобится deploy key или токен GitHub
 cd /opt/backstage
 sudo -u backstage python3 -m venv venv
-sudo -u backstage venv/bin/pip install -r backstage/requirements.txt
-
-# 2. Настройки
-sudo -u backstage cp backstage/.env.example backstage/.env
-sudo -u backstage nano backstage/.env      # ANTHROPIC_API_KEY, BACKSTAGE_ADMIN_KEY
-sudo chmod 600 backstage/.env
-
-# 3. Сервисы
-sudo cp backstage/deploy/backstage.service backstage/deploy/backstage-telegram.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now backstage backstage-telegram
-
-# 4. Порт наружу (если включён ufw)
-sudo ufw allow 8800/tcp
-
-# 5. Первый клиент
-cd /opt/backstage/backstage
-sudo -u backstage BACKSTAGE_PUBLIC_URL=http://<IP>:8800 ../venv/bin/python manage.py add farbaholix "Farbaholix" 50
+sudo -u backstage venv/bin/pip install -r friedman_bot/backstage/requirements.txt
+sudo -u backstage cp friedman_bot/backstage/.env.example friedman_bot/backstage/.env   # заполнить ключи
+sudo cp friedman_bot/backstage/deploy/*.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now backstage backstage-telegram
 ```
-
-Последняя команда печатает персональную ссылку клиента. Дальше клиентов удобнее заводить в `/admin`.
-
-Обновление после изменений в git: `sudo /opt/backstage/backstage/deploy/update.sh`. Логи: `journalctl -u backstage -f` и `journalctl -u backstage-telegram -f`.
-
-Если на этом же сервере живут боты Фридмана, конфликтов нет: Backstage использует порт 8800 и свою базу `backstage/backstage.db`, а порты 8765/8766 и `friedman.db` не трогает.
 
 ## HTTPS без домена
 
 Без сертификата браузер пишет «Не защищено», а ключи и переписка идут открытым текстом. Минимум — самоподписанный сертификат на IP:
 
 ```bash
-sudo -u backstage mkdir -p /opt/backstage/backstage/tls && cd /opt/backstage/backstage/tls
-sudo -u backstage openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
+mkdir -p ~/friedman_bot/backstage/tls && cd ~/friedman_bot/backstage/tls   # путь к папке бота на сервере
+openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
   -keyout key.pem -out cert.pem -subj "/CN=<IP>" -addext "subjectAltName=IP:<IP>"
 ```
 
-В `.env` раскомментируй `BACKSTAGE_TLS_CERT` / `BACKSTAGE_TLS_KEY`, перезапусти сервис и давай клиентам ссылки на `https://<IP>:8800`. При первом входе браузер один раз попросит подтвердить сертификат. Когда появится домен, лучше поставить перед сервером Caddy или nginx с Let's Encrypt, а Backstage оставить на `127.0.0.1`.
+В `backstage/.env` добавь `BACKSTAGE_TLS_CERT=…/cert.pem` и `BACKSTAGE_TLS_KEY=…/key.pem` (полные пути), перезапусти панель (`/update` или сторож) и давай клиентам ссылки на `https://<IP>:8800`. При первом входе браузер один раз попросит подтвердить сертификат. Когда появится домен, лучше поставить перед сервером Caddy или nginx с Let's Encrypt, а Backstage оставить на `127.0.0.1`.
 
 ## Справочники агентов (packs)
 
@@ -112,10 +109,10 @@ sudo -u backstage openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
 База одна: `backstage/backstage.db` (+ файлы `-wal`/`-shm`). Безопасная копия на ходу:
 
 ```bash
-sqlite3 /opt/backstage/backstage/backstage.db ".backup '/opt/backstage/backup/backstage-$(date +%F).db'"
+sqlite3 friedman_bot/backstage/backstage.db ".backup 'backstage-$(date +%F).db'"
 ```
 
-Удобно повесить это в cron рядом с бэкапами Фридмана.
+Следующий шаг — включить эту базу в ночные копии Секретаря рядом с `friedman.db` и `finance.db`.
 
 ## Безопасность
 
