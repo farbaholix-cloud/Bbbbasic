@@ -7793,7 +7793,7 @@ def _status_report_sync() -> str:
             lines.append(f"🔴 Копия ({label}) — нет ни одной")
             continue
         age = now - os.path.getmtime(os.path.join(bdir, copies[-1]))
-        mark = "🟢" if age < 2 * 86400 else "🔴"
+        mark = "🟢" if age < 86400 else "🔴"  # копия раз в 12 ч: старше суток — сбой
         red += mark == "🔴"
         lines.append(f"{mark} Копия ({label}) — {_ago(age)} назад, хранится {len(copies)}")
 
@@ -8288,12 +8288,18 @@ async def watchdog_children(ctx: ContextTypes.DEFAULT_TYPE):
                         pass
 
 
-def _backup_one(src_path: str, prefix: str, bdir: str, keep: int = 7):
+def _backup_one(src_path: str, prefix: str, bdir: str, keep: int = 14, stamp: str = None):
     """Консистентная копия одной sqlite-базы (backup API — безопасно при
-    параллельной записи) с ротацией. Базы нет — возвращает None."""
+    параллельной записи) с ротацией. Базы нет — возвращает None.
+
+    Копия делается каждые 12 часов, поэтому в имени есть время
+    (friedman_2026-10-17_1530.db), иначе дневная копия затирала бы ночную.
+    keep=14 — те же 7 дней глубины, что и при раз-в-сутки. Старые имена без
+    времени (friedman_2026-10-16.db) сортируются раньше новых и уходят ротацией."""
     if not os.path.exists(src_path):
         return None
-    dest = os.path.join(bdir, f"{prefix}_{datetime.now().strftime('%Y-%m-%d')}.db")
+    stamp = stamp or datetime.now().strftime('%Y-%m-%d_%H%M')
+    dest = os.path.join(bdir, f"{prefix}_{stamp}.db")
     src = sqlite3.connect(src_path, timeout=30)
     dst = sqlite3.connect(dest)
     try:
@@ -8312,7 +8318,7 @@ def _backup_one(src_path: str, prefix: str, bdir: str, keep: int = 7):
 
 
 def _backup_db_sync() -> str:
-    """Ночная копия ОБЕИХ баз в backups/ с ротацией 7 дней.
+    """Копия ОБЕИХ баз в backups/ (раз в 12 ч) с ротацией 7 дней.
 
     Раньше копировался только friedman.db. Денежная база finance.db — выписки,
     счета, сверка «счёт ↔ оплата» — не попадала ни в ночную копию, ни в
@@ -8322,9 +8328,12 @@ def _backup_db_sync() -> str:
     d = os.path.dirname(os.path.abspath(__file__))
     bdir = os.path.join(d, "backups")
     os.makedirs(bdir, exist_ok=True)
-    dest = _backup_one(DB, "friedman", bdir)
+    # общая метка времени: воскресный сейф ищет копию finance.db по имени копии
+    # friedman.db, и разошедшиеся на минуту имена её бы потеряли
+    stamp = datetime.now().strftime('%Y-%m-%d_%H%M')
+    dest = _backup_one(DB, "friedman", bdir, stamp=stamp)
     try:
-        _backup_one(os.path.join(d, "finance.db"), "finance", bdir)
+        _backup_one(os.path.join(d, "finance.db"), "finance", bdir, stamp=stamp)
     except Exception as e:
         # денежная копия не должна ронять основную
         log.error(f"backup finance.db: {e}")
@@ -8360,10 +8369,13 @@ def _weekly_backup_zip(db_copy: str) -> str:
 
 
 async def nightly_backup(ctx: ContextTypes.DEFAULT_TYPE):
-    """Ежедневно 03:30 Berlin: бэкап БД с ротацией; по воскресеньям владельцу в
-    Telegram уходит zip «база + все PDF счетов» — бесплатный оффсайт-«сейф в
-    чате» на случай гибели сервера."""
-    if not _claim_daily("db_backup:" + datetime.now().strftime("%Y-%m-%d")):
+    """Каждые 12 ч (03:30 и 15:30 Berlin): бэкап обеих баз с ротацией; в
+    воскресенье ночью владельцу в Telegram уходит zip «база + все PDF счетов» —
+    бесплатный оффсайт-«сейф в чате» на случай гибели сервера. Дневной прогон
+    сейф не шлёт: раз в неделю — сейф, чаще — уже спам в чате."""
+    now_l = datetime.now(BERLIN) if BERLIN else datetime.now()
+    half = "am" if now_l.hour < 12 else "pm"
+    if not _claim_daily("db_backup:" + now_l.strftime("%Y-%m-%d") + ":" + half):
         return
     try:
         dest = await asyncio.to_thread(_backup_db_sync)
@@ -8371,8 +8383,8 @@ async def nightly_backup(ctx: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         log.error(f"backup: {e}")
         return
-    wd = (datetime.now(BERLIN) if BERLIN else datetime.now()).weekday()
-    if wd == 6:  # воскресенье — полный «сейф»
+    wd = now_l.weekday()
+    if wd == 6 and half == "am":  # воскресенье, ночной прогон — полный «сейф»
         try:
             pack = await asyncio.to_thread(_weekly_backup_zip, dest)
         except Exception as e:
@@ -8816,6 +8828,8 @@ def main():
     jq.run_repeating(watchdog_children, interval=300, first=120)  # сторож упавших процессов
     backup_t = time(3, 30, tzinfo=BERLIN) if BERLIN else time(3, 30)
     jq.run_daily(nightly_backup, time=backup_t)  # бэкап БД: ротация 7 дн, вс — файл владельцу
+    backup_t2 = time(15, 30, tzinfo=BERLIN) if BERLIN else time(15, 30)
+    jq.run_daily(nightly_backup, time=backup_t2)  # вторая копия дня: бэкап каждые 12 ч
     brief_t = time(7, 0, tzinfo=BERLIN) if BERLIN else time(7, 0)
     bridge_t = time(19, 0, tzinfo=BERLIN) if BERLIN else time(19, 0)
     jq.run_daily(morning_focus, time=brief_t)
