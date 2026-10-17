@@ -4,7 +4,7 @@
 <title>Backstage — вход</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="static/style.css">
 <style>
   main{max-width:420px;margin:0 auto;padding:12vh 16px 40px}
   .brand{font-size:40px;line-height:1}
@@ -28,16 +28,16 @@
   </form>
   <footer class="small muted">
     Ключ выдаёт агентство. Проще всего — открыть персональную ссылку из письма.<br>
-    <a href="/guide">Что умеет панель</a>
+    <a href="guide">Что умеет панель</a>
   </footer>
 </main>
 <script>
 if (location.search.includes("bad=1")) document.getElementById("err").textContent = "Ссылка недействительна — проверь ключ или попроси новый.";
 document.getElementById("f").onsubmit = async (e) => {
   e.preventDefault();
-  const r = await fetch("/api/login", {method: "POST", headers: {"Content-Type": "application/json"},
+  const r = await fetch("api/login", {method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({slug: slug.value, key: key.value})});
-  if (r.ok) location.href = "/app";
+  if (r.ok) location.href = "app";
   else document.getElementById("err").textContent = (await r.json()).error || "Не получилось войти";
 };
 </script>

@@ -6,7 +6,7 @@
 <title>Backstage — панель</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="static/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
@@ -99,7 +99,7 @@
   <button class="primary" id="btnPotential"><span class="hide-m">Проверка потенциала</span><span class="show-m">Потенциал</span></button>
   <button id="btnAdd" title="Добавить виджет">+<span class="hide-m"> Виджет</span></button>
   <button id="btnSettings" title="Настройки">⚙</button>
-  <a class="hide-m small" href="/guide" target="_blank">Инструкция</a>
+  <a class="hide-m small" href="guide" target="_blank">Инструкция</a>
   <button class="ghost small hide-m" id="btnLogout">Выйти</button>
 </header>
 
@@ -168,14 +168,14 @@
       Делиться обезличенными выводами с общим плейбуком агентства</label>
     <h3 style="margin-top:18px">Telegram</h3>
     <p class="small muted">Свой бот, который пишет той же команде. В Telegram открой @BotFather → /newbot → скопируй токен сюда.
-      Потом напиши своему боту /start. Подробно — в <a href="/guide#telegram" target="_blank">инструкции</a>.</p>
+      Потом напиши своему боту /start. Подробно — в <a href="guide#telegram" target="_blank">инструкции</a>.</p>
     <input id="setTg" placeholder="123456789:AA…  (пусто — отключить)">
     <p class="small" id="tgState"></p>
     <h3 style="margin-top:18px">Расход</h3>
     <p class="small" id="usageLine"></p>
     <h3 style="margin-top:18px">База опыта</h3>
     <div id="insList" class="small"></div>
-    <div class="row" style="margin-top:14px"><button type="button" class="ghost" id="btnLogout2">Выйти</button><a href="/guide" target="_blank" class="small">Инструкция</a><div class="grow"></div>
+    <div class="row" style="margin-top:14px"><button type="button" class="ghost" id="btnLogout2">Выйти</button><a href="guide" target="_blank" class="small">Инструкция</a><div class="grow"></div>
       <button value="cancel">Закрыть</button><button class="primary" id="setOk" value="ok">Сохранить</button></div>
   </form>
 </dialog>
@@ -185,7 +185,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const api = async (path, body) => {
   const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
-  if (r.status === 401) { location.href = "/"; throw new Error("auth"); }
+  if (r.status === 401) { location.href = "./"; throw new Error("auth"); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
@@ -216,7 +216,7 @@ function md(src) {
 
 // ─── Дашборд ───
 async function loadWidgets() {
-  WIDGETS = await api("/api/widgets");
+  WIDGETS = await api("api/widgets");
   renderGrid();
 }
 function renderGrid() {
@@ -303,16 +303,16 @@ function renderBody(w, b) {
   }
 }
 async function saveData(w, data) {
-  await api(`/api/widgets/${w.id}`, {data});
+  await api(`api/widgets/${w.id}`, {data});
   await loadWidgets();
 }
 async function widgetAction(w, i, a) {
-  if (a === "del") { if (confirm(`Удалить «${w.title}»?`)) { await api(`/api/widgets/${w.id}/delete`, {}); loadWidgets(); } return; }
+  if (a === "del") { if (confirm(`Удалить «${w.title}»?`)) { await api(`api/widgets/${w.id}/delete`, {}); loadWidgets(); } return; }
   if (a === "up" || a === "down") {
     const ids = WIDGETS.map(x => x.id), j = a === "up" ? i - 1 : i + 1;
     if (j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
-    await api("/api/widgets/reorder", {ids}); return loadWidgets();
+    await api("api/widgets/reorder", {ids}); return loadWidgets();
   }
   if (a === "edit") openEditor(w);
 }
@@ -365,7 +365,7 @@ function openEditor(w) {
     if (w.kind === "table") { const r = fromGrid("table", v.grid); data = r.data; config.columns = r.config.columns; }
     if (w.kind === "board") config.columns = v.cols.split("\n").map(s => s.trim()).filter(Boolean);
     if (w.kind === "note") data.text = v.text;
-    await api(`/api/widgets/${w.id}`, {title: v.title, size: v.size, config, data});
+    await api(`api/widgets/${w.id}`, {title: v.title, size: v.size, config, data});
     loadWidgets();
   };
   dlg.returnValue = ""; dlg.showModal();
@@ -378,7 +378,7 @@ function renderAgents() {
   $("#agents").onclick = (e) => { const id = e.target.closest("button")?.dataset.id; if (id) { AGENT = id; renderAgents(); loadMsgs(); } };
 }
 async function loadMsgs() {
-  const list = await api(`/api/messages?agent=${AGENT}`);
+  const list = await api(`api/messages?agent=${AGENT}`);
   const box = $("#msgs"), a = ME.agents[AGENT];
   box.innerHTML = list.length ? "" : `<div class="empty">${a.emoji} <b>${esc(a.name)}</b>, ${esc(a.role.toLowerCase())}.<br>
     ${AGENT === "maya" ? "Пиши мне обо всём — я раздам задачи команде и сведу ответ." : "Можно напрямую, но обычно быстрее через Майю."}</div>`;
@@ -411,7 +411,7 @@ async function send(extra = {}) {
   wait.textContent = (extra.potential || deep) ? "Глубокий анализ идёт, это займёт несколько минут" : `${ME.agents[AGENT].name} думает`;
   $("#msgs").append(wait); $("#msgs").scrollTop = $("#msgs").scrollHeight;
   try {
-    const {job} = await api("/api/chat", {agent: AGENT, text, deep, attachments: ATTS, ...extra});
+    const {job} = await api("api/chat", {agent: AGENT, text, deep, attachments: ATTS, ...extra});
     ATTS = []; renderAtts();
     LS.set("bs_job", job);
     const res = await pollJob(job);
@@ -424,7 +424,7 @@ async function send(extra = {}) {
 async function pollJob(job) {
   for (;;) {
     await new Promise(r => setTimeout(r, 2000));
-    const j = await api(`/api/job/${job}`);
+    const j = await api(`api/job/${job}`);
     if (j.status === "done") return j.result;
     if (j.status === "error") throw new Error(j.error);
   }
@@ -444,11 +444,11 @@ $("#file").onchange = async (e) => {
 };
 $("#btnSend").onclick = () => send();
 $("#input").onkeydown = (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); };
-$("#btnClear").onclick = async () => { if (confirm("Очистить переписку с этим агентом? Дашборд и база опыта останутся.")) { await api("/api/messages/clear", {agent: AGENT}); loadMsgs(); } };
+$("#btnClear").onclick = async () => { if (confirm("Очистить переписку с этим агентом? Дашборд и база опыта останутся.")) { await api("api/messages/clear", {agent: AGENT}); loadMsgs(); } };
 
 // ─── Шапка, диалоги, вкладки ───
 async function refreshMe() {
-  ME = await api("/api/me");
+  ME = await api("api/me");
   $("#who").textContent = ME.name;
   const b = $("#budget"); b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
   b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : "";
@@ -460,7 +460,7 @@ $("#dlgAdd").onclose = async () => {
   const presets = {kpi: [{unit: "", goal: 0}, {value: 0}], chart: [{type: "line"}, {labels: [], series: [{name: "Значение", values: []}]}],
     table: [{columns: ["Колонка 1", "Колонка 2"]}, {rows: []}], board: [{columns: ["Входящие", "В работе", "Готово"]}, {cards: []}],
     list: [{}, {items: []}], note: [{}, {text: ""}]};
-  const w = await api("/api/widgets", {kind, title: $("#addTitle").value || "Новый виджет", config: presets[kind][0], data: presets[kind][1],
+  const w = await api("api/widgets", {kind, title: $("#addTitle").value || "Новый виджет", config: presets[kind][0], data: presets[kind][1],
     size: kind === "kpi" ? "s" : kind === "board" ? "l" : "m"});
   await loadWidgets(); openEditor(w);
 };
@@ -474,24 +474,24 @@ $("#dlgPotential").onclose = () => {
 $("#btnSettings").onclick = async () => {
   $("#setProfile").value = ME.profile || ""; $("#setShare").checked = !!ME.share_insights; $("#setTg").value = "";
   $("#tgState").textContent = ME.telegram ? "✅ Бот подключён. Новый токен заменит старый." : "Бот не подключён.";
-  const u = await api("/api/usage");
+  const u = await api("api/usage");
   const tot = u.reduce((s, r) => s + r.cost, 0), n = u.reduce((s, r) => s + r.n, 0);
   $("#usageLine").textContent = `За 31 день: ${n} запросов к Claude, $${tot.toFixed(2)}. Чат: ${ME.model_chat}, глубокий анализ: ${ME.model_deep}.`;
-  const ins = await api("/api/insights");
+  const ins = await api("api/insights");
   $("#insList").innerHTML = ins.length ? ins.map(i => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">
     <b>${esc(i.title)}</b> <span class="chip">${i.shared ? "общий плейбук" : "мой"}</span><br>${esc(i.body)}
     ${i.shared ? "" : `<button class="ghost small" data-del="${i.id}">удалить</button>`}</div>`).join("") : '<span class="muted">Пока пусто. Команда сохраняет сюда то, что стоит запомнить.</span>';
-  $("#insList").onclick = async (e) => { const id = e.target.dataset.del; if (id) { await api(`/api/insights/${id}/delete`, {}); e.target.parentElement.remove(); } };
+  $("#insList").onclick = async (e) => { const id = e.target.dataset.del; if (id) { await api(`api/insights/${id}/delete`, {}); e.target.parentElement.remove(); } };
   $("#dlgSettings").returnValue = ""; $("#dlgSettings").showModal();
 };
 $("#dlgSettings").onclose = async () => {
   if ($("#dlgSettings").returnValue !== "ok") return;
-  await api("/api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0});
+  await api("api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0});
   const tg = $("#setTg").value.trim();
-  if (tg) { try { await api("/api/telegram", {token: tg}); toast("Бот подключён — напиши ему /start"); } catch (e) { toast(e.message); } }
+  if (tg) { try { await api("api/telegram", {token: tg}); toast("Бот подключён — напиши ему /start"); } catch (e) { toast(e.message); } }
   refreshMe();
 };
-const logout = async () => { await api("/api/logout", {}); location.href = "/"; };
+const logout = async () => { await api("api/logout", {}); location.href = "./"; };
 $("#btnLogout").onclick = logout; $("#btnLogout2").onclick = logout;
 function setTab(t) {
   document.body.dataset.tab = t;

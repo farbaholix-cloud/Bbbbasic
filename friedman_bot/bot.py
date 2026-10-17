@@ -6757,7 +6757,11 @@ def _restart_director(d):
 # backstage/backstage.db, свои ключи в backstage/.env (не в git). Ключ Claude API
 # владелец присылает командой /backstagekey, ключ админки генерируется сам.
 
-BACKSTAGE_PORT = 8800
+BACKSTAGE_PORT = 8800  # внутренний порт; снаружи панель открывается через дашборд: :8765/bs
+
+
+def _backstage_url(ip):
+    return f"http://{ip}:8765/bs"
 import threading as _bs_threading
 _backstage_lock = _bs_threading.Lock()  # один запуск за раз (сторож + деплой)
 
@@ -6846,7 +6850,7 @@ def _restart_backstage(d):
     _bs_threading.Thread(target=work, daemon=True, name="start-backstage").start()
 
 
-def _backstage_new_client(d, slug, name, budget=None):
+def _backstage_new_client(d, slug, name, budget=None, reset=False):
     """Завести клиента через manage.py. Возвращает (ссылка или None, текст ответа)."""
     import sys
     try:
@@ -6854,9 +6858,11 @@ def _backstage_new_client(d, slug, name, budget=None):
     except Exception:
         ip = "<IP-сервера>"
     args = [sys.executable, "manage.py", "add", slug, name] + ([str(budget)] if budget else [])
+    if reset:
+        args = [sys.executable, "manage.py", "key", slug]
     r = subprocess.run(args, cwd=os.path.join(d, "backstage"), capture_output=True, text=True, timeout=60,
                        env={**os.environ, "PYTHONPATH": _backstage_deps(d),
-                            "BACKSTAGE_PUBLIC_URL": f"http://{ip}:{BACKSTAGE_PORT}"})
+                            "BACKSTAGE_PUBLIC_URL": _backstage_url(ip)})
     m = re.search(r"https?://\S+/c/\S+", r.stdout or "")
     if m:
         return m.group(0), ip
@@ -6870,7 +6876,7 @@ def _backstage_welcome(d):
     import time as _t
     import urllib.request
     import urllib.parse
-    if _settings_get("backstage_welcome"):
+    if _settings_get("backstage_welcome2"):  # 2 — ссылка через порт дашборда (:8765/bs)
         return
     for _ in range(30):  # ждём, пока панель поднимется
         try:
@@ -6879,9 +6885,11 @@ def _backstage_welcome(d):
         except Exception:
             _t.sleep(1)
     link, ip = _backstage_new_client(d, "farbaholix", "Farbaholix", 50)
+    if not link and ip == "exists":  # панель уже заводилась — выдаём свежую ссылку
+        link, ip = _backstage_new_client(d, "farbaholix", "Farbaholix", reset=True)
     if not link:
         log.error(f"backstage welcome: клиент не создан: {ip}")
-        _settings_set("backstage_welcome", "skip")
+        _settings_set("backstage_welcome2", "skip")
         return
     has_key = bool(_backstage_env(d).get("ANTHROPIC_API_KEY"))
     text = ("🎬 Backstage готов!\n\n"
@@ -6896,7 +6904,7 @@ def _backstage_welcome(d):
     try:
         data = urllib.parse.urlencode({"chat_id": cid, "text": text, "disable_web_page_preview": "true"}).encode()
         urllib.request.urlopen(f"https://api.telegram.org/bot{TOKEN}/sendMessage", data=data, timeout=20)
-        _settings_set("backstage_welcome", "sent")
+        _settings_set("backstage_welcome2", "sent")
     except Exception as e:
         log.error(f"backstage welcome send: {e}")
 
@@ -6924,7 +6932,7 @@ async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         ip = _public_ip()
     except Exception:
         ip = "<IP-сервера>"
-    base = f"http://{ip}:{BACKSTAGE_PORT}"
+    base = _backstage_url(ip)
     alive = False
     try:
         import urllib.request
@@ -6999,7 +7007,7 @@ async def cmd_backstageclient(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         None, lambda: _backstage_new_client(d, parts[0].lower(), " ".join(parts[1:]), budget))
     if link:
         msg = (f"✅ Клиент создан. Отправь ему эту ссылку — это его вход:\n{link}\n\n"
-               f"Инструкция для него: http://{info}:{BACKSTAGE_PORT}/guide")
+               f"Инструкция для него: {_backstage_url(info)}/guide")
     elif info == "exists":
         msg = "Такой клиент уже есть. Новую ссылку для него можно сделать в админке (/backstage)."
     else:
@@ -7629,7 +7637,7 @@ async def cmd_ip(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"🌐 Дашборд (жизнь):\nhttp://{ip}:8765\n\n"
             f"💼 Бизнес-пульт FARBAHOLIX:\nhttp://{ip}:8765/biz\n\n"
-            f"🎬 Backstage (панель агентства):\nhttp://{ip}:{BACKSTAGE_PORT}  · подробности /backstage\n\n"
+            f"🎬 Backstage (панель агентства):\n{_backstage_url(ip)}/  · подробности /backstage\n\n"
             f"Сохрани как PWA в Safari:\nПоделиться → На экран «Домой»")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Не удалось узнать IP: {e}")

@@ -1,6 +1,8 @@
 """
 Backstage — шлюз агентства: веб-панель клиентов (дашборд + чат с командой ИИ-агентов),
-админка владельца и API. Работает по IP-адресу сервера, без домена:
+админка владельца и API. Работает по IP-адресу сервера, без домена. Снаружи
+панель открывается через дашборд Фридмана — http://<IP>:8765/bs/… (его порт уже
+открыт, dashboard.py проксирует /bs сюда); сам сервер слушает порт 8800:
 
     http://<IP>:8800/            вход по коду клиента
     http://<IP>:8800/c/<код>?k=<ключ>   персональная ссылка клиента (ставит cookie)
@@ -134,9 +136,14 @@ class Handler(BaseHTTPRequestHandler):
     def _err(self, code, msg):
         self._json({"error": msg}, code)
 
+    def _prefix(self):
+        # За прокси дашборда (порт 8765, путь /bs) редиректы должны вести на /bs/…
+        p = self.headers.get("X-Forwarded-Prefix", "")
+        return p if p == "/bs" else ""
+
     def _redirect(self, to, headers=None):
         self.send_response(302)
-        self.send_header("Location", to)
+        self.send_header("Location", self._prefix() + to)
         for k, v in (headers or {}).items():
             self.send_header(k, v)
         self.send_header("Content-Length", "0")
@@ -374,7 +381,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("код клиента: латиница, цифры и дефис, 2–40 символов")
             cid, key = store.create_client(slug, body.get("name") or slug, body.get("profile", ""),
                                            float(body.get("budget") or 20), body.get("lang", "ru"))
-            return self._json({"id": cid, "slug": slug, "key": key, "link": f"/c/{slug}?k={key}"})
+            return self._json({"id": cid, "slug": slug, "key": key, "link": f"c/{slug}?k={key}"})
         m = re.fullmatch(r"/api/admin/clients/(\d+)(/reset_key)?", path)
         if m:
             cid = int(m.group(1))
@@ -383,7 +390,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._err(404, "нет клиента")
             if m.group(2):
                 key = store.reset_key(cid)
-                return self._json({"key": key, "link": f"/c/{c['slug']}?k={key}"})
+                return self._json({"key": key, "link": f"c/{c['slug']}?k={key}"})
             store.update_client(cid, **{k: v for k, v in body.items() if k != "tg_token"})
             return self._json({"ok": True})
         m = re.fullmatch(r"/api/admin/insights/(\d+)(/delete)?", path)

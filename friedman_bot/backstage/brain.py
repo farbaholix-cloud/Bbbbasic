@@ -60,6 +60,8 @@ def client():
     global _client
     if anthropic is None:
         raise RuntimeError("библиотека anthropic ещё не установлена на сервере — попробуй через пару минут")
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError("команда ещё не подключена — владельцу нужно прислать Секретарю ключ Claude API (sk-ant-…)")
     if _client is None:
         # Ключ берётся из ANTHROPIC_API_KEY (.env рядом с сервером)
         _client = anthropic.Anthropic(max_retries=3)

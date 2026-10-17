@@ -13,7 +13,7 @@ import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонт
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 PORT = 8765
-VERSION = "1.50"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.51"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -6251,8 +6251,57 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _backstage_proxy(self, method):
+        """Backstage (панель агентства, backstage/server.py на 127.0.0.1:8800) открывается
+        снаружи через этот порт по пути /bs/… — новый порт на сервере открывать не нужно.
+        У Backstage свой вход по ключу клиента, замок дашборда здесь не действует."""
+        import urllib.request
+        import urllib.error
+        path = self.path
+        if path.split('?', 1)[0] == "/bs":
+            self.send_response(301)
+            self.send_header("Location", "/bs/" + (path[3:] if path[3:].startswith("?") else ""))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        n = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(n) if n else None
+        req = urllib.request.Request("http://127.0.0.1:8800" + path[3:], data=body, method=method)
+        for h in ("Cookie", "Content-Type", "User-Agent"):
+            if self.headers.get(h):
+                req.add_header(h, self.headers[h])
+        req.add_header("X-Forwarded-Prefix", "/bs")
+
+        class _NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *a, **k):
+                return None
+        try:
+            # ProxyHandler({}) — к соседнему процессу напрямую, мимо системного прокси
+            resp = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect).open(req, timeout=120)
+        except urllib.error.HTTPError as e:
+            resp = e  # 3xx/4xx/5xx — передаём как есть
+        except Exception:
+            msg = "Backstage запускается — обнови страницу через минуту.".encode()
+            self.send_response(503)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(msg)))
+            self.end_headers()
+            self.wfile.write(msg)
+            return
+        data = resp.read()
+        self.send_response(resp.status if hasattr(resp, "status") else resp.code)
+        for k, v in resp.headers.items():
+            if k.lower() in ("content-type", "set-cookie", "location", "cache-control",
+                             "x-frame-options", "x-content-type-options", "referrer-policy"):
+                self.send_header(k, v)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self):
         path = self.path.split('?', 1)[0]
+        if path == "/bs" or path.startswith("/bs/"):
+            return self._backstage_proxy("GET")
         if not self._authed():
             # для API отвечаем 401, чтобы клиент перезагрузился на экран-замок
             if path.startswith("/api/"):
@@ -6294,6 +6343,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split('?', 1)[0]
+        if path.startswith("/bs/"):
+            return self._backstage_proxy("POST")
         length = int(self.headers.get("Content-Length", 0))
         payload = json.loads(self.rfile.read(length)) if length else {}
 

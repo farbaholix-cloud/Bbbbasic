@@ -4,7 +4,7 @@
 <title>Backstage — админка</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="static/style.css">
 <style>
   main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
   section.card{padding:16px;margin-top:16px}
@@ -71,16 +71,16 @@ const api = async (path, body) => {
   if (!r.ok) { alert(j.error || r.statusText); throw new Error(j.error); }
   return j;
 };
-const full = (p) => location.origin + p;
+const full = (p) => new URL(p.replace(/^\//, ""), location.href).href;
 
 async function load() {
-  const cfg = await api("/api/admin/config");
+  const cfg = await api("api/admin/config");
   $("#login").classList.add("hidden"); $("#panel").classList.remove("hidden");
-  const usage = await api("/api/admin/usage");
+  const usage = await api("api/admin/usage");
   const tot = usage.reduce((s, r) => s + r.cost, 0);
   $("#cfg").innerHTML = `Версия ${esc(cfg.version)} · чат: <b>${esc(cfg.model_chat)}</b> (effort ${esc(cfg.effort_chat)}) · глубокий анализ: <b>${esc(cfg.model_deep)}</b> (effort ${esc(cfg.effort_deep)})<br>
     Ключ Claude API: ${cfg.api_key_set ? "✅ задан" : "❌ не задан — чат не работает"} · расход всех клиентов за 31 день: <b>$${tot.toFixed(2)}</b>`;
-  const cl = await api("/api/admin/clients");
+  const cl = await api("api/admin/clients");
   $("#clients").innerHTML = cl.map(c => `<tr data-id="${c.id}">
     <td><b>${esc(c.name)}</b><br><span class="small muted">${esc(c.slug)}${c.active ? "" : " · отключён"}</span></td>
     <td>$${c.spent_month.toFixed(2)} / <input data-f="monthly_budget" value="${c.monthly_budget}" style="width:70px"></td>
@@ -95,15 +95,15 @@ async function load() {
     const tr = e.target.closest("tr"), id = tr.dataset.id, c = cl.find(x => x.id == id);
     if (a === "save") {
       const body = {}; tr.querySelectorAll("input[data-f]").forEach(i => body[i.dataset.f] = i.dataset.f === "monthly_budget" ? Number(i.value) || 0 : i.value.trim());
-      await api(`/api/admin/clients/${id}`, body); load();
+      await api(`api/admin/clients/${id}`, body); load();
     }
-    if (a === "toggle") { await api(`/api/admin/clients/${id}`, {active: c.active ? 0 : 1}); load(); }
+    if (a === "toggle") { await api(`api/admin/clients/${id}`, {active: c.active ? 0 : 1}); load(); }
     if (a === "key" && confirm(`Выдать ${c.name} новый ключ? Старая ссылка перестанет работать.`)) {
-      const r = await api(`/api/admin/clients/${id}/reset_key`, {});
+      const r = await api(`api/admin/clients/${id}/reset_key`, {});
       prompt("Новая персональная ссылка (скопируй и отправь клиенту):", full(r.link));
     }
   };
-  const ins = await api("/api/admin/insights");
+  const ins = await api("api/admin/insights");
   $("#ins").innerHTML = ins.length ? ins.map(i => `<div class="ins" data-id="${i.id}">
     <div class="row"><b class="grow">${esc(i.title)}</b><span class="chip">${esc(i.client_name || "?")} · ${esc(i.agent || "")}</span>
       <span class="chip">${i.shared ? "в плейбуке" : "у клиента"}</span></div>
@@ -114,21 +114,21 @@ async function load() {
   $("#ins").onclick = async (e) => {
     const a = e.target.dataset.a; if (!a) return;
     const box = e.target.closest(".ins"), id = box.dataset.id;
-    if (a === "del") { if (confirm("Удалить запись?")) await api(`/api/admin/insights/${id}/delete`, {}); }
-    else await api(`/api/admin/insights/${id}`, {shared: a === "share" ? 1 : 0, body: box.querySelector("[data-body]").value});
+    if (a === "del") { if (confirm("Удалить запись?")) await api(`api/admin/insights/${id}/delete`, {}); }
+    else await api(`api/admin/insights/${id}`, {shared: a === "share" ? 1 : 0, body: box.querySelector("[data-body]").value});
     load();
   };
 }
-$("#alogin").onclick = async () => { await api("/api/admin/login", {key: $("#akey").value}); load(); };
+$("#alogin").onclick = async () => { await api("api/admin/login", {key: $("#akey").value}); load(); };
 $("#akey").onkeydown = (e) => { if (e.key === "Enter") $("#alogin").click(); };
 $("#ncreate").onclick = async () => {
-  const r = await api("/api/admin/clients", {slug: $("#nslug").value, name: $("#nname").value, budget: Number($("#nbudget").value) || 20,
+  const r = await api("api/admin/clients", {slug: $("#nslug").value, name: $("#nname").value, budget: Number($("#nbudget").value) || 20,
     lang: $("#nlang").value, profile: $("#nprofile").value});
-  $("#nres").innerHTML = `<p>Готово. Персональная ссылка — показывается <b>один раз</b>, отправь её клиенту вместе с <a href="/guide" target="_blank">инструкцией</a>:</p>
+  $("#nres").innerHTML = `<p>Готово. Персональная ссылка — показывается <b>один раз</b>, отправь её клиенту вместе с <a href="guide" target="_blank">инструкцией</a>:</p>
     <div class="link">${esc(full(r.link))}</div><p class="small muted">Код: ${esc(r.slug)} · ключ: ${esc(r.key)}</p>`;
   load();
 };
-$("#out").onclick = async () => { await fetch("/api/logout", {method: "POST", body: "{}"}); location.reload(); };
+$("#out").onclick = async () => { await fetch("api/logout", {method: "POST", body: "{}"}); location.reload(); };
 load().catch(() => {});
 </script>
 </body></html>
