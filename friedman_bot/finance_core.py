@@ -544,6 +544,12 @@ def apply_overrides(conn, path=None):
     with open(p, "r", encoding="utf-8") as f:
         ov = json.load(f)
 
+    for dup in ov.get("duplicate_invoices", []):
+        # дубль — не счёт вовсе: удаляем вместе с привязками (ON DELETE CASCADE)
+        cur = conn.execute("DELETE FROM fin_invoice WHERE number=? AND inv_date=?",
+                           (dup.get("number"), to_iso(dup.get("date"))))
+        out["duplicates_removed"] = out.get("duplicates_removed", 0) + cur.rowcount
+
     for c in ov.get("cancelled_invoices", []):
         cur = conn.execute(
             "UPDATE fin_invoice SET cancelled=1, note=? WHERE number=? AND inv_date=?",
@@ -634,6 +640,20 @@ def subcontractor_payments(conn, year=None):
                        "party": r["party"]} for r in rows]}
 
 
+def duplicate_numbers(path=None):
+    """Номера счетов, признанных дублями (finance_overrides.json → duplicate_invoices)."""
+    return {d.get("number") for d in duplicate_invoices(path)}
+
+
+def duplicate_invoices(path=None):
+    p = path or OVERRIDES_PATH
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            return json.load(f).get("duplicate_invoices", []) or []
+    except Exception:
+        return []
+
+
 def import_bot_archive(conn, path=None):
     """Счета, выставленные БОТОМ (Юрист, /invoice), — из архива Секретаря.
 
@@ -646,6 +666,7 @@ def import_bot_archive(conn, path=None):
     if not os.path.exists(p):
         return {"skipped": True, "reason": "нет friedman.db"}
     have = {r[0] for r in conn.execute("SELECT number FROM fin_invoice").fetchall()}
+    have |= duplicate_numbers()  # дубли-ошибки распознавания не возвращаем в базу
     src = sqlite3.connect("file:%s?mode=ro" % p, uri=True, timeout=10)
     src.row_factory = sqlite3.Row
     try:

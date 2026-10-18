@@ -1425,6 +1425,34 @@ def contracts_context(limit: int = 20) -> str:
     return "\n".join(lines)
 
 
+def apply_invoice_duplicates():
+    """Дубли из finance_overrides.json (duplicate_invoices) убрать и из архива счетов
+    Секретаря, по которому Юрист считает оборот. Запись переносится на настоящий
+    номер (адрес и позиции не теряются); если настоящий уже есть — дубль удаляется."""
+    try:
+        import finance_core
+        dups = finance_core.duplicate_invoices()
+    except Exception:
+        return 0
+    n = 0
+    with db() as conn:
+        for d in dups:
+            num, real, iso = d.get("number"), d.get("same_as"), d.get("date")
+            if not num or not real:
+                continue
+            row = conn.execute("SELECT id FROM invoice_archive WHERE number=? AND inv_date=?", (num, iso)).fetchone()
+            if not row:
+                continue
+            if conn.execute("SELECT 1 FROM invoice_archive WHERE number=? AND inv_date=?", (real, iso)).fetchone():
+                conn.execute("DELETE FROM invoice_archive WHERE id=?", (row["id"],))
+            else:
+                conn.execute("UPDATE invoice_archive SET number=? WHERE id=?", (real, row["id"]))
+            n += 1
+    if n:
+        log.info(f"дубли счетов убраны из архива: {n}")
+    return n
+
+
 def year_archive_rows(year: int):
     try:
         with db() as conn:
@@ -8776,6 +8804,12 @@ def _all_invoices() -> list:
             return out[k]
         same = [v for (kn, _), v in out.items() if kn == key(num)]
         return same[0] if len(same) == 1 else None
+    dups = {}
+    try:
+        import finance_core
+        dups = {d.get("number"): d.get("same_as") for d in finance_core.duplicate_invoices()}
+    except Exception:
+        pass
     for r in _q("SELECT * FROM invoice_archive"):
         try:
             raw = _j.loads(r["raw_json"] or "{}")
@@ -8785,7 +8819,10 @@ def _all_invoices() -> list:
             items = _j.loads(r["items"]) if r["items"] else raw.get("items")
         except Exception:
             items = raw.get("items")
-        inv = find(r["number"], r["inv_date"])
+        # дубль под чужим номером: его адрес и позиции отдаём настоящему счёту
+        inv = find(dups[r["number"]], r["inv_date"]) if r["number"] in dups else find(r["number"], r["inv_date"])
+        if inv is None and r["number"] in dups:
+            continue
         if inv is None:
             inv = out.setdefault((key(r["number"]), r["inv_date"]), {
                 "number": r["number"], "date": r["inv_date"], "client": r["client_name"] or "",
@@ -8795,6 +8832,8 @@ def _all_invoices() -> list:
                    salutation=raw.get("salutation") or "", items=items or inv.get("items"),
                    net=r["net"], vat=r["vat"], customer_no=raw.get("customer_no") or inv.get("customer_no", ""))
     for r in _q("SELECT * FROM invoices"):
+        if r["number"] in dups:
+            continue
         inv = find(r["number"], r["date"])
         if inv is None:
             inv = out.setdefault((key(r["number"]), r["date"]), {
@@ -8811,8 +8850,12 @@ def _invoice_pdf_for(inv) -> tuple:
     if orig:
         return orig, False
     os.makedirs(RESTORED_PDF_DIR, exist_ok=True)
+    import hashlib
+    # в имени — отпечаток данных: поправили адрес или позиции в базе — копия перерисуется
+    sig = hashlib.md5(repr((inv.get("recipient"), inv.get("items"), inv.get("salutation"), inv.get("client"),
+                            inv.get("desc"), inv.get("amount"), inv.get("klein"))).encode()).hexdigest()[:8]
     safe = re.sub(r"[^\w.\-]", "_", f"{inv['date']}_{inv['number']}")
-    cached = os.path.join(RESTORED_PDF_DIR, safe + ".pdf")
+    cached = os.path.join(RESTORED_PDF_DIR, f"{safe}_{sig}.pdf")
     if os.path.exists(cached):
         return cached, True
     import shutil
@@ -9464,6 +9507,11 @@ def main():
     jq.run_daily(sunday_bridge, time=bridge_t, days=(0,))
     ux_t = time(9, 30, tzinfo=BERLIN) if BERLIN else time(9, 30)
     jq.run_daily(ux_weekly, time=ux_t, days=(1,))   # понедельник: советы по интерфейсу
+
+    try:
+        apply_invoice_duplicates()  # решения владельца о дублях счетов (finance_overrides.json)
+    except Exception as e:
+        log.error(f"invoice duplicates: {e}")
 
     # Юрист — отдельный бот (jurist_bot.py); поднимаем его, если задан токен
     try:
