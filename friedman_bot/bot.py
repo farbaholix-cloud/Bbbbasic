@@ -1518,7 +1518,7 @@ def register_own_invoice(number, recipient, customer_no, desc, total, pdf_path, 
         rate = float(vat_rate) if vat_rate else 0.0
     except (TypeError, ValueError):
         rate = 0.0
-    gross = float(total or 0)
+    gross = round(float(total or 0), 2)  # 2 100,84 × 1,19 = 2 499,9996 → в учёт 2 500,00
     if net is not None and vat is not None:   # явные суммы (напр. Rechnungsberichtigung)
         net, vat, rate = round(float(net), 2), round(float(vat), 2), (rate or 19.0)
     else:
@@ -3553,28 +3553,71 @@ def looks_like_contract_request(text: str) -> bool:
     )
 
 
+def _invoice_memory(limit_inv: int = 8, limit_msg: int = 12) -> str:
+    """Что бот уже знает к моменту просьбы о счёте: последние выставленные счета
+    (с полным адресом) и свежая переписка. Без этого «крайнему клиенту», «вторую
+    половину», «заключительный счёт» модели не к чему привязать."""
+    parts = []
+    try:
+        with db() as conn:
+            inv = conn.execute("SELECT number, date, recipient, customer_no, description, total "
+                               "FROM invoices ORDER BY id DESC LIMIT ?", (limit_inv,)).fetchall()
+            msgs = conn.execute("SELECT role, text FROM messages ORDER BY id DESC LIMIT ?",
+                                (limit_msg,)).fetchall()
+    except Exception:
+        inv, msgs = [], []
+    if inv:
+        parts.append("ПОСЛЕДНИЕ ВЫСТАВЛЕННЫЕ СЧЕТА (первый — самый свежий, «крайний»):")
+        for r in inv:
+            parts.append(f"  • Rechnung {r['number']} от {r['date']} · {r['total']:.2f} € брутто · "
+                         f"{(r['description'] or '')[:160]}\n    получатель: {(r['recipient'] or '').replace(chr(10), ' / ')}"
+                         + (f" · Kundennr. {r['customer_no']}" if r['customer_no'] else ""))
+    if msgs:
+        parts.append("СВЕЖАЯ ПЕРЕПИСКА (сверху — раньше):")
+        for r in reversed(msgs):
+            who = "Человек" if r["role"] == "user" else "Секретарь"
+            parts.append(f"  {who}: {(r['text'] or '')[:300]}")
+    return "\n".join(parts)
+
+
 async def create_invoice_from_text(update: Update, text: str):
     await update.message.reply_text("🧾 Готовлю счёт...")
 
     known = clients_for_context()
     known_block = ("\n\n" + known + "\nЕсли получатель назван коротко и он есть в этом списке — "
                    "верни его ПОЛНЫЙ recipient (с адресом) и salutation оттуда дословно.") if known else ""
+    memory = _invoice_memory()
 
     def extract():
         prompt = (
-            "Из сообщения извлеки данные для немецкого счёта (Rechnung). Сообщение: «" + text + "».\n"
-            "Описание работы сформулируй НА НЕМЕЦКОМ профессионально, с умляутами ä ö ü ß "
-            "(напр. «Künstlerische Gestaltung der Fassade»).\n"
-            "Ответь строго JSON без иного текста: {\"recipient\": \"получатель: название и адрес, "
-            "каждая часть с новой строки \\n\", \"items\": [{\"desc\": \"работа по-немецки\", "
-            "\"price\": 1200}], \"salutation\": \"Frau Müller или Herr Schmidt если известно, иначе пусто\", "
-            "\"customer_no\": \"\", \"intro\": \"вводная фраза счёта по-немецки, если из сообщения ясен "
-            "повод/проект (напр. Hiermit berechne ich Ihnen wie vorab besprochen für ... folgende "
-            "Vorauszahlung:), иначе пусто\"}. Если сумма не названа — верни {\"need\": \"чего не хватает\"}."
+            "Из сообщения извлеки данные для немецкого счёта (Rechnung). Сообщение: «" + text + "».\n\n"
+            + (memory + "\n\n" if memory else "") +
+            "ССЫЛКИ НА ПРОШЛОЕ — разрешай сам по списку счетов и переписке, НЕ переспрашивай:\n"
+            "• «крайний/последний/тот же клиент», «ему же», «этому клиенту» → получатель самого свежего счёта, "
+            "адрес и Kundennummer дословно оттуда;\n"
+            "• «вторая половина», «остаток», «заключительный/финальный счёт», «я завершил» после предоплаты → "
+            "сумма = бюджет минус уже выставленное этому клиенту по этому проекту (бюджет и предоплата видны в "
+            "описании прошлого счёта, напр. «Vorauszahlung 50 % von 5.000 €» → остаток 2 500 € брутто); "
+            "описание — тот же проект; title «Schlussrechnung»; intro по-немецки со ссылкой на номер счёта "
+            "предоплаты (напр. «Hiermit berechne ich Ihnen nach Abschluss der Arbeiten den Restbetrag … "
+            "abzüglich der Anzahlung gemäß Rechnung Nr. 051026:»);\n"
+            "• предоплата/аванс → title «Anzahlungsrechnung».\n"
+            "Описание работы сформулируй НА НЕМЕЦКОМ профессионально, с умляутами ä ö ü ß.\n"
+            "НДС: с 2026 года каждый счёт с НДС, vat_rate 19 (7 — только продажа самого произведения на "
+            "холсте/бумаге или прав на него). Если сумма названа «включая НДС», «брутто», «с НДС» или это "
+            "остаток от брутто-бюджета — price_is_gross true (бот сам пересчитает в нетто); если «плюс НДС», "
+            "«нетто» — false.\n"
+            "Ответь строго JSON без иного текста: {\"recipient\": \"название и адрес, каждая часть с новой "
+            "строки \\n\", \"items\": [{\"desc\": \"работа по-немецки\", \"price\": 2500}], "
+            "\"price_is_gross\": true, \"vat_rate\": 19, \"title\": \"Rechnung | Anzahlungsrechnung | "
+            "Schlussrechnung\", \"salutation\": \"Frau Müller / Herr Schmidt или пусто\", "
+            "\"customer_no\": \"\", \"intro\": \"вводная фраза по-немецки или пусто\"}.\n"
+            "Только если получателя или сумму действительно не вывести ни из сообщения, ни из списка счетов, "
+            "ни из переписки — верни {\"need\": \"один конкретный вопрос\"}."
             + known_block
         )
         try:
-            result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "haiku", "--tools", ""], timeout=120)
+            result = _claude_exec([CLAUDE_BIN, "-p", prompt, "--model", "sonnet", "--tools", ""], timeout=180)
             raw = result.stdout.strip()
             s, e = raw.find("{"), raw.rfind("}")
             if s >= 0 and e > s:
@@ -3598,11 +3641,34 @@ async def create_invoice_from_text(update: Update, text: str):
 
     if not data or data.get("need") or not recipient or not data.get("items"):
         miss = (data or {}).get("need", "получателя (название, адрес) и сумму")
+        # запоминаем и просьбу, и вопрос: следующий ответ человека дополнит именно этот счёт
+        remember("user", "счёт: " + text)
+        remember("assistant", f"для счёта не хватает: {miss}")
         await update.message.reply_text(
             f"Чтобы выставить счёт, не хватает: {miss}.\nНапиши, например: "
             "_«счёт Galerie Hertz, Bahnhofstraße 12, 60311 Frankfurt, роспись фасада 1200€»_",
             parse_mode="Markdown")
         return
+
+    # НДС как в основном пути (action invoice): пусто/0 → 19 %. Раньше этот путь НДС
+    # вообще не передавал, и счёт уходил с оговоркой §19 — с 2026 года это ошибка.
+    try:
+        vat_rate = float(data.get("vat_rate") or 0)
+    except (TypeError, ValueError):
+        vat_rate = 0.0
+    if vat_rate <= 0:
+        vat_rate = STANDARD_VAT
+    items = []
+    for it in data["items"]:
+        try:
+            price = float(it.get("price") or 0)
+        except (TypeError, ValueError):
+            price = 0.0
+        if data.get("price_is_gross"):
+            price = round(price / (1 + vat_rate / 100), 2)  # 2 500 € брутто → 2 100,84 € нетто
+        items.append({**it, "price": price})
+    data["items"] = items
+    title = data.get("title") if data.get("title") in ("Rechnung", "Anzahlungsrechnung", "Schlussrechnung") else "Rechnung"
 
     from invoice import generate_invoice
     try:
@@ -3612,6 +3678,8 @@ async def create_invoice_from_text(update: Update, text: str):
             customer_no=customer_no,
             number=next_invoice_number(),
             intro=data.get("intro") or None,
+            vat_rate=vat_rate,
+            title=title,
         )
     except Exception as ex:
         log.error(f"invoice gen: {ex}")
@@ -3621,15 +3689,15 @@ async def create_invoice_from_text(update: Update, text: str):
         return
 
     desc = "; ".join(it.get("desc", "") for it in data["items"])
-    register_own_invoice(number, recipient, customer_no, desc, total, path,
-                         data.get("vat_rate"))
+    register_own_invoice(number, recipient, customer_no, desc, total, path, vat_rate)
     upsert_client(recipient, salutation, customer_no)  # запомнить клиента целиком
 
     remember("user", "счёт: " + text)
-    remember("assistant", f"выставлен счёт Rechnung {number} на {total:.2f}€")
+    remember("assistant", f"выставлен счёт {title} {number} на {total:.2f}€ (с НДС {vat_rate:g} %) для "
+                          f"{recipient.split(chr(10))[0]}: {desc[:200]}")
 
     await update.message.reply_text(
-        f"🧾 Готово! *Rechnung {number}* на *{total:.2f}€*\nПолучатель: {recipient.split(chr(10))[0]}",
+        f"🧾 Готово! *{title} {number}* на *{total:.2f}€* (с НДС {vat_rate:g} %)\nПолучатель: {recipient.split(chr(10))[0]}",
         parse_mode="Markdown")
     try:
         with open(path, "rb") as doc:
