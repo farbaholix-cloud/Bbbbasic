@@ -24,6 +24,9 @@ INVOICES_PDF_DIR = os.path.join(os.path.dirname(__file__), "invoices_pdf")
 # документов). Раньше файл качался во /tmp, разбирался и пропадал: в базе
 # оставались только распознанные поля, а в воскресный сейф — ничего.
 DOCS_DIR = os.path.join(os.path.dirname(__file__), "documents")
+# PDF счетов, восстановленные по данным базы (оригинала нет): рисуются тем же
+# шаблоном invoice.py, помечены «Kopie», один раз — дальше берутся отсюда.
+RESTORED_PDF_DIR = os.path.join(os.path.dirname(__file__), "invoices_pdf_restored")
 
 # Таймзона Франкфурта — чтобы сводка приходила по местному времени, а не по UTC сервера
 try:
@@ -8698,7 +8701,6 @@ def _q(sql, args=()):
 def _write_encyclopedia(root: str):
     """Человекочитаемые тексты: энциклопедия проекта, все инвойсы, все договоры,
     финансы. Всё из баз — то, что система знает на момент сейфа."""
-    import json as _j
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
     E = [f"# Энциклопедия проекта FARBAHOLIX\n\nСрез системы Фридмана на {now}.\n"]
     def sec(title, rows, cols):
@@ -8713,43 +8715,9 @@ def _write_encyclopedia(root: str):
             sec(title, _q(f'SELECT * FROM "{t}" ORDER BY 1'), cols)
     open(os.path.join(root, "ЭНЦИКЛОПЕДИЯ_ПРОЕКТА.md"), "w", encoding="utf-8").write("\n".join(E))
 
-    # инвойсы — сводная таблица и карточка на каждый
-    inv_dir = os.path.join(root, "invoices")
-    os.makedirs(inv_dir, exist_ok=True)
-    arch = _q("SELECT * FROM invoice_archive ORDER BY inv_date, number")
-    own = _q("SELECT * FROM invoices ORDER BY date, number")
-    fin = []
-    try:
-        import finance_core
-        with finance_core.fdb_ro() as fconn:
-            fin = fconn.execute(
-                "SELECT i.number, i.inv_date, i.client, i.description, i.amount, i.kleinunternehmer, i.cancelled, "
-                "CASE WHEN EXISTS(SELECT 1 FROM fin_match m WHERE m.invoice_id=i.id) THEN 'оплачен' ELSE 'открыт' END AS status "
-                "FROM fin_invoice i ORDER BY i.inv_date, i.number").fetchall()
-    except Exception as e:
-        log.error(f"safe: fin_invoice: {e}")
-    L = [f"# Все инвойсы ({len(fin)} у Финансиста, {len(arch)} в архиве распознанных, {len(own)} выставлено ботом)\n",
-         "PDF лежат в папке invoices_pdf/ — там, где файл сохранился. Ниже — данные каждого счёта из базы.\n",
-         "## Все счета (база Финансиста, со статусом оплаты)\n",
-         _md_table(fin, ["number", "inv_date", "client", "description", "amount", "status", "cancelled"]) if fin else "_пусто_",
-         "## Архив счетов\n",
-         _md_table(arch, ["number", "inv_date", "client_name", "net", "vat", "gross", "kleinunternehmer"]) if arch else "_пусто_",
-         "\n## Выставленные ботом\n",
-         _md_table(own, ["number", "date", "recipient", "description", "total", "source"]) if own else "_пусто_"]
-    open(os.path.join(inv_dir, "ИНВОЙСЫ.md"), "w", encoding="utf-8").write("\n".join(L))
-    for r in arch:
-        name = re.sub(r"[^\w.\-]", "_", f"{r['inv_date'] or ''}_{r['number'] or r['id']}")
-        body = [f"# Счёт {r['number']} от {r['inv_date']}", "",
-                f"- Клиент: {r['client_name']}", f"- Нетто: {r['net']} €  ·  НДС: {r['vat']} €  ·  Брутто: {r['gross']} €",
-                f"- Kleinunternehmer §19: {'да' if r['kleinunternehmer'] else 'нет'}",
-                f"- PDF: {'invoices_pdf/' + os.path.basename(invoice_pdf_path(r['number'])) if invoice_pdf_path(r['number']) else 'оригинал не сохранён'}",
-                "", "## Позиции", "", str(r["items"] or "—"), "", "## Всё, что распознано (raw)", "", "```json"]
-        try:
-            body.append(_j.dumps(_j.loads(r["raw_json"] or "{}"), ensure_ascii=False, indent=2))
-        except Exception:
-            body.append(str(r["raw_json"] or ""))
-        body.append("```")
-        open(os.path.join(inv_dir, name + ".md"), "w", encoding="utf-8").write("\n".join(body))
+    # инвойсы — PDF и список собирает _invoices_for_safe; здесь только счётчики
+    n_arch = len(_q("SELECT id FROM invoice_archive"))
+    n_own = len(_q("SELECT id FROM invoices"))
 
     # договоры
     con_dir = os.path.join(root, "contracts")
@@ -8759,12 +8727,7 @@ def _write_encyclopedia(root: str):
     for r in cons:
         L += [f"\n## {r['client_name'] or '—'} — {r['subject'] or ''}",
               f"- Сумма: {r['amount'] or '—'} €  ·  срок: {r['start_date'] or '?'} … {r['end_date'] or '?'}",
-              f"- Добавлен: {r['created_at']}", "", "**Условия:**", "", str(r["terms"] or "—"), "", "```json"]
-        try:
-            L.append(_j.dumps(_j.loads(r["raw_json"] or "{}"), ensure_ascii=False, indent=2))
-        except Exception:
-            L.append(str(r["raw_json"] or ""))
-        L.append("```")
+              f"- Добавлен: {r['created_at']}", "", "**Условия:**", "", str(r["terms"] or "—")]
     open(os.path.join(con_dir, "ДОГОВОРЫ.md"), "w", encoding="utf-8").write("\n".join(L))
 
     # финансы — читаемый срез базы Финансиста
@@ -8777,7 +8740,130 @@ def _write_encyclopedia(root: str):
         open(os.path.join(root, "finance", "ФИНАНСЫ.md"), "w", encoding="utf-8").write(md)
     except Exception as e:
         log.error(f"safe: finance md: {e}")
-    return len(arch), len(own), len(cons)
+    return n_arch, n_own, len(cons)
+
+
+def _clean_inv_desc(t: str) -> str:
+    """Описание из распознанного PDF иногда тянет хвост шаблона: «… Rechnungsbetrag _
+    Das Rechnungsdatum …». Отрезаем всё с этих слов."""
+    t = re.split(r"\s*(?:Rechnungsbetrag|Das Rechnungsdatum|Rechnungsdatum entspricht)", t or "")[0]
+    return re.sub(r"[\s_]+$", "", t).strip()
+
+
+def _all_invoices() -> list:
+    """Все известные системе счета одним списком: база Финансиста (полный учёт со
+    статусом оплаты) + распознанные (адрес, обращение, позиции) + выставленные ботом."""
+    import json as _j
+    def key(num):
+        return re.sub(r"\W", "", str(num or "")).lower()
+    out = {}
+    try:
+        import finance_core
+        with finance_core.fdb_ro() as fconn:
+            for r in fconn.execute(
+                    "SELECT i.*, EXISTS(SELECT 1 FROM fin_match m WHERE m.invoice_id=i.id) AS paid "
+                    "FROM fin_invoice i").fetchall():
+                out[(key(r["number"]), r["inv_date"])] = {
+                    "number": r["number"], "date": r["inv_date"], "client": r["client"] or "",
+                    "desc": _clean_inv_desc(r["description"]), "amount": r["amount"] or 0,
+                    "klein": bool(r["kleinunternehmer"]), "cancelled": bool(r["cancelled"]),
+                    "paid": bool(r["paid"]), "customer_no": r["client_no"] or ""}
+    except Exception as e:
+        log.error(f"safe: fin_invoice: {e}")
+    def find(num, date):
+        k = (key(num), date)
+        if k in out:
+            return out[k]
+        same = [v for (kn, _), v in out.items() if kn == key(num)]
+        return same[0] if len(same) == 1 else None
+    for r in _q("SELECT * FROM invoice_archive"):
+        try:
+            raw = _j.loads(r["raw_json"] or "{}")
+        except Exception:
+            raw = {}
+        try:
+            items = _j.loads(r["items"]) if r["items"] else raw.get("items")
+        except Exception:
+            items = raw.get("items")
+        inv = find(r["number"], r["inv_date"])
+        if inv is None:
+            inv = out.setdefault((key(r["number"]), r["inv_date"]), {
+                "number": r["number"], "date": r["inv_date"], "client": r["client_name"] or "",
+                "desc": "", "amount": r["gross"] or 0, "klein": bool(r["kleinunternehmer"]),
+                "cancelled": False, "paid": None, "customer_no": ""})
+        inv.update(recipient=raw.get("client_recipient") or inv.get("recipient"),
+                   salutation=raw.get("salutation") or "", items=items or inv.get("items"),
+                   net=r["net"], vat=r["vat"], customer_no=raw.get("customer_no") or inv.get("customer_no", ""))
+    for r in _q("SELECT * FROM invoices"):
+        inv = find(r["number"], r["date"])
+        if inv is None:
+            inv = out.setdefault((key(r["number"]), r["date"]), {
+                "number": r["number"], "date": r["date"], "client": (r["recipient"] or "").split("\n")[0],
+                "desc": _clean_inv_desc(r["description"]), "amount": r["total"] or 0, "klein": True,
+                "cancelled": False, "paid": None, "customer_no": r["customer_no"] or ""})
+        inv.setdefault("recipient", r["recipient"])
+    return sorted(out.values(), key=lambda v: (v["date"] or "", str(v["number"])))
+
+
+def _invoice_pdf_for(inv) -> tuple:
+    """(путь к PDF, это_копия?). Оригинал из invoices_pdf/, иначе восстановленная копия."""
+    orig = invoice_pdf_path(inv["number"])
+    if orig:
+        return orig, False
+    os.makedirs(RESTORED_PDF_DIR, exist_ok=True)
+    safe = re.sub(r"[^\w.\-]", "_", f"{inv['date']}_{inv['number']}")
+    cached = os.path.join(RESTORED_PDF_DIR, safe + ".pdf")
+    if os.path.exists(cached):
+        return cached, True
+    import shutil
+    from invoice import generate_invoice
+    try:
+        when = datetime.strptime(inv["date"], "%Y-%m-%d")
+    except Exception:
+        when = datetime.now()
+    items = inv.get("items")
+    if not items:
+        items = [{"desc": inv["desc"] or "Künstlerische Leistungen", "price": inv["amount"], "qty": 1}]
+    items = [{"desc": str(x.get("desc") or "Leistung"), "price": float(x.get("price") or 0),
+              "qty": int(x.get("qty") or 1)} for x in items if isinstance(x, dict)]
+    sal = re.sub(r"^sehr\s+geehrte[rs]?\s+", "", (inv.get("salutation") or "").strip(), flags=re.I).rstrip(",").strip()
+    vat_rate = None
+    if not inv.get("klein") and inv.get("vat") and inv.get("net"):
+        vat_rate = round(inv["vat"] / inv["net"] * 100)
+    elif not inv.get("klein"):
+        vat_rate = 19
+    path, _, _ = generate_invoice(
+        recipient=inv.get("recipient") or inv["client"] or "—", items=items, salutation=sal or None,
+        customer_no=inv.get("customer_no") or "", number=str(inv["number"]), when=when, vat_rate=vat_rate,
+        title="Rechnung (Kopie)", no_tax_note=False)
+    shutil.copyfile(path, cached)
+    return cached, True
+
+
+def _invoices_for_safe(workdir: str) -> list:
+    """PDF всех счетов + понятный список для Excel. Возвращает [(файл, путь в архиве)]."""
+    import csv
+    files, rows = [], []
+    for inv in _all_invoices():
+        client = re.sub(r"[^\w\-]+", "_", inv["client"] or "")[:40].strip("_")
+        sub = "Счета_PDF/storniert/" if inv["cancelled"] else "Счета_PDF/"
+        try:
+            pdf, copy = _invoice_pdf_for(inv)
+            arc = f"{sub}{inv['date']}_{inv['number']}_{client}{'_Kopie' if copy else ''}.pdf"
+            files.append((pdf, arc))
+            note = "копия по данным базы" if copy else "оригинал"
+        except Exception as e:
+            log.error(f"safe: pdf {inv['number']}: {e}")
+            note = "PDF не собрался"
+        status = "сторно" if inv["cancelled"] else ("оплачен" if inv["paid"] else "открыт" if inv["paid"] is not None else "—")
+        rows.append([inv["number"], inv["date"], inv["client"], inv["desc"], f"{inv['amount']:.2f}".replace(".", ","), status, note])
+    p = os.path.join(workdir, "Список_счетов.csv")
+    with open(p, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f, delimiter=";")
+        w.writerow(["Номер", "Дата", "Клиент", "Описание", "Сумма €", "Статус", "PDF"])
+        w.writerows(rows)
+    files.append((p, "Счета_PDF/Список_счетов.csv"))
+    return files
 
 
 def _weekly_backup_zip(db_copy: str) -> list:
@@ -8817,7 +8903,7 @@ def _weekly_backup_zip(db_copy: str) -> list:
         for root, _, fs in os.walk(work):
             for f in fs:
                 p = os.path.join(root, f)
-                if p != os.path.join(work, "backstage.db"):
+                if p != os.path.join(work, "backstage.db") and "_inv" not in os.path.relpath(p, work).split(os.sep):
                     files.append((p, os.path.relpath(p, work)))
         # базы знаний агентов и входящие выписки
         for name in sorted(os.listdir(d)):
@@ -8826,10 +8912,10 @@ def _weekly_backup_zip(db_copy: str) -> list:
                 for root, _, fs in os.walk(p):
                     for f in fs:
                         files.append((os.path.join(root, f), "knowledge/" + os.path.relpath(os.path.join(root, f), d)))
-        pdfs, docs = [], []
-        if os.path.isdir(INVOICES_PDF_DIR):
-            pdfs = [(os.path.join(INVOICES_PDF_DIR, f), "invoices_pdf/" + f)
-                    for f in sorted(os.listdir(INVOICES_PDF_DIR)) if f.lower().endswith(".pdf")]
+        docs = []
+        inv_dir = os.path.join(work, "_inv")
+        os.makedirs(inv_dir, exist_ok=True)
+        pdfs = _invoices_for_safe(inv_dir)
         if os.path.isdir(DOCS_DIR):
             for root, _, fs in os.walk(DOCS_DIR):
                 for f in sorted(fs):
@@ -8838,8 +8924,8 @@ def _weekly_backup_zip(db_copy: str) -> list:
         open(readme, "w", encoding="utf-8").write(
             f"# Сейф FARBAHOLIX · {day}\n\n"
             "- `ЭНЦИКЛОПЕДИЯ_ПРОЕКТА.md` — цели, проекты, контакты, клиенты, долги, платежи, дела в ведомствах, календарь\n"
-            f"- `invoices/ИНВОЙСЫ.md` — все инвойсы со статусом оплаты; карточка на каждый распознанный счёт ({n_arch}), выставлено ботом {n_own}\n"
-            f"- `invoices_pdf/` — PDF счетов, которые сохранились ({len(pdfs)})\n"
+            f"- `Счета_PDF/` — все счета в PDF ({len(pdfs) - 1}) и `Список_счетов.csv` со статусом оплаты. "
+            "Где оригинал не сохранился, счёт восстановлен по данным базы тем же шаблоном и помечен «Kopie»; сторно — в папке storniert\n"
             f"- `contracts/ДОГОВОРЫ.md` — все договоры ({n_con}) с условиями\n"
             f"- `documents/` — оригиналы присланных боту файлов ({len(docs)}); копятся с 18.10.2026\n"
             "- `finance/ФИНАНСЫ.md` — доходы, счета, оплаты, сверка (Финансист)\n"
@@ -8898,7 +8984,8 @@ async def cmd_safe(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     owner = get_chat_id()
     if owner and chat_id != owner:
         return
-    await update.message.reply_text("🗄 Собираю сейф: базы, инвойсы, договоры, документы, энциклопедию…")
+    await update.message.reply_text("🗄 Собираю сейф: базы, счета в PDF, договоры, документы, энциклопедию… "
+                                    "Первый раз дольше: PDF старых счетов рисуются заново (пару минут).")
     try:
         dest = await asyncio.to_thread(_backup_db_sync)
         parts = await asyncio.to_thread(_weekly_backup_zip, dest)

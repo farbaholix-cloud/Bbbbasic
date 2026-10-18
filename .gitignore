@@ -28,3 +28,4 @@ friedman_bot/backstage/.pydeps/
 # Оригиналы документов и PDF счетов — личные данные, только на сервере
 friedman_bot/documents/
 friedman_bot/invoices_pdf/
+friedman_bot/invoices_pdf_restored/
