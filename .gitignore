@@ -24,3 +24,7 @@ friedman_bot/backstage/*.db-*
 friedman_bot/backstage/.env
 friedman_bot/backstage/tls/
 friedman_bot/backstage/.pydeps/
+
+# Оригиналы документов и PDF счетов — личные данные, только на сервере
+friedman_bot/documents/
+friedman_bot/invoices_pdf/

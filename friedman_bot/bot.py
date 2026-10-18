@@ -20,6 +20,10 @@ DB = os.path.join(os.path.dirname(__file__), "friedman.db")
 # Постоянное хранилище PDF счетов: /tmp живёт до перезагрузки, а рассылка
 # по запросу и бэкапы работают только с этим каталогом (файл = <номер>.pdf)
 INVOICES_PDF_DIR = os.path.join(os.path.dirname(__file__), "invoices_pdf")
+# Оригиналы всего, что владелец присылает боту (PDF счетов и договоров, фото
+# документов). Раньше файл качался во /tmp, разбирался и пропадал: в базе
+# оставались только распознанные поля, а в воскресный сейф — ничего.
+DOCS_DIR = os.path.join(os.path.dirname(__file__), "documents")
 
 # Таймзона Франкфурта — чтобы сводка приходила по местному времени, а не по UTC сервера
 try:
@@ -1426,6 +1430,23 @@ def year_archive_rows(year: int):
                 "FROM invoice_archive WHERE year = ? ORDER BY inv_date, number", (year,)).fetchall()
     except Exception:
         return []
+
+
+def _keep_original(src_path: str, name: str, sub: str = "") -> str:
+    """Сохранить оригинал присланного файла: documents/<ГГГГ-ММ>/[sub/]<дата>_<имя>."""
+    try:
+        if not src_path or not os.path.exists(src_path):
+            return ""
+        import shutil
+        folder = os.path.join(DOCS_DIR, datetime.now().strftime("%Y-%m"), sub)
+        os.makedirs(folder, exist_ok=True)
+        safe = re.sub(r"[^\w.\-]", "_", name or "file")[:80]
+        dest = os.path.join(folder, f"{datetime.now().strftime('%Y-%m-%d_%H%M%S')}_{safe}")
+        shutil.copyfile(src_path, dest)
+        return dest
+    except Exception as e:
+        log.error(f"keep original: {e}")
+        return ""
 
 
 # ── Единый контур счетов: регистрация, PDF-хранилище, выдача по запросу ───────
@@ -3950,6 +3971,7 @@ async def handle_doc_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     tmp = os.path.join(tempfile.gettempdir(), f"doc_{doc.file_id[:16]}{ext}")
     tg_file = await ctx.bot.get_file(doc.file_id)
     await tg_file.download_to_drive(tmp)
+    _keep_original(tmp, doc.file_name or os.path.basename(tmp))
 
     try:
         r = await asyncio.to_thread(analyze_doc_sync, tmp)
@@ -4377,6 +4399,7 @@ async def handle_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     tg_file = await ctx.bot.get_file(photo.file_id)
     tmp = os.path.join(tempfile.gettempdir(), f"img_{photo.file_id[:16]}.jpg")
     await tg_file.download_to_drive(tmp)
+    _keep_original(tmp, os.path.basename(tmp), sub="photos")
 
     wait = await update.message.reply_text("🔍 Смотрю на фото...")
 
@@ -8627,32 +8650,262 @@ def _backup_db_sync() -> str:
     return dest
 
 
-def _weekly_backup_zip(db_copy: str) -> str:
-    """Полный «сейф» недели: zip со свежей копией БД и ВСЕМИ PDF счетов из
-    хранилища (в т.ч. весь текущий год). Ротация — 4 последних архива."""
+TG_FILE_LIMIT = 48 * 1024 * 1024  # бот может отправить файл до 50 МБ — держим запас
+
+
+def _md_table(rows, cols):
+    def cell(v):
+        return str("" if v is None else v).replace("|", "\\|").replace("\n", " ")[:400]
+    out = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
+    out += ["| " + " | ".join(cell(r[c]) for c in cols) + " |" for r in rows]
+    return "\n".join(out)
+
+
+def _dump_sqlite(path: str, outdir: str) -> list:
+    """Каждая таблица базы — в CSV (открывается в Excel/Numbers). Возвращает
+    [(таблица, строк)]."""
+    import csv
+    res = []
+    if not os.path.exists(path):
+        return res
+    os.makedirs(outdir, exist_ok=True)
+    con = sqlite3.connect("file:%s?mode=ro" % path, uri=True, timeout=30)
+    con.row_factory = sqlite3.Row
+    try:
+        for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type='table' "
+                                "AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall():
+            rows = con.execute(f'SELECT * FROM "{t}"').fetchall()
+            cols = [d[1] for d in con.execute(f'PRAGMA table_info("{t}")').fetchall()]
+            with open(os.path.join(outdir, f"{t}.csv"), "w", newline="", encoding="utf-8-sig") as f:
+                w = csv.writer(f, delimiter=";")
+                w.writerow(cols)
+                for r in rows:
+                    w.writerow([r[c] for c in cols])
+            res.append((t, len(rows)))
+    finally:
+        con.close()
+    return res
+
+
+def _q(sql, args=()):
+    try:
+        with db() as conn:
+            return conn.execute(sql, args).fetchall()
+    except Exception:
+        return []
+
+
+def _write_encyclopedia(root: str):
+    """Человекочитаемые тексты: энциклопедия проекта, все инвойсы, все договоры,
+    финансы. Всё из баз — то, что система знает на момент сейфа."""
+    import json as _j
+    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    E = [f"# Энциклопедия проекта FARBAHOLIX\n\nСрез системы Фридмана на {now}.\n"]
+    def sec(title, rows, cols):
+        E.append(f"\n## {title} ({len(rows)})\n")
+        E.append(_md_table(rows, cols) if rows else "_пусто_")
+    for t, title in (("goals", "Цели"), ("projects", "Проекты"), ("steps", "Шаги проектов"), ("contacts", "Контакты"),
+                     ("clients", "Клиенты (реквизиты)"), ("bureau_cases", "Дела в ведомствах"),
+                     ("debts", "Долги"), ("payments", "Регулярные платежи"), ("events", "Календарь"),
+                     ("reminders", "Напоминания"), ("chaos", "Парковка (хаос)"), ("bridge", "Капитанский мостик")):
+        cols = [r[1] for r in _q(f'PRAGMA table_info("{t}")')]
+        if cols:
+            sec(title, _q(f'SELECT * FROM "{t}" ORDER BY 1'), cols)
+    open(os.path.join(root, "ЭНЦИКЛОПЕДИЯ_ПРОЕКТА.md"), "w", encoding="utf-8").write("\n".join(E))
+
+    # инвойсы — сводная таблица и карточка на каждый
+    inv_dir = os.path.join(root, "invoices")
+    os.makedirs(inv_dir, exist_ok=True)
+    arch = _q("SELECT * FROM invoice_archive ORDER BY inv_date, number")
+    own = _q("SELECT * FROM invoices ORDER BY date, number")
+    fin = []
+    try:
+        import finance_core
+        with finance_core.fdb_ro() as fconn:
+            fin = fconn.execute(
+                "SELECT i.number, i.inv_date, i.client, i.description, i.amount, i.kleinunternehmer, i.cancelled, "
+                "CASE WHEN EXISTS(SELECT 1 FROM fin_match m WHERE m.invoice_id=i.id) THEN 'оплачен' ELSE 'открыт' END AS status "
+                "FROM fin_invoice i ORDER BY i.inv_date, i.number").fetchall()
+    except Exception as e:
+        log.error(f"safe: fin_invoice: {e}")
+    L = [f"# Все инвойсы ({len(fin)} у Финансиста, {len(arch)} в архиве распознанных, {len(own)} выставлено ботом)\n",
+         "PDF лежат в папке invoices_pdf/ — там, где файл сохранился. Ниже — данные каждого счёта из базы.\n",
+         "## Все счета (база Финансиста, со статусом оплаты)\n",
+         _md_table(fin, ["number", "inv_date", "client", "description", "amount", "status", "cancelled"]) if fin else "_пусто_",
+         "## Архив счетов\n",
+         _md_table(arch, ["number", "inv_date", "client_name", "net", "vat", "gross", "kleinunternehmer"]) if arch else "_пусто_",
+         "\n## Выставленные ботом\n",
+         _md_table(own, ["number", "date", "recipient", "description", "total", "source"]) if own else "_пусто_"]
+    open(os.path.join(inv_dir, "ИНВОЙСЫ.md"), "w", encoding="utf-8").write("\n".join(L))
+    for r in arch:
+        name = re.sub(r"[^\w.\-]", "_", f"{r['inv_date'] or ''}_{r['number'] or r['id']}")
+        body = [f"# Счёт {r['number']} от {r['inv_date']}", "",
+                f"- Клиент: {r['client_name']}", f"- Нетто: {r['net']} €  ·  НДС: {r['vat']} €  ·  Брутто: {r['gross']} €",
+                f"- Kleinunternehmer §19: {'да' if r['kleinunternehmer'] else 'нет'}",
+                f"- PDF: {'invoices_pdf/' + os.path.basename(invoice_pdf_path(r['number'])) if invoice_pdf_path(r['number']) else 'оригинал не сохранён'}",
+                "", "## Позиции", "", str(r["items"] or "—"), "", "## Всё, что распознано (raw)", "", "```json"]
+        try:
+            body.append(_j.dumps(_j.loads(r["raw_json"] or "{}"), ensure_ascii=False, indent=2))
+        except Exception:
+            body.append(str(r["raw_json"] or ""))
+        body.append("```")
+        open(os.path.join(inv_dir, name + ".md"), "w", encoding="utf-8").write("\n".join(body))
+
+    # договоры
+    con_dir = os.path.join(root, "contracts")
+    os.makedirs(con_dir, exist_ok=True)
+    cons = _q("SELECT * FROM contract_archive ORDER BY id")
+    L = [f"# Все договоры ({len(cons)})\n"]
+    for r in cons:
+        L += [f"\n## {r['client_name'] or '—'} — {r['subject'] or ''}",
+              f"- Сумма: {r['amount'] or '—'} €  ·  срок: {r['start_date'] or '?'} … {r['end_date'] or '?'}",
+              f"- Добавлен: {r['created_at']}", "", "**Условия:**", "", str(r["terms"] or "—"), "", "```json"]
+        try:
+            L.append(_j.dumps(_j.loads(r["raw_json"] or "{}"), ensure_ascii=False, indent=2))
+        except Exception:
+            L.append(str(r["raw_json"] or ""))
+        L.append("```")
+    open(os.path.join(con_dir, "ДОГОВОРЫ.md"), "w", encoding="utf-8").write("\n".join(L))
+
+    # финансы — читаемый срез базы Финансиста
+    try:
+        import finance_backup
+        import finance_core
+        os.makedirs(os.path.join(root, "finance"), exist_ok=True)
+        with finance_core.fdb_ro() as fconn:
+            md = finance_backup.render_markdown(fconn)
+        open(os.path.join(root, "finance", "ФИНАНСЫ.md"), "w", encoding="utf-8").write(md)
+    except Exception as e:
+        log.error(f"safe: finance md: {e}")
+    return len(arch), len(own), len(cons)
+
+
+def _weekly_backup_zip(db_copy: str) -> list:
+    """Полный «сейф»: базы, все PDF счетов, оригиналы присланных документов,
+    энциклопедия проекта, все инвойсы и договоры текстом, финансы, CSV всех
+    таблиц, базы знаний агентов, Backstage. Если не влезает в лимит Telegram
+    (50 МБ) — делится на тома. Возвращает список zip-файлов. Ротация — 4 недели."""
     import zipfile
+    import shutil
+    import tempfile as _tf
     d = os.path.dirname(os.path.abspath(__file__))
     bdir = os.path.join(d, "backups")
     os.makedirs(bdir, exist_ok=True)
-    dest = os.path.join(bdir, f"farbaholix_{datetime.now().strftime('%Y-%m-%d')}.zip")
-    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
-        z.write(db_copy, os.path.basename(db_copy))
-        # денежная база — в тот же сейф: копия этого дня, если ночью сделалась
+    day = datetime.now().strftime('%Y-%m-%d')
+    work = _tf.mkdtemp(prefix="safe_", dir=bdir)
+    try:
+        files = []  # (путь на диске, путь в архиве)
+        files.append((db_copy, "bases/" + os.path.basename(db_copy)))
         fin_copy = os.path.join(bdir, "finance_" + os.path.basename(db_copy).split("_", 1)[1])
         if os.path.exists(fin_copy):
-            z.write(fin_copy, os.path.basename(fin_copy))
+            files.append((fin_copy, "bases/" + os.path.basename(fin_copy)))
+        bs_db = os.path.join(d, "backstage", "backstage.db")
+        if os.path.exists(bs_db):
+            bs_copy = os.path.join(work, "backstage.db")
+            src, dst = sqlite3.connect(bs_db, timeout=30), sqlite3.connect(bs_copy)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+                src.close()
+            files.append((bs_copy, "bases/backstage.db"))
+        # тексты и таблицы
+        n_arch, n_own, n_con = _write_encyclopedia(work)
+        tables = _dump_sqlite(db_copy, os.path.join(work, "tables", "friedman"))
+        if os.path.exists(fin_copy):
+            tables += _dump_sqlite(fin_copy, os.path.join(work, "tables", "finance"))
+        for root, _, fs in os.walk(work):
+            for f in fs:
+                p = os.path.join(root, f)
+                if p != os.path.join(work, "backstage.db"):
+                    files.append((p, os.path.relpath(p, work)))
+        # базы знаний агентов и входящие выписки
+        for name in sorted(os.listdir(d)):
+            p = os.path.join(d, name)
+            if os.path.isdir(p) and (name.endswith("_kb") or name == "finance_inbox"):
+                for root, _, fs in os.walk(p):
+                    for f in fs:
+                        files.append((os.path.join(root, f), "knowledge/" + os.path.relpath(os.path.join(root, f), d)))
+        pdfs, docs = [], []
         if os.path.isdir(INVOICES_PDF_DIR):
-            for f in sorted(os.listdir(INVOICES_PDF_DIR)):
-                if f.endswith(".pdf"):
-                    z.write(os.path.join(INVOICES_PDF_DIR, f), "invoices_pdf/" + f)
-    zips = sorted(f for f in os.listdir(bdir)
-                  if f.startswith("farbaholix_") and f.endswith(".zip"))
-    for old in zips[:-4]:
-        try:
-            os.unlink(os.path.join(bdir, old))
-        except Exception:
-            pass
-    return dest
+            pdfs = [(os.path.join(INVOICES_PDF_DIR, f), "invoices_pdf/" + f)
+                    for f in sorted(os.listdir(INVOICES_PDF_DIR)) if f.lower().endswith(".pdf")]
+        if os.path.isdir(DOCS_DIR):
+            for root, _, fs in os.walk(DOCS_DIR):
+                for f in sorted(fs):
+                    docs.append((os.path.join(root, f), "documents/" + os.path.relpath(os.path.join(root, f), DOCS_DIR)))
+        readme = os.path.join(work, "README.md")
+        open(readme, "w", encoding="utf-8").write(
+            f"# Сейф FARBAHOLIX · {day}\n\n"
+            "- `ЭНЦИКЛОПЕДИЯ_ПРОЕКТА.md` — цели, проекты, контакты, клиенты, долги, платежи, дела в ведомствах, календарь\n"
+            f"- `invoices/ИНВОЙСЫ.md` — все инвойсы со статусом оплаты; карточка на каждый распознанный счёт ({n_arch}), выставлено ботом {n_own}\n"
+            f"- `invoices_pdf/` — PDF счетов, которые сохранились ({len(pdfs)})\n"
+            f"- `contracts/ДОГОВОРЫ.md` — все договоры ({n_con}) с условиями\n"
+            f"- `documents/` — оригиналы присланных боту файлов ({len(docs)}); копятся с 18.10.2026\n"
+            "- `finance/ФИНАНСЫ.md` — доходы, счета, оплаты, сверка (Финансист)\n"
+            f"- `tables/` — каждая таблица баз в CSV для Excel ({len(tables)} таблиц)\n"
+            "- `knowledge/` — базы знаний агентов (право, продажи, стратегия, финансы…) и выписки\n"
+            "- `bases/` — сами базы SQLite (friedman, finance, backstage) для полного восстановления\n")
+        files.append((readme, "README.md"))
+
+        # тома ≤ 48 МБ: основной (всё, кроме PDF и документов) + доклейка файлов
+        parts, cur, cur_size, n = [], None, 0, 0
+        def open_part():
+            nonlocal cur, cur_size, n
+            n += 1
+            path = os.path.join(bdir, f"farbaholix_{day}" + ("" if n == 1 else f"_part{n}") + ".zip")
+            cur, cur_size = zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED), 0
+            parts.append(path)
+        open_part()
+        for src, arc in files + pdfs + docs:
+            try:
+                size = os.path.getsize(src)
+            except OSError:
+                continue
+            if cur_size and cur_size + size > TG_FILE_LIMIT:
+                cur.close()
+                open_part()
+            cur.write(src, arc)
+            cur_size += size
+        cur.close()
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    olds = sorted(f for f in os.listdir(bdir) if f.startswith("farbaholix_") and f.endswith(".zip")
+                  and not f.startswith(f"farbaholix_{day}"))
+    keep_days = sorted({f[len("farbaholix_"):len("farbaholix_") + 10] for f in olds})[-3:]
+    for old in olds:
+        if old[len("farbaholix_"):len("farbaholix_") + 10] not in keep_days:
+            try:
+                os.unlink(os.path.join(bdir, old))
+            except Exception:
+                pass
+    return parts
+
+
+async def _send_safe(bot, chat_id, parts):
+    for i, pack in enumerate(parts, 1):
+        cap = ("🗄 Сейф FARBAHOLIX: все инвойсы, договоры, энциклопедия проекта, финансы, "
+               "документы и базы. Внутри README с оглавлением. Просто пусть лежит в чате.")
+        if len(parts) > 1:
+            cap = f"🗄 Сейф, том {i} из {len(parts)}" + (" — " + cap[2:] if i == 1 else "")
+        with open(pack, "rb") as f:
+            await bot.send_document(chat_id, f, filename=os.path.basename(pack), caption=cap)
+
+
+async def cmd_safe(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Сейф по запросу: собрать и прислать полный архив прямо сейчас."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    await update.message.reply_text("🗄 Собираю сейф: базы, инвойсы, договоры, документы, энциклопедию…")
+    try:
+        dest = await asyncio.to_thread(_backup_db_sync)
+        parts = await asyncio.to_thread(_weekly_backup_zip, dest)
+        await _send_safe(ctx.bot, chat_id, parts)
+    except Exception as e:
+        log.error(f"safe: {e}")
+        await update.message.reply_text(f"⚠️ Сейф не собрался: {_scrub_tokens(str(e))[:500]}")
 
 
 async def nightly_backup(ctx: ContextTypes.DEFAULT_TYPE):
@@ -8673,19 +8926,14 @@ async def nightly_backup(ctx: ContextTypes.DEFAULT_TYPE):
     wd = now_l.weekday()
     if wd == 6 and half == "am":  # воскресенье, ночной прогон — полный «сейф»
         try:
-            pack = await asyncio.to_thread(_weekly_backup_zip, dest)
+            parts = await asyncio.to_thread(_weekly_backup_zip, dest)
         except Exception as e:
             log.error(f"backup zip: {e}")
-            pack = dest  # деградация: хотя бы голая БД
+            parts = [dest]  # деградация: хотя бы голая БД
         cid = get_chat_id()
         if cid:
             try:
-                with open(pack, "rb") as f:
-                    await ctx.bot.send_document(
-                        cid, f, filename=os.path.basename(pack),
-                        caption="🗄 Еженедельный бэкап: база + PDF всех счетов. Ничего "
-                                "делать не нужно — просто пусть лежит в чате: это твой "
-                                "сейф на случай сбоя сервера.")
+                await _send_safe(ctx.bot, cid, parts)
             except Exception as e:
                 log.error(f"backup send: {e}")
 
@@ -9082,6 +9330,7 @@ def main():
     app.add_handler(CommandHandler("brief", cmd_brief))
     app.add_handler(CommandHandler("svod", cmd_svod))
     app.add_handler(CommandHandler("ip", cmd_ip))
+    app.add_handler(CommandHandler("safe", cmd_safe))
     app.add_handler(CommandHandler("backstage", cmd_backstage))
     app.add_handler(CommandHandler("backstagekey", cmd_backstagekey))
     app.add_handler(CommandHandler("backstageclient", cmd_backstageclient))
