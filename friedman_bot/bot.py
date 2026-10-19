@@ -509,6 +509,8 @@ if os.path.exists(_token_file):
 SECRETARY_PROMPT = """Ты — личный секретарь-ассистент. Тёплый, дружелюбный, краткий. Общаешься на «ты», по-русски.
 Твой хозяин — стрит-арт художник (бренд FARBAHOLIX) в Германии. Он строит жизнь по системе планирования Фридмана (материализация хаоса, проекты, цели, капитанский мостик).
 
+ДАННЫЕ. У тебя НЕТ терминала, базы данных и инструментов. Никогда не пиши команды, SQL, код, блоки ``` и не обещай «сейчас выполню запрос / после запроса отформатирую» — такой ответ человеку бесполезен. Всё, что ты знаешь, уже лежит в контексте ниже (счета, деньги, проекты, календарь, люди). Отвечай сразу готовым результатом в том формате, который просили. Если нужного в контексте нет — скажи одной фразой, чего именно не видишь.
+
 Твои навыки:
 1. ЗАДАЧИ: задача/идея/тревога в сообщении → action save. Сделал что-то → поздравь, action done с id из контекста. Для save ОБЯЗАТЕЛЬНО оцени по матрице Фридмана два числа 0-10: importance (важность — влияет ли на цели/деньги/здоровье/репутацию) и urgency (срочность — горит ли по времени). Оцени сам по смыслу; если задача явно значимая, но непонятно насколько горит (или наоборот) — задай ОДИН короткий уточняющий вопрос в reply («Насколько это срочно — на этой неделе или просто в планах?») и всё равно проставь свою оценку. priority выведется из них автоматически.
 1а. ЦЕЛИ/ПРОЕКТЫ: если человек говорит слово «цель» («добавь цель...», «новая цель...», «цель — ...») или называет большое дело (не разовую задачу: «хочу выпустить книгу», «сделать сайт») → ОБЯЗАТЕЛЬНО action project (НЕ save!): придумай 4-8 конкретных шагов (декомпозиция по Фридману) и перечисли их в reply. Если человек сообщает о прогрессе по существующему проекту («продвинулся по книге», «сделал эскиз для выставки») → action progress с project_id из контекста и count (сколько шагов закрыть, обычно 1). Не создавай проект повторно если он уже есть в контексте.
@@ -578,6 +580,42 @@ def _shorten_msg(t: str, fresh: bool) -> str:
     tail = cap - head
     cut = len(t) - head - tail
     return f"{t[:head]}\n…[вырезано {cut} знаков середины]…\n{t[-tail:]}"
+
+
+def _invoices_context(n_last: int = 10) -> list:
+    """Счета для разговора: последние выставленные и неоплаченные. Раньше в
+    контексте Секретаря счетов не было вовсе — на «покажи пять крайних инвойсов»
+    он сочинял SQL-запрос вместо ответа."""
+    out = []
+    try:
+        with db() as conn:
+            last = conn.execute(
+                "SELECT number, date, recipient, total, description FROM invoices "
+                "ORDER BY date DESC, id DESC LIMIT ?", (n_last,)).fetchall()
+    except Exception:
+        last = []
+    if last:
+        out.append("\nСЧЕТА — последние выставленные (первый — самый свежий, «крайний»):")
+        for r in last:
+            client = (r["recipient"] or "").split("\n")[0]
+            out.append(f"  Rechnung {r['number']} · {r['date']} · {client} · {r['total']:.2f}€ · "
+                       f"{(r['description'] or '')[:90]}")
+    try:
+        import finance_core
+        with finance_core.fdb_ro() as fconn:
+            opn = fconn.execute(
+                "SELECT number, inv_date, client, amount FROM fin_invoice i WHERE cancelled=0 AND NOT EXISTS"
+                "(SELECT 1 FROM fin_match m WHERE m.invoice_id=i.id) ORDER BY inv_date DESC LIMIT 12").fetchall()
+            allc = fconn.execute("SELECT COUNT(*), MIN(inv_date), MAX(inv_date) FROM fin_invoice WHERE cancelled=0").fetchone()
+        if allc and allc[0]:
+            out.append(f"Всего счетов в учёте Финансиста: {allc[0]} ({allc[1]} … {allc[2]}).")
+        if opn:
+            out.append("НЕОПЛАЧЕННЫЕ СЧЕТА (по выписке оплаты не видно):")
+            for r in opn:
+                out.append(f"  {r['number']} · {r['inv_date']} · {r['client']} · {r['amount']:.2f}€")
+    except Exception:
+        pass
+    return out
 
 
 def get_context() -> str:
@@ -651,6 +689,8 @@ def get_context() -> str:
         lines.append("ПОСЛЕДНИЕ ОПЕРАЦИИ:")
         for f in fin_last:
             lines.append(f"  {f['amount']:+.0f}€ — {f['comment']} ({f['created_at'][:10]})")
+
+    lines.extend(_invoices_context())
 
     if contacts:
         lines.append("\nЗАМЕТКИ О ЛЮДЯХ:")
@@ -3477,6 +3517,13 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await create_goal_project(update, goal_match.group(1).strip())
         return
 
+    # «Покажи пять крайних инвойсов» — ответ прямо из базы, без модели
+    n_list = invoice_list_request(text)
+    if n_list:
+        remember("user", text)
+        await send_invoice_list(update, n_list)
+        return
+
     # Явный счёт: «выстави счёт …», «сделай инвойс …», «Rechnung …»
     if looks_like_invoice_request(text):
         await create_invoice_from_text(update, text)
@@ -3531,6 +3578,75 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     # Всё остальное — живой разговор через Claude
     await ai_converse(update, text)
+
+
+_NUM_WORDS = {"один": 1, "одного": 1, "два": 2, "двух": 2, "три": 3, "трёх": 3, "трех": 3, "четыре": 4,
+              "четырёх": 4, "пять": 5, "пяти": 5, "шесть": 6, "шести": 6, "семь": 7, "семи": 7, "восемь": 8,
+              "восьми": 8, "девять": 9, "девяти": 9, "десять": 10, "десяти": 10}
+
+
+def invoice_list_request(text: str) -> int:
+    """«Покажи пять крайних инвойсов», «последние 3 счёта», «список счетов» → сколько показать (0 — не то).
+    Просьбы ВЫСТАВИТЬ счёт сюда не попадают."""
+    t = (text or "").lower()
+    if not re.search(r"(сч[её]т|инвойс|invoice|rechnung)", t):
+        return 0
+    if not re.search(r"(покаж|выведи|дай|список|перечисл|какие|последн|крайн|свеж)", t):
+        return 0
+    if re.search(r"(выстав|сдела|выпиш|оформ|подготов|сгенер|создай|сформир)", t):
+        return 0
+    if re.search(r"(последн|крайн|свеж)\w*\s+(сч[её]т|инвойс|invoice|rechnung)\b", t):
+        return 1  # «какой был крайний счёт?» — один, подробно
+    m = re.search(r"\b(\d{1,2})\b", t)
+    if m:
+        return max(1, min(int(m.group(1)), 30))
+    for w, n in _NUM_WORDS.items():
+        if re.search(r"\b" + w + r"\b", t):
+            return n
+    return 5 if re.search(r"(последн|крайн|свеж|список)", t) else 0
+
+
+async def send_invoice_list(update: Update, n: int):
+    """Короткий список последних счетов: «Клиент — сумма», как просят в чате."""
+    rows, seen = [], set()
+    try:
+        with db() as conn:
+            for r in conn.execute("SELECT number, date, recipient, total FROM invoices "
+                                  "ORDER BY date DESC, id DESC LIMIT ?", (n * 3,)).fetchall():
+                rows.append(dict(r))
+    except Exception:
+        pass
+    try:  # счета, которые бот не выставлял (импорт, выписки) — из учёта Финансиста
+        import finance_core
+        with finance_core.fdb_ro() as fconn:
+            for r in fconn.execute("SELECT number, inv_date AS date, client AS recipient, amount AS total "
+                                   "FROM fin_invoice WHERE cancelled=0 ORDER BY inv_date DESC LIMIT ?",
+                                   (n * 3,)).fetchall():
+                rows.append(dict(r))
+    except Exception:
+        pass
+    uniq = []
+    for r in sorted(rows, key=lambda r: r["date"] or "", reverse=True):
+        k = re.sub(r"\W", "", str(r["number"] or "")).lower()
+        if k and k in seen:
+            continue
+        seen.add(k)
+        uniq.append(r)
+    rows = uniq[:n]
+    if not rows:
+        await update.message.reply_text("Выставленных счетов в базе пока нет.")
+        return
+    def eur(x):
+        return f"{x:,.2f}".replace(",", " ").replace(".", ",") + " €"
+    if n == 1:
+        r = rows[0]
+        lines = [f"Последний счёт — Rechnung {r['number']} от {r['date']}: "
+                 f"{(r['recipient'] or '—').split(chr(10))[0]} — {eur(r['total'])}"]
+    else:
+        lines = [f"{(r['recipient'] or '—').split(chr(10))[0]} — {eur(r['total'])}" for r in rows]
+    text = "\n".join(lines)
+    await update.message.reply_text(text)
+    remember("assistant", f"последние {len(rows)} счетов:\n" + text)
 
 
 def looks_like_invoice_request(text: str) -> bool:
