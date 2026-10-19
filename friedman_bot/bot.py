@@ -591,14 +591,15 @@ def _invoices_context(n_last: int = 10) -> list:
         with db() as conn:
             last = conn.execute(
                 "SELECT number, date, recipient, total, description FROM invoices "
-                "ORDER BY date DESC, id DESC LIMIT ?", (n_last,)).fetchall()
+                "ORDER BY id DESC LIMIT ?", (n_last * 3,)).fetchall()
+        last = sorted(last, key=lambda r: _iso_date(r["date"]), reverse=True)[:n_last]
     except Exception:
         last = []
     if last:
         out.append("\nСЧЕТА — последние выставленные (первый — самый свежий, «крайний»):")
         for r in last:
             client = (r["recipient"] or "").split("\n")[0]
-            out.append(f"  Rechnung {r['number']} · {r['date']} · {client} · {r['total']:.2f}€ · "
+            out.append(f"  Rechnung {r['number']} · {_iso_date(r['date']) or r['date']} · {client} · {r['total']:.2f}€ · "
                        f"{(r['description'] or '')[:90]}")
     try:
         import finance_core
@@ -3611,26 +3612,34 @@ async def send_invoice_list(update: Update, n: int):
     rows, seen = [], set()
     try:
         with db() as conn:
-            for r in conn.execute("SELECT number, date, recipient, total FROM invoices "
-                                  "ORDER BY date DESC, id DESC LIMIT ?", (n * 3,)).fetchall():
-                rows.append(dict(r))
+            for r in conn.execute("SELECT id, number, date, recipient, total FROM invoices "
+                                  "ORDER BY id DESC LIMIT ?", (n * 4,)).fetchall():
+                rows.append({**dict(r), "date": _iso_date(r["date"]), "src": 1})
     except Exception:
         pass
     try:  # счета, которые бот не выставлял (импорт, выписки) — из учёта Финансиста
         import finance_core
         with finance_core.fdb_ro() as fconn:
-            for r in fconn.execute("SELECT number, inv_date AS date, client AS recipient, amount AS total "
+            for r in fconn.execute("SELECT id, number, inv_date AS date, client AS recipient, amount AS total "
                                    "FROM fin_invoice WHERE cancelled=0 ORDER BY inv_date DESC LIMIT ?",
-                                   (n * 3,)).fetchall():
-                rows.append(dict(r))
+                                   (n * 4,)).fetchall():
+                rows.append({**dict(r), "date": _iso_date(r["date"]), "src": 0})
     except Exception:
         pass
-    uniq = []
-    for r in sorted(rows, key=lambda r: r["date"] or "", reverse=True):
+    uniq, same = [], {}
+    # свежее — выше; в один день — позже выставленный выше
+    for r in sorted(rows, key=lambda r: (r["date"] or "", r["src"], r["id"]), reverse=True):
         k = re.sub(r"\W", "", str(r["number"] or "")).lower()
         if k and k in seen:
             continue
         seen.add(k)
+        # одна и та же дата + клиент + сумма под разными номерами — показать одной строкой
+        twin = (r["date"], (r["recipient"] or "").split("\n")[0].strip().lower(), round(float(r["total"] or 0), 2))
+        if twin in same:
+            same[twin]["_n"] += 1
+            continue
+        r["_n"] = 1
+        same[twin] = r
         uniq.append(r)
     rows = uniq[:n]
     if not rows:
@@ -3640,10 +3649,12 @@ async def send_invoice_list(update: Update, n: int):
         return f"{x:,.2f}".replace(",", " ").replace(".", ",") + " €"
     if n == 1:
         r = rows[0]
-        lines = [f"Последний счёт — Rechnung {r['number']} от {r['date']}: "
+        lines = [f"Последний счёт — Rechnung {r['number']} от {'.'.join(reversed((r['date'] or '').split('-')))}: "
                  f"{(r['recipient'] or '—').split(chr(10))[0]} — {eur(r['total'])}"]
     else:
-        lines = [f"{(r['recipient'] or '—').split(chr(10))[0]} — {eur(r['total'])}" for r in rows]
+        lines = [f"{(r['recipient'] or '—').split(chr(10))[0]} — {eur(r['total'])}"
+                 + (f"  (×{r['_n']} с той же датой и суммой — похоже на дубли, проверь)" if r["_n"] > 1 else "")
+                 for r in rows]
     text = "\n".join(lines)
     await update.message.reply_text(text)
     remember("assistant", f"последние {len(rows)} счетов:\n" + text)
@@ -3669,6 +3680,17 @@ def looks_like_contract_request(text: str) -> bool:
     )
 
 
+def _iso_date(d) -> str:
+    """Дата счёта в ISO. Бот пишет в invoices «29.07.2026», Финансист — «2026-07-29»;
+    сравнивать их как строки нельзя: «29.07…» оказывается «новее» любого «2026-…»."""
+    t = str(d or "").strip()
+    m = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})", t)
+    if m:
+        return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", t)
+    return m.group(0) if m else ""
+
+
 def _invoice_memory(limit_inv: int = 8, limit_msg: int = 12) -> str:
     """Что бот уже знает к моменту просьбы о счёте: последние выставленные счета
     (с полным адресом) и свежая переписка. Без этого «крайнему клиенту», «вторую
@@ -3685,7 +3707,7 @@ def _invoice_memory(limit_inv: int = 8, limit_msg: int = 12) -> str:
     if inv:
         parts.append("ПОСЛЕДНИЕ ВЫСТАВЛЕННЫЕ СЧЕТА (первый — самый свежий, «крайний»):")
         for r in inv:
-            parts.append(f"  • Rechnung {r['number']} от {r['date']} · {r['total']:.2f} € брутто · "
+            parts.append(f"  • Rechnung {r['number']} от {_iso_date(r['date']) or r['date']} · {r['total']:.2f} € брутто · "
                          f"{(r['description'] or '')[:160]}\n    получатель: {(r['recipient'] or '').replace(chr(10), ' / ')}"
                          + (f" · Kundennr. {r['customer_no']}" if r['customer_no'] else ""))
     if msgs:
@@ -9018,10 +9040,11 @@ def _all_invoices() -> list:
     for r in _q("SELECT * FROM invoices"):
         if r["number"] in dups:
             continue
-        inv = find(r["number"], r["date"])
+        iso = _iso_date(r["date"])
+        inv = find(r["number"], iso)
         if inv is None:
-            inv = out.setdefault((key(r["number"]), r["date"]), {
-                "number": r["number"], "date": r["date"], "client": (r["recipient"] or "").split("\n")[0],
+            inv = out.setdefault((key(r["number"]), iso), {
+                "number": r["number"], "date": iso, "client": (r["recipient"] or "").split("\n")[0],
                 "desc": _clean_inv_desc(r["description"]), "amount": r["total"] or 0, "klein": True,
                 "cancelled": False, "paid": None, "customer_no": r["customer_no"] or ""})
         inv.setdefault("recipient", r["recipient"])
