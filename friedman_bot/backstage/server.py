@@ -37,6 +37,7 @@ import store  # noqa: E402  (после .env — путь к базе может
 import i18n  # noqa: E402
 import plans  # noqa: E402
 import proactive  # noqa: E402
+import docs  # noqa: E402
 from i18n import t as T  # noqa: E402
 import brain  # noqa: E402
 
@@ -53,7 +54,7 @@ MAX_BODY = 30 * 1024 * 1024  # вложения (PDF договора, фото 
 VERSION = "0.1"
 
 PAGES = {"/": "join.html", "/join": "join.html", "/login": "login.html", "/app": "app.html", "/guide": "guide.html", "/admin": "admin.html",
-         "/survey": "survey.html"}
+         "/survey": "survey.html", "/workspace": "workspace.html"}
 SIGNUP_DAILY = int(os.environ.get("BACKSTAGE_SIGNUP_DAILY", "30"))   # новых аккаунтов в сутки на всех
 SIGNUP_PER_IP = int(os.environ.get("BACKSTAGE_SIGNUP_PER_IP", "3"))   # с одного адреса в сутки
 MIME = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
@@ -67,7 +68,7 @@ _running = {}  # client_id → job_id: один ответ за раз на кл
 _jobs_lock = threading.Lock()
 
 
-def start_job(client_id, agent, text, attachments, deep, display=None):
+def start_job(client_id, agent, text, attachments, deep, display=None, on_done=None):
     with _jobs_lock:
         busy = _running.get(client_id)
         if busy and JOBS.get(busy, {}).get("status") == "running":
@@ -79,6 +80,8 @@ def start_job(client_id, agent, text, attachments, deep, display=None):
     def work():
         try:
             res = brain.chat(client_id, agent, text, attachments=attachments, deep=deep, display=display)
+            if on_done:
+                res = on_done(res) or res
             JOBS[jid].update(status="done", result=res)
         except brain.BudgetExceeded as e:
             JOBS[jid].update(status="error", error=str(e))
@@ -122,7 +125,7 @@ def note_fail(ip, slug=None):
 
 
 WEAK_PINS = {"1234", "12345", "123456", "1234567", "12345678", "4321", "0123", "1212", "2580", "6969", "1122"}
-RESERVED = {"admin", "api", "app", "join", "guide", "static", "canon", "demo", "root", "backstage", "test", "maya", "survey"}
+RESERVED = {"admin", "api", "app", "join", "guide", "static", "canon", "demo", "root", "backstage", "test", "maya", "survey", "workspace", "doc"}
 
 
 def weak_pin(pin):
@@ -289,6 +292,25 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._is_admin():
                     return self._err(401, "нужен вход владельца")
                 return self.admin_get(path, q)
+            m = re.fullmatch(r"/doc/(\d+)(\.docx)?", path)
+            if m:  # готовый документ: страница для чтения/печати или .docx
+                cid = self._client_id()
+                if not cid:
+                    return self._redirect("/login")
+                d = store.get_doc(cid, int(m.group(1)))
+                if not d:
+                    return self._err(404, "not found")
+                fname = re.sub(r"[^\w.-]+", "_", d["title"])[:60] or "document"
+                if m.group(2):
+                    return self._send(200, docs.to_docx(d["body"]),
+                                      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                      {"Content-Disposition": f'attachment; filename="{fname}.docx"'})
+                L = i18n.norm(store.get_client(cid)["lang"])
+                labels = {"en": ("← Workspace", "Download DOCX", "Print / save as PDF"),
+                          "de": ("← Arbeitsmappe", "DOCX herunterladen", "Drucken / als PDF speichern"),
+                          "ua": ("← Робоча тека", "Завантажити DOCX", "Друк / зберегти як PDF")}[L]
+                return self._send(200, docs.to_html(d["title"], d["body"], {"back": labels[0], "download": labels[1],
+                                  "print": labels[2], "docx": f"{d['id']}.docx"}), "text/html; charset=utf-8")
             if path.startswith("/api/"):
                 cid = self._client_id()
                 if not cid:
@@ -451,6 +473,56 @@ class Handler(BaseHTTPRequestHandler):
                 log.info("stripe: продление %s → %s", c["slug"], plans.activate(c["id"], c["plan"]))
         return self._json({"received": True})
 
+    def create_doc(self, cid, L, body):
+        """Документ по брифу: Ганна (заявки, письма, тексты) или Бен (предложения, сметы).
+        Материалы из сейфа идут вложениями; готовый текст сохраняется как документ (DOCX/PDF),
+        а в чат — короткая записка со ссылкой, без простыни."""
+        kind = body.get("kind") if body.get("kind") in i18n.DOC_KINDS["en"] else "application"
+        agent = "ben" if kind in ("offer", "estimate") else "hanna"
+        brief = str(body.get("brief", "")).strip()[:3000]
+        doc_lang = i18n.LANG_NAME[i18n.norm(body.get("doc_lang") or L)]
+        app = next((a for a in store.list_apps(cid) if a["id"] == int(body.get("app_id") or 0)), None)
+        if app:
+            brief = f"{app['title']} ({app['org']}) {app['url']} deadline {app['deadline']}\n{brief}"
+        atts = []
+        for fid in (body.get("file_ids") or [])[:4]:
+            f = store.get_file(cid, int(fid))
+            if not f:
+                continue
+            if f["text"]:
+                atts.append({"name": f["name"], "media_type": "text/plain", "text": f["text"][:15000]})
+            elif (f["mime"].startswith("image/") or f["mime"] == "application/pdf") and f["size"] < 5 * 1024 * 1024:
+                with open(f["path"], "rb") as fh:
+                    atts.append({"name": f["name"], "media_type": f["mime"], "data": base64.b64encode(fh.read()).decode()})
+        label = i18n.DOC_KINDS[L][kind]
+        task = (f"Prepare a ready-to-send document: {i18n.DOC_KINDS['en'][kind]}.\nBrief: {brief or '(none — use the profile)'}\n"
+                "Use the attached materials, the profile and the detailed questionnaire. Never invent facts, numbers or "
+                "references: where something is missing, write [TO FILL: what]. "
+                f"The document itself must be in {doc_lang}. Reply format: one or two sentences for the client "
+                "(in the client's language), then the complete document between a line <<<DOC and a line DOC>>>, "
+                "starting with a '# Title' line. Do not change the dashboard.")
+
+        def done(res):
+            m = re.search(r"<<<DOC\s*(.*?)\s*DOC>>>", res.get("text") or "", re.S)
+            if not m:
+                return res
+            body_md = m.group(1).strip()
+            tm = re.match(r"#\s+(.+)", body_md)
+            title = (tm.group(1).strip() if tm else label)[:200]
+            did = store.add_doc(cid, title, kind, body_md, app["id"] if app else 0)
+            if app and app["status"] == "idea":
+                store.save_app(cid, {"id": app["id"], "status": "preparing"})
+            note = (res["text"][:m.start()] + res["text"][m.end():]).strip()
+            text = (note + "\n\n" if note else "") + T(L, "doc_ready", title=title)
+            store.replace_last_answer(cid, agent, text, {"doc_id": did})
+            return {**res, "text": text, "doc_id": did}
+
+        jid = start_job(cid, agent, task, atts, bool(body.get("strong")),
+                        display=T(L, "doc_request", kind=label, brief=brief[:300]), on_done=done)
+        if not jid:
+            return self._err(409, T(L, "busy"))
+        return self._json({"job": jid, "agent": agent})
+
     def admin_login(self, body):
         ip = self._ip()
         if too_many_fails(ip):
@@ -504,6 +576,24 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({k: v for k, v in j.items() if k != "client_id"})
         if path == "/api/insights":
             return self._json(store.insights_for(cid, limit=200))
+        if path == "/api/files":
+            return self._json({"files": store.list_files(cid), "used": store.files_size(cid), "limit": VAULT_LIMIT})
+        m = re.fullmatch(r"/api/files/(\d+)/raw", path)
+        if m:
+            f = store.get_file(cid, int(m.group(1)))
+            if not f or not os.path.exists(f["path"]):
+                return self._err(404, "not found")
+            safe = re.sub(r"[^\w.-]+", "_", f["name"])  # вне f-строки: обратный слэш в выражении — ошибка до Python 3.12
+            with open(f["path"], "rb") as fh:
+                return self._send(200, fh.read(), f["mime"] or "application/octet-stream",
+                                  {"Content-Disposition": f'attachment; filename="{safe}"'})
+        if path == "/api/docs":
+            return self._json(store.list_docs(cid))
+        if path == "/api/apps":
+            return self._json(store.list_apps(cid))
+        if path == "/api/radar":
+            w = next((w for w in store.list_widgets(cid) if w["kind"] == "list" and w["config"].get("radar")), None)
+            return self._json([i for i in (w["data"].get("items") if w else []) or [] if not i.get("done")])
         if path == "/api/usage":
             return self._json(store.usage_summary(cid))
         return self._err(404, "not found")
@@ -533,6 +623,25 @@ class Handler(BaseHTTPRequestHandler):
             if not jid:
                 return self._err(409, T(L, "busy"))
             return self._json({"job": jid})
+        if path == "/api/files":
+            raw = base64.b64decode(str(body.get("data", "")))
+            if len(raw) > 20 * 1024 * 1024:
+                raise ValueError(T(L, "too_big_file"))
+            if store.files_size(cid) + len(raw) > VAULT_LIMIT:
+                raise ValueError(T(L, "vault_full", n=VAULT_LIMIT // 1024 // 1024))
+            name = str(body.get("name") or "file")[:160]
+            mime = str(body.get("media_type") or "")[:100]
+            kind = body.get("kind") if body.get("kind") in FILE_KINDS else "other"
+            fid = store.add_file(cid, name, kind, mime, raw, docs.extract_text(name, mime, raw))
+            return self._json({"id": fid})
+        m = re.fullmatch(r"/api/(files|docs|apps)/(\d+)/delete", path)
+        if m:
+            {"files": store.delete_file, "docs": store.delete_doc, "apps": store.delete_app}[m.group(1)](cid, int(m.group(2)))
+            return self._json({"ok": True})
+        if path == "/api/apps":
+            return self._json({"id": store.save_app(cid, body)})
+        if path == "/api/docs/create":
+            return self.create_doc(cid, L, body)
         if path == "/api/messages/clear":
             store.clear_history(cid, str(body.get("agent") or "maya"))
             return self._json({"ok": True})
@@ -648,6 +757,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 RESTARTS_PER_DAY = 3
+VAULT_LIMIT = int(os.environ.get("BACKSTAGE_VAULT_MB", "150")) * 1024 * 1024
+FILE_KINDS = ("cv", "portfolio", "statement", "bio", "press", "photo", "video", "other")
 
 
 def pick_crafts(body):

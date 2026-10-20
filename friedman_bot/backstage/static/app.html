@@ -115,6 +115,7 @@
   <span class="chip" id="budget" data-i-title="a.spend">$0</span>
   <div class="grow"></div>
   <button class="primary" id="btnPotential"><span class="hide-m" data-i="a.potential"></span><span class="show-m" data-i="a.potential.s"></span></button>
+  <a href="workspace" id="btnWs" class="hide-m" style="text-decoration:none"><button type="button">🗂 <span data-i="a.ws"></span></button></a>
   <button id="btnAdd" data-i-title="a.addw">+<span class="hide-m" data-i="a.widget"></span></button>
   <button id="btnSettings" data-i-title="a.settings">⚙</button>
   <a class="hide-m small guide-link" href="guide" target="_blank" data-i="a.guide"></a>
@@ -145,6 +146,7 @@
 <nav class="tabs">
   <button data-tab="chat" class="on" data-i="a.tab.team"></button>
   <button data-tab="dash" data-i="a.tab.dash"></button>
+  <button data-go="workspace" data-i="a.ws"></button>
 </nav>
 
 <dialog id="dlgEdit"><form method="dialog" id="fEdit"></form></dialog>
@@ -581,7 +583,8 @@ function setTab(tab) {
   document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
   if (tab === "dash") Object.values(CHARTS).forEach(c => c.resize());
 }
-document.querySelector("nav.tabs").onclick = (e) => { const tab = e.target.dataset.tab; if (tab) setTab(tab); };
+document.querySelector("nav.tabs").onclick = (e) => { if (e.target.dataset.go) return (location.href = e.target.dataset.go);
+  const tab = e.target.dataset.tab; if (tab) setTab(tab); };
 
 (async () => {
   await refreshMe(); renderAgents();

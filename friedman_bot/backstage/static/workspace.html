@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f3ec">
+<title>Backstage</title>
+<script src="static/i18n.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/style.css">
+<style>
+  header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
+    padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;gap:10px;align-items:center}
+  header h1{font-size:22px;font-style:italic}
+  header h1 span{color:var(--accent)}
+  header a.back{color:var(--muted);text-decoration:none;font-size:14px}
+  main{max-width:980px;margin:0 auto;padding:16px 16px 60px}
+  .tabs{display:flex;gap:6px;margin:4px 0 16px;overflow-x:auto}
+  .tabs button{border-radius:999px;padding:8px 16px;font-weight:500}
+  .tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .pane{display:none}.pane.on{display:block}
+  .intro{color:var(--muted);margin:0 0 14px;max-width:70ch}
+  .box{padding:16px;margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid4{display:grid;grid-template-columns:2fr 1.4fr 1.4fr 1fr;gap:10px}
+  @media (max-width:700px){.grid2,.grid4{grid-template-columns:1fr}}
+  .item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .item .grow{min-width:0}
+  .item b{font-weight:600}
+  .item .sub{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+  .item .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .item .acts button,.item .acts a{font-size:13px;padding:5px 10px;border-radius:9px}
+  .item .acts a{border:1px solid var(--line);color:var(--ink);text-decoration:none;background:var(--panel)}
+  select.st{width:auto;font-size:13px;padding:5px 8px;border-radius:999px;font-weight:600}
+  .st-idea{background:var(--soft)} .st-preparing{background:color-mix(in srgb,var(--hanna) 20%,var(--panel))}
+  .st-submitted{background:color-mix(in srgb,var(--konrad) 18%,var(--panel))} .st-won{background:color-mix(in srgb,var(--tarik) 25%,var(--panel))}
+  .st-rejected{background:color-mix(in srgb,var(--bad) 15%,var(--panel))}
+  .date{font-size:13px;color:var(--muted);white-space:nowrap}
+  .date.soon{color:var(--bad);font-weight:600}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chips .chip{cursor:pointer;border:1px solid var(--line);background:var(--panel)}
+  .checks label{display:flex;gap:8px;align-items:center;color:var(--ink);font-size:14px;margin:4px 0}
+  .checks input{width:auto}
+  .empty{color:var(--muted);font-size:14px;padding:6px 0}
+  .wait{color:var(--muted);font-size:14px;margin-top:10px}
+  .wait::after{content:"";display:inline-block;width:1.2em;animation:dots 1.4s steps(4) infinite}
+  @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+  .drop{border:1.5px dashed var(--line);border-radius:14px;padding:18px;text-align:center}
+  .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+  .kind{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+</style>
+</head><body>
+<header>
+  <a class="back" href="app" data-i="w.back"></a>
+  <div class="grow"></div>
+  <h1>Backstage<span>.</span></h1>
+</header>
+<main>
+  <h2 style="font-size:30px;margin:6px 0 10px" data-i="w.title"></h2>
+  <div class="tabs" id="tabs">
+    <button data-p="apps" class="on" data-i="w.tab.apps"></button>
+    <button data-p="docs" data-i="w.tab.docs"></button>
+    <button data-p="files" data-i="w.tab.files"></button>
+  </div>
+
+  <!-- Заявки -->
+  <section class="pane on" id="p-apps">
+    <p class="intro" data-i="w.apps.p"></p>
+    <div class="card box">
+      <h3 style="font-size:17px;margin-bottom:6px" data-i="w.app.new"></h3>
+      <div class="grid4">
+        <div><label data-i="w.app.title"></label><input id="aTitle"></div>
+        <div><label data-i="w.app.org"></label><input id="aOrg"></div>
+        <div><label data-i="w.app.url"></label><input id="aUrl" placeholder="https://"></div>
+        <div><label data-i="w.app.deadline"></label><input id="aDeadline" type="date"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><div class="chips grow" id="radarChips"></div><button class="primary" id="aAdd" data-i="w.add"></button></div>
+    </div>
+    <div class="card box" id="apps"></div>
+  </section>
+
+  <!-- Документы -->
+  <section class="pane" id="p-docs">
+    <p class="intro" data-i="w.docs.p"></p>
+    <div class="card box">
+      <h3 style="font-size:17px;margin-bottom:6px" data-i="w.doc.new"></h3>
+      <div class="grid2">
+        <div><label data-i="w.doc.kind"></label><select id="dKind"></select></div>
+        <div><label data-i="w.doc.lang"></label><select id="dLang"><option value="en">English</option><option value="de">Deutsch</option><option value="ua">Українська</option></select></div>
+      </div>
+      <label data-i="w.doc.app"></label><select id="dApp"></select>
+      <label data-i="w.doc.brief"></label><textarea id="dBrief" rows="4"></textarea>
+      <label data-i="w.doc.files"></label><div class="checks" id="dFiles"></div>
+      <label class="row" style="gap:8px;color:var(--ink)"><input type="checkbox" id="dStrong" style="width:auto"> <span data-i="w.doc.strong"></span></label>
+      <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="dGo" data-i="w.doc.go"></button></div>
+      <div class="wait hidden" id="dWait"></div>
+    </div>
+    <div class="card box" id="docs"></div>
+  </section>
+
+  <!-- Материалы -->
+  <section class="pane" id="p-files">
+    <p class="intro" data-i="w.files.p"></p>
+    <div class="card box">
+      <div class="drop" id="drop">
+        <div class="row" style="justify-content:center;gap:8px;flex-wrap:wrap">
+          <span class="small muted" data-i="w.file.as"></span><select id="fKind" style="width:auto"></select>
+          <button class="primary" id="fPick" data-i="w.file.upload"></button>
+        </div>
+        <input type="file" id="fInput" class="hidden" multiple accept=".pdf,.doc,.docx,.txt,.md,image/*,video/*">
+        <p class="small muted" id="fUsed" style="margin:10px 0 0"></p>
+      </div>
+    </div>
+    <div class="card box" id="files"></div>
+  </section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const t = BS.t;
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (r.status === 401) { location.href = "login"; throw new Error("auth"); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+};
+const toast = (m) => { const d = document.createElement("div"); d.className = "toast"; d.textContent = m; document.body.append(d); setTimeout(() => d.remove(), 3500); };
+const STATUSES = ["idea", "preparing", "submitted", "won", "rejected"];
+const KINDS = ["application", "letter", "statement", "bio", "offer", "estimate", "email"];
+const FKINDS = ["cv", "portfolio", "statement", "bio", "press", "photo", "video", "other"];
+let ME, APPS = [], FILES = [], DOCS = [];
+
+function tab(p) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
+  document.querySelectorAll(".pane").forEach(x => x.classList.toggle("on", x.id === "p-" + p));
+  history.replaceState(null, "", "workspace#" + p);
+}
+$("#tabs").onclick = (e) => { const p = e.target.dataset.p; if (p) tab(p); };
+
+// ─── заявки ───
+async function loadApps() {
+  APPS = await api("api/apps");
+  const soon = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  $("#apps").innerHTML = APPS.length ? APPS.map(a => `<div class="item" data-id="${a.id}">
+    <div class="grow"><b>${esc(a.title)}</b>
+      <div class="sub">${esc(a.org)}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https?:\/\//, "").slice(0, 50))}</a>` : ""}</div>
+      ${a.note ? `<div class="sub">${esc(a.note)}</div>` : ""}
+      <div class="acts">
+        <select class="st st-${a.status}" data-st>${STATUSES.map(s => `<option value="${s}" ${a.status === s ? "selected" : ""}>${esc(t("w.st." + s))}</option>`).join("")}</select>
+        ${a.doc_id ? `<a href="doc/${a.doc_id}" target="_blank">${esc(t("w.app.doc"))}</a>` : ""}
+        ${["idea", "preparing"].includes(a.status) ? `<button data-prep>${esc(t("w.app.prep"))}</button>` : ""}
+        ${["won", "rejected"].includes(a.status) ? `<button data-learn>${esc(t("w.app.learn"))}</button>` : ""}
+        <button class="ghost" data-del>${esc(t("w.del"))}</button>
+      </div></div>
+    ${a.deadline ? `<span class="date ${["idea", "preparing"].includes(a.status) && a.deadline <= soon ? "soon" : ""}">${esc(a.deadline)}</span>` : ""}</div>`).join("")
+    : `<p class="empty">${esc(t("w.empty.apps"))}</p>`;
+  // быстрый выбор из радара: то, что ещё не в учёте
+  const radar = await api("api/radar").catch(() => []);
+  const titles = new Set(APPS.map(a => a.title));
+  const parse = (txt) => { const m = txt.match(/^\[([^\]]+)\]\(([^)]+)\)(?: — (.*))?/); return m ? {title: m[1], url: m[2], org: m[3] || ""} : {title: txt, url: "", org: ""}; };
+  const pick = radar.map(i => ({...parse(i.text), deadline: i.date || ""})).filter(x => !titles.has(x.title)).slice(0, 6);
+  $("#radarChips").innerHTML = pick.length ? `<span class="small muted">${esc(t("w.fromradar"))}</span>` + pick.map((x, k) =>
+    `<button class="chip" data-r="${k}">${esc(x.title.slice(0, 48))}</button>`).join("") : "";
+  $("#radarChips").onclick = async (e) => { const k = e.target.dataset.r; if (k === undefined) return;
+    await api("api/apps", pick[k]); loadApps(); fillAppSelect(); };
+  fillAppSelect();
+}
+$("#apps").addEventListener("change", async (e) => {
+  if (!e.target.matches("[data-st]")) return;
+  const id = Number(e.target.closest(".item").dataset.id);
+  await api("api/apps", {id, status: e.target.value}); loadApps();
+});
+$("#apps").onclick = async (e) => {
+  const item = e.target.closest(".item"); if (!item) return;
+  const a = APPS.find(x => x.id == item.dataset.id);
+  if (e.target.matches("[data-del]") && confirm(t("w.del.q", {t: a.title}))) { await api(`api/apps/${a.id}/delete`, {}); loadApps(); }
+  if (e.target.matches("[data-prep]")) { tab("docs"); $("#dApp").value = a.id; $("#dKind").value = "application"; $("#dBrief").focus(); }
+  if (e.target.matches("[data-learn]")) {
+    const note = prompt(t("w.app.note") + ":", a.note || "") ?? "";
+    if (note) await api("api/apps", {id: a.id, note});
+    await api("api/chat", {agent: "maya", text: t("w.app.learn.msg", {t: a.title, s: t("w.st." + a.status), n: note}), deep: false});
+    location.href = "app";
+  }
+};
+$("#aAdd").onclick = async () => {
+  const title = $("#aTitle").value.trim(); if (!title) return $("#aTitle").focus();
+  await api("api/apps", {title, org: $("#aOrg").value.trim(), url: $("#aUrl").value.trim(), deadline: $("#aDeadline").value, status: "idea"});
+  ["#aTitle", "#aOrg", "#aUrl", "#aDeadline"].forEach(s => $(s).value = ""); loadApps();
+};
+
+// ─── документы ───
+function fillAppSelect() {
+  const cur = $("#dApp").value;
+  $("#dApp").innerHTML = `<option value="0">—</option>` + APPS.filter(a => !["won", "rejected"].includes(a.status))
+    .map(a => `<option value="${a.id}">${esc(a.title)}</option>`).join("");
+  $("#dApp").value = cur || "0";
+}
+async function loadDocs() {
+  DOCS = await api("api/docs");
+  $("#docs").innerHTML = DOCS.length ? DOCS.map(d => `<div class="item" data-id="${d.id}">
+    <div class="grow"><b>${esc(d.title)}</b><div class="sub">${esc(t("w.k." + d.kind))} · ${esc(d.created.slice(0, 10))}</div>
+      <div class="acts"><a href="doc/${d.id}" target="_blank">${esc(t("w.doc.open"))}</a><a href="doc/${d.id}.docx">DOCX</a>
+        <button class="ghost" data-del>${esc(t("w.del"))}</button></div></div></div>`).join("")
+    : `<p class="empty">${esc(t("w.empty.docs"))}</p>`;
+}
+$("#docs").onclick = async (e) => {
+  if (!e.target.matches("[data-del]")) return;
+  const d = DOCS.find(x => x.id == e.target.closest(".item").dataset.id);
+  if (confirm(t("w.del.q", {t: d.title}))) { await api(`api/docs/${d.id}/delete`, {}); loadDocs(); }
+};
+async function pollJob(job) {
+  for (;;) {
+    await new Promise(r => setTimeout(r, 2500));
+    const j = await api(`api/job/${job}`);
+    if (j.status === "done") return j.result;
+    if (j.status === "error") throw new Error(j.error);
+  }
+}
+$("#dGo").onclick = async () => {
+  const body = {kind: $("#dKind").value, brief: $("#dBrief").value, doc_lang: $("#dLang").value, app_id: Number($("#dApp").value),
+    file_ids: [...document.querySelectorAll("#dFiles input:checked")].map(i => Number(i.value)), strong: $("#dStrong").checked};
+  $("#dGo").disabled = true;
+  try {
+    const {job, agent} = await api("api/docs/create", body);
+    const name = ME.agents[agent]?.name || agent;
+    $("#dWait").textContent = t("w.doc.wait", {name}); $("#dWait").classList.remove("hidden");
+    const res = await pollJob(job);
+    if (res.doc_id) { toast(t("w.done")); window.open(`doc/${res.doc_id}`, "_blank"); $("#dBrief").value = ""; }
+    else toast(t("w.doc.fail", {name}));
+    loadDocs(); loadApps();
+  } catch (ex) { toast(ex.message); }
+  finally { $("#dGo").disabled = false; $("#dWait").classList.add("hidden"); }
+};
+
+// ─── материалы ───
+async function loadFiles() {
+  const r = await api("api/files"); FILES = r.files;
+  $("#fUsed").textContent = t("w.file.used", {used: (r.used / 1048576).toFixed(1), limit: Math.round(r.limit / 1048576)});
+  $("#files").innerHTML = FILES.length ? FILES.map(f => `<div class="item" data-id="${f.id}">
+    <div class="grow"><b>${esc(f.name)}</b><div class="sub">${(f.size / 1048576).toFixed(1)} MB${f.text_len ? " · " + esc(t("w.file.read")) : ""}</div>
+      <div class="acts"><a href="api/files/${f.id}/raw">↓</a><button class="ghost" data-del>${esc(t("w.del"))}</button></div></div>
+    <span class="kind">${esc(t("w.f." + f.kind))}</span></div>`).join("") : `<p class="empty">${esc(t("w.empty.files"))}</p>`;
+  $("#dFiles").innerHTML = FILES.length ? FILES.slice(0, 20).map(f => `<label><input type="checkbox" value="${f.id}" ${["cv", "portfolio", "statement", "bio"].includes(f.kind) ? "checked" : ""}>
+    ${esc(f.name)} <span class="kind">${esc(t("w.f." + f.kind))}</span></label>`).join("") : `<p class="small muted">${esc(t("w.doc.nofiles"))}</p>`;
+}
+$("#files").onclick = async (e) => {
+  if (!e.target.matches("[data-del]")) return;
+  const f = FILES.find(x => x.id == e.target.closest(".item").dataset.id);
+  if (confirm(t("w.del.q", {t: f.name}))) { await api(`api/files/${f.id}/delete`, {}); loadFiles(); }
+};
+async function upload(list) {
+  for (const f of list) {
+    if (f.size > 20 * 1024 * 1024) { toast(f.name + ": > 20 MB"); continue; }
+    toast(t("w.uploading", {name: f.name}));
+    const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(",")[1]); fr.readAsDataURL(f); });
+    try { await api("api/files", {name: f.name, media_type: f.type, kind: $("#fKind").value, data: b64}); }
+    catch (ex) { toast(ex.message); }
+  }
+  loadFiles();
+}
+$("#fPick").onclick = () => $("#fInput").click();
+$("#fInput").onchange = (e) => { upload([...e.target.files]); e.target.value = ""; };
+const drop = $("#drop");
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); upload([...e.dataTransfer.files]); };
+
+(async () => {
+  ME = await api("api/me");
+  BS.set(ME.lang); document.title = t("w.title") + " · Backstage";
+  $("#dKind").innerHTML = KINDS.map(k => `<option value="${k}">${esc(t("w.k." + k))}</option>`).join("");
+  $("#fKind").innerHTML = FKINDS.map(k => `<option value="${k}">${esc(t("w.f." + k))}</option>`).join("");
+  $("#dLang").value = ME.lang;
+  await Promise.all([loadApps(), loadDocs(), loadFiles()]);
+  const h = location.hash.slice(1); if (["apps", "docs", "files"].includes(h)) tab(h);
+})();
+</script>
+</body></html>

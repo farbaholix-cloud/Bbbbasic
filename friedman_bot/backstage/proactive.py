@@ -174,6 +174,16 @@ def reminders(c):
             hit = next((d for d in REMIND_DAYS if left == d), None)
             if hit and store.notice_once(c["id"], f"{w['id']}:{it.get('id')}:{hit}"):
                 lines.append(f"- **{it['text']}** — {i18n.t(L, 'in_days', n=left, d=it['date'])}")
+    for a in store.list_apps(c["id"]):
+        if a["status"] not in ("idea", "preparing") or not a["deadline"]:
+            continue
+        try:
+            left = (datetime.strptime(a["deadline"], "%Y-%m-%d").date() - today).days
+        except ValueError:
+            continue
+        hit = next((d for d in REMIND_DAYS if left == d), None)
+        if hit and store.notice_once(c["id"], f"app:{a['id']}:{hit}"):
+            lines.append(f"- **{a['title']}** — {i18n.t(L, 'in_days', n=left, d=a['deadline'])}")
     if not lines:
         return 0
     text = i18n.t(L, "remind_intro") + "\n\n" + "\n".join(lines) + "\n\n" + i18n.t(L, "remind_outro")

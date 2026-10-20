@@ -99,6 +99,38 @@ CREATE TABLE IF NOT EXISTS client_opps (
     added TEXT NOT NULL,
     PRIMARY KEY (client_id, opp_id)
 );
+CREATE TABLE IF NOT EXISTS files (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT DEFAULT 'other',         -- cv | portfolio | statement | bio | press | photo | video | other
+    mime TEXT DEFAULT '',
+    size INTEGER DEFAULT 0,
+    path TEXT NOT NULL,
+    text TEXT DEFAULT '',              -- извлечённый текст (для агентов)
+    created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS docs (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    kind TEXT DEFAULT '',
+    body TEXT NOT NULL,                -- markdown
+    app_id INTEGER DEFAULT 0,
+    created TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS applications (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    org TEXT DEFAULT '',
+    url TEXT DEFAULT '',
+    deadline TEXT DEFAULT '',
+    status TEXT DEFAULT 'idea',        -- idea | preparing | submitted | won | rejected
+    note TEXT DEFAULT '',
+    created TEXT NOT NULL,
+    updated TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS notices (
     client_id INTEGER NOT NULL,
     key TEXT NOT NULL,                 -- что уже напомнили: «виджет:пункт:за N дней»
@@ -216,6 +248,122 @@ def mark_delivered(client_id: int, opp_ids):
 def recent_opportunities(limit=50):
     with db() as conn:
         return [dict(r) for r in conn.execute("SELECT * FROM opportunities ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+# ─── Сейф материалов, документы, заявки ──────────────────────────────────────
+
+FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "files")
+APP_STATUSES = ("idea", "preparing", "submitted", "won", "rejected")
+
+
+def add_file(client_id, name, kind, mime, raw: bytes, text=""):
+    d = os.path.join(FILES_DIR, str(client_id))
+    os.makedirs(d, exist_ok=True)
+    safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in name)[-80:] or "file"
+    with db() as conn:
+        cur = conn.execute("INSERT INTO files (client_id, name, kind, mime, size, path, text, created) "
+                           "VALUES (?,?,?,?,?,?,?,?)", (client_id, name[:160], kind, mime, len(raw), "", text[:20000], now()))
+        fid = cur.lastrowid
+        path = os.path.join(d, f"{fid}_{safe}")
+        with open(path, "wb") as f:
+            f.write(raw)
+        conn.execute("UPDATE files SET path=? WHERE id=?", (path, fid))
+    return fid
+
+
+def list_files(client_id):
+    with db() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, name, kind, mime, size, created, length(text) AS text_len FROM files WHERE client_id=? ORDER BY id DESC",
+            (client_id,))]
+
+
+def get_file(client_id, fid):
+    with db() as conn:
+        r = conn.execute("SELECT * FROM files WHERE id=? AND client_id=?", (fid, client_id)).fetchone()
+    return dict(r) if r else None
+
+
+def delete_file(client_id, fid):
+    f = get_file(client_id, fid)
+    if f:
+        try:
+            os.unlink(f["path"])
+        except OSError:
+            pass
+        with db() as conn:
+            conn.execute("DELETE FROM files WHERE id=?", (fid,))
+
+
+def files_size(client_id):
+    with db() as conn:
+        return conn.execute("SELECT COALESCE(SUM(size),0) FROM files WHERE client_id=?", (client_id,)).fetchone()[0]
+
+
+def add_doc(client_id, title, kind, body, app_id=0):
+    with db() as conn:
+        return conn.execute("INSERT INTO docs (client_id, title, kind, body, app_id, created) VALUES (?,?,?,?,?,?)",
+                            (client_id, title[:200], kind, body, int(app_id or 0), now())).lastrowid
+
+
+def list_docs(client_id):
+    with db() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, title, kind, app_id, created, length(body) AS size FROM docs WHERE client_id=? ORDER BY id DESC",
+            (client_id,))]
+
+
+def get_doc(client_id, did):
+    with db() as conn:
+        r = conn.execute("SELECT * FROM docs WHERE id=? AND client_id=?", (did, client_id)).fetchone()
+    return dict(r) if r else None
+
+
+def delete_doc(client_id, did):
+    with db() as conn:
+        conn.execute("DELETE FROM docs WHERE id=? AND client_id=?", (did, client_id))
+
+
+def save_app(client_id, a: dict):
+    """Создать (без id) или обновить заявку. Возвращает id."""
+    fields = {k: str(a[k])[:500] for k in ("title", "org", "url", "deadline", "status", "note") if a.get(k) is not None}
+    if "status" in fields and fields["status"] not in APP_STATUSES:
+        fields.pop("status")
+    with db() as conn:
+        if a.get("id"):
+            if fields:
+                sets = ", ".join(f"{k}=?" for k in fields)
+                conn.execute(f"UPDATE applications SET {sets}, updated=? WHERE id=? AND client_id=?",
+                             (*fields.values(), now(), int(a["id"]), client_id))
+            return int(a["id"])
+        if not fields.get("title"):
+            raise ValueError("title")
+        cols = ["client_id", *fields, "created", "updated"]
+        return conn.execute(f"INSERT INTO applications ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+                            (client_id, *fields.values(), now(), now())).lastrowid
+
+
+def list_apps(client_id):
+    with db() as conn:
+        rows = conn.execute("SELECT a.*, (SELECT MAX(d.id) FROM docs d WHERE d.app_id=a.id) AS doc_id "
+                            "FROM applications a WHERE a.client_id=? ORDER BY "
+                            "CASE a.status WHEN 'won' THEN 3 WHEN 'rejected' THEN 3 ELSE 1 END, "
+                            "CASE WHEN a.deadline='' THEN '9999' ELSE a.deadline END", (client_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_app(client_id, aid):
+    with db() as conn:
+        conn.execute("DELETE FROM applications WHERE id=? AND client_id=?", (aid, client_id))
+
+
+def replace_last_answer(client_id, agent, text, meta_extra=None):
+    with db() as conn:
+        r = conn.execute("SELECT id, meta FROM messages WHERE client_id=? AND agent=? AND role='assistant' "
+                         "ORDER BY id DESC LIMIT 1", (client_id, agent)).fetchone()
+        if r:
+            meta = {**json.loads(r["meta"] or "{}"), **(meta_extra or {})}
+            conn.execute("UPDATE messages SET text=?, meta=? WHERE id=?", (text, json.dumps(meta, ensure_ascii=False), r["id"]))
 
 
 def notice_once(client_id: int, key: str) -> bool:
@@ -549,6 +697,9 @@ def restart_client(client_id: int, name: str, profile: str, craft: str, lang: st
         conn.execute("DELETE FROM messages WHERE client_id=? AND agent!='_archive'", (client_id,))
         conn.execute("DELETE FROM widgets WHERE client_id=?", (client_id,))
         conn.execute("DELETE FROM insights WHERE client_id=? AND shared=0", (client_id,))
+        conn.execute("DELETE FROM docs WHERE client_id=?", (client_id,))
+        conn.execute("DELETE FROM applications WHERE client_id=?", (client_id,))
+        conn.execute("DELETE FROM client_opps WHERE client_id=?", (client_id,))
         conn.execute("UPDATE clients SET name=?, profile=?, craft=?, lang=?, survey='' WHERE id=?",
                      (name, profile, craft, lang, client_id))
     seed_dashboard(client_id, craft.split(",")[0], lang)

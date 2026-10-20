@@ -113,6 +113,15 @@ MSG = {
     "remind_outro": {"en": "Need help with any of them? Just write — the team will take it on.",
                      "de": "Brauchst du bei etwas Hilfe? Schreib einfach — das Team übernimmt.",
                      "ua": "Потрібна допомога з чимось? Просто напиши — команда візьметься."},
+    "doc_request": {"en": "Please prepare: {kind}. {brief}", "de": "Bitte vorbereiten: {kind}. {brief}",
+                    "ua": "Підготуй, будь ласка: {kind}. {brief}"},
+    "doc_ready": {"en": "📄 The document “{title}” is ready — open it in the Workspace → Documents (DOCX and PDF).",
+                  "de": "📄 Das Dokument „{title}“ ist fertig — du findest es in der Arbeitsmappe → Dokumente (DOCX und PDF).",
+                  "ua": "📄 Документ «{title}» готовий — він у Робочій теці → Документи (DOCX і PDF)."},
+    "too_big_file": {"en": "The file is larger than 20 MB.", "de": "Die Datei ist größer als 20 MB.", "ua": "Файл більший за 20 МБ."},
+    "vault_full": {"en": "Your materials folder is full ({n} MB). Delete something first.",
+                   "de": "Dein Materialordner ist voll ({n} MB). Lösch zuerst etwas.",
+                   "ua": "Тека матеріалів заповнена ({n} МБ). Спершу видали щось."},
     "restart_limit": {"en": "You can start from scratch up to {n} times a day. Please try again tomorrow.",
                       "de": "Von vorn beginnen geht bis zu {n}-mal am Tag. Versuch es morgen wieder.",
                       "ua": "Почати з нуля можна до {n} разів на день. Спробуй завтра."},
@@ -231,6 +240,15 @@ SEED = {
            "projects": "Проєкти", "card": "Розповісти Майї про свою практику", "chart": "Дохід за місяцями",
            "series": "Дохід", "profile": "Профіль практики",
            "profile_text": "Хто я, що роблю, чого хочу досягти за 12 місяців. Команда читає цю нотатку перед кожною відповіддю."},
+}
+
+DOC_KINDS = {
+    "en": {"application": "Application", "letter": "Cover letter", "statement": "Artist statement", "bio": "Short bio",
+           "offer": "Commercial offer", "estimate": "Cost estimate", "email": "Email to a client"},
+    "de": {"application": "Bewerbung", "letter": "Anschreiben", "statement": "Künstlerisches Statement", "bio": "Kurzbiografie",
+           "offer": "Angebot", "estimate": "Kostenvoranschlag", "email": "E-Mail an Kundschaft"},
+    "ua": {"application": "Заявка", "letter": "Супровідний лист", "statement": "Artist statement", "bio": "Коротка біографія",
+           "offer": "Комерційна пропозиція", "estimate": "Кошторис", "email": "Лист клієнту"},
 }
 
 LANG_NAME = {"en": "English", "de": "German (informal “du”)", "ua": "Ukrainian"}

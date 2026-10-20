@@ -6559,14 +6559,15 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "finance_inbox/bank_2026-09.json",
                 # Backstage — платформа агентства (панель клиентов, порт 8800)
                 "backstage/server.py", "backstage/brain.py", "backstage/store.py",
-                "backstage/telegram_bridge.py", "backstage/manage.py", "backstage/README.md", "backstage/i18n.py", "backstage/plans.py", "backstage/proactive.py",
+                "backstage/telegram_bridge.py", "backstage/manage.py", "backstage/README.md", "backstage/i18n.py", "backstage/plans.py", "backstage/proactive.py", "backstage/docs.py",
                 "backstage/agents/agents.json", "backstage/agents/_common.md",
                 "backstage/agents/maya.md", "backstage/agents/ruben.md", "backstage/agents/hanna.md",
                 "backstage/agents/konrad.md", "backstage/agents/noa.md", "backstage/agents/tarik.md",
                 "backstage/agents/iris.md", "backstage/agents/ben.md", "backstage/packs/README.md",
                 "backstage/static/style.css", "backstage/static/login.html", "backstage/static/app.html",
                 "backstage/static/guide.html", "backstage/static/admin.html", "backstage/static/join.html",
-                "backstage/static/i18n.js", "backstage/static/survey.html", "backstage/static/survey.js"]
+                "backstage/static/i18n.js", "backstage/static/survey.html", "backstage/static/survey.js",
+                "backstage/static/workspace.html"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -9581,7 +9582,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.12"  # видимая метка сборки бота
+BOT_VERSION = "09.13"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (

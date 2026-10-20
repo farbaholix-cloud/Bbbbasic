@@ -191,6 +191,14 @@ def context_block(c, agent_id, lite=False):
         if ins:
             lines.append("БАЗА ОПЫТА (свои выводы клиента и общий плейбук агентства):\n" + "\n".join(
                 f"- [{'общий' if i['shared'] else 'свой'}] {i['title']}: {i['body'][:240]}" for i in ins))
+        if agent_id in ("maya", "hanna", "ben"):
+            apps = [a for a in store.list_apps(c["id"]) if a["status"] not in ("won", "rejected")][:10]
+            if apps:
+                lines.append("ЗАЯВКИ В РАБОТЕ:\n" + "\n".join(
+                    f"- id={a['id']} {a['title']} ({a['org']}) · {a['status']} · {a['deadline'] or '—'}" for a in apps))
+            files = store.list_files(c["id"])[:12]
+            if files:
+                lines.append("МАТЕРИАЛЫ КЛИЕНТА (сейф): " + "; ".join(f"{f['name']} [{f['kind']}]" for f in files))
         if agent_id in ("ruben", "hanna"):
             # уже найденное радаром: сначала смотри сюда, а не ищи заново (дешевле и быстрее)
             try:
@@ -282,6 +290,12 @@ DASH_TOOLS = [
                     "и контактов клиента), с тегами через запятую.",
      "input_schema": _obj({"title": {"type": "string"}, "body": {"type": "string"},
                            "tags": {"type": "string"}}, ["title", "body"])},
+    {"name": "app_save",
+     "description": "Учёт заявок клиента (вкладка «Заявки» в рабочей папке). Без id — новая заявка, с id — обновить. "
+                    "status: idea | preparing | submitted | won | rejected. Заводи, когда клиент решил подаваться.",
+     "input_schema": _obj({"id": {"type": "integer"}, "title": {"type": "string"}, "org": {"type": "string"},
+                           "url": {"type": "string"}, "deadline": {"type": "string"}, "status": {"type": "string"},
+                           "note": {"type": "string"}}, [])},
 ]
 
 ASK_TOOL = {
@@ -397,6 +411,10 @@ def run_tool(c, agent_id, name, inp, ctx):
     if name == "save_insight":
         iid = store.add_insight(cid, agent_id, inp["title"], inp["body"], inp.get("tags", ""))
         return f"сохранено в базу опыта (id={iid})"
+    if name == "app_save":
+        aid = store.save_app(cid, inp)
+        ctx["changed"] = True
+        return f"заявка id={aid} сохранена"
     if name == "ask_specialist":
         sub = inp["agent"]
         if sub not in AGENTS or AGENTS[sub].get("lead"):
@@ -612,6 +630,7 @@ actions — изменения дашборда и базы опыта, пуст
 {"type":"kpi_set","widget_id":1,"value":100,"delta":"..."}
 {"type":"table_add_row","widget_id":1,"cells":["...","..."]}
 {"type":"save_insight","title":"...","body":"...","tags":"..."}
+{"type":"app_save","title":"...","org":"...","url":"...","deadline":"YYYY-MM-DD","status":"idea|preparing|submitted|won|rejected"} — заявка в учёт; с "id" — обновить
 Форматы data: kpi {value, delta}; chart {labels:[...], series:[{name, values:[...]}]}; table {rows:[[...]]};
 board {cards:[{id, col, text}]}; list {items:[{id, text, date, done}]}; note {text}.
 config: kpi {unit, goal}; chart {type: line|bar|pie|doughnut, unit}; table {columns:[...]}; board {columns:[...]}."""
