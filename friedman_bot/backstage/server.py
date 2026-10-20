@@ -36,6 +36,7 @@ load_dotenv(os.path.join(HERE, ".env"))
 import store  # noqa: E402  (после .env — путь к базе может прийти оттуда)
 import i18n  # noqa: E402
 import plans  # noqa: E402
+import proactive  # noqa: E402
 from i18n import t as T  # noqa: E402
 import brain  # noqa: E402
 
@@ -475,7 +476,7 @@ class Handler(BaseHTTPRequestHandler):
                 "backend": brain.backend(), "demo": False, "fresh": c.get("source") == "signup",
                 "agents": i18n.agents(L, brain.AGENTS), "version": VERSION,
                 "survey_done": bool(_survey(c).get("done")),
-                "plan": plans.status(c), "offers": plans.offers(c)})
+                "plan": plans.status(c), "offers": plans.offers(c), "prefs": proactive.prefs(c)})
         if path == "/api/survey":
             sv = _survey(c)
             return self._json({"answers": sv.get("answers") or {}, "done": bool(sv.get("done")), "lang": L,
@@ -558,6 +559,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True})
         if path == "/api/profile":
             fields = {k: body[k] for k in ("profile", "lang", "share_insights") if k in body}
+            if isinstance(body.get("prefs"), dict):
+                fields["prefs"] = json.dumps({k: bool(body["prefs"].get(k)) for k in ("radar", "reminders")})
             if "lang" in fields:
                 fields["lang"] = i18n.norm(fields["lang"])
                 for w in store.list_widgets(cid):
@@ -586,6 +589,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(store.all_insights())
         if path == "/api/admin/usage":
             return self._json(store.usage_summary(None, days=int((q.get("days") or ["31"])[0])))
+        if path == "/api/admin/radar":
+            return self._json({"recent": store.recent_opportunities(60), "due": proactive.clusters_due(),
+                               "last_day": store.meta_get("proactive_day", "")})
         if path == "/api/admin/config":
             return self._json({"signup_open": store.meta_get("signup_open", "1") == "1",
                                "signups_24h": store.signups_since(24), "signup_daily": SIGNUP_DAILY,"model_chat": brain.MODEL_CHAT, "model_deep": brain.MODEL_DEEP,
@@ -597,6 +603,9 @@ class Handler(BaseHTTPRequestHandler):
         return self._err(404, "not found")
 
     def admin_post(self, path, body):
+        if path == "/api/admin/radar/run":
+            threading.Thread(target=proactive.daily, kwargs={"force": True}, daemon=True).start()
+            return self._json({"ok": True})
         if path == "/api/admin/plans":
             cur = plans.get_plans()
             new = body.get("plans") if isinstance(body.get("plans"), dict) else {}
@@ -681,6 +690,7 @@ def main():
         log.warning("BACKSTAGE_ADMIN_KEY не задан — админка закрыта")
     if not os.environ.get("ANTHROPIC_API_KEY"):
         log.info("ANTHROPIC_API_KEY не задан — команда работает по подписке через claude CLI")
+    proactive.start()  # радар возможностей, подборки и напоминания — фоном, раз в день
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
     scheme = "http"
     if TLS_CERT and TLS_KEY:

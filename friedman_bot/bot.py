@@ -6559,7 +6559,7 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "finance_inbox/bank_2026-09.json",
                 # Backstage — платформа агентства (панель клиентов, порт 8800)
                 "backstage/server.py", "backstage/brain.py", "backstage/store.py",
-                "backstage/telegram_bridge.py", "backstage/manage.py", "backstage/README.md", "backstage/i18n.py", "backstage/plans.py",
+                "backstage/telegram_bridge.py", "backstage/manage.py", "backstage/README.md", "backstage/i18n.py", "backstage/plans.py", "backstage/proactive.py",
                 "backstage/agents/agents.json", "backstage/agents/_common.md",
                 "backstage/agents/maya.md", "backstage/agents/ruben.md", "backstage/agents/hanna.md",
                 "backstage/agents/konrad.md", "backstage/agents/noa.md", "backstage/agents/tarik.md",
@@ -9581,7 +9581,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.11"  # видимая метка сборки бота
+BOT_VERSION = "09.12"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (

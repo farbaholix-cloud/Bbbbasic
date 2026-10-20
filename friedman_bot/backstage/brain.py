@@ -191,6 +191,17 @@ def context_block(c, agent_id, lite=False):
         if ins:
             lines.append("БАЗА ОПЫТА (свои выводы клиента и общий плейбук агентства):\n" + "\n".join(
                 f"- [{'общий' if i['shared'] else 'свой'}] {i['title']}: {i['body'][:240]}" for i in ins))
+        if agent_id in ("ruben", "hanna"):
+            # уже найденное радаром: сначала смотри сюда, а не ищи заново (дешевле и быстрее)
+            try:
+                import proactive
+                opps = store.match_opportunities(-1, proactive.crafts(c), proactive.regions(proactive.country(c)), 8,
+                                                 datetime.now().strftime("%Y-%m-%d"))
+            except Exception:
+                opps = []
+            if opps:
+                lines.append("РАДАР (общий каталог агентства, уже проверено):\n" + "\n".join(
+                    f"- {o['title']} ({o['org']}) · {o['deadline'] or 'rolling'} · {o['url']}" for o in opps))
         if backend() == "api":
             budget = c["monthly_budget"] or 0
             lines.append(f"БЮДЖЕТ ИИ: потрачено ${store.spent_this_month(c['id']):.2f} из ${budget:.2f} в этом месяце.")
@@ -763,3 +774,55 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
                 os.unlink(f)
             except OSError:
                 pass
+
+
+# ─── Радар возможностей: один поиск на связку «ремесло + страна» ─────────────
+
+RADAR_MODEL_CLI = os.environ.get("BACKSTAGE_RADAR_MODEL", "sonnet")
+COUNTRY_NAMES = {"de": "Germany", "at": "Austria", "ch": "Switzerland", "ua": "Ukraine",
+                 "eu": "an EU country", "any": "any country (international and online opportunities)"}
+RADAR_SYSTEM = """You are Ruben, the scout of Backstage — an AI team that runs the business side for creative people.
+Find CURRENT opportunities with money or reach for the given craft and place: open calls, grants, stipends,
+residencies, contests, festivals with submissions, tenders and commission calls. Only opportunities whose
+deadline is in the future (or rolling). Check every link in your search results; never invent links or dates.
+Answer with ONE JSON object and nothing else:
+{"items": [{"title": "...", "org": "who runs it", "url": "https://...", "deadline": "YYYY-MM-DD or empty",
+"amount": "money / prize / fee, short", "region": "de|at|ch|ua|eu|intl", "summary": "one English sentence: what and who can apply"}]}
+6 to 10 items, the most valuable first."""
+
+
+def radar_search(craft, country):
+    """Список возможностей (dict) для ремесла и страны. Пишет расход на «платформу» (client_id 0)."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    craft_name = i18n.CRAFTS["en"].get(craft, craft)
+    prompt = (f"Today is {today}. Craft: {craft_name}. Artists based in {COUNTRY_NAMES.get(country, country)}."
+              " Include opportunities open to them locally, EU-wide and internationally.")
+    if backend() == "api":
+        messages = [{"role": "user", "content": prompt}]
+        text, resp = "", None
+        for _ in range(6):
+            resp = _call(MODEL_CHAT, EFFORT_CHAT, [{"type": "text", "text": RADAR_SYSTEM}], [dict(WEB_TOOL)],
+                         messages, 8000)
+            u = _usage(resp)
+            store.log_usage(0, f"radar:{craft}:{country}", resp.model or MODEL_CHAT, u, cost_of(resp.model or MODEL_CHAT, u))
+            if resp.stop_reason != "pause_turn":
+                break
+            messages.append({"role": "assistant", "content": resp.content})
+        text = "\n".join(b.text for b in resp.content if b.type == "text")
+    else:
+        text = _cli_call({"id": 0}, f"radar:{craft}:{country}", RADAR_SYSTEM, prompt,
+                         ["WebSearch", "WebFetch"], RADAR_MODEL_CLI, 900, 16)
+    m = re.search(r"\{.*\}", text or "", re.S)
+    try:
+        items = json.loads(m.group(0)).get("items") if m else []
+    except Exception:
+        items = []
+    out = []
+    for it in items or []:
+        if not isinstance(it, dict) or not it.get("title"):
+            continue
+        d = str(it.get("deadline") or "")
+        if d and (not re.fullmatch(r"\d{4}-\d{2}-\d{2}", d) or d < today):
+            continue  # прошедшие и кривые даты не берём
+        out.append(it)
+    return out

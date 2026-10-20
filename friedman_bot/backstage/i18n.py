@@ -99,6 +99,20 @@ MSG = {
     "trial_over": {"en": "Your free trial has ended. Everything you've built is saved — choose a plan in ⚙ Settings to keep working with the team.",
                    "de": "Dein kostenloser Testzeitraum ist vorbei. Alles bleibt gespeichert — wähl in ⚙ Einstellungen einen Tarif, um mit dem Team weiterzuarbeiten.",
                    "ua": "Безкоштовний пробний період закінчився. Усе збережено — обери тариф у ⚙ Налаштуваннях, щоб працювати з командою далі."},
+    "radar_title": {"en": "Opportunities radar", "de": "Chancen-Radar", "ua": "Радар можливостей"},
+    "radar_intro": {"en": "This week's radar: Ruben found {n} new opportunities that fit you.",
+                    "de": "Radar der Woche: Ruben hat {n} neue Chancen gefunden, die zu dir passen.",
+                    "ua": "Радар тижня: Рубен знайшов нових можливостей для тебе: {n}."},
+    "radar_outro": {"en": "I've added them to the “Opportunities radar” on your dashboard. Tell me which one to go for — Hanna will prepare the application.",
+                    "de": "Ich habe sie ins „Chancen-Radar“ auf deinem Dashboard gelegt. Sag mir, worauf wir gehen — Hanna bereitet die Bewerbung vor.",
+                    "ua": "Я додала їх у «Радар можливостей» на дашборді. Скажи, на що йдемо, — Ганна підготує заявку."},
+    "deadline_on": {"en": "deadline {d}", "de": "Frist {d}", "ua": "дедлайн {d}"},
+    "in_days": {"en": "in {n} days ({d})", "de": "in {n} Tagen ({d})", "ua": "через {n} дн. ({d})"},
+    "remind_intro": {"en": "Deadline check — these are coming up:", "de": "Fristen-Check — das steht bald an:",
+                     "ua": "Перевірка дедлайнів — ось що наближається:"},
+    "remind_outro": {"en": "Need help with any of them? Just write — the team will take it on.",
+                     "de": "Brauchst du bei etwas Hilfe? Schreib einfach — das Team übernimmt.",
+                     "ua": "Потрібна допомога з чимось? Просто напиши — команда візьметься."},
     "restart_limit": {"en": "You can start from scratch up to {n} times a day. Please try again tomorrow.",
                       "de": "Von vorn beginnen geht bis zu {n}-mal am Tag. Versuch es morgen wieder.",
                       "ua": "Почати з нуля можна до {n} разів на день. Спробуй завтра."},
@@ -331,6 +345,8 @@ def relabel(old, new, w):
     for k, v in LISTS[old].items():
         if title == v:
             title = LISTS[new][k]
+    if cfg.get("radar") and title == MSG["radar_title"][old]:
+        title = MSG["radar_title"][new]
     for k, cols in BOARDS[old].items():
         if cfg.get("columns") == cols:
             cfg["columns"] = BOARDS[new][k]

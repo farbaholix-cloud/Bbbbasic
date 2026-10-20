@@ -76,6 +76,8 @@
   .svcard h4{margin:0 0 4px;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:17px}
   .svcard p{margin:0 0 10px;font-size:14px;color:var(--muted)}
   .svcard .row{gap:8px}
+  .msg.assistant.radar{border-left-color:var(--ruben);background:color-mix(in srgb,var(--ruben) 8%,var(--soft))}
+  .msg.assistant.reminder{border-left-color:var(--hanna);background:color-mix(in srgb,var(--hanna) 10%,var(--soft))}
   .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
   .plans .pl{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
   .plans .pl b{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:17px}
@@ -185,6 +187,10 @@
     <label class="row" style="gap:8px"><input type="checkbox" id="setShare" style="width:auto">
       <span data-i="a.set.share"></span></label>
     <p style="margin:12px 0 0"><a href="survey" class="small" data-i="a.sv.edit"></a> →</p>
+    <h3 style="margin-top:18px" data-i="a.set.notify"></h3>
+    <label class="row" style="gap:8px"><input type="checkbox" id="setRadar" style="width:auto"> <span data-i="a.set.radar"></span></label>
+    <label class="row" style="gap:8px;margin-top:4px"><input type="checkbox" id="setRem" style="width:auto"> <span data-i="a.set.rem"></span></label>
+    <p class="small muted" data-i="a.set.notify.p"></p>
     <h3 style="margin-top:18px">Telegram</h3>
     <p class="small muted"><span data-i="a.set.tg"></span> <a href="guide#telegram" target="_blank" class="guide-link" data-i="a.set.tg.link"></a>.</p>
     <input id="setTg" data-i-ph="a.set.tg.ph">
@@ -451,7 +457,7 @@ function surveyCard(list) {
 }
 function addMsg(role, text, meta = {}) {
   const el = document.createElement("div");
-  el.className = `msg ${role}`;
+  el.className = `msg ${role} ${meta.kind || ""}`;
   if (role === "user") el.textContent = text;
   else {
     el.innerHTML = md(text);
@@ -544,6 +550,7 @@ $("#dlgPotential").onclose = () => {
 $("#btnSettings").onclick = async () => {
   $("#setLang").value = BS.lang;
   $("#planBox").innerHTML = planHTML();
+  $("#setRadar").checked = ME.prefs?.radar !== false; $("#setRem").checked = ME.prefs?.reminders !== false;
   $("#setProfile").value = ME.profile || ""; $("#setShare").checked = !!ME.share_insights; $("#setTg").value = "";
   $("#tgState").textContent = t(ME.telegram ? "a.tg.on" : "a.tg.off");
   const u = await api("api/usage");
@@ -559,7 +566,8 @@ $("#btnSettings").onclick = async () => {
 $("#dlgSettings").onclose = async () => {
   if ($("#dlgSettings").returnValue !== "ok") return;
   const newLang = $("#setLang").value;
-  await api("api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0, lang: newLang});
+  await api("api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0, lang: newLang,
+    prefs: {radar: $("#setRadar").checked, reminders: $("#setRem").checked}});
   const tg = $("#setTg").value.trim();
   if (tg) { try { await api("api/telegram", {token: tg}); toast(t("a.tg.ok")); } catch (e) { toast(e.message); } }
   if (newLang !== BS.lang) { BS.set(newLang); return location.reload(); }

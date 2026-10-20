@@ -80,6 +80,31 @@ CREATE TABLE IF NOT EXISTS insights (
     shared INTEGER DEFAULT 0,
     created TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS opportunities (
+    id INTEGER PRIMARY KEY,
+    key TEXT UNIQUE NOT NULL,          -- нормализованная ссылка (или название): одна возможность — одна строка
+    title TEXT NOT NULL,
+    org TEXT DEFAULT '',
+    url TEXT DEFAULT '',
+    deadline TEXT DEFAULT '',          -- YYYY-MM-DD или пусто (без срока)
+    amount TEXT DEFAULT '',
+    summary TEXT DEFAULT '',
+    region TEXT DEFAULT 'intl',        -- de | at | ch | ua | eu | intl
+    crafts TEXT DEFAULT '',            -- ремёсла через запятую
+    found TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS client_opps (
+    client_id INTEGER NOT NULL,
+    opp_id INTEGER NOT NULL,
+    added TEXT NOT NULL,
+    PRIMARY KEY (client_id, opp_id)
+);
+CREATE TABLE IF NOT EXISTS notices (
+    client_id INTEGER NOT NULL,
+    key TEXT NOT NULL,                 -- что уже напомнили: «виджет:пункт:за N дней»
+    created TEXT NOT NULL,
+    PRIMARY KEY (client_id, key)
+);
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -123,7 +148,7 @@ def init():
             conn.execute("ALTER TABLE clients ADD COLUMN craft TEXT DEFAULT ''")
         if "survey" not in cols:  # подробная анкета: JSON {answers, summary, done, updated}
             conn.execute("ALTER TABLE clients ADD COLUMN survey TEXT DEFAULT ''")
-        for col in ("plan", "plan_until", "stripe_customer"):  # тариф (plans.py) и покупатель в Stripe
+        for col in ("plan", "plan_until", "stripe_customer", "prefs"):  # тариф (plans.py) и покупатель в Stripe
             if col not in cols:
                 conn.execute(f"ALTER TABLE clients ADD COLUMN {col} TEXT DEFAULT ''")
 
@@ -138,6 +163,77 @@ def set_survey(client_id: int, answers: dict, summary: str, done: bool):
             old = {}
         data = {"answers": answers, "summary": summary, "done": bool(done or old.get("done")), "updated": now()}
         conn.execute("UPDATE clients SET survey=? WHERE id=?", (json.dumps(data, ensure_ascii=False), client_id))
+
+
+# ─── Радар возможностей: общий каталог ───────────────────────────────────────
+
+def _opp_key(url, title):
+    u = (url or "").strip().lower().split("#")[0].rstrip("/")
+    for p in ("https://", "http://", "www."):
+        u = u[len(p):] if u.startswith(p) else u
+    return u or "t:" + " ".join((title or "").lower().split())[:120]
+
+
+def add_opportunity(o: dict, craft: str, region: str):
+    """Новая возможность → в каталог; уже известная — дописываем ремесло. Возвращает id."""
+    key = _opp_key(o.get("url"), o.get("title"))
+    with db() as conn:
+        row = conn.execute("SELECT id, crafts FROM opportunities WHERE key=?", (key,)).fetchone()
+        if row:
+            crafts = set(filter(None, row["crafts"].split(","))) | {craft}
+            conn.execute("UPDATE opportunities SET crafts=? WHERE id=?", (",".join(sorted(crafts)), row["id"]))
+            return row["id"]
+        cur = conn.execute(
+            "INSERT INTO opportunities (key, title, org, url, deadline, amount, summary, region, crafts, found) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (key, str(o.get("title", ""))[:200], str(o.get("org") or "")[:120], str(o.get("url") or "")[:500],
+             str(o.get("deadline") or "")[:10], str(o.get("amount") or "")[:80], str(o.get("summary") or "")[:400],
+             (o.get("region") or region or "intl")[:8], craft, now()))
+        return cur.lastrowid
+
+
+def match_opportunities(client_id: int, crafts, regions, limit=5, min_deadline=""):
+    """Подходящие клиенту и ещё не отправленные ему возможности, ближайшие дедлайны первыми."""
+    crafts = [c for c in crafts if c] or ["other"]
+    cq = " OR ".join("(','||o.crafts||',') LIKE ?" for _ in crafts)
+    rq = ",".join("?" for _ in regions)
+    with db() as conn:
+        rows = conn.execute(
+            f"SELECT o.* FROM opportunities o WHERE ({cq}) AND o.region IN ({rq}) "
+            "AND (o.deadline='' OR o.deadline>=?) "
+            "AND o.id NOT IN (SELECT opp_id FROM client_opps WHERE client_id=?) "
+            "ORDER BY CASE WHEN o.deadline='' THEN 1 ELSE 0 END, o.deadline LIMIT ?",
+            (*[f"%,{c},%" for c in crafts], *regions, min_deadline, client_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_delivered(client_id: int, opp_ids):
+    with db() as conn:
+        conn.executemany("INSERT OR IGNORE INTO client_opps (client_id, opp_id, added) VALUES (?,?,?)",
+                         [(client_id, i, now()) for i in opp_ids])
+
+
+def recent_opportunities(limit=50):
+    with db() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM opportunities ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+def notice_once(client_id: int, key: str) -> bool:
+    """True — если это напоминание ещё не отправлялось (и отмечает его отправленным)."""
+    with db() as conn:
+        cur = conn.execute("INSERT OR IGNORE INTO notices (client_id, key, created) VALUES (?,?,?)",
+                           (client_id, key, now()))
+        return cur.rowcount == 1
+
+
+def active_clients(days=30):
+    """Кто реально пользуется: включён и писал команде за последние N дней."""
+    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM clients WHERE active=1 AND id IN (SELECT DISTINCT client_id FROM messages "
+            "WHERE role='user' AND substr(created,1,10)>=?)", (since,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def meta_get(key, default=None):
@@ -261,7 +357,7 @@ def list_clients():
 
 
 CLIENT_EDITABLE = {"name", "profile", "lang", "monthly_budget", "model_chat", "model_deep",
-                   "tg_token", "tg_chat_id", "share_insights", "active", "plan", "plan_until", "stripe_customer"}
+                   "tg_token", "tg_chat_id", "share_insights", "active", "plan", "plan_until", "stripe_customer", "prefs"}
 
 
 def update_client(client_id: int, **fields):

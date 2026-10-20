@@ -71,6 +71,14 @@
     </section>
 
     <section class="card">
+      <h2>Радар возможностей</h2>
+      <p class="small" id="radarInfo"></p>
+      <div class="row" style="margin:8px 0"><button id="radarRun">Запустить радар и подборки сейчас</button><span class="small muted" id="radarMsg"></span></div>
+      <div class="t-wrap"><table><thead><tr><th>Возможность</th><th>Дедлайн</th><th>Регион</th><th>Ремёсла</th><th>Найдено</th></tr></thead>
+        <tbody id="opps"></tbody></table></div>
+    </section>
+
+    <section class="card">
       <h2>База опыта</h2>
       <p class="small muted">Выводы, которые команда сохранила по ходу работы. «В плейбук» — запись станет видна агентам всех клиентов. Перед этим проверь, что в ней нет имён, сумм и контактов.</p>
       <div id="ins"></div>
@@ -142,6 +150,12 @@ async function load() {
       prompt("Новая персональная ссылка (скопируй и отправь клиенту):", full(r.link));
     }
   };
+  const rd = await api("api/admin/radar");
+  $("#radarInfo").innerHTML = `Раз в день (утром) Рубен обновляет общий каталог по связкам «ремесло + страна» активных клиентов — не чаще раза в неделю на связку, не больше 4 поисков в день. Потом каждый активный клиент раз в неделю получает подборку (без затрат на ИИ) и ежедневно — напоминания о дедлайнах.<br>
+    Последний прогон: <b>${esc(rd.last_day || "ещё не было")}</b> · ждут обновления: ${rd.due.length ? rd.due.map(d => esc(d.join("+"))).join(", ") : "ничего"} · в каталоге (последние): ${rd.recent.length}`;
+  $("#opps").innerHTML = rd.recent.map(o => `<tr><td>${o.url ? `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a>` : esc(o.title)}<br><span class="small muted">${esc(o.org)} ${esc(o.amount)}</span></td>
+    <td>${esc(o.deadline || "—")}</td><td>${esc(o.region)}</td><td>${esc(o.crafts)}</td><td class="small">${esc(o.found.slice(0, 10))}</td></tr>`).join("") || '<tr><td colspan="5" class="muted">Каталог пока пуст.</td></tr>';
+  $("#radarRun").onclick = async () => { await api("api/admin/radar/run", {}); $("#radarMsg").textContent = " запущено — поиск занимает несколько минут, обнови страницу позже"; };
   const ins = await api("api/admin/insights");
   $("#ins").innerHTML = ins.length ? ins.map(i => `<div class="ins" data-id="${i.id}">
     <div class="row"><b class="grow">${esc(i.title)}</b><span class="chip">${esc(i.client_name || "?")} · ${esc(i.agent || "")}</span>

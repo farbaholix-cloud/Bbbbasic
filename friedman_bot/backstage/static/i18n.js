@@ -4,6 +4,8 @@ const I18N = {
 en: {
   // анкета
   "j.title": "Backstage — your team behind the scenes",
+  "a.set.notify": "Notifications", "a.set.radar": "Weekly opportunities radar from Ruben",
+  "a.set.rem": "Deadline reminders (14, 7 and 2 days before)", "a.set.notify.p": "They also arrive in your Telegram bot if it's connected.",
   "a.plan": "Plan", "a.plan.trial": "Free trial — {n} days left", "a.plan.free": "Free",
   "a.plan.until": "Active until {d}", "a.plan.owner": "Agency client — no daily limits",
   "a.plan.limits": "{chat} team replies and {deep} deep analyses per day", "a.plan.choose": "Choose", "a.plan.current": "current plan",
@@ -174,6 +176,8 @@ en: {
 },
 de: {
   "j.title": "Backstage — dein Team hinter den Kulissen",
+  "a.set.notify": "Benachrichtigungen", "a.set.radar": "Wöchentliches Chancen-Radar von Ruben",
+  "a.set.rem": "Erinnerungen an Fristen (14, 7 und 2 Tage vorher)", "a.set.notify.p": "Sie kommen auch in deinem Telegram-Bot an, wenn er verbunden ist.",
   "a.plan": "Tarif", "a.plan.trial": "Kostenloser Test — noch {n} Tage", "a.plan.free": "Kostenlos",
   "a.plan.until": "Aktiv bis {d}", "a.plan.owner": "Kund:in der Agentur — ohne Tageslimit",
   "a.plan.limits": "{chat} Antworten des Teams und {deep} Tiefenanalysen pro Tag", "a.plan.choose": "Wählen", "a.plan.current": "aktueller Tarif",
@@ -342,6 +346,8 @@ de: {
 },
 ua: {
   "j.title": "Backstage — твоя закулісна команда",
+  "a.set.notify": "Сповіщення", "a.set.radar": "Щотижневий радар можливостей від Рубена",
+  "a.set.rem": "Нагадування про дедлайни (за 14, 7 і 2 дні)", "a.set.notify.p": "Вони також приходять у твій Telegram-бот, якщо його підключено.",
   "a.plan": "Тариф", "a.plan.trial": "Безкоштовний пробний період — лишилося днів: {n}", "a.plan.free": "Безкоштовно",
   "a.plan.until": "Діє до {d}", "a.plan.owner": "Клієнт агенції — без денних лімітів",
   "a.plan.limits": "{chat} відповідей команди і {deep} глибоких аналізів на день", "a.plan.choose": "Обрати", "a.plan.current": "поточний тариф",
