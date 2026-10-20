@@ -207,10 +207,13 @@ const steps = [...document.querySelectorAll(".step")];
 const CRAFTS = {animation: "noa", illustration: "iris", painting: "maya", mural: "ben", music: "konrad", dance: "noa", theatre: "iris",
   film: "konrad", photo: "ruben", design: "hanna", fashion: "maya", writing: "tarik", other: "faint"};
 let cur = "lang", crafts = [], ticket = "", slugTouched = false, closed = false;
+// «Начать с нуля» из настроек: та же анкета, но без шага входа — логин и PIN уже есть
+const RESTART = new URLSearchParams(location.search).has("restart");
 $("#crafts").innerHTML = Object.entries(CRAFTS).map(([k, c]) =>
   `<button type="button" class="chip" data-v="${k}" style="--c:var(--${c})" data-i="j.c.${k}"></button>`).join("");
 function say(txt) { const b = $("#bubble"); $("#say").textContent = txt; b.style.animation = "none"; b.offsetHeight; b.style.animation = ""; }
 function bubbleFor(i) {
+  if (RESTART && (i === "lang" || i === 0)) return t("j.r.say");
   if (i === "lang") return t("j.say.lang");
   if (i === "closed") return t("j.sayc");
   if (i === 1 && crafts.length) return craftLine();
@@ -259,10 +262,11 @@ function pickCraft(v) {
 document.addEventListener("click", (e) => {
   const lb = e.target.closest(".lang");
   if (lb) return setLang(lb.dataset.l);
-  if (e.target.closest("#langGo")) return show(closed ? "closed" : 0);
+  if (e.target.closest("#langGo")) return show(closed && !RESTART ? "closed" : 0);
   if (e.target.closest("[data-next]")) {
     const msg = validate(cur);
     if (msg) { say(msg); return; }
+    if (RESTART && cur === 2) return restart();
     if (cur === 1 && !slugTouched) { $("#slug").value = slugify($("#name").value); checkSlug(); }
     show(cur + 1);
   }
@@ -300,6 +304,24 @@ $("#f").addEventListener("submit", async (e) => {
     setTimeout(() => location.href = "app", 900);
   } catch (ex) { show(3); err.textContent = ex.message; $("#go").disabled = false; say(t("j.e.say", {msg: ex.message})); }
 });
+async function restart() {
+  show(4);
+  try {
+    const r = await fetch("api/restart", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
+      name: $("#name").value, crafts, craft: crafts[0], city: $("#city").value, about: $("#about").value, goal: $("#goal").value,
+      links: $("#links").value, lang: BS.lang, confirm: true})});
+    if (r.status === 401) return (location.href = "login");
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || t("j.e.generic"));
+    try { if (j.job) localStorage.setItem("bs_job", j.job); localStorage.removeItem("bs_sv_later"); } catch {}
+    setTimeout(() => location.href = "app", 900);
+  } catch (ex) { show(2); say(t("j.e.say", {msg: ex.message})); }
+}
+if (RESTART) {
+  // кнопка на шаге 2 сразу отправляет анкету; внизу — «передумал» вместо «уже работаешь»
+  document.querySelector('[data-step="2"] [data-next] span[data-i]').dataset.i = "j.r.go";
+  document.querySelector(".foot").innerHTML = '<span data-i="j.r.cancel"></span> <a href="app" data-i="j.r.back"></a>';
+}
 setLang(BS.lang);
 show("lang");
 (async () => {

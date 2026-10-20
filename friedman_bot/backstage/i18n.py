@@ -96,6 +96,9 @@ MSG = {
     "first_review": {"en": "Maya, please look at my questionnaire and do a first review",
                      "de": "Maya, schau dir bitte meinen Fragebogen an und mach eine erste Analyse",
                      "ua": "Майє, подивись мою анкету і зроби перший розбір"},
+    "restart_limit": {"en": "You can start from scratch up to {n} times a day. Please try again tomorrow.",
+                      "de": "Von vorn beginnen geht bis zu {n}-mal am Tag. Versuch es morgen wieder.",
+                      "ua": "Почати з нуля можна до {n} разів на день. Спробуй завтра."},
     "potential": {"en": "Potential check", "de": "Potenzial-Check", "ua": "Перевірка потенціалу"},
 }
 

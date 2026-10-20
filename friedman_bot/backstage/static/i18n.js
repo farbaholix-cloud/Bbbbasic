@@ -4,6 +4,11 @@ const I18N = {
 en: {
   // анкета
   "j.title": "Backstage — your team behind the scenes",
+  "a.restart": "Start from scratch",
+  "a.restart.p": "Deletes all conversations, the dashboard, your knowledge base entries and the detailed questionnaire. Your login and PIN stay. You then fill in the short questionnaire again and the team does a new first review.",
+  "a.restart.q": "Really start from scratch? All conversations, the dashboard and the questionnaire will be deleted. This can't be undone.",
+  "j.r.say": "Starting from scratch. Let's get to know each other again — your login and PIN stay the same.",
+  "j.r.go": "Start over with the team", "j.r.cancel": "Changed your mind?", "j.r.back": "Back to the team",
   "s.title": "Detailed questionnaire",
   "s.h": "Detailed <em>questionnaire</em>",
   "s.step": "Part {n} of {total}", "s.multi": "— several possible", "s.ph": "Your answer",
@@ -165,6 +170,11 @@ en: {
 },
 de: {
   "j.title": "Backstage — dein Team hinter den Kulissen",
+  "a.restart": "Von vorn beginnen",
+  "a.restart.p": "Löscht alle Gespräche, das Dashboard, deine Einträge in der Erfahrungsdatenbank und den ausführlichen Fragebogen. Login-Name und PIN bleiben. Danach füllst du den kurzen Fragebogen neu aus, und das Team macht eine neue erste Analyse.",
+  "a.restart.q": "Wirklich von vorn beginnen? Alle Gespräche, das Dashboard und der Fragebogen werden gelöscht. Das lässt sich nicht rückgängig machen.",
+  "j.r.say": "Wir fangen von vorn an. Lernen wir uns noch einmal kennen — Login-Name und PIN bleiben gleich.",
+  "j.r.go": "Mit dem Team neu starten", "j.r.cancel": "Doch nicht?", "j.r.back": "Zurück zum Team",
   "s.title": "Ausführlicher Fragebogen",
   "s.h": "Ausführlicher <em>Fragebogen</em>",
   "s.step": "Teil {n} von {total}", "s.multi": "— Mehrfachauswahl möglich", "s.ph": "Deine Antwort",
@@ -324,6 +334,11 @@ de: {
 },
 ua: {
   "j.title": "Backstage — твоя закулісна команда",
+  "a.restart": "Почати з нуля",
+  "a.restart.p": "Видаляє всі розмови, дашборд, твої записи в базі досвіду та детальну анкету. Ім'я для входу й PIN-код залишаються. Потім ти знову заповнюєш коротку анкету, і команда робить новий перший розбір.",
+  "a.restart.q": "Справді почати з нуля? Усі розмови, дашборд і анкету буде видалено. Скасувати це неможливо.",
+  "j.r.say": "Починаємо з нуля. Познайомимося ще раз — ім'я для входу й PIN-код залишаються ті самі.",
+  "j.r.go": "Почати заново з командою", "j.r.cancel": "Передумав(-ла)?", "j.r.back": "Назад до команди",
   "s.title": "Детальна анкета",
   "s.h": "Детальна <em>анкета</em>",
   "s.step": "Частина {n} з {total}", "s.multi": "— можна кілька", "s.ph": "Твоя відповідь",

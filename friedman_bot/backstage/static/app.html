@@ -186,6 +186,9 @@
     <p class="small" id="usageLine"></p>
     <h3 style="margin-top:18px" data-i="a.set.exp"></h3>
     <div id="insList" class="small"></div>
+    <h3 style="margin-top:18px" data-i="a.restart"></h3>
+    <p class="small muted" data-i="a.restart.p"></p>
+    <button type="button" id="btnRestart" style="color:var(--bad);border-color:var(--bad)" data-i="a.restart"></button>
     <div class="row" style="margin-top:14px"><button type="button" class="ghost" id="btnLogout2" data-i="a.logout"></button><a href="guide" target="_blank" class="small guide-link" data-i="a.guide"></a><div class="grow"></div>
       <button value="cancel" data-i="a.close"></button><button class="primary" id="setOk" value="ok" data-i="a.save"></button></div>
   </form>
@@ -536,6 +539,7 @@ $("#dlgSettings").onclose = async () => {
   if (newLang !== BS.lang) { BS.set(newLang); return location.reload(); }
   refreshMe();
 };
+$("#btnRestart").onclick = () => { if (confirm(t("a.restart.q"))) location.href = "./?restart=1"; };
 const logout = async () => { await api("api/logout", {}); location.href = "./"; };
 $("#btnLogout").onclick = logout; $("#btnLogout2").onclick = logout;
 function setTab(tab) {

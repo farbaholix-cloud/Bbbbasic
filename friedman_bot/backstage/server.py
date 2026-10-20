@@ -307,6 +307,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.admin_login(body)
             if path == "/api/signup":
                 return self.signup(body)
+            if path == "/api/restart":
+                cid = self._client_id()
+                if not cid:
+                    return self._err(401, T(self._lang(body), "need_login"))
+                return self.restart(cid, body)
             if path == "/api/logout":
                 for name in ("bs_session", "bs_admin"):
                     store.drop_session(self._cookies().get(name, ""))
@@ -362,17 +367,9 @@ class Handler(BaseHTTPRequestHandler):
         name = re.sub(r"\s+", " ", str(body.get("name", ""))).strip()[:40]
         slug = str(body.get("slug", "")).strip().lower()
         pin = str(body.get("pin", "")).strip()
-        # Можно выбрать несколько областей: первая задаёт доску и подсказки, все идут в профиль
-        raw = body.get("crafts") or [body.get("craft", "other")]
-        picked = list(dict.fromkeys(str(c) for c in (raw if isinstance(raw, list) else [raw]) if str(c) in brain.CRAFTS))[:6]
-        if len(picked) > 1 and "other" in picked:
-            picked.remove("other")
-        picked = picked or ["other"]
+        picked = pick_crafts(body)
         craft = picked[0]
-        about = str(body.get("about", "")).strip()[:1500]
         goal = str(body.get("goal", "")).strip()[:800]
-        city = str(body.get("city", "")).strip()[:60]
-        links = str(body.get("links", "")).strip()[:300]
         if len(name) < 2:
             raise ValueError(T(L, "name_short"))
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,24}", slug) or slug in RESERVED:
@@ -383,11 +380,7 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError(T(L, "need_agree"))
         if store.slug_taken(slug):
             raise ValueError(T(L, "slug_taken"))
-        crafts = i18n.CRAFTS[L]
-        profile = "\n".join(x for x in [
-            f"{name}{', ' + city if city else ''} — {', '.join(crafts[c] for c in picked)}.",
-            about and f"{T(L, 'about')}: {about}", goal and f"{T(L, 'goal')}: {goal}",
-            links and f"{T(L, 'links')}: {links}"] if x)
+        profile = build_profile(L, name, picked, body)
         cid, _ = store.create_client(slug, name, profile, budget=0, lang=L, key=pin, source="signup",
                                      craft=",".join(picked))
         store.note_signup(ip_hash)
@@ -396,9 +389,31 @@ class Handler(BaseHTTPRequestHandler):
         log.info("signup: %s (%s, %s)", slug, ",".join(picked), L)
         # Первый разбор стартует сразу: человек заполнил анкету — и уже видит, как
         # команда работает над ним, а не сталкивается с пустым чатом.
-        jid = start_job(cid, "maya", brain.POTENTIAL_PROMPT + "\n\nAbout me (from the questionnaire):\n" + profile,
-                        [], True, display=T(L, "first_review"))
+        jid = first_review(cid, L, profile)
         return self._json({"ok": True, "job": jid}, headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
+
+    def restart(self, cid, body):
+        """«Начать с нуля» для уже зарегистрированного: та же короткая анкета, без логина и PIN."""
+        L = i18n.norm(body.get("lang"))
+        if not body.get("confirm"):
+            raise ValueError(T(L, "try_again"))
+        key = f"restarts:{cid}"
+        recent = [x for x in (store.meta_get(key, "") or "").split(",") if x and time.time() - float(x) < 86400]
+        if len(recent) >= RESTARTS_PER_DAY:
+            return self._err(429, T(L, "restart_limit", n=RESTARTS_PER_DAY))
+        busy = _running.get(cid)
+        if busy and JOBS.get(busy, {}).get("status") == "running":
+            return self._err(409, T(L, "busy"))
+        name = re.sub(r"\s+", " ", str(body.get("name", ""))).strip()[:40]
+        if len(name) < 2:
+            raise ValueError(T(L, "name_short"))
+        picked = pick_crafts(body)
+        profile = build_profile(L, name, picked, body)
+        store.restart_client(cid, name, profile, ",".join(picked), L)
+        store.meta_set(key, ",".join(recent + [str(time.time())]))
+        store.add_message(cid, "maya", "assistant", i18n.welcome(L, name, picked[0], str(body.get("goal", "")).strip()[:800]))
+        log.info("restart: client %s (%s, %s)", cid, ",".join(picked), L)
+        return self._json({"ok": True, "job": first_review(cid, L, profile)})
 
     def admin_login(self, body):
         ip = self._ip()
@@ -574,6 +589,35 @@ class Handler(BaseHTTPRequestHandler):
                 store.set_insight_shared(iid, int(bool(body.get("shared"))), body.get("title"), body.get("body"))
             return self._json({"ok": True})
         return self._err(404, "not found")
+
+
+RESTARTS_PER_DAY = 3
+
+
+def pick_crafts(body):
+    """Можно выбрать несколько областей: первая задаёт доску и подсказки, все идут в профиль."""
+    raw = body.get("crafts") or [body.get("craft", "other")]
+    picked = list(dict.fromkeys(str(c) for c in (raw if isinstance(raw, list) else [raw]) if str(c) in brain.CRAFTS))[:6]
+    if len(picked) > 1 and "other" in picked:
+        picked.remove("other")
+    return picked or ["other"]
+
+
+def build_profile(L, name, picked, body):
+    about = str(body.get("about", "")).strip()[:1500]
+    goal = str(body.get("goal", "")).strip()[:800]
+    city = str(body.get("city", "")).strip()[:60]
+    links = str(body.get("links", "")).strip()[:300]
+    crafts = i18n.CRAFTS[L]
+    return "\n".join(x for x in [
+        f"{name}{', ' + city if city else ''} — {', '.join(crafts[c] for c in picked)}.",
+        about and f"{T(L, 'about')}: {about}", goal and f"{T(L, 'goal')}: {goal}",
+        links and f"{T(L, 'links')}: {links}"] if x)
+
+
+def first_review(cid, L, profile):
+    return start_job(cid, "maya", brain.POTENTIAL_PROMPT + "\n\nAbout me (from the questionnaire):\n" + profile,
+                     [], True, display=T(L, "first_review"))
 
 
 def _survey(c):

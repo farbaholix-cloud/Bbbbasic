@@ -411,9 +411,35 @@ def history(client_id: int, agent: str, limit: int = 30):
     return out
 
 
+def _archive_today(conn, client_id, agent=None):
+    """Сегодняшние запросы клиента не удаляем, а прячем в «_archive»: по ним считается
+    дневной лимит бесплатной версии, и очистка чата не должна его обнулять."""
+    day = datetime.now().strftime("%Y-%m-%d")
+    q = "UPDATE messages SET agent='_archive', text='' WHERE client_id=? AND role='user' AND substr(created,1,10)=?"
+    args = [client_id, day]
+    if agent:
+        q += " AND agent=?"
+        args.append(agent)
+    conn.execute(q, args)
+
+
 def clear_history(client_id: int, agent: str):
     with db() as conn:
+        _archive_today(conn, client_id, agent)
         conn.execute("DELETE FROM messages WHERE client_id=? AND agent=?", (client_id, agent))
+
+
+def restart_client(client_id: int, name: str, profile: str, craft: str, lang: str):
+    """«Начать с нуля»: переписка, дашборд, своя база опыта и анкета стираются,
+    вход (имя и PIN), язык и расход остаются."""
+    with db() as conn:
+        _archive_today(conn, client_id)
+        conn.execute("DELETE FROM messages WHERE client_id=? AND agent!='_archive'", (client_id,))
+        conn.execute("DELETE FROM widgets WHERE client_id=?", (client_id,))
+        conn.execute("DELETE FROM insights WHERE client_id=? AND shared=0", (client_id,))
+        conn.execute("UPDATE clients SET name=?, profile=?, craft=?, lang=?, survey='' WHERE id=?",
+                     (name, profile, craft, lang, client_id))
+    seed_dashboard(client_id, craft.split(",")[0], lang)
 
 
 # ─── Расход ──────────────────────────────────────────────────────────────────
