@@ -16,12 +16,26 @@ import store
 
 DEFAULT_PLANS = {
     "trial": {"name": "Trial", "days": 14, "chat_daily": int(os.environ.get("BACKSTAGE_FREE_DAILY_CHAT", "25")),
-              "deep_daily": int(os.environ.get("BACKSTAGE_FREE_DAILY_DEEP", "2"))},
+              "deep_daily": int(os.environ.get("BACKSTAGE_FREE_DAILY_DEEP", "2")), "tokens_daily": 400_000, "usd_month": 3},
     "free": {"name": "Free", "chat_daily": int(os.environ.get("BACKSTAGE_FREE_DAILY_CHAT", "25")),
-             "deep_daily": int(os.environ.get("BACKSTAGE_FREE_DAILY_DEEP", "2"))},
-    "basic": {"name": "Basic", "price": "19 € / month", "chat_daily": 60, "deep_daily": 4, "link": ""},
-    "pro": {"name": "Pro", "price": "49 € / month", "chat_daily": 200, "deep_daily": 12, "link": ""},
+             "deep_daily": int(os.environ.get("BACKSTAGE_FREE_DAILY_DEEP", "2")), "tokens_daily": 400_000, "usd_month": 3},
+    "basic": {"name": "Basic", "price": "19 € / month", "chat_daily": 60, "deep_daily": 4, "link": "",
+              "tokens_daily": 1_500_000, "usd_month": 15},
+    "pro": {"name": "Pro", "price": "49 € / month", "chat_daily": 200, "deep_daily": 12, "link": "",
+            "tokens_daily": 5_000_000, "usd_month": 40},
 }
+# Потолки всей платформы и одного запроса — защита от «проснулся со счётом на тысячи»
+DEFAULT_CAPS = {"platform_tokens_daily": 20_000_000, "platform_usd_daily": 20.0,
+                "request_tokens_chat": 300_000, "request_tokens_deep": 1_000_000}
+
+
+def caps():
+    c = dict(DEFAULT_CAPS)
+    try:
+        c.update({k: v for k, v in json.loads(store.meta_get("caps", "") or "{}").items() if k in c})
+    except Exception:
+        pass
+    return c
 PAID = ("basic", "pro")
 PERIOD_DAYS = 32  # оплаченный месяц + запас на задержку продления
 
@@ -51,7 +65,8 @@ def status(c):
     if plan in PAID and until >= today:
         p = plans[plan]
         return {"plan": plan, "name": p["name"], "until": until, "expired": False,
-                "chat_daily": p["chat_daily"], "deep_daily": p["deep_daily"]}
+                "chat_daily": p["chat_daily"], "deep_daily": p["deep_daily"],
+                "tokens_daily": p.get("tokens_daily"), "usd_month": p.get("usd_month")}
     if (c.get("source") or "admin") == "admin" and not plan:
         return {"plan": "owner", "name": "Agency", "expired": False, "chat_daily": None, "deep_daily": None}
     on = payments_on(plans)
@@ -64,11 +79,13 @@ def status(c):
     if on and end >= today:
         left = (datetime.fromisoformat(end) - datetime.fromisoformat(today)).days
         return {"plan": "trial", "name": t["name"], "until": end, "days_left": left, "expired": False,
-                "chat_daily": t["chat_daily"], "deep_daily": t["deep_daily"]}
+                "chat_daily": t["chat_daily"], "deep_daily": t["deep_daily"],
+                "tokens_daily": t.get("tokens_daily"), "usd_month": t.get("usd_month")}
     if on:
         return {"plan": "expired", "name": t["name"], "until": end, "expired": True, "chat_daily": 0, "deep_daily": 0}
     f = plans["free"]
-    return {"plan": "free", "name": f["name"], "expired": False, "chat_daily": f["chat_daily"], "deep_daily": f["deep_daily"]}
+    return {"plan": "free", "name": f["name"], "expired": False, "chat_daily": f["chat_daily"], "deep_daily": f["deep_daily"],
+            "tokens_daily": f.get("tokens_daily"), "usd_month": f.get("usd_month")}
 
 
 def offers(c):

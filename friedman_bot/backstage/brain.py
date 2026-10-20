@@ -464,6 +464,8 @@ def run_tool(c, agent_id, name, inp, ctx):
         if sub not in AGENTS or AGENTS[sub].get("lead"):
             raise ValueError("нет такого специалиста")
         limit = MAX_ASKS_DEEP if ctx.get("deep") else MAX_ASKS_CHAT
+        if over_request_cap():
+            raise ValueError("потолок токенов на этот ответ исчерпан — сведи итог из того, что есть")
         if len(ctx.get("consulted", [])) >= limit:
             raise ValueError(f"лимит: не больше {limit} специалистов на один ответ — сведи итог сама")
         ctx.setdefault("consulted", []).append(sub)
@@ -493,15 +495,43 @@ FREE_DAILY_CHAT = int(os.environ.get("BACKSTAGE_FREE_DAILY_CHAT", "25"))
 FREE_DAILY_DEEP = int(os.environ.get("BACKSTAGE_FREE_DAILY_DEEP", "2"))
 
 
+import threading as _threading
+_req = _threading.local()  # счётчик токенов текущего запроса клиента (один поток — один ответ)
+
+
+def _log_usage(cid, kind, model, u, cost):
+    """Все вызовы модели пишутся отсюда: и в базу, и в счётчик текущего запроса."""
+    store.log_usage(cid, kind, model, u, cost)
+    _req.tokens = getattr(_req, "tokens", 0) + u.get("input", 0) + u.get("output", 0) + u.get("cache_write", 0) \
+        + u.get("cache_read", 0) // 10
+
+
+def over_request_cap():
+    cap = getattr(_req, "cap", 0)
+    return bool(cap) and getattr(_req, "tokens", 0) >= cap
+
+
+def check_platform(lang=None):
+    """Общий потолок на день для всей платформы (включая радар) — иначе наплыв людей = неограниченный счёт."""
+    import plans
+    cp = plans.caps()
+    if store.tokens_today(None) >= cp["platform_tokens_daily"] or (
+            backend() == "api" and store.usd_today() >= cp["platform_usd_daily"]):
+        raise BudgetExceeded(i18n.t(lang, "platform_pause"))
+
+
 def check_quota(c, deep=False):
     """Бесплатные аккаунты (саморегистрация, демо) работают на подписке владельца —
     дневной лимит не даёт одному человеку или боту выжечь её за всех."""
     import plans
+    check_platform(c.get("lang"))
     st = plans.status(c)
     if st["expired"]:
         raise BudgetExceeded(i18n.t(c.get("lang"), "trial_over"))
     if st["chat_daily"] is None:
         return
+    if st.get("tokens_daily") and store.tokens_today(c["id"]) >= st["tokens_daily"]:
+        raise BudgetExceeded(i18n.t(c.get("lang"), "quota_tokens"))
     used = store.requests_today(c["id"])
     if deep and used.get("deep", 0) >= st["deep_daily"]:
         raise BudgetExceeded(i18n.t(c.get("lang"), "quota_deep", n=st["deep_daily"]))
@@ -512,7 +542,10 @@ def check_quota(c, deep=False):
 def check_budget(c):
     if backend() != "api":
         return  # по подписке денег не считаем — работаем в её лимитах
+    import plans
     budget = float(c["monthly_budget"] or 0)
+    if budget <= 0:  # 0 больше не значит «без лимита»: берём месячный потолок тарифа
+        budget = float(plans.status(c).get("usd_month") or 0)
     if budget > 0 and store.spent_this_month(c["id"]) >= budget:
         raise BudgetExceeded(i18n.t(c.get("lang"), "budget_out", b=f"{budget:.2f}"))
 
@@ -568,7 +601,11 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
     system = system_prompt(agent_id)
     tools = tools_for(agent_id, allow_delegate=allow_delegate, web=web_allowed(agent_id, ctx["deep"]))
     resp = None
-    for _ in range(MAX_TOOL_ROUNDS):
+    capped = False
+    for rnd in range(MAX_TOOL_ROUNDS):
+        if rnd and over_request_cap():
+            capped = True  # потолок токенов на один ответ — отдаём, что успели
+            break
         try:
             resp = _call(model, effort, system, tools, messages, max_tokens)
         except Exception as e:
@@ -581,7 +618,7 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
                 continue
             raise
         u = _usage(resp)
-        store.log_usage(c["id"], kind, resp.model or model, u, cost_of(resp.model or model, u))
+        _log_usage(c["id"], kind, resp.model or model, u, cost_of(resp.model or model, u))
         messages.append({"role": "assistant", "content": resp.content})
 
         if resp.stop_reason == "refusal":
@@ -605,6 +642,8 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
         check_budget(c)
 
     text = "\n\n".join(b.text for b in (resp.content if resp else []) if b.type == "text").strip()
+    if capped:
+        text += "\n\n" + i18n.t(c.get("lang"), "request_cap")
     if resp is not None and resp.stop_reason == "max_tokens":
         text += "\n\n" + i18n.t(c.get("lang"), "cut")
     return text or i18n.t(c.get("lang"), "empty_reply")
@@ -612,10 +651,20 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
 
 def chat(client_id, agent_id, text, attachments=None, deep=False, display=None):
     """Точка входа для веб-панели и Telegram-моста. Сохраняет переписку."""
+    import plans
     c = store.get_client(client_id)
     check_quota(c, deep)
     if agent_id not in AGENTS:
         agent_id = "maya"
+    cp = plans.caps()
+    _req.tokens, _req.cap = 0, cp["request_tokens_deep" if deep else "request_tokens_chat"]
+    try:
+        return _chat(c, client_id, agent_id, text, attachments, deep, display)
+    finally:
+        _req.cap = 0  # фоновые задачи (радар) в этом потоке потолком запроса не ограничиваем
+
+
+def _chat(c, client_id, agent_id, text, attachments, deep, display):
     hist = store.history(client_id, agent_id, limit=HIST_MSGS)
     note = ""
     if attachments:
@@ -751,7 +800,7 @@ def _cli_call(c, kind, system, prompt, tools, model, timeout, turns=None):
             raise RuntimeError(f"claude CLI: {(p.stderr or out)[-300:]}")
         return out
     u = j.get("usage") or {}
-    store.log_usage(c["id"], kind, f"cli:{model}", {
+    _log_usage(c["id"], kind, f"cli:{model}", {
         "input": u.get("input_tokens", 0) or 0, "output": u.get("output_tokens", 0) or 0,
         "cache_read": u.get("cache_read_input_tokens", 0) or 0,
         "cache_write": u.get("cache_creation_input_tokens", 0) or 0, "web": 0},
@@ -821,6 +870,8 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
         if lead and asks:
             answers = []
             for a in asks:
+                if over_request_cap():
+                    break  # потолок токенов на ответ — дальше не зовём
                 ctx.setdefault("consulted", []).append(a["agent"])
                 sub = cli_agent(c, a["agent"], str(a.get("task", "")), [], deep=deep, ctx=ctx, depth=1)
                 answers.append(f"### {AGENTS[a['agent']]['name']} ({AGENTS[a['agent']]['role']})\n{sub[:SPECIALIST_ANSWER_CHARS]}")
@@ -830,6 +881,8 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
                        + "\n\n".join(answers) +
                        "\n\nСведи итог для клиента. Действия из первого ответа уже применены — не повторяй их. "
                        "Новых поручений не давай. Новый поиск в интернете не нужен.")
+            if over_request_cap() and not answers:
+                return (reply.strip() + "\n\n" + i18n.t(c.get("lang"), "request_cap")).strip()
             reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt2, [], model, timeout, 2))
             _apply(c, agent_id, [a for a in actions if a.get("type") != "ask"], ctx, notes)
         if notes:
@@ -871,7 +924,7 @@ def radar_search(craft, country):
             resp = _call(MODEL_CHAT, EFFORT_CHAT, [{"type": "text", "text": RADAR_SYSTEM}], [dict(WEB_TOOL)],
                          messages, 8000)
             u = _usage(resp)
-            store.log_usage(0, f"radar:{craft}:{country}", resp.model or MODEL_CHAT, u, cost_of(resp.model or MODEL_CHAT, u))
+            _log_usage(0, f"radar:{craft}:{country}", resp.model or MODEL_CHAT, u, cost_of(resp.model or MODEL_CHAT, u))
             if resp.stop_reason != "pause_turn":
                 break
             messages.append({"role": "assistant", "content": resp.content})

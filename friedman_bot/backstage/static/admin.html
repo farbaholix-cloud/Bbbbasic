@@ -56,8 +56,16 @@
     <section class="card">
       <h2>Тарифы и оплата</h2>
       <p class="small" id="payInfo"></p>
-      <div class="t-wrap"><table><thead><tr><th>Тариф</th><th>Название</th><th>Цена (текст)</th><th>Ответов/день</th><th>Глуб. анализов/день</th><th>Дней</th><th>Ссылка оплаты Stripe</th></tr></thead>
+      <div class="t-wrap"><table><thead><tr><th>Тариф</th><th>Название</th><th>Цена (текст)</th><th>Ответов/день</th><th>Глуб. анализов/день</th><th>Токенов/день</th><th>$ в месяц (API)</th><th>Дней</th><th>Ссылка оплаты Stripe</th></tr></thead>
         <tbody id="plans"></tbody></table></div>
+      <h3 style="margin-top:14px">Потолки расхода</h3>
+      <p class="small" id="capsInfo"></p>
+      <div class="form4">
+        <div><label>Платформа: токенов в день (все клиенты + радар)</label><input id="capPT"></div>
+        <div><label>Платформа: $ в день (режим API)</label><input id="capPU"></div>
+        <div><label>Один ответ: токенов (чат)</label><input id="capRC"></div>
+        <div><label>Один ответ: токенов (глубокий анализ)</label><input id="capRD"></div>
+      </div>
       <label>Секрет вебхука Stripe (whsec_…) — вставь, чтобы оплата включала тариф сама</label>
       <input id="whsec" placeholder="whsec_…">
       <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="plansSave">Сохранить тарифы</button></div>
@@ -135,16 +143,24 @@ async function load() {
       : "Оплата <b>выключена</b> — все пользуются бесплатно с дневными лимитами. Вставь ссылку оплаты хотя бы для одного тарифа, и включится схема «пробный период → тариф».")
     + `<br>Ссылки — Stripe → Payment Links (подписка на месяц). Вебхук: Stripe → Developers → Webhooks, события <b>checkout.session.completed</b> и <b>invoice.paid</b>, адрес: <b>${hook ? esc(hook) : "нужен HTTPS-адрес панели"}</b>.`
     + ` Секрет вебхука: ${cfg.stripe_secret_set ? "✅ задан" : "❌ не задан — тариф после оплаты включай вручную в таблице клиентов"}.`;
+  const C = cfg.caps, fmt = (n) => Number(n).toLocaleString("ru-RU");
+  $("#capPT").value = C.platform_tokens_daily; $("#capPU").value = C.platform_usd_daily; $("#capRC").value = C.request_tokens_chat; $("#capRD").value = C.request_tokens_deep;
+  $("#capsInfo").innerHTML = `Сегодня вся платформа израсходовала <b>${fmt(cfg.tokens_today)}</b> из ${fmt(C.platform_tokens_daily)} токенов`
+    + (cfg.backend === "api" ? ` и <b>$${cfg.usd_today}</b> из $${C.platform_usd_daily}` : " (режим подписки: деньги не списываются)")
+    + `. Достигнут потолок — команда до завтра отвечает «пауза», данные клиентов не теряются. «Токены» = вход + выход + запись в кэш + 1/10 чтения из кэша.`;
   $("#plans").innerHTML = ["trial", "free", "basic", "pro"].map(k => `<tr data-k="${k}"><td><b>${k}</b></td>
     <td><input data-p="name" value="${esc(P[k].name)}"></td><td><input data-p="price" value="${esc(P[k].price || "")}" ${k === "basic" || k === "pro" ? "" : "disabled"}></td>
     <td><input data-p="chat_daily" value="${P[k].chat_daily}" style="width:70px"></td><td><input data-p="deep_daily" value="${P[k].deep_daily}" style="width:70px"></td>
+    <td><input data-p="tokens_daily" value="${P[k].tokens_daily || ""}" style="width:100px"></td><td><input data-p="usd_month" value="${P[k].usd_month || ""}" style="width:70px"></td>
     <td><input data-p="days" value="${P[k].days || ""}" style="width:60px" ${k === "trial" ? "" : "disabled"}></td>
     <td><input data-p="link" value="${esc(P[k].link || "")}" placeholder="https://buy.stripe.com/…" ${k === "basic" || k === "pro" ? "" : "disabled"}></td></tr>`).join("");
   $("#plansSave").onclick = async () => {
     const out = {};
     document.querySelectorAll("#plans tr").forEach(tr => { const o = {}; tr.querySelectorAll("input[data-p]:not([disabled])").forEach(i => {
-      o[i.dataset.p] = ["chat_daily", "deep_daily", "days"].includes(i.dataset.p) ? Number(i.value) || 0 : i.value.trim(); }); out[tr.dataset.k] = o; });
-    await api("api/admin/plans", {plans: out, stripe_secret: $("#whsec").value.trim()}); $("#whsec").value = ""; load();
+      o[i.dataset.p] = ["chat_daily", "deep_daily", "days", "tokens_daily", "usd_month"].includes(i.dataset.p) ? Number(i.value) || 0 : i.value.trim(); }); out[tr.dataset.k] = o; });
+    const caps = {platform_tokens_daily: $("#capPT").value, platform_usd_daily: $("#capPU").value,
+      request_tokens_chat: $("#capRC").value, request_tokens_deep: $("#capRD").value};
+    await api("api/admin/plans", {plans: out, caps, stripe_secret: $("#whsec").value.trim()}); $("#whsec").value = ""; load();
   };
   const cl = await api("api/admin/clients");
   $("#clients").innerHTML = cl.map(c => `<tr data-id="${c.id}">

@@ -777,6 +777,25 @@ def spent_this_month(client_id: int) -> float:
     return float(v)
 
 
+# «Токены» для лимитов: вход + выход + запись в кэш + десятая часть чтения из кэша
+# (чтение из кэша в 10 раз дешевле — считать его целиком значило бы душить длинные поиски)
+TOKENS_SQL = "COALESCE(SUM(input_tokens + output_tokens + cache_write + cache_read / 10), 0)"
+
+
+def tokens_today(client_id=None) -> int:
+    """Токены за сегодня: одного клиента или всей платформы (client_id=None, включая радар)."""
+    day = datetime.now().strftime("%Y-%m-%d")
+    q = f"SELECT {TOKENS_SQL} FROM usage WHERE substr(ts,1,10)=?" + (" AND client_id=?" if client_id is not None else "")
+    with db() as conn:
+        return int(conn.execute(q, (day,) + ((client_id,) if client_id is not None else ())).fetchone()[0])
+
+
+def usd_today() -> float:
+    day = datetime.now().strftime("%Y-%m-%d")
+    with db() as conn:
+        return float(conn.execute("SELECT COALESCE(SUM(cost),0) FROM usage WHERE substr(ts,1,10)=?", (day,)).fetchone()[0])
+
+
 def usage_summary(client_id=None, days: int = 31):
     q = ("SELECT substr(ts,1,10) AS day, model, SUM(input_tokens) i, SUM(output_tokens) o, "
          "SUM(cache_read) cr, SUM(cost) cost, COUNT(*) n FROM usage "

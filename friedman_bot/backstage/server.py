@@ -794,6 +794,8 @@ class Handler(BaseHTTPRequestHandler):
                                "effort_chat": brain.EFFORT_CHAT, "effort_deep": brain.EFFORT_DEEP,
                                "prices": brain.PRICES, "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
                                "version": VERSION, "plans": plans.get_plans(), "payments_on": plans.payments_on(),
+                               "caps": plans.caps(), "tokens_today": store.tokens_today(None),
+                               "usd_today": round(store.usd_today(), 2), "backend": brain.backend(),
                                "public_url": store.meta_get("public_url", ""),
                                "stripe_secret_set": bool(store.meta_get("stripe_webhook_secret", ""))})
         return self._err(404, "not found")
@@ -811,9 +813,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/plans":
             cur = plans.get_plans()
             new = body.get("plans") if isinstance(body.get("plans"), dict) else {}
-            keep = {k: {f: v[f] for f in ("name", "price", "link", "days", "chat_daily", "deep_daily") if f in v}
+            keep = {k: {f: v[f] for f in ("name", "price", "link", "days", "chat_daily", "deep_daily", "tokens_daily",
+                                         "usd_month") if f in v}
                     for k, v in new.items() if k in cur and isinstance(v, dict)}
             store.meta_set("plans", json.dumps(keep, ensure_ascii=False))
+            if isinstance(body.get("caps"), dict):
+                store.meta_set("caps", json.dumps({k: float(v) for k, v in body["caps"].items()
+                                                   if k in plans.DEFAULT_CAPS and float(v) > 0}))
             if body.get("stripe_secret"):
                 store.meta_set("stripe_webhook_secret", str(body["stripe_secret"]).strip())
             return self._json({"ok": True})

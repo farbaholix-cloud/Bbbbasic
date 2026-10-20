@@ -90,6 +90,11 @@ def run_radar(limit=RADAR_PER_DAY, force=False):
     done = 0
     for cr, cn in clusters_due(force)[:limit]:
         try:
+            brain.check_platform()  # дневной потолок платформы — радар тоже его уважает
+        except brain.BudgetExceeded:
+            log.warning("radar: дневной потолок платформы — поиск отложен")
+            break
+        try:
             items = brain.radar_search(cr, cn)
             for it in items:
                 store.add_opportunity(it, cr, "intl" if cn == "any" else cn)
