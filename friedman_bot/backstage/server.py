@@ -285,6 +285,9 @@ class Handler(BaseHTTPRequestHandler):
                     return self._redirect("/login?bad=1")
                 tok = store.new_session(c["id"])
                 return self._redirect("/app", {"Set-Cookie": self._cookie_header("bs_session", tok)})
+            if path == "/api/donate":  # реквизиты «поддержать проект» — публичные, без входа
+                d = json.loads(store.meta_get("donate", "") or "{}")
+                return self._json({k: d.get(k, "") for k in ("paypal", "holder", "iban", "bic", "bank")})
             if path == "/api/signup/status":
                 return self._json({"open": store.meta_get("signup_open", "1") == "1", "ticket": make_ticket()})
             if path == "/api/signup/check":  # свободно ли имя — подсказка прямо в форме
@@ -796,6 +799,12 @@ class Handler(BaseHTTPRequestHandler):
         return self._err(404, "not found")
 
     def admin_post(self, path, body):
+        if path == "/api/admin/donate":
+            d = {k: str(body.get(k) or "").strip()[:200] for k in ("paypal", "holder", "iban", "bic", "bank")}
+            if d["paypal"] and not d["paypal"].startswith("https://"):
+                d["paypal"] = "https://" + d["paypal"].lstrip("/")
+            store.meta_set("donate", json.dumps(d, ensure_ascii=False))
+            return self._json({"ok": True})
         if path == "/api/admin/radar/run":
             threading.Thread(target=proactive.daily, kwargs={"force": True}, daemon=True).start()
             return self._json({"ok": True})

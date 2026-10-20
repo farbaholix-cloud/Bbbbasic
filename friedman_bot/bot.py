@@ -6567,7 +6567,8 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "backstage/static/style.css", "backstage/static/login.html", "backstage/static/app.html",
                 "backstage/static/guide.html", "backstage/static/admin.html", "backstage/static/join.html",
                 "backstage/static/i18n.js", "backstage/static/survey.html", "backstage/static/survey.js",
-                "backstage/static/workspace.html", "backstage/static/mail.js"]
+                "backstage/static/workspace.html", "backstage/static/mail.js",
+                "backstage/static/donate.js"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -7033,7 +7034,10 @@ BACKSTAGE_PORT = 8800  # внутренний порт; снаружи пане�
 
 
 def _backstage_url(ip):
-    return f"http://{ip}:8765/bs"
+    """Публичный адрес панели: свой домен по HTTPS (через Cloudflare), если он подключён
+    командой /backstagedomain, иначе — по IP через порт дашборда (http, без шифрования)."""
+    d = _settings_get("backstage_domain")
+    return f"https://{d}" if d else f"http://{ip}:8765/bs"
 import threading as _bs_threading
 _backstage_lock = _bs_threading.Lock()  # один запуск за раз (сторож + деплой)
 
@@ -7227,6 +7231,8 @@ async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
          else "Команда работает по твоей подписке Claude"),
         f"Регистрация для новых людей: {base}/  (закрыть/открыть — в админке)",
         "\nНовый клиент: /backstageclient код Название [бюджет$]\nнапример /backstageclient farbaholix Farbaholix 50",
+        ("\nСвой домен: " + (f"https://{_settings_get('backstage_domain')}" if _settings_get("backstage_domain")
+                              else "не подключён — /backstagedomain домен.de после настройки Cloudflare")),
     ]
     if not alive:
         _restart_backstage(d)
@@ -7248,6 +7254,58 @@ async def _accept_backstage_key(update: Update, ctx: ContextTypes.DEFAULT_TYPE, 
     _restart_backstage(d)
     await ctx.bot.send_message(chat_id, "✅ Ключ принят (сообщение с ним я удалил). "
                                         "Через минуту команда в Backstage начнёт отвечать.")
+
+
+def _backstage_public_url_to_db(d, url):
+    """Адрес — и в базу Backstage: сервер строит по нему ссылку вебхука и проверяет HTTPS (Чак)."""
+    try:
+        con = sqlite3.connect(os.path.join(d, "backstage", "backstage.db"), timeout=10)
+        con.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+        con.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('public_url', ?)", (url,))
+        con.commit()
+        con.close()
+    except Exception as e:
+        log.error(f"backstage public url: {e}")
+
+
+async def cmd_backstagedomain(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/backstagedomain домен.de — Backstage открывается по https://домен.de (Cloudflare → порт 8765).
+    /backstagedomain off — отключить. Проверяем, что адрес действительно отвечает."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if owner and chat_id != owner:
+        return
+    arg = (update.message.text or "").partition(" ")[2].strip().lower()
+    arg = re.sub(r"^https?://", "", arg).strip("/")
+    d = os.path.dirname(os.path.abspath(__file__))
+    if arg in ("off", "нет", "-"):
+        _settings_set("backstage_domain", "")
+        _backstage_public_url_to_db(d, "")
+        await ctx.bot.send_message(chat_id, "Домен отключён — Backstage снова открывается по IP.")
+        return
+    if not re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+", arg):
+        await ctx.bot.send_message(chat_id, "Так: /backstagedomain backstage-crew.de")
+        return
+    _settings_set("backstage_domain", arg)
+    _backstage_public_url_to_db(d, f"https://{arg}")
+
+    def probe():
+        import urllib.request
+        try:
+            req = urllib.request.Request(f"https://{arg}/api/signup/status", headers={"User-Agent": "BackstageCheck"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return r.status == 200 and b"ticket" in r.read()
+        except Exception as e:
+            return str(e)[:150]
+    ok = await asyncio.get_event_loop().run_in_executor(None, probe)
+    if ok is True:
+        msg = (f"✅ Backstage открывается по https://{arg}\n\nЭтот адрес теперь во всех ссылках. "
+               "Старая ссылка по IP тоже работает.")
+    else:
+        msg = (f"Домен записал, но https://{arg} пока не отвечает ({ok}).\n\n"
+               "Обычно это значит, что Cloudflare ещё не подхватил домен (до нескольких часов после смены "
+               "nameserver) или не создано правило порта 8765. Проверь шаги инструкции и повтори команду.")
+    await ctx.bot.send_message(chat_id, msg, disable_web_page_preview=True)
 
 
 async def cmd_backstagekey(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -9582,7 +9640,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.14"  # видимая метка сборки бота
+BOT_VERSION = "09.15"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (
@@ -9683,6 +9741,7 @@ def main():
     app.add_handler(CommandHandler("safe", cmd_safe))
     app.add_handler(CommandHandler("backstage", cmd_backstage))
     app.add_handler(CommandHandler("backstagekey", cmd_backstagekey))
+    app.add_handler(CommandHandler("backstagedomain", cmd_backstagedomain))
     app.add_handler(CommandHandler("backstageclient", cmd_backstageclient))
     app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(CommandHandler("status", cmd_status))

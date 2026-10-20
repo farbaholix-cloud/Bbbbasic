@@ -12,8 +12,38 @@ from wisdom import today_wisdom
 import dashboard_biz as bizdash  # бизнес-пульт FARBAHOLIX смонтирован на /biz этого же сервера
 
 DB = os.path.join(os.path.dirname(__file__), "friedman.db")
+
+# Диапазоны адресов Cloudflare (cloudflare.com/ips-v4) — им доверяем CF-Connecting-IP
+_CF_NETS = ("173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18",
+            "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17",
+            "162.158.0.0/15", "104.16.0.0/13", "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22")
+_bs_domain_cache = [0.0, ""]
+
+
+def _from_cloudflare(ip):
+    import ipaddress
+    try:
+        a = ipaddress.ip_address(ip)
+        return any(a in ipaddress.ip_network(n) for n in _CF_NETS)
+    except ValueError:
+        return False
+
+
+def _backstage_domain():
+    """Домен Backstage из настроек Секретаря (/backstagedomain), с кэшем на минуту."""
+    import time as _t
+    if _t.time() - _bs_domain_cache[0] > 60:
+        try:
+            conn = sqlite3.connect(DB, timeout=5)
+            row = conn.execute("SELECT value FROM settings WHERE key='backstage_domain'").fetchone()
+            conn.close()
+            _bs_domain_cache[1] = (row[0] if row else "").strip().lower()
+        except Exception:
+            pass
+        _bs_domain_cache[0] = _t.time()
+    return _bs_domain_cache[1]
 PORT = 8765
-VERSION = "1.51"  # видимая метка сборки — меняется с каждым деплоем
+VERSION = "1.52"  # видимая метка сборки — меняется с каждым деплоем
 
 
 @contextmanager
@@ -6251,14 +6281,22 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _backstage_proxy(self, method):
+    def _is_backstage_host(self):
+        """Запрос пришёл на домен Backstage (через Cloudflare) — отдаём панель целиком, с корня.
+        Дашборд Фридмана по этому адресу недоступен вовсе."""
+        d = _backstage_domain()
+        host = (self.headers.get("Host") or "").split(":")[0].lower()
+        return bool(d) and host in (d, "www." + d)
+
+    def _backstage_proxy(self, method, root=False):
         """Backstage (панель агентства, backstage/server.py на 127.0.0.1:8800) открывается
         снаружи через этот порт по пути /bs/… — новый порт на сервере открывать не нужно.
+        root=True — вход через собственный домен (Cloudflare → этот порт): весь путь как есть.
         У Backstage свой вход по ключу клиента, замок дашборда здесь не действует."""
         import urllib.request
         import urllib.error
         path = self.path
-        if path.split('?', 1)[0] == "/bs":
+        if not root and path.split('?', 1)[0] == "/bs":
             self.send_response(301)
             self.send_header("Location", "/bs/" + (path[3:] if path[3:].startswith("?") else ""))
             self.send_header("Content-Length", "0")
@@ -6266,12 +6304,20 @@ class Handler(BaseHTTPRequestHandler):
             return
         n = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(n) if n else None
-        req = urllib.request.Request("http://127.0.0.1:8800" + path[3:], data=body, method=method)
-        for h in ("Cookie", "Content-Type", "User-Agent"):
+        req = urllib.request.Request("http://127.0.0.1:8800" + (path if root else path[3:]), data=body, method=method)
+        for h in ("Cookie", "Content-Type", "User-Agent", "Stripe-Signature"):
             if self.headers.get(h):
                 req.add_header(h, self.headers[h])
-        req.add_header("X-Forwarded-Prefix", "/bs")
-        req.add_header("X-Forwarded-For", self.client_address[0])  # иначе Backstage видит всех как 127.0.0.1
+        ip = self.client_address[0]
+        if _from_cloudflare(ip):
+            # настоящий адрес посетителя и HTTPS — только если запрос правда пришёл от Cloudflare,
+            # иначе любой подставил бы заголовок и обошёл защиту от перебора PIN
+            ip = self.headers.get("CF-Connecting-IP") or ip
+            if self.headers.get("X-Forwarded-Proto"):
+                req.add_header("X-Forwarded-Proto", self.headers["X-Forwarded-Proto"])
+        if not root:
+            req.add_header("X-Forwarded-Prefix", "/bs")
+        req.add_header("X-Forwarded-For", ip)  # иначе Backstage видит всех как 127.0.0.1
 
         class _NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, *a, **k):
@@ -6293,7 +6339,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(resp.status if hasattr(resp, "status") else resp.code)
         for k, v in resp.headers.items():
             if k.lower() in ("content-type", "set-cookie", "location", "cache-control",
-                             "x-frame-options", "x-content-type-options", "referrer-policy"):
+                             "x-frame-options", "x-content-type-options", "referrer-policy",
+                             "content-disposition"):
                 self.send_header(k, v)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
@@ -6301,6 +6348,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split('?', 1)[0]
+        if self._is_backstage_host():
+            return self._backstage_proxy("GET", root=True)
         if path == "/bs" or path.startswith("/bs/"):
             return self._backstage_proxy("GET")
         if not self._authed():
@@ -6344,6 +6393,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split('?', 1)[0]
+        if self._is_backstage_host():
+            return self._backstage_proxy("POST", root=True)
         if path.startswith("/bs/"):
             return self._backstage_proxy("POST")
         length = int(self.headers.get("Content-Length", 0))

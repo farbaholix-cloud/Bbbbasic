@@ -4,6 +4,7 @@
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
 <script src="static/i18n.js"></script>
+<script src="static/donate.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -56,6 +57,7 @@
   <div class="alt"><a href="./" data-i="l.new"></a>
     <p data-i="l.new2"></p></div>
   <p class="small"><a href="guide" id="guideLink" data-i="l.guide"></a></p>
+  <p class="small" id="dnFoot" style="display:none;margin-top:18px;text-align:center"><a href="#" id="dnLink" style="color:var(--muted)">💛 <span data-i="d.btn"></span></a></p>
 </main>
 <script>
 function lang(l) {
@@ -75,5 +77,6 @@ document.getElementById("f").onsubmit = async (e) => {
   if (r.ok) { if (j.lang) BS.set(j.lang); location.href = "app"; }
   else document.getElementById("err").textContent = j.error || BS.t("l.fail");
 };
+DONATE.load().then(c => { if (c) { document.getElementById("dnFoot").style.display = ""; document.getElementById("dnLink").onclick = (e) => { e.preventDefault(); DONATE.open(); }; } });
 </script>
 </body></html>

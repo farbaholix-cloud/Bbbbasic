@@ -4,6 +4,7 @@
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
 <script src="static/i18n.js"></script>
+<script src="static/donate.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -200,6 +201,7 @@
     </section>
   </form>
   <div class="foot"><span data-i="j.foot"></span> <a href="login" data-i="j.login"></a></div>
+  <p class="small" id="dnFoot" style="display:none;margin-top:18px;text-align:center"><a href="#" id="dnLink" style="color:var(--muted)">💛 <span data-i="d.btn"></span></a></p>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -333,5 +335,6 @@ show("lang");
     if (st.open === false) closed = true;
   } catch {}
 })();
+DONATE.load().then(c => { if (c) { document.getElementById("dnFoot").style.display = ""; document.getElementById("dnLink").onclick = (e) => { e.preventDefault(); DONATE.open(); }; } });
 </script>
 </body></html>

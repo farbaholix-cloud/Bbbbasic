@@ -40,6 +40,19 @@
     </section>
 
     <section class="card">
+      <h2>💛 Поддержать проект (донат)</h2>
+      <p class="small muted">Кнопка «Поддержать проект» появится у клиентов (в шапке приложения, на входе и регистрации), как только заполнено хотя бы одно: PayPal или IBAN.</p>
+      <div class="form4">
+        <div><label>Ссылка PayPal.me</label><input id="dnPaypal" placeholder="https://paypal.me/имя"></div>
+        <div><label>Получатель (как в банке)</label><input id="dnHolder"></div>
+        <div><label>IBAN</label><input id="dnIban" placeholder="DE…"></div>
+        <div><label>BIC / банк</label><input id="dnBic" placeholder="HELADEF1822"></div>
+      </div>
+      <label>Название банка (необязательно)</label><input id="dnBank" placeholder="Frankfurter Sparkasse">
+      <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="dnSave">Сохранить</button></div>
+    </section>
+
+    <section class="card">
       <h2>Тарифы и оплата</h2>
       <p class="small" id="payInfo"></p>
       <div class="t-wrap"><table><thead><tr><th>Тариф</th><th>Название</th><th>Цена (текст)</th><th>Ответов/день</th><th>Глуб. анализов/день</th><th>Дней</th><th>Ссылка оплаты Stripe</th></tr></thead>
@@ -157,6 +170,10 @@ async function load() {
       prompt("Новая персональная ссылка (скопируй и отправь клиенту):", full(r.link));
     }
   };
+  const dn = await api("api/donate");
+  $("#dnPaypal").value = dn.paypal; $("#dnHolder").value = dn.holder; $("#dnIban").value = dn.iban; $("#dnBic").value = dn.bic; $("#dnBank").value = dn.bank;
+  $("#dnSave").onclick = async () => { await api("api/admin/donate", {paypal: $("#dnPaypal").value, holder: $("#dnHolder").value,
+    iban: $("#dnIban").value, bic: $("#dnBic").value, bank: $("#dnBank").value}); alert("Сохранено"); };
   const sec = await api("api/admin/security");
   const ico = {critical: "🔴", important: "🟠", later: "⚪", ok: "🟢"};
   $("#secPlatform").innerHTML = sec.platform.map(f => `<p style="margin:6px 0">${ico[f.sev] || ""} ${esc(f.text)}</p>`).join("");

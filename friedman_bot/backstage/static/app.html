@@ -6,6 +6,7 @@
 <title>Backstage</title>
 <script src="static/i18n.js"></script>
 <script src="static/mail.js"></script>
+<script src="static/donate.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
@@ -118,6 +119,7 @@
   <button class="primary" id="btnPotential"><span class="hide-m" data-i="a.potential"></span><span class="show-m" data-i="a.potential.s"></span></button>
   <a href="workspace" id="btnWs" class="hide-m" style="text-decoration:none"><button type="button">🗂 <span data-i="a.ws"></span></button></a>
   <button id="btnAdd" data-i-title="a.addw">+<span class="hide-m" data-i="a.widget"></span></button>
+  <button id="btnDonate" class="hidden" data-i-title="d.btn">💛</button>
   <button id="btnSettings" data-i-title="a.settings">⚙</button>
   <a class="hide-m small guide-link" href="guide" target="_blank" data-i="a.guide"></a>
   <button class="ghost small hide-m" id="btnLogout" data-i="a.logout"></button>
@@ -597,6 +599,7 @@ document.querySelector("nav.tabs").onclick = (e) => { if (e.target.dataset.go) r
 
 (async () => {
   await refreshMe(); renderAgents();
+  if (await DONATE.load()) { $("#btnDonate").classList.remove("hidden"); $("#btnDonate").onclick = DONATE.open; }
   await Promise.all([loadWidgets(), loadMsgs()]);
   if (location.search.includes("survey=done")) {
     // вернулись из анкеты: подсказка уточнить план — обычным (недорогим) сообщением, не глубоким анализом
