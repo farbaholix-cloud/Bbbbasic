@@ -3,6 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
+<script src="static/legacy.js"></script>
 <script src="static/i18n.js"></script>
 <script src="static/donate.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,7 +99,7 @@
     font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--muted);transition:all .15s}
   .lang b{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:22px;flex:1}
   .lang .tick{opacity:0;color:var(--c);font-size:20px;transition:opacity .15s}
-  .lang.on{border-color:var(--c);background:linear-gradient(100deg,color-mix(in srgb,var(--c) 10%,transparent),transparent)}
+  .lang.on{border-color:var(--c);background:rgba(224,87,58,.06);background:linear-gradient(100deg,color-mix(in srgb,var(--c) 10%,transparent),transparent)}
   .lang.on .code{background:var(--c);color:#fff}
   .lang.on .tick{opacity:1}
   #langLead{margin:20px 0 0;animation:fade .3s ease}
@@ -226,7 +227,7 @@ function show(i) {
   cur = i; steps.forEach(s => s.classList.toggle("on", s.dataset.step == String(i)));
   document.querySelectorAll("#dots i").forEach((d, k) => { const n = typeof i === "number" ? Math.min(i, 3) : -1; d.classList.toggle("on", k === n); d.classList.toggle("done", k < n); });
   say(bubbleFor(i));
-  const first = steps.find(s => s.classList.contains("on"))?.querySelector("input,textarea");
+  const onStep = steps.find(s => s.classList.contains("on")), first = onStep && onStep.querySelector("input,textarea");
   if (first && window.innerWidth > 700) first.focus();
   window.scrollTo({top: 0, behavior: "smooth"});
 }
@@ -239,7 +240,7 @@ function setLang(l) {
   say(bubbleFor(cur));
 }
 const TR = {а:"a",б:"b",в:"v",г:"h",ґ:"g",д:"d",е:"e",є:"ye",ж:"zh",з:"z",и:"y",і:"i",ї:"yi",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"kh",ц:"ts",ч:"ch",ш:"sh",щ:"shch",ь:"",ю:"yu",я:"ya","'":"","’":"",ä:"ae",ö:"oe",ü:"ue",ß:"ss",ё:"e",ы:"y",э:"e",ъ:""};
-const slugify = (s) => [...s.toLowerCase()].map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+const slugify = (s) => [...s.toLowerCase()].map(c => TR[c] != null ? TR[c] : c).join("").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 25);
 function validate(i) {
   if (i === 1) {
@@ -285,7 +286,7 @@ async function checkSlug() {
   try {
     const r = await (await fetch("api/signup/check?slug=" + encodeURIComponent(v))).json();
     h.className = "hint " + (r.free ? "ok" : "bad"); h.textContent = t(r.free ? "j.slug.ok" : "j.slug.bad");
-  } catch { h.textContent = ""; }
+  } catch (_) { h.textContent = ""; }
 }
 $("#slug").addEventListener("input", () => { slugTouched = true; $("#slug").value = $("#slug").value.toLowerCase().replace(/[^a-z0-9-]/g, ""); clearTimeout(slugTimer); slugTimer = setTimeout(checkSlug, 350); });
 ["#pin", "#pin2"].forEach(s => $(s).addEventListener("input", (e) => e.target.value = e.target.value.replace(/\D/g, "")));
@@ -303,7 +304,7 @@ $("#f").addEventListener("submit", async (e) => {
       links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket, lang: BS.lang})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || t("j.e.generic"));
-    try { if (j.job) localStorage.setItem("bs_job", j.job); } catch {}
+    try { if (j.job) localStorage.setItem("bs_job", j.job); } catch (_) {}
     setTimeout(() => location.href = "app", 900);
   } catch (ex) { show(3); err.textContent = ex.message; $("#go").disabled = false; say(t("j.e.say", {msg: ex.message})); }
 });
@@ -316,7 +317,7 @@ async function restart() {
     if (r.status === 401) return (location.href = "login");
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || t("j.e.generic"));
-    try { if (j.job) localStorage.setItem("bs_job", j.job); localStorage.removeItem("bs_sv_later"); } catch {}
+    try { if (j.job) localStorage.setItem("bs_job", j.job); localStorage.removeItem("bs_sv_later"); } catch (_) {}
     setTimeout(() => location.href = "app", 900);
   } catch (ex) { show(2); say(t("j.e.say", {msg: ex.message})); }
 }
@@ -333,7 +334,7 @@ show("lang");
     ticket = st.ticket || "";
     // только явное «закрыто»; сбой сети — не повод прятать форму
     if (st.open === false) closed = true;
-  } catch {}
+  } catch (_) {}
 })();
 DONATE.load().then(c => { if (c) { document.getElementById("dnFoot").style.display = ""; document.getElementById("dnLink").onclick = (e) => { e.preventDefault(); DONATE.open(); }; } });
 </script>

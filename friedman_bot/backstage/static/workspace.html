@@ -3,6 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
+<script src="static/legacy.js"></script>
 <script src="static/i18n.js"></script>
 <script src="static/mail.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,9 +34,9 @@
   .item .acts button,.item .acts a{font-size:13px;padding:5px 10px;border-radius:9px}
   .item .acts a{border:1px solid var(--line);color:var(--ink);text-decoration:none;background:var(--panel)}
   select.st{width:auto;font-size:13px;padding:5px 8px;border-radius:999px;font-weight:600}
-  .st-idea{background:var(--soft)} .st-preparing{background:color-mix(in srgb,var(--hanna) 20%,var(--panel))}
-  .st-submitted{background:color-mix(in srgb,var(--konrad) 18%,var(--panel))} .st-won{background:color-mix(in srgb,var(--tarik) 25%,var(--panel))}
-  .st-rejected{background:color-mix(in srgb,var(--bad) 15%,var(--panel))}
+  .st-idea{background:var(--soft)} .st-preparing{background:#f7e8c8;background:color-mix(in srgb,var(--hanna) 20%,var(--panel))}
+  .st-submitted{background:#dfe3f6;background:color-mix(in srgb,var(--konrad) 18%,var(--panel))} .st-won{background:#d5ecdf;background:color-mix(in srgb,var(--tarik) 25%,var(--panel))}
+  .st-rejected{background:#f6dcd6;background:color-mix(in srgb,var(--bad) 15%,var(--panel))}
   .date{font-size:13px;color:var(--muted);white-space:nowrap}
   .date.soon{color:var(--bad);font-weight:600}
   .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -47,7 +48,7 @@
   .wait::after{content:"";display:inline-block;width:1.2em;animation:dots 1.4s steps(4) infinite}
   @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
   .drop{border:1.5px dashed var(--line);border-radius:14px;padding:18px;text-align:center}
-  .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+  .drop.over{border-color:var(--accent);background:rgba(224,87,58,.06);background:color-mix(in srgb,var(--accent) 6%,transparent)}
   .kind{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
 </style>
 </head><body>
@@ -125,7 +126,7 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const t = BS.t;
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const api = async (path, body) => {
   const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   if (r.status === 401) { location.href = "login"; throw new Error("auth"); }
@@ -167,7 +168,7 @@ async function loadApps() {
   const radar = await api("api/radar").catch(() => []);
   const titles = new Set(APPS.map(a => a.title));
   const parse = (txt) => { const m = txt.match(/^\[([^\]]+)\]\(([^)]+)\)(?: — (.*))?/); return m ? {title: m[1], url: m[2], org: m[3] || ""} : {title: txt, url: "", org: ""}; };
-  const pick = radar.map(i => ({...parse(i.text), deadline: i.date || ""})).filter(x => !titles.has(x.title)).slice(0, 6);
+  const pick = radar.map(i => Object.assign(parse(i.text), {deadline: i.date || ""})).filter(x => !titles.has(x.title)).slice(0, 6);
   $("#radarChips").innerHTML = pick.length ? `<span class="small muted">${esc(t("w.fromradar"))}</span>` + pick.map((x, k) =>
     `<button class="chip" data-r="${k}">${esc(x.title.slice(0, 48))}</button>`).join("") : "";
   $("#radarChips").onclick = async (e) => { const k = e.target.dataset.r; if (k === undefined) return;
@@ -185,7 +186,7 @@ $("#apps").onclick = async (e) => {
   if (e.target.matches("[data-del]") && confirm(t("w.del.q", {t: a.title}))) { await api(`api/apps/${a.id}/delete`, {}); loadApps(); }
   if (e.target.matches("[data-prep]")) { tab("docs"); $("#dApp").value = a.id; $("#dKind").value = "application"; $("#dBrief").focus(); }
   if (e.target.matches("[data-learn]")) {
-    const note = prompt(t("w.app.note") + ":", a.note || "") ?? "";
+    const note = prompt(t("w.app.note") + ":", a.note || "") || "";
     if (note) await api("api/apps", {id: a.id, note});
     await api("api/chat", {agent: "maya", text: t("w.app.learn.msg", {t: a.title, s: t("w.st." + a.status), n: note}), deep: false});
     location.href = "app";
@@ -231,7 +232,7 @@ $("#dGo").onclick = async () => {
   $("#dGo").disabled = true;
   try {
     const {job, agent} = await api("api/docs/create", body);
-    const name = ME.agents[agent]?.name || agent;
+    const name = (ME.agents[agent] && ME.agents[agent].name) || agent;
     $("#dWait").textContent = t("w.doc.wait", {name}); $("#dWait").classList.remove("hidden");
     const res = await pollJob(job);
     if (res.doc_id) { toast(t("w.done")); window.open(`doc/${res.doc_id}`, "_blank"); $("#dBrief").value = ""; }

@@ -847,12 +847,12 @@ const BS = (() => {
     if (l === "ru" || l === "uk") return "ua";  // код ISO из браузера, старые аккаунты, русскоязычные браузеры
     return LANGS.includes(l) ? l : "en";
   };
-  const stored = () => { try { return localStorage.getItem("bs_lang"); } catch { return null; } };
+  const stored = () => { try { return localStorage.getItem("bs_lang"); } catch (_) { return null; } };
   // Базовый язык — английский; немецкий или украинский только по явному выбору человека
   let lang = norm(new URLSearchParams(location.search).get("lang") || stored() || "en");
   function t(key, vars) {
-    let s = I18N[lang][key] ?? I18N.en[key] ?? key;
-    if (vars) s = s.replace(/\{(\w+)\}/g, (_, n) => vars[n] ?? "");
+    let s = I18N[lang][key] != null ? I18N[lang][key] : I18N.en[key] != null ? I18N.en[key] : key;
+    if (vars) s = s.replace(/\{(\w+)\}/g, (_, n) => vars[n] != null ? vars[n] : "");
     return s;
   }
   function apply(root = document) {
@@ -865,7 +865,7 @@ const BS = (() => {
   function set(l, save = true) {
     lang = norm(l);
     if (save) {
-      try { localStorage.setItem("bs_lang", lang); } catch {}
+      try { localStorage.setItem("bs_lang", lang); } catch (_) {}
       document.cookie = `bs_lang=${lang}; path=/; max-age=31536000; samesite=lax`;
     }
     apply();

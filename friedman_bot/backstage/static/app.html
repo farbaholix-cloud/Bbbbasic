@@ -4,6 +4,7 @@
 <meta name="theme-color" content="#f7f3ec">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Backstage</title>
+<script src="static/legacy.js"></script>
 <script src="static/i18n.js"></script>
 <script src="static/mail.js"></script>
 <script src="static/donate.js"></script>
@@ -74,12 +75,12 @@
   @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
   .empty{color:var(--muted);text-align:center;margin:auto;padding:20px;font-size:14px}
   .svcard{align-self:stretch;border:1.5px solid var(--accent);border-radius:16px;padding:14px 16px;
-    background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent)}
+    background:rgba(224,87,58,.07);background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent)}
   .svcard h4{margin:0 0 4px;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:17px}
   .svcard p{margin:0 0 10px;font-size:14px;color:var(--muted)}
   .svcard .row{gap:8px}
-  .msg.assistant.radar{border-left-color:var(--ruben);background:color-mix(in srgb,var(--ruben) 8%,var(--soft))}
-  .msg.assistant.reminder{border-left-color:var(--hanna);background:color-mix(in srgb,var(--hanna) 10%,var(--soft))}
+  .msg.assistant.radar{border-left-color:var(--ruben);background:rgba(43,138,154,.08);background:color-mix(in srgb,var(--ruben) 8%,var(--soft))}
+  .msg.assistant.reminder{border-left-color:var(--hanna);background:rgba(216,154,30,.1);background:color-mix(in srgb,var(--hanna) 10%,var(--soft))}
   .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
   .plans .pl{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
   .plans .pl b{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:17px}
@@ -216,7 +217,7 @@
 
 <script>
 const $ = (s, el = document) => el.querySelector(s);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const api = async (path, body) => {
   const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   if (r.status === 401) { location.href = "./"; throw new Error("auth"); }
@@ -227,8 +228,8 @@ const api = async (path, body) => {
 const t = BS.t;
 const toast = (t) => { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), 3500); };
 
-const LS = {get: k => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: k => { try { localStorage.removeItem(k); } catch {} }};
+const LS = {get: k => { try { return localStorage.getItem(k); } catch (_) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} }, del: k => { try { localStorage.removeItem(k); } catch (_) {} }};
 let ME = null, WIDGETS = [], AGENT = "maya", CHARTS = {}, ATTS = [];
 
 // ─── Markdown-lite для ответов команды (сначала экранируем, потом размечаем) ───
@@ -271,7 +272,7 @@ function renderGrid() {
     g.append(el);
   });
 }
-const num = (v) => (typeof v === "number" ? v.toLocaleString({en: "en-GB", de: "de-DE", ua: "uk-UA"}[BS.lang]) : esc(v ?? "—"));
+const num = (v) => (typeof v === "number" ? v.toLocaleString({en: "en-GB", de: "de-DE", ua: "uk-UA"}[BS.lang]) : esc(v == null ? "—" : v));
 function renderBody(w, b) {
   const d = w.data || {}, c = w.config || {};
   if (w.kind === "kpi") {
@@ -284,16 +285,22 @@ function renderBody(w, b) {
     const css = getComputedStyle(document.documentElement);
     const pal = ["#d9572b", "#3f8fc9", "#3f9b6b", "#c98a1a", "#9b5fc0", "#c4452f"];
     const type = c.type || "line", round = type === "pie" || type === "doughnut";
-    CHARTS[w.id] = new Chart(b.querySelector("canvas"), {
-      type, data: {labels: d.labels || [], datasets: (d.series || []).map((s, i) => ({
-        label: s.name, data: s.values || [], borderColor: round ? css.getPropertyValue("--panel") : pal[i % 6],
-        backgroundColor: round ? (d.labels || []).map((_, j) => pal[j % 6]) : pal[i % 6] + (type === "line" ? "33" : "cc"),
-        tension: .3, fill: type === "line", spanGaps: true}))},
-      options: {maintainAspectRatio: false, plugins: {legend: {display: round || (d.series || []).length > 1,
-        labels: {color: css.getPropertyValue("--muted")}}},
-        scales: round ? {} : {x: {ticks: {color: css.getPropertyValue("--muted")}, grid: {display: false}},
-          y: {ticks: {color: css.getPropertyValue("--muted")}, grid: {color: css.getPropertyValue("--line")}}}}
-    });
+    // Chart.js 4 не грузится в старых Safari — тогда вместо графика простая таблица значений
+    const fallback = () => { b.innerHTML = `<div class="t-wrap"><table class="t"><tbody>${(d.labels || []).map((l, i) =>
+      `<tr><td>${esc(l)}</td>${(d.series || []).map(s => `<td>${num((s.values || [])[i])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; };
+    if (typeof Chart !== "function") { fallback(); return; }
+    try {
+      CHARTS[w.id] = new Chart(b.querySelector("canvas"), {
+        type, data: {labels: d.labels || [], datasets: (d.series || []).map((s, i) => ({
+          label: s.name, data: s.values || [], borderColor: round ? css.getPropertyValue("--panel") : pal[i % 6],
+          backgroundColor: round ? (d.labels || []).map((_, j) => pal[j % 6]) : pal[i % 6] + (type === "line" ? "33" : "cc"),
+          tension: .3, fill: type === "line", spanGaps: true}))},
+        options: {maintainAspectRatio: false, plugins: {legend: {display: round || (d.series || []).length > 1,
+          labels: {color: css.getPropertyValue("--muted")}}},
+          scales: round ? {} : {x: {ticks: {color: css.getPropertyValue("--muted")}, grid: {display: false}},
+            y: {ticks: {color: css.getPropertyValue("--muted")}, grid: {color: css.getPropertyValue("--line")}}}}
+      });
+    } catch (_) { fallback(); }
   } else if (w.kind === "table") {
     const cols = c.columns || [], rows = d.rows || [];
     b.innerHTML = `<div class="t-wrap"><table class="t"><thead><tr>${cols.map(x => `<th>${esc(x)}</th>`).join("")}</tr></thead>
@@ -308,13 +315,13 @@ function renderBody(w, b) {
       <input placeholder="${t("a.card")}" data-add="${ci}"></div>`).join("")}</div>`;
     b.onclick = (e) => {
       const m = e.target.dataset.m, x = e.target.dataset.x;
-      if (m) { const k = cards.find(k => k.id == m); k.col = (k.col || 0) + Number(e.target.dataset.d); saveData(w, {...d, cards}); }
-      if (x) saveData(w, {...d, cards: cards.filter(k => k.id != x)});
+      if (m) { const k = cards.find(k => k.id == m); k.col = (k.col || 0) + Number(e.target.dataset.d); saveData(w, Object.assign({}, d, {cards})); }
+      if (x) saveData(w, Object.assign({}, d, {cards: cards.filter(k => k.id != x)}));
     };
     b.querySelectorAll("input[data-add]").forEach(inp => inp.onkeydown = (e) => {
       if (e.key === "Enter" && inp.value.trim()) {
         const id = Math.max(0, ...cards.map(k => k.id || 0)) + 1;
-        saveData(w, {...d, cards: [...cards, {id, col: Number(inp.dataset.add), text: inp.value.trim()}]});
+        saveData(w, Object.assign({}, d, {cards: [...cards, {id, col: Number(inp.dataset.add), text: inp.value.trim()}]}));
       }
     });
   } else if (w.kind === "list") {
@@ -327,12 +334,12 @@ function renderBody(w, b) {
       ${it.date ? `<span class="date ${!it.done && it.date <= soon ? "soon" : ""}">${esc(it.date)}</span>` : ""}
       <button class="ghost small" data-x="${it.id}" style="padding:0 4px">✕</button></li>`).join("")}</ul>
       <div class="row" style="margin-top:8px"><input placeholder="${t("a.item")}" class="grow" data-new><input type="date" style="width:140px" data-date></div>`;
-    b.onchange = (e) => { const id = e.target.dataset.t; if (id) { items.find(i => i.id == id).done = e.target.checked; saveData(w, {...d, items}); } };
-    b.onclick = (e) => { const x = e.target.dataset.x; if (x) saveData(w, {...d, items: items.filter(i => i.id != x)}); };
+    b.onchange = (e) => { const id = e.target.dataset.t; if (id) { items.find(i => i.id == id).done = e.target.checked; saveData(w, Object.assign({}, d, {items})); } };
+    b.onclick = (e) => { const x = e.target.dataset.x; if (x) saveData(w, Object.assign({}, d, {items: items.filter(i => i.id != x)})); };
     const inp = b.querySelector("[data-new]");
     inp.onkeydown = (e) => { if (e.key === "Enter" && inp.value.trim()) {
       const id = Math.max(0, ...items.map(i => i.id || 0)) + 1;
-      saveData(w, {...d, items: [...items, {id, text: inp.value.trim(), date: b.querySelector("[data-date]").value, done: false}]}); } };
+      saveData(w, Object.assign({}, d, {items: [...items, {id, text: inp.value.trim(), date: b.querySelector("[data-date]").value, done: false}]})); } };
   } else if (w.kind === "note") {
     b.innerHTML = `<div class="note">${md(d.text || "")}</div>`;
   }
@@ -357,7 +364,7 @@ const SEP = ";";
 function toGrid(w) {
   const d = w.data || {}, c = w.config || {};
   if (w.kind === "chart") return [[t("a.ed.label"), ...(d.series || []).map(s => s.name)].join(SEP),
-    ...(d.labels || []).map((l, i) => [l, ...(d.series || []).map(s => s.values?.[i] ?? "")].join(SEP))].join("\n");
+    ...(d.labels || []).map((l, i) => [l, ...(d.series || []).map(s => (s.values && s.values[i] != null) ? s.values[i] : "")].join(SEP))].join("\n");
   if (w.kind === "table") return [(c.columns || []).join(SEP), ...(d.rows || []).map(r => r.join(SEP))].join("\n");
   return "";
 }
@@ -371,10 +378,10 @@ function fromGrid(kind, text) {
 function openEditor(w) {
   const f = $("#fEdit"), c = w.config || {}, d = w.data || {};
   let extra = "";
-  if (w.kind === "kpi") extra = `<label>${t("a.ed.value")}</label><input name="value" value="${esc(d.value ?? "")}">
+  if (w.kind === "kpi") extra = `<label>${t("a.ed.value")}</label><input name="value" value="${esc(d.value)}">
     <label>${t("a.ed.caption")}</label><input name="delta" value="${esc(d.delta || "")}">
     <div class="row"><div class="grow"><label>${t("a.ed.unit")}</label><input name="unit" value="${esc(c.unit || "")}"></div>
-    <div class="grow"><label>${t("a.ed.goal")}</label><input name="goal" value="${esc(c.goal ?? "")}"></div></div>`;
+    <div class="grow"><label>${t("a.ed.goal")}</label><input name="goal" value="${esc(c.goal)}"></div></div>`;
   if (w.kind === "chart") extra = `<label>${t("a.ed.kind")}</label><select name="type">${["line", "bar", "pie", "doughnut"].map(k =>
     `<option ${c.type === k ? "selected" : ""} value="${k}">${t("a.ch." + k)}</option>`).join("")}</select>
     <label>${t("a.ed.chart")}</label>
@@ -393,8 +400,8 @@ function openEditor(w) {
   const dlg = $("#dlgEdit");
   dlg.onclose = async () => {
     if (dlg.returnValue !== "ok") return;
-    const v = Object.fromEntries(new FormData(f));
-    let config = {...c}, data = {...d};
+    const v = {}; Array.from(f.elements).forEach(el => { if (el.name) v[el.name] = el.value; });
+    let config = Object.assign({}, c), data = Object.assign({}, d);
     if (w.kind === "kpi") { data.value = Number(String(v.value).replace(",", ".")) || 0; data.delta = v.delta; config.unit = v.unit; config.goal = Number(v.goal) || 0; }
     if (w.kind === "chart") { const r = fromGrid("chart", v.grid); data = r.data; config.type = v.type; }
     if (w.kind === "table") { const r = fromGrid("table", v.grid); data = r.data; config.columns = r.config.columns; }
@@ -411,7 +418,7 @@ function renderAgents() {
   $("#agents").innerHTML = Object.entries(ME.agents).map(([id, a]) =>
     `<button data-id="${id}" class="${id === AGENT ? "on" : ""}" style="--c:var(--${id},var(--accent))" title="${esc(a.role)}"><i class="av">${esc(a.name[0])}</i>${esc(a.name)}</button>`).join("");
   $("#chat").style.setProperty("--c", `var(--${AGENT},var(--accent))`);
-  $("#agents").onclick = (e) => { const id = e.target.closest("button")?.dataset.id; if (id) { AGENT = id; renderAgents(); loadMsgs(); } };
+  $("#agents").onclick = (e) => { const btn = e.target.closest("button"), id = btn && btn.dataset.id; if (id) { AGENT = id; renderAgents(); loadMsgs(); } };
 }
 async function loadMsgs() {
   const [list] = await Promise.all([api(`api/messages?agent=${AGENT}`), MAIL.load()]);
@@ -442,7 +449,7 @@ function planHTML() {
   return `<p style="margin:4px 0"><b>${esc(line)}</b>${p.plan === "owner" || p.plan === "expired" ? "" : lim}</p>${cards ? `<div class="plans">${cards}</div>` : ""}`;
 }
 function planCard() {
-  if (!ME.plan?.expired) return;
+  if (!(ME.plan && ME.plan.expired)) return;
   const el = document.createElement("div");
   el.className = "svcard";
   el.innerHTML = `<h4>${esc(t("a.plan.over.h"))}</h4><p>${esc(t("a.plan.over.p"))}</p>${planHTML().replace(/^<p[^]*?<\/p>/, "")}`;
@@ -469,7 +476,7 @@ function addMsg(role, text, meta = {}) {
   else {
     el.innerHTML = md(text);
     const bits = [];
-    if (meta.consulted?.length) bits.push(t("a.asked") + meta.consulted.map(id => ME.agents[id]?.name || id).join(", "));
+    if (meta.consulted && meta.consulted.length) bits.push(t("a.asked") + meta.consulted.map(id => (ME.agents[id] && ME.agents[id].name) || id).join(", "));
     if (meta.changed) bits.push(t("a.changed"));
     if (meta.model) bits.push(meta.model);
     if (bits.length) el.insertAdjacentHTML("beforeend", `<div class="meta">${esc(bits.join(" · "))}</div>`);
@@ -489,11 +496,11 @@ async function send(extra = {}) {
   wait.textContent = (extra.potential || deep) ? t("a.deepwait") : t("a.thinks", {name: ME.agents[AGENT].name});
   $("#msgs").append(wait); $("#msgs").scrollTop = $("#msgs").scrollHeight;
   try {
-    const {job} = await api("api/chat", {agent: AGENT, text, deep, attachments: ATTS, ...extra});
+    const {job} = await api("api/chat", Object.assign({agent: AGENT, text, deep, attachments: ATTS}, extra));
     ATTS = []; renderAtts();
     LS.set("bs_job", job);
     const res = await pollJob(job);
-    if (res.emails?.length) await MAIL.load();
+    if (res.emails && res.emails.length) await MAIL.load();
     wait.remove();
     addMsg("assistant", res.text, res);
     if (res.changed) loadWidgets();
@@ -537,7 +544,7 @@ async function refreshMe() {
   }
   $("#who").textContent = ME.name;
   const b = $("#budget");
-  if (ME.backend === "cli") { b.textContent = ME.plan?.plan === "owner" ? t("a.sub") : ME.plan?.plan === "free" ? t("a.free") : (ME.plan?.name || t("a.free")); b.title = t("a.sub.t"); }
+  if (ME.backend === "cli") { const pl = ME.plan || {}; b.textContent = pl.plan === "owner" ? t("a.sub") : pl.plan === "free" ? t("a.free") : (pl.name || t("a.free")); b.title = t("a.sub.t"); }
   else { b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
     b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : ""; }
 }
@@ -563,7 +570,7 @@ $("#btnSettings").onclick = async () => {
   $("#setLang").value = BS.lang;
   $("#planBox").innerHTML = planHTML();
   MAIL.settings($("#mailBox"));
-  $("#setRadar").checked = ME.prefs?.radar !== false; $("#setRem").checked = ME.prefs?.reminders !== false;
+  const pr = ME.prefs || {}; $("#setRadar").checked = pr.radar !== false; $("#setRem").checked = pr.reminders !== false;
   $("#setProfile").value = ME.profile || ""; $("#setShare").checked = !!ME.share_insights; $("#setTg").value = "";
   $("#tgState").textContent = t(ME.telegram ? "a.tg.on" : "a.tg.off");
   const u = await api("api/usage");
@@ -628,7 +635,7 @@ document.querySelector("nav.tabs").onclick = (e) => { if (e.target.dataset.go) r
       .catch((e) => addMsg("assistant", "⚠️ " + e.message))
       .finally(() => { clearInterval(tick); wait.remove(); LS.del("bs_job"); });
   }
-  setInterval(() => { if (!document.hidden && !document.activeElement.closest?.(".grid") && !document.querySelector("dialog[open]")) loadWidgets(); }, 60000);  // Telegram-мост мог поменять дашборд
+  setInterval(() => { if (!document.hidden && !(document.activeElement && document.activeElement.closest && document.activeElement.closest(".grid")) && !document.querySelector("dialog[open]")) loadWidgets(); }, 60000);  // Telegram-мост мог поменять дашборд
 })();
 </script>
 </body></html>

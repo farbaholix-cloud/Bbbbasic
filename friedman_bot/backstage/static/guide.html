@@ -2,6 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Backstage — how it works</title>
+<script src="static/legacy.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
@@ -535,7 +536,7 @@
 (function () {
   const LANGS = ["en", "de", "ua"];
   const TITLES = {en: "Backstage — how it works", de: "Backstage — so funktioniert's", ua: "Backstage — як це працює"};
-  const L = new URLSearchParams(location.search).get("lang") || (()=>{try{return localStorage.getItem("bs_lang")}catch{return null}})() || "en";
+  const L = new URLSearchParams(location.search).get("lang") || (()=>{try{return localStorage.getItem("bs_lang")}catch (_) {return null}})() || "en";
   const norm = (x) => { x = String(x || "").toLowerCase(); if (x === "uk" || x === "ru") x = "ua"; return LANGS.includes(x) ? x : "en"; };
   let cur = norm(L);
 
@@ -554,7 +555,7 @@
   // "#telegram" (as the app links it) or "#telegram-de" -> the section in the visible language
   function scrollToHash() {
     let h = location.hash.slice(1);
-    try { h = decodeURIComponent(h); } catch {}
+    try { h = decodeURIComponent(h); } catch (_) {}
     if (!h) return false;
     const el = document.getElementById(h.replace(/-(en|de|ua|uk)$/, "") + "-" + cur);
     if (el) { el.scrollIntoView(); return true; }
@@ -565,8 +566,8 @@
     e.preventDefault();
     const x = norm(a.dataset.setLang);
     show(x);
-    try { localStorage.setItem("bs_lang", x); } catch {}
-    try { history.replaceState(null, "", "?lang=" + x + location.hash); } catch {}
+    try { localStorage.setItem("bs_lang", x); } catch (_) {}
+    try { history.replaceState(null, "", "?lang=" + x + location.hash); } catch (_) {}
     if (!scrollToHash()) window.scrollTo(0, 0);
   }));
 

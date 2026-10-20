@@ -3,6 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
+<script src="static/legacy.js"></script>
 <script src="static/i18n.js"></script>
 <script src="static/survey.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,7 +99,7 @@
     font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--muted);transition:all .15s}
   .lang b{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:22px;flex:1}
   .lang .tick{opacity:0;color:var(--c);font-size:20px;transition:opacity .15s}
-  .lang.on{border-color:var(--c);background:linear-gradient(100deg,color-mix(in srgb,var(--c) 10%,transparent),transparent)}
+  .lang.on{border-color:var(--c);background:rgba(224,87,58,.06);background:linear-gradient(100deg,color-mix(in srgb,var(--c) 10%,transparent),transparent)}
   .lang.on .code{background:var(--c);color:#fff}
   .lang.on .tick{opacity:1}
   #langLead{margin:20px 0 0;animation:fade .3s ease}
@@ -132,9 +133,9 @@
 const $ = (s) => document.querySelector(s);
 const t = BS.t;
 const LI = () => ({en: 0, de: 1, ua: 2}[BS.lang]);
-const tx = (arr) => arr[LI()] ?? arr[0];
-const ol = (o, i = LI()) => o[1 + i] ?? o[1];  // подпись варианта; одна подпись — для всех языков
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const tx = (arr) => arr[LI()] != null ? arr[LI()] : arr[0];
+const ol = (o, i = LI()) => o[1 + i] != null ? o[1 + i] : o[1];  // подпись варианта; одна подпись — для всех языков
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 let A = {}, CRAFTS = [], secs = [], cur = 0;
 
 function visibleSections() {
@@ -144,7 +145,7 @@ function visibleSections() {
 function shown(sec, q) {
   if (!q.if) return true;
   return Object.entries(q.if).every(([k, vals]) => {
-    const v = A[sec.id]?.[k];
+    const v = (A[sec.id] || {})[k];
     return Array.isArray(v) ? v.some(x => vals.includes(x)) : vals.includes(v);
   });
 }

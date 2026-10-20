@@ -2,10 +2,10 @@
 // Реквизиты владелец задаёт в админке; пока их нет — кнопка не показывается.
 const DONATE = (() => {
   const t = BS.t;
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
   let cfg = null;
   async function load() {
-    try { cfg = await (await fetch("api/donate")).json(); } catch { cfg = {}; }
+    try { cfg = await (await fetch("api/donate")).json(); } catch (_) { cfg = {}; }
     return cfg && (cfg.paypal || cfg.iban) ? cfg : null;
   }
   const CSS = `#dlgDonate{border:1px solid #e7e0d4;border-radius:18px;background:#fffdf9;color:#1f1d1b;padding:22px;
@@ -38,7 +38,7 @@ const DONATE = (() => {
       <p class="small muted" style="margin-top:14px">${esc(t("d.note"))}</p>
       <div class="row" style="margin-top:12px"><div class="grow"></div><button value="close">${esc(t("a.close"))}</button></div></form>`;
     dlg.querySelectorAll(".dn-copy").forEach(b => b.onclick = async () => {
-      try { await navigator.clipboard.writeText(b.dataset.v.replace(/\s/g, b.dataset.v.startsWith("DE") ? "" : " ")); b.textContent = t("d.copied"); } catch {}
+      try { await navigator.clipboard.writeText(b.dataset.v.replace(/\s/g, b.dataset.v.startsWith("DE") ? "" : " ")); b.textContent = t("d.copied"); } catch (_) {}
     });
     dlg.showModal();
   }

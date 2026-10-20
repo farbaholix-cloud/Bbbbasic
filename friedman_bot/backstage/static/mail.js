@@ -2,7 +2,7 @@
 // Ничего не уходит без нажатия клиента: агенты только готовят черновики.
 const MAIL = (() => {
   const t = BS.t;
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
   const cache = {};
   let cfg = {configured: false};
   const PROVIDERS = {
@@ -50,7 +50,8 @@ const MAIL = (() => {
         <p class="mhint">${esc(cfg.configured ? t("m.from", {a: cfg.from_addr}) : t("m.noconf"))}</p>
         ${e.error ? `<p class="mhint bad">${esc(e.error)}</p>` : ""}` : statusLine(e)}`;
     const val = (f) => el.querySelector(`[data-f="${f}"]`).value;
-    el.querySelector("[data-send]")?.addEventListener("click", async (ev) => {
+    const sendBtn = el.querySelector("[data-send]");
+    if (sendBtn) sendBtn.addEventListener("click", async (ev) => {
       const to = val("to_addr").trim();
       if (!confirm(t("m.confirm", {to: to || "?"}))) return;
       ev.target.disabled = true;
@@ -60,7 +61,8 @@ const MAIL = (() => {
         await load(); el.replaceWith(card(id) || document.createElement("div"));
       } catch (ex) { alert(ex.message); ev.target.disabled = false; }
     });
-    el.querySelector("[data-discard]")?.addEventListener("click", async () => {
+    const discardBtn = el.querySelector("[data-discard]");
+    if (discardBtn) discardBtn.addEventListener("click", async () => {
       await post(`api/outbox/${id}/discard`, {to_addr: val("to_addr"), subject: val("subject"), body: val("body")});
       el.remove();
     });
@@ -68,7 +70,7 @@ const MAIL = (() => {
   }
   // ─── подключение почты (настройки) ───
   function settings(box) {
-    const p = cfg.configured ? (Object.entries(PROVIDERS).find(([, v]) => v[1] && v[1] === cfg.host)?.[0] || "other") : "gmail";
+    const p = cfg.configured ? ((Object.entries(PROVIDERS).find(([, v]) => v[1] && v[1] === cfg.host) || ["other"])[0]) : "gmail";
     box.innerHTML = `<p class="small muted">${esc(t("m.set.p"))}</p>
       ${cfg.configured ? `<p class="small"><b>${esc(t("m.set.ok", {a: cfg.from_addr}))}</b></p>` : ""}
       <div class="mgrid">
@@ -96,7 +98,8 @@ const MAIL = (() => {
       try { await post("api/mail", body); await load(); settings(box); }
       catch (ex) { res.textContent = ex.message; res.className = "small bad"; }
     };
-    box.querySelector("[data-mdel]")?.addEventListener("click", async () => { await post("api/mail", {delete: true}); cfg = {configured: false}; await load(); settings(box); });
+    const delBtn = box.querySelector("[data-mdel]");
+    if (delBtn) delBtn.addEventListener("click", async () => { await post("api/mail", {delete: true}); cfg = {configured: false}; await load(); settings(box); });
   }
   return {load, card, settings, get cfg() { return cfg; }, cache};
 })();
