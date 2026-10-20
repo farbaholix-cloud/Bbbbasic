@@ -35,6 +35,7 @@ load_dotenv(os.path.join(HERE, ".env"))
 
 import store  # noqa: E402  (после .env — путь к базе может прийти оттуда)
 import i18n  # noqa: E402
+import plans  # noqa: E402
 from i18n import t as T  # noqa: E402
 import brain  # noqa: E402
 
@@ -213,7 +214,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _cookie_header(self, name, value, max_age=store.SESSION_DAYS * 86400):
-        secure = "; Secure" if TLS_CERT else ""
+        # Secure — и при своём сертификате, и за HTTPS-прокси (Caddy, nginx, Cloudflare)
+        https = TLS_CERT or self.headers.get("X-Forwarded-Proto", "").lower() == "https"
+        secure = "; Secure" if https else ""
         return f"{name}={value}; Path=/; Max-Age={max_age}; HttpOnly; SameSite=Lax{secure}"
 
     def _static(self, fname):
@@ -229,6 +232,7 @@ class Handler(BaseHTTPRequestHandler):
         if n > MAX_BODY:
             raise ValueError(T(self._lang(), "too_big"))
         raw = self.rfile.read(n) if n else b""
+        self._raw = raw  # вебхуку Stripe нужна подпись по сырому телу
         return json.loads(raw or b"{}")
 
     def _ip(self):
@@ -307,6 +311,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.admin_login(body)
             if path == "/api/signup":
                 return self.signup(body)
+            if path == "/api/stripe/webhook":
+                return self.stripe_webhook()
             if path == "/api/restart":
                 cid = self._client_id()
                 if not cid:
@@ -415,6 +421,35 @@ class Handler(BaseHTTPRequestHandler):
         log.info("restart: client %s (%s, %s)", cid, ",".join(picked), L)
         return self._json({"ok": True, "job": first_review(cid, L, profile)})
 
+    def stripe_webhook(self):
+        """Оплата через Stripe Payment Links. Ссылка в приложении несёт client_reference_id
+        «код__тариф»; после оплаты включаем тариф на месяц, каждое продление — ещё на месяц.
+        Подпись проверяем секретом вебхука (Stripe → Developers → Webhooks)."""
+        import hmac, hashlib
+        secret = store.meta_get("stripe_webhook_secret", "")
+        sig = dict(x.split("=", 1) for x in self.headers.get("Stripe-Signature", "").split(",") if "=" in x)
+        if not secret or "t" not in sig:
+            return self._err(400, "no signature")
+        good = hmac.new(secret.encode(), sig["t"].encode() + b"." + self._raw, hashlib.sha256).hexdigest()
+        sigs = [v for k, v in (x.split("=", 1) for x in self.headers["Stripe-Signature"].split(",") if "=" in x) if k == "v1"]
+        if not any(hmac.compare_digest(good, v) for v in sigs) or abs(time.time() - int(sig["t"])) > 600:
+            return self._err(400, "bad signature")
+        ev = json.loads(self._raw)
+        obj = (ev.get("data") or {}).get("object") or {}
+        if ev.get("type") == "checkout.session.completed":
+            slug, _, plan = str(obj.get("client_reference_id") or "").partition("__")
+            c = store.client_by_slug(slug) if slug else None
+            if c and plan in plans.PAID:
+                until = plans.activate(c["id"], plan)
+                if obj.get("customer"):
+                    store.update_client(c["id"], stripe_customer=obj["customer"])
+                log.info("stripe: %s → %s до %s", slug, plan, until)
+        elif ev.get("type") == "invoice.paid" and obj.get("customer"):
+            c = store.client_by_customer(obj["customer"])
+            if c and c.get("plan") in plans.PAID:
+                log.info("stripe: продление %s → %s", c["slug"], plans.activate(c["id"], c["plan"]))
+        return self._json({"received": True})
+
     def admin_login(self, body):
         ip = self._ip()
         if too_many_fails(ip):
@@ -439,7 +474,8 @@ class Handler(BaseHTTPRequestHandler):
                 "telegram": bool(c["tg_token"]), "share_insights": c["share_insights"],
                 "backend": brain.backend(), "demo": False, "fresh": c.get("source") == "signup",
                 "agents": i18n.agents(L, brain.AGENTS), "version": VERSION,
-                "survey_done": bool(_survey(c).get("done"))})
+                "survey_done": bool(_survey(c).get("done")),
+                "plan": plans.status(c), "offers": plans.offers(c)})
         if path == "/api/survey":
             sv = _survey(c)
             return self._json({"answers": sv.get("answers") or {}, "done": bool(sv.get("done")), "lang": L,
@@ -555,10 +591,21 @@ class Handler(BaseHTTPRequestHandler):
                                "signups_24h": store.signups_since(24), "signup_daily": SIGNUP_DAILY,"model_chat": brain.MODEL_CHAT, "model_deep": brain.MODEL_DEEP,
                                "effort_chat": brain.EFFORT_CHAT, "effort_deep": brain.EFFORT_DEEP,
                                "prices": brain.PRICES, "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
-                               "version": VERSION})
+                               "version": VERSION, "plans": plans.get_plans(), "payments_on": plans.payments_on(),
+                               "public_url": store.meta_get("public_url", ""),
+                               "stripe_secret_set": bool(store.meta_get("stripe_webhook_secret", ""))})
         return self._err(404, "not found")
 
     def admin_post(self, path, body):
+        if path == "/api/admin/plans":
+            cur = plans.get_plans()
+            new = body.get("plans") if isinstance(body.get("plans"), dict) else {}
+            keep = {k: {f: v[f] for f in ("name", "price", "link", "days", "chat_daily", "deep_daily") if f in v}
+                    for k, v in new.items() if k in cur and isinstance(v, dict)}
+            store.meta_set("plans", json.dumps(keep, ensure_ascii=False))
+            if body.get("stripe_secret"):
+                store.meta_set("stripe_webhook_secret", str(body["stripe_secret"]).strip())
+            return self._json({"ok": True})
         if path == "/api/admin/signup":
             store.meta_set("signup_open", "1" if body.get("open") else "0")
             return self._json({"ok": True})

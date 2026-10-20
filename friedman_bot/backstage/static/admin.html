@@ -40,6 +40,16 @@
     </section>
 
     <section class="card">
+      <h2>Тарифы и оплата</h2>
+      <p class="small" id="payInfo"></p>
+      <div class="t-wrap"><table><thead><tr><th>Тариф</th><th>Название</th><th>Цена (текст)</th><th>Ответов/день</th><th>Глуб. анализов/день</th><th>Дней</th><th>Ссылка оплаты Stripe</th></tr></thead>
+        <tbody id="plans"></tbody></table></div>
+      <label>Секрет вебхука Stripe (whsec_…) — вставь, чтобы оплата включала тариф сама</label>
+      <input id="whsec" placeholder="whsec_…">
+      <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="plansSave">Сохранить тарифы</button></div>
+    </section>
+
+    <section class="card">
       <h2>Новый клиент</h2>
       <div class="form4">
         <div><label>Код (латиница)</label><input id="nslug" placeholder="dj-can-on"></div>
@@ -55,7 +65,7 @@
 
     <section class="card">
       <h2>Клиенты</h2>
-      <div class="t-wrap"><table><thead><tr><th>Клиент</th><th>Месяц / бюджет</th><th>Всего</th><th>Модель чата</th><th>Модель анализа</th><th>Telegram</th><th></th></tr></thead>
+      <div class="t-wrap"><table><thead><tr><th>Клиент</th><th>Месяц / бюджет</th><th>Всего</th><th>Тариф</th><th>Модель чата</th><th>Модель анализа</th><th>Telegram</th><th></th></tr></thead>
         <tbody id="clients"></tbody></table></div>
       <p class="small muted">Пустая модель = значение по умолчанию из .env. Бюджет 0 = без лимита.</p>
     </section>
@@ -90,11 +100,30 @@ async function load() {
   const tot = usage.reduce((s, r) => s + r.cost, 0);
   $("#cfg").innerHTML = `Версия ${esc(cfg.version)} · чат: <b>${esc(cfg.model_chat)}</b> (effort ${esc(cfg.effort_chat)}) · глубокий анализ: <b>${esc(cfg.model_deep)}</b> (effort ${esc(cfg.effort_deep)})<br>
     Ключ Claude API: ${cfg.api_key_set ? "✅ задан" : "❌ не задан — чат не работает"} · расход всех клиентов за 31 день: <b>$${tot.toFixed(2)}</b>`;
+  const P = cfg.plans, hook = cfg.public_url ? cfg.public_url.replace(/\/$/, "") + "/api/stripe/webhook" : "";
+  $("#payInfo").innerHTML = (cfg.payments_on
+      ? "Оплата <b>включена</b>: новые люди получают пробный период, потом выбирают тариф."
+      : "Оплата <b>выключена</b> — все пользуются бесплатно с дневными лимитами. Вставь ссылку оплаты хотя бы для одного тарифа, и включится схема «пробный период → тариф».")
+    + `<br>Ссылки — Stripe → Payment Links (подписка на месяц). Вебхук: Stripe → Developers → Webhooks, события <b>checkout.session.completed</b> и <b>invoice.paid</b>, адрес: <b>${hook ? esc(hook) : "нужен HTTPS-адрес панели"}</b>.`
+    + ` Секрет вебхука: ${cfg.stripe_secret_set ? "✅ задан" : "❌ не задан — тариф после оплаты включай вручную в таблице клиентов"}.`;
+  $("#plans").innerHTML = ["trial", "free", "basic", "pro"].map(k => `<tr data-k="${k}"><td><b>${k}</b></td>
+    <td><input data-p="name" value="${esc(P[k].name)}"></td><td><input data-p="price" value="${esc(P[k].price || "")}" ${k === "basic" || k === "pro" ? "" : "disabled"}></td>
+    <td><input data-p="chat_daily" value="${P[k].chat_daily}" style="width:70px"></td><td><input data-p="deep_daily" value="${P[k].deep_daily}" style="width:70px"></td>
+    <td><input data-p="days" value="${P[k].days || ""}" style="width:60px" ${k === "trial" ? "" : "disabled"}></td>
+    <td><input data-p="link" value="${esc(P[k].link || "")}" placeholder="https://buy.stripe.com/…" ${k === "basic" || k === "pro" ? "" : "disabled"}></td></tr>`).join("");
+  $("#plansSave").onclick = async () => {
+    const out = {};
+    document.querySelectorAll("#plans tr").forEach(tr => { const o = {}; tr.querySelectorAll("input[data-p]:not([disabled])").forEach(i => {
+      o[i.dataset.p] = ["chat_daily", "deep_daily", "days"].includes(i.dataset.p) ? Number(i.value) || 0 : i.value.trim(); }); out[tr.dataset.k] = o; });
+    await api("api/admin/plans", {plans: out, stripe_secret: $("#whsec").value.trim()}); $("#whsec").value = ""; load();
+  };
   const cl = await api("api/admin/clients");
   $("#clients").innerHTML = cl.map(c => `<tr data-id="${c.id}">
     <td><b>${esc(c.name)}</b><br><span class="small muted">${esc(c.slug)}${c.source === "signup" ? " · сам зарегистрировался" : c.source === "demo" ? " · демо" : ""}${c.active ? "" : " · отключён"}</span></td>
     <td>$${c.spent_month.toFixed(2)} / <input data-f="monthly_budget" value="${c.monthly_budget}" style="width:70px"></td>
     <td>$${c.spent_total.toFixed(2)}</td>
+    <td><select data-f="plan">${["", "basic", "pro"].map(p => `<option value="${p}" ${c.plan === p ? "selected" : ""}>${p || "пробный/бесплатный"}</option>`).join("")}</select>
+      <input data-f="plan_until" type="date" value="${esc(c.plan_until || "")}" style="width:140px"></td>
     <td><input data-f="model_chat" value="${esc(c.model_chat)}" placeholder="${esc(cfg.model_chat)}"></td>
     <td><input data-f="model_deep" value="${esc(c.model_deep)}" placeholder="${esc(cfg.model_deep)}"></td>
     <td>${c.tg_connected ? "✅" : "—"}</td>
@@ -104,7 +133,7 @@ async function load() {
     const a = e.target.dataset.a; if (!a) return;
     const tr = e.target.closest("tr"), id = tr.dataset.id, c = cl.find(x => x.id == id);
     if (a === "save") {
-      const body = {}; tr.querySelectorAll("input[data-f]").forEach(i => body[i.dataset.f] = i.dataset.f === "monthly_budget" ? Number(i.value) || 0 : i.value.trim());
+      const body = {}; tr.querySelectorAll("input[data-f],select[data-f]").forEach(i => body[i.dataset.f] = i.dataset.f === "monthly_budget" ? Number(i.value) || 0 : i.value.trim());
       await api(`api/admin/clients/${id}`, body); load();
     }
     if (a === "toggle") { await api(`api/admin/clients/${id}`, {active: c.active ? 0 : 1}); load(); }

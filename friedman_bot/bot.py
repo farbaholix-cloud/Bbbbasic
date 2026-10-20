@@ -6559,7 +6559,7 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "finance_inbox/bank_2026-09.json",
                 # Backstage — платформа агентства (панель клиентов, порт 8800)
                 "backstage/server.py", "backstage/brain.py", "backstage/store.py",
-                "backstage/telegram_bridge.py", "backstage/manage.py", "backstage/README.md", "backstage/i18n.py",
+                "backstage/telegram_bridge.py", "backstage/manage.py", "backstage/README.md", "backstage/i18n.py", "backstage/plans.py",
                 "backstage/agents/agents.json", "backstage/agents/_common.md",
                 "backstage/agents/maya.md", "backstage/agents/ruben.md", "backstage/agents/hanna.md",
                 "backstage/agents/konrad.md", "backstage/agents/noa.md", "backstage/agents/tarik.md",
@@ -8885,6 +8885,11 @@ def _backup_db_sync() -> str:
     except Exception as e:
         # денежная копия не должна ронять основную
         log.error(f"backup finance.db: {e}")
+    try:
+        # база клиентов Backstage — та же ротация каждые 12 ч (раньше только в воскресном сейфе)
+        _backup_one(os.path.join(d, "backstage", "backstage.db"), "backstage", bdir, stamp=stamp)
+    except Exception as e:
+        log.error(f"backup backstage.db: {e}")
     return dest
 
 
@@ -9146,6 +9151,12 @@ def _weekly_backup_zip(db_copy: str) -> list:
                 dst.close()
                 src.close()
             files.append((bs_copy, "bases/backstage.db"))
+        # сейф материалов клиентов Backstage (портфолио, CV, готовые документы)
+        bs_files = os.path.join(d, "backstage", "files")
+        for root, _dirs, names in os.walk(bs_files):
+            for n in names:
+                fp = os.path.join(root, n)
+                files.append((fp, "backstage_files/" + os.path.relpath(fp, bs_files)))
         # тексты и таблицы
         n_arch, n_own, n_con = _write_encyclopedia(work)
         tables = _dump_sqlite(db_copy, os.path.join(work, "tables", "friedman"))
@@ -9570,7 +9581,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.10"  # видимая метка сборки бота
+BOT_VERSION = "09.11"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (

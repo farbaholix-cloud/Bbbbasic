@@ -123,6 +123,9 @@ def init():
             conn.execute("ALTER TABLE clients ADD COLUMN craft TEXT DEFAULT ''")
         if "survey" not in cols:  # подробная анкета: JSON {answers, summary, done, updated}
             conn.execute("ALTER TABLE clients ADD COLUMN survey TEXT DEFAULT ''")
+        for col in ("plan", "plan_until", "stripe_customer"):  # тариф (plans.py) и покупатель в Stripe
+            if col not in cols:
+                conn.execute(f"ALTER TABLE clients ADD COLUMN {col} TEXT DEFAULT ''")
 
 
 def set_survey(client_id: int, answers: dict, summary: str, done: bool):
@@ -227,6 +230,18 @@ def get_client(client_id: int):
     return dict(row) if row else None
 
 
+def client_by_slug(slug: str):
+    with db() as conn:
+        row = conn.execute("SELECT * FROM clients WHERE slug=?", (slug,)).fetchone()
+    return dict(row) if row else None
+
+
+def client_by_customer(customer: str):
+    with db() as conn:
+        row = conn.execute("SELECT * FROM clients WHERE stripe_customer=?", (customer,)).fetchone()
+    return dict(row) if row else None
+
+
 def list_clients():
     month = datetime.now().strftime("%Y-%m")
     with db() as conn:
@@ -240,12 +255,13 @@ def list_clients():
         d = dict(r)
         d.pop("key_hash", None)
         d["tg_connected"] = bool(d.pop("tg_token", ""))
+        d.pop("survey", None)
         out.append(d)
     return out
 
 
 CLIENT_EDITABLE = {"name", "profile", "lang", "monthly_budget", "model_chat", "model_deep",
-                   "tg_token", "tg_chat_id", "share_insights", "active"}
+                   "tg_token", "tg_chat_id", "share_insights", "active", "plan", "plan_until", "stripe_customer"}
 
 
 def update_client(client_id: int, **fields):

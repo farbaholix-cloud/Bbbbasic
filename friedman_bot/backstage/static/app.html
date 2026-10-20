@@ -76,6 +76,11 @@
   .svcard h4{margin:0 0 4px;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:17px}
   .svcard p{margin:0 0 10px;font-size:14px;color:var(--muted)}
   .svcard .row{gap:8px}
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
+  .plans .pl{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+  .plans .pl b{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:17px}
+  .plans .pl.cur{border-color:var(--accent)}
+  .plans .pl a{margin-top:6px;text-align:center;background:var(--accent);color:#fff;border-radius:10px;padding:7px;text-decoration:none;font-weight:600}
   nav.tabs{display:none}
   .show-m{display:none}
   @media (max-width:1000px){.show-m{display:inline}}
@@ -171,6 +176,8 @@
 <dialog id="dlgSettings">
   <form method="dialog">
     <h2 data-i="a.set.h"></h2>
+    <h3 style="margin-top:6px" data-i="a.plan"></h3>
+    <div id="planBox" class="small"></div>
     <label data-i="a.set.lang"></label>
     <select id="setLang"><option value="en">English</option><option value="de">Deutsch</option><option value="ua">Українська</option></select>
     <label data-i="a.set.profile"></label>
@@ -408,7 +415,25 @@ async function loadMsgs() {
     box.append(wrap);
   }
   if (AGENT === "maya") surveyCard(list);
+  planCard();
   box.scrollTop = box.scrollHeight;
+}
+// Тариф: строка состояния и карточки платных тарифов (ссылки оплаты Stripe)
+function planHTML() {
+  const p = ME.plan || {}, lim = p.chat_daily != null ? `<br>${esc(t("a.plan.limits", {chat: p.chat_daily, deep: p.deep_daily}))}` : "";
+  const line = p.plan === "owner" ? t("a.plan.owner") : p.plan === "trial" ? t("a.plan.trial", {n: p.days_left})
+    : p.plan === "expired" ? t("a.plan.over.h") : p.plan === "free" ? t("a.plan.free") : `${p.name} · ${t("a.plan.until", {d: p.until})}`;
+  const cards = (ME.offers || []).map(o => `<div class="pl ${o.id === p.plan ? "cur" : ""}"><b>${esc(o.name)}</b><span>${esc(o.price)}</span>
+    <span class="muted">${esc(t("a.plan.limits", {chat: o.chat_daily, deep: o.deep_daily}))}</span>
+    ${o.id === p.plan ? `<span class="muted">${esc(t("a.plan.current"))}</span>` : `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(t("a.plan.choose"))}</a>`}</div>`).join("");
+  return `<p style="margin:4px 0"><b>${esc(line)}</b>${p.plan === "owner" || p.plan === "expired" ? "" : lim}</p>${cards ? `<div class="plans">${cards}</div>` : ""}`;
+}
+function planCard() {
+  if (!ME.plan?.expired) return;
+  const el = document.createElement("div");
+  el.className = "svcard";
+  el.innerHTML = `<h4>${esc(t("a.plan.over.h"))}</h4><p>${esc(t("a.plan.over.p"))}</p>${planHTML().replace(/^<p[^]*?<\/p>/, "")}`;
+  $("#msgs").append(el);
 }
 // Подробная анкета: предлагаем после первого разбора (приветствие + разбор = 2 ответа Майи),
 // пока она не заполнена; «Позже» прячет приглашение на три дня
@@ -494,7 +519,7 @@ async function refreshMe() {
   }
   $("#who").textContent = ME.name;
   const b = $("#budget");
-  if (ME.backend === "cli") { b.textContent = t(ME.fresh ? "a.free" : "a.sub"); b.title = t("a.sub.t"); }
+  if (ME.backend === "cli") { b.textContent = ME.plan?.plan === "owner" ? t("a.sub") : ME.plan?.plan === "free" ? t("a.free") : (ME.plan?.name || t("a.free")); b.title = t("a.sub.t"); }
   else { b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
     b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : ""; }
 }
@@ -518,6 +543,7 @@ $("#dlgPotential").onclose = () => {
 };
 $("#btnSettings").onclick = async () => {
   $("#setLang").value = BS.lang;
+  $("#planBox").innerHTML = planHTML();
   $("#setProfile").value = ME.profile || ""; $("#setShare").checked = !!ME.share_insights; $("#setTg").value = "";
   $("#tgState").textContent = t(ME.telegram ? "a.tg.on" : "a.tg.off");
   const u = await api("api/usage");

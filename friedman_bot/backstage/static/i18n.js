@@ -4,6 +4,10 @@ const I18N = {
 en: {
   // анкета
   "j.title": "Backstage — your team behind the scenes",
+  "a.plan": "Plan", "a.plan.trial": "Free trial — {n} days left", "a.plan.free": "Free",
+  "a.plan.until": "Active until {d}", "a.plan.owner": "Agency client — no daily limits",
+  "a.plan.limits": "{chat} team replies and {deep} deep analyses per day", "a.plan.choose": "Choose", "a.plan.current": "current plan",
+  "a.plan.over.h": "Your free trial has ended", "a.plan.over.p": "Everything you've built is saved. Choose a plan to keep working with the team.",
   "a.restart": "Start from scratch",
   "a.restart.p": "Deletes all conversations, the dashboard, your knowledge base entries and the detailed questionnaire. Your login and PIN stay. You then fill in the short questionnaire again and the team does a new first review.",
   "a.restart.q": "Really start from scratch? All conversations, the dashboard and the questionnaire will be deleted. This can't be undone.",
@@ -170,6 +174,10 @@ en: {
 },
 de: {
   "j.title": "Backstage — dein Team hinter den Kulissen",
+  "a.plan": "Tarif", "a.plan.trial": "Kostenloser Test — noch {n} Tage", "a.plan.free": "Kostenlos",
+  "a.plan.until": "Aktiv bis {d}", "a.plan.owner": "Kund:in der Agentur — ohne Tageslimit",
+  "a.plan.limits": "{chat} Antworten des Teams und {deep} Tiefenanalysen pro Tag", "a.plan.choose": "Wählen", "a.plan.current": "aktueller Tarif",
+  "a.plan.over.h": "Dein kostenloser Test ist vorbei", "a.plan.over.p": "Alles bleibt gespeichert. Wähl einen Tarif, um mit dem Team weiterzuarbeiten.",
   "a.restart": "Von vorn beginnen",
   "a.restart.p": "Löscht alle Gespräche, das Dashboard, deine Einträge in der Erfahrungsdatenbank und den ausführlichen Fragebogen. Login-Name und PIN bleiben. Danach füllst du den kurzen Fragebogen neu aus, und das Team macht eine neue erste Analyse.",
   "a.restart.q": "Wirklich von vorn beginnen? Alle Gespräche, das Dashboard und der Fragebogen werden gelöscht. Das lässt sich nicht rückgängig machen.",
@@ -334,6 +342,10 @@ de: {
 },
 ua: {
   "j.title": "Backstage — твоя закулісна команда",
+  "a.plan": "Тариф", "a.plan.trial": "Безкоштовний пробний період — лишилося днів: {n}", "a.plan.free": "Безкоштовно",
+  "a.plan.until": "Діє до {d}", "a.plan.owner": "Клієнт агенції — без денних лімітів",
+  "a.plan.limits": "{chat} відповідей команди і {deep} глибоких аналізів на день", "a.plan.choose": "Обрати", "a.plan.current": "поточний тариф",
+  "a.plan.over.h": "Безкоштовний пробний період закінчився", "a.plan.over.p": "Усе збережено. Обери тариф, щоб працювати з командою далі.",
   "a.restart": "Почати з нуля",
   "a.restart.p": "Видаляє всі розмови, дашборд, твої записи в базі досвіду та детальну анкету. Ім'я для входу й PIN-код залишаються. Потім ти знову заповнюєш коротку анкету, і команда робить новий перший розбір.",
   "a.restart.q": "Справді почати з нуля? Усі розмови, дашборд і анкету буде видалено. Скасувати це неможливо.",

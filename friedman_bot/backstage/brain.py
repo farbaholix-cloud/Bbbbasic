@@ -423,13 +423,17 @@ FREE_DAILY_DEEP = int(os.environ.get("BACKSTAGE_FREE_DAILY_DEEP", "2"))
 def check_quota(c, deep=False):
     """Бесплатные аккаунты (саморегистрация, демо) работают на подписке владельца —
     дневной лимит не даёт одному человеку или боту выжечь её за всех."""
-    if (c.get("source") or "admin") not in ("signup", "demo"):
+    import plans
+    st = plans.status(c)
+    if st["expired"]:
+        raise BudgetExceeded(i18n.t(c.get("lang"), "trial_over"))
+    if st["chat_daily"] is None:
         return
     used = store.requests_today(c["id"])
-    if deep and used.get("deep", 0) >= FREE_DAILY_DEEP:
-        raise BudgetExceeded(i18n.t(c.get("lang"), "quota_deep", n=FREE_DAILY_DEEP))
-    if used.get("chat", 0) + used.get("deep", 0) >= FREE_DAILY_CHAT:
-        raise BudgetExceeded(i18n.t(c.get("lang"), "quota_chat", n=FREE_DAILY_CHAT))
+    if deep and used.get("deep", 0) >= st["deep_daily"]:
+        raise BudgetExceeded(i18n.t(c.get("lang"), "quota_deep", n=st["deep_daily"]))
+    if used.get("chat", 0) + used.get("deep", 0) >= st["chat_daily"]:
+        raise BudgetExceeded(i18n.t(c.get("lang"), "quota_chat", n=st["chat_daily"]))
 
 
 def check_budget(c):
