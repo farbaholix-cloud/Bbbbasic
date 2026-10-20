@@ -121,7 +121,7 @@
       <h1>Давай <em>познакомимся</em></h1>
       <label for="name">Как к тебе обращаться</label>
       <input id="name" maxlength="40" placeholder="Имя">
-      <label>Чем занимаешься</label>
+      <label>Чем занимаешься <em>— можно выбрать несколько</em></label>
       <div class="chips" id="crafts">
         <button type="button" class="chip" data-v="animation" style="--c:var(--noa)">Анимация</button>
         <button type="button" class="chip" data-v="illustration" style="--c:var(--iris)">Иллюстрация</button>
@@ -192,7 +192,7 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const steps = [...document.querySelectorAll(".step")];
-let cur = 0, craft = "", ticket = "", slugTouched = false;
+let cur = 0, crafts = [], ticket = "", slugTouched = false;
 const SAY = [
   "Приветствую, я Майя. Я здесь для того, чтобы у тебя оставалось время на творчество и на жизнь, а не на рутину.",
   "Начнём с простого: как к тебе обращаться и чем ты занимаешься?",
@@ -230,6 +230,17 @@ const ABOUT_PH = {
   photo: "Например: снимаю портреты и события, ищу постоянных клиентов",
   other: "Что ты делаешь, для кого и в каком стиле",
 };
+function pickCraft(v) {
+  // «Другое» — отдельный вариант; конкретные области можно сочетать между собой
+  if (crafts.includes(v)) crafts = crafts.filter(c => c !== v);
+  else crafts = v === "other" ? ["other"] : [...crafts.filter(c => c !== "other"), v];
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", crafts.includes(c.dataset.v)));
+  const names = crafts.map(c => document.querySelector(`.chip[data-v="${c}"]`).textContent.trim()).map(t => t[0].toLowerCase() + t.slice(1));
+  if (!crafts.length) say(SAY[1]);
+  else if (crafts.length === 1) say(CRAFT_SAY[crafts[0]]);
+  else say(`${names.join(", ")} — отлично, команда будет вести все направления сразу.`.replace(/^./, ch => ch.toUpperCase()));
+  $("#about").placeholder = ABOUT_PH[crafts[0]] || ABOUT_PH.other;
+}
 function say(t) { const b = $("#bubble"); $("#say").textContent = t; b.style.animation = "none"; b.offsetHeight; b.style.animation = ""; }
 function show(i) {
   cur = i; steps.forEach(s => s.classList.toggle("on", s.dataset.step == String(i)));
@@ -244,7 +255,7 @@ const slugify = (t) => [...t.toLowerCase()].map(c => TR[c] ?? c).join("").replac
 function validate(i) {
   if (i === 1) {
     if ($("#name").value.trim().length < 2) return "Напиши, как к тебе обращаться.";
-    if (!craft) return "Выбери область — подойдёт и «Другое».";
+    if (!crafts.length) return "Выбери хотя бы одну область — подойдёт и «Другое».";
   }
   if (i === 2 && $("#about").value.trim().length < 10) return "Пары предложений достаточно — так команда поймёт, с чего начать.";
   return "";
@@ -258,10 +269,7 @@ document.addEventListener("click", (e) => {
   }
   if (e.target.matches("[data-back]")) show(cur - 1);
   const chip = e.target.closest(".chip");
-  if (chip) {
-    document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === chip));
-    craft = chip.dataset.v; say(CRAFT_SAY[craft]); $("#about").placeholder = ABOUT_PH[craft];
-  }
+  if (chip) pickCraft(chip.dataset.v);
 });
 let slugTimer;
 async function checkSlug() {
@@ -284,7 +292,7 @@ $("#f").addEventListener("submit", async (e) => {
   $("#go").disabled = true; show(4);
   try {
     const r = await fetch("api/signup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
-      name: $("#name").value, craft, city: $("#city").value, about: $("#about").value, goal: $("#goal").value,
+      name: $("#name").value, crafts, craft: crafts[0], city: $("#city").value, about: $("#about").value, goal: $("#goal").value,
       links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || "Что-то пошло не так");

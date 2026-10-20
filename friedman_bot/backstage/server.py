@@ -344,8 +344,13 @@ class Handler(BaseHTTPRequestHandler):
         name = re.sub(r"\s+", " ", str(body.get("name", ""))).strip()[:40]
         slug = str(body.get("slug", "")).strip().lower()
         pin = str(body.get("pin", "")).strip()
-        craft = str(body.get("craft", "other"))
-        craft = craft if craft in brain.CRAFTS else "other"
+        # Можно выбрать несколько областей: первая задаёт доску и подсказки, все идут в профиль
+        raw = body.get("crafts") or [body.get("craft", "other")]
+        picked = list(dict.fromkeys(str(c) for c in (raw if isinstance(raw, list) else [raw]) if str(c) in brain.CRAFTS))[:6]
+        if len(picked) > 1 and "other" in picked:
+            picked.remove("other")
+        picked = picked or ["other"]
+        craft = picked[0]
         about = str(body.get("about", "")).strip()[:1500]
         goal = str(body.get("goal", "")).strip()[:800]
         city = str(body.get("city", "")).strip()[:60]
@@ -362,13 +367,13 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Это имя уже занято — попробуй другое.")
         crafts = brain.CRAFTS
         profile = "\n".join(x for x in [
-            f"{name}{', ' + city if city else ''} — {crafts[craft]}.",
+            f"{name}{', ' + city if city else ''} — {', '.join(crafts[c] for c in picked)}.",
             about and f"О себе: {about}", goal and f"Цель на 12 месяцев: {goal}", links and f"Ссылки: {links}"] if x)
-        cid, _ = store.create_client(slug, name, profile, budget=0, key=pin, source="signup", craft=craft)
+        cid, _ = store.create_client(slug, name, profile, budget=0, key=pin, source="signup", craft=",".join(picked))
         store.note_signup(ip_hash)
         store.add_message(cid, "maya", "assistant", welcome_text(name, craft, goal))
         tok = store.new_session(cid)
-        log.info("signup: %s (%s)", slug, craft)
+        log.info("signup: %s (%s)", slug, ",".join(picked))
         # Первый разбор стартует сразу: человек заполнил анкету — и уже видит, как
         # команда работает над ним, а не сталкивается с пустым чатом.
         jid = start_job(cid, "maya", brain.POTENTIAL_PROMPT + "\n\nОбо мне (из анкеты):\n" + profile, [], True,

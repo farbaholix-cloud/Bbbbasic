@@ -155,7 +155,7 @@ def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0,
             "VALUES (?,?,?,?,?,?,?,?,?)",
             (slug, name, hash_key(key), profile, budget, lang, now(), source, craft))
         cid = cur.lastrowid
-    seed_dashboard(cid, craft)
+    seed_dashboard(cid, craft.split(",")[0])
     return cid, key
 
 
