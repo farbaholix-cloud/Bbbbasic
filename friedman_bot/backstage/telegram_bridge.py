@@ -183,7 +183,7 @@ def handle(c, token, msg):
         send(token, chat_id, str(e))
     except Exception as e:  # noqa: BLE001
         log.exception("chat")
-        send(token, chat_id, tr(c, "stumbled", e=e))
+        send(token, chat_id, tr(c, "stumbled", e=type(e).__name__))
 
 
 def poll(client_id, token, stop):

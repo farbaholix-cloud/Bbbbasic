@@ -21,6 +21,11 @@ import ssl
 import json
 import time
 import uuid
+import hmac
+import hashlib
+import sqlite3
+import socket
+import ipaddress
 import base64
 import logging
 import threading
@@ -64,6 +69,13 @@ MIME = {".html": "text/html; charset=utf-8", ".js": "application/javascript; cha
         ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
         ".json": "application/json", ".webmanifest": "application/manifest+json"}
 
+MANIFEST = json.dumps({
+    "name": "Backstage", "short_name": "Backstage", "start_url": "app", "scope": "./", "display": "standalone",
+    "background_color": "#f7f3ec", "theme_color": "#f7f3ec",
+    "icons": [{"src": "static/brand/icon-192.png", "sizes": "192x192", "type": "image/png"},
+              {"src": "static/brand/icon-512.png", "sizes": "512x512", "type": "image/png"},
+              {"src": "static/brand/logo-mark.svg", "sizes": "any", "type": "image/svg+xml"}]})
+
 # ─── Фоновые задачи (ответы команды) ─────────────────────────────────────────
 
 JOBS = {}
@@ -90,12 +102,14 @@ def start_job(client_id, agent, text, attachments, deep, display=None, on_done=N
             JOBS[jid].update(status="error", error=str(e))
         except Exception as e:  # noqa: BLE001 — любую ошибку показываем клиенту, а не роняем поток
             log.exception("chat job failed")
-            JOBS[jid].update(status="error", error=T(store.get_client(client_id)["lang"], "team_error", e=e))
+            # подробности — в лог; клиенту понятная фраза на его языке, без внутренностей сервера
+            JOBS[jid].update(status="error", error=T(store.get_client(client_id)["lang"], "team_error_generic"))
         finally:
             # старые задачи чистим, чтобы словарь не рос бесконечно
             cutoff = time.time() - 3600
-            for k in [k for k, v in JOBS.items() if v.get("started", 0) < cutoff and v["status"] != "running"]:
-                JOBS.pop(k, None)
+            with _jobs_lock:
+                for k in [k for k, v in JOBS.items() if v.get("started", 0) < cutoff and v["status"] != "running"]:
+                    JOBS.pop(k, None)
 
     threading.Thread(target=work, daemon=True).start()
     return jid
@@ -110,6 +124,9 @@ def too_many_fails(ip, slug=None):
     """10 ошибок с адреса за 10 минут или 6 ошибок по одному имени за 15 минут —
     пауза. Второе важно: пин короткий, и перебирать его можно с разных адресов."""
     now = time.time()
+    if len(_fails) > 5000:  # старые записи не копим
+        for k in [k for k, v in _fails.items() if not v or now - v[-1] > 900]:
+            _fails.pop(k, None)
     lst = [t for t in _fails.get(ip, []) if now - t < 600]
     _fails[ip] = lst
     if len(lst) >= 10:
@@ -128,7 +145,7 @@ def note_fail(ip, slug=None):
 
 
 WEAK_PINS = {"1234", "12345", "123456", "1234567", "12345678", "4321", "0123", "1212", "2580", "6969", "1122"}
-RESERVED = {"admin", "api", "app", "join", "guide", "static", "canon", "demo", "root", "backstage", "test", "maya", "survey", "workspace", "doc"}
+RESERVED = {"admin", "api", "app", "join", "guide", "static", "canon", "demo", "root", "backstage", "test", "maya", "survey", "workspace", "doc", "impressum", "privacy", "cal", "s", "teaser"}
 
 
 def weak_pin(pin):
@@ -167,9 +184,10 @@ def ticket_ok(t):
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "Backstage/" + VERSION
+    timeout = 60  # медленный клиент не держит поток вечно
 
     def log_message(self, fmt, *args):
-        log.info("%s %s", self.address_string(), fmt % args)
+        log.info("%s %s", self.address_string(), re.sub(r"([?&]k=)[^&\s]+", r"\1***", fmt % args))
 
     # — ответы —
     def _send(self, code, body, ctype="application/json; charset=utf-8", headers=None):
@@ -180,11 +198,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        headers = headers or {}
+        if "Cache-Control" not in headers:
+            self.send_header("Cache-Control", "no-store")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
-        for k, v in (headers or {}).items():
+        for k, v in headers.items():
             self.send_header(k, v)
         self.end_headers()
         self.wfile.write(body)
@@ -228,15 +248,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def _static(self, fname):
         path = os.path.normpath(os.path.join(STATIC, fname))
-        if not path.startswith(STATIC) or not os.path.isfile(path):
+        if not path.startswith(STATIC + os.sep) or not os.path.isfile(path):
             return self._err(404, "not found")
+        ext = os.path.splitext(path)[1]
+        # картинки бренда меняются редко — пусть браузер и Cloudflare их держат; код и страницы — всегда свежие
+        cache = {"Cache-Control": "public, max-age=604800"} if ext in (".png", ".svg") else None
         with open(path, "rb") as f:
-            self._send(200, f.read(), MIME.get(os.path.splitext(path)[1], "application/octet-stream"))
+            self._send(200, f.read(), MIME.get(ext, "application/octet-stream"), cache)
 
     # — запрос —
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
-        if n > MAX_BODY:
+        if n < 0 or n > MAX_BODY:
             raise ValueError(T(self._lang(), "too_big"))
         raw = self.rfile.read(n) if n else b""
         self._raw = raw  # вебхуку Stripe нужна подпись по сырому телу
@@ -246,7 +269,13 @@ class Handler(BaseHTTPRequestHandler):
         """За прокси дашборда (127.0.0.1) — адрес из X-Forwarded-For, иначе прямой."""
         ip = self.client_address[0]
         if ip in ("127.0.0.1", "::1") and self.headers.get("X-Forwarded-For"):
-            return self.headers["X-Forwarded-For"].split(",")[0].strip()
+            ip = self.headers["X-Forwarded-For"].split(",")[0].strip()
+        try:  # IPv6: у одного хоста целая сеть /64 — считаем её одним адресом, иначе лимит обходится
+            a = ipaddress.ip_address(ip)
+            if a.version == 6:
+                return str(ipaddress.ip_network(f"{a}/64", strict=False).network_address)
+        except ValueError:
+            pass
         return ip
 
     def _cookies(self):
@@ -274,14 +303,37 @@ class Handler(BaseHTTPRequestHandler):
                 return self._static(PAGES[path])
             if path.startswith("/static/"):
                 return self._static(path[len("/static/"):])
+            m = re.fullmatch(r"/s/([a-z0-9-]{1,30})", path)
+            if m:  # короткая ссылка с флаера/QR: /s/<кампания> → анкета с меткой кампании и её языком
+                camp = plans.campaigns().get(m.group(1)) or {}
+                lang = f"&lang={camp['lang']}" if camp.get("lang") in ("en", "de", "ua") else ""
+                return self._redirect(f"/?src={m.group(1)}{lang}")
+            if path == "/api/teaser":  # гость ещё без аккаунта: «у Рубена уже N открытых конкурсов по твоему ремеслу»
+                crafts = [x for x in (q.get("crafts") or [""])[0].split(",") if x in i18n.CRAFTS["en"]][:6]
+                return self._json(teaser(tuple(crafts)))
+            m = re.fullmatch(r"/cal/(\d+)-([0-9a-f]{24})\.ics", path)
+            if m:  # дедлайны клиента в его календаре (Google/Apple подписываются по ссылке)
+                cid = int(m.group(1))
+                if not hmac.compare_digest(m.group(2), cal_token(cid)):
+                    return self._err(404, "not found")
+                return self._send(200, calendar_ics(cid), "text/calendar; charset=utf-8")
+            if path in ("/impressum", "/privacy"):
+                return self._send(200, legal_page(path[1:], self._lang()), "text/html; charset=utf-8")
+            if path == "/favicon.ico":
+                return self._static("brand/favicon-32.png")
+            if path == "/manifest.webmanifest":
+                return self._send(200, MANIFEST, MIME[".webmanifest"])
+            if path == "/robots.txt":
+                return self._send(200, "User-agent: *\nAllow: /$\nAllow: /join\nAllow: /guide\nAllow: /static/brand/\nDisallow: /\n",
+                                  "text/plain; charset=utf-8")
             m = re.fullmatch(r"/c/([a-z0-9-]{2,40})", path)
             if m:  # персональная ссылка клиента: /c/<код>?k=<ключ>
-                ip = self._ip()
-                if too_many_fails(ip):
+                ip, slug = self._ip(), m.group(1)
+                if too_many_fails(ip, slug):  # тот же лимит по имени, что и у входа: ключ здесь бывает пином
                     return self._send(429, T(self._lang(), "too_many"), "text/plain; charset=utf-8")
-                c = store.client_by_key(m.group(1), (q.get("k") or [""])[0])
+                c = store.client_by_key(slug, (q.get("k") or [""])[0])
                 if not c:
-                    note_fail(ip)
+                    note_fail(ip, slug)
                     return self._redirect("/login?bad=1")
                 tok = store.new_session(c["id"])
                 return self._redirect("/app", {"Set-Cookie": self._cookie_header("bs_session", tok)})
@@ -306,11 +358,10 @@ class Handler(BaseHTTPRequestHandler):
                 d = store.get_doc(cid, int(m.group(1)))
                 if not d:
                     return self._err(404, "not found")
-                fname = re.sub(r"[^\w.-]+", "_", d["title"])[:60] or "document"
                 if m.group(2):
                     return self._send(200, docs.to_docx(d["body"]),
                                       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                      {"Content-Disposition": f'attachment; filename="{fname}.docx"'})
+                                      {"Content-Disposition": disposition(d["title"][:60] + ".docx")})
                 L = i18n.norm(store.get_client(cid)["lang"])
                 labels = {"en": ("← Workspace", "Download DOCX", "Print / save as PDF"),
                           "de": ("← Arbeitsmappe", "DOCX herunterladen", "Drucken / als PDF speichern"),
@@ -325,7 +376,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(404, "not found")
         except Exception as e:  # noqa: BLE001
             log.exception("GET %s", path)
-            return self._err(500, str(e))
+            return self._err(500, T(self._lang(), "try_again"))
 
     def do_POST(self):
         path = urlparse(self.path).path.rstrip("/")
@@ -365,7 +416,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(400, str(e))
         except Exception as e:  # noqa: BLE001
             log.exception("POST %s", path)
-            return self._err(500, str(e))
+            return self._err(500, T(self._lang(), "try_again"))
 
     # — вход —
     def login(self, body):
@@ -393,7 +444,7 @@ class Handler(BaseHTTPRequestHandler):
         if str(body.get("website", "")).strip():          # ловушка: поле невидимо для людей
             return self._err(400, T(L, "try_again"))
         if not ticket_ok(body.get("ticket")):
-            return self._err(400, T(L, "form_stale"))
+            return self._json({"error": T(L, "form_stale"), "code": "form_stale"}, 400)
         ip_hash = store.hash_key("ip:" + ip)[:16]
         if store.signups_since(24, ip_hash) >= SIGNUP_PER_IP:
             return self._err(429, T(L, "device_limit"))
@@ -416,8 +467,14 @@ class Handler(BaseHTTPRequestHandler):
         if store.slug_taken(slug):
             raise ValueError(T(L, "slug_taken"))
         profile = build_profile(L, name, picked, body)
-        cid, _ = store.create_client(slug, name, profile, budget=0, lang=L, key=pin, source="signup",
-                                     craft=",".join(picked))
+        try:
+            cid, _ = store.create_client(slug, name, profile, budget=0, lang=L, key=pin, source="signup",
+                                         craft=",".join(picked))
+        except sqlite3.IntegrityError:  # то же имя заняли секундой раньше
+            raise ValueError(T(L, "slug_taken"))
+        src = str(body.get("src") or "").strip().lower()
+        if re.fullmatch(r"[a-z0-9-]{1,30}", src):
+            store.update_client(cid, src=src)
         store.note_signup(ip_hash)
         store.add_message(cid, "maya", "assistant", i18n.welcome(L, name, craft, goal))
         tok = store.new_session(cid)
@@ -465,10 +522,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(400, "bad signature")
         ev = json.loads(self._raw)
         obj = (ev.get("data") or {}).get("object") or {}
-        if ev.get("type") == "checkout.session.completed":
+        if ev.get("type") in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
             slug, _, plan = str(obj.get("client_reference_id") or "").partition("__")
             c = store.client_by_slug(slug) if slug else None
-            if c and plan in plans.PAID:
+            if obj.get("payment_status") not in ("paid", "no_payment_required"):
+                # SEPA-списание ещё в пути: тариф включит async_payment_succeeded, когда деньги придут
+                log.info("stripe: %s ждёт оплату (%s)", slug, obj.get("payment_status"))
+                return self._json({"received": True})
+            # тариф в ссылке клиент может подменить — верим сумме, которую он реально заплатил
+            paid_plan = plans.plan_for_amount(obj.get("amount_total"), obj.get("currency"))
+            if plan in plans.PAID and paid_plan and plans.PAID.index(paid_plan) < plans.PAID.index(plan):
+                log.warning("stripe: %s просил %s, оплатил сумму тарифа %s", slug, plan, paid_plan)
+                plan = paid_plan
+            if c and plan in plans.PAID and paid_plan is not False:
                 until = plans.activate(c["id"], plan)
                 if obj.get("customer"):
                     store.update_client(c["id"], stripe_customer=obj["customer"])
@@ -485,9 +551,12 @@ class Handler(BaseHTTPRequestHandler):
         if body.get("delete"):
             store.update_client(cid, mail="")
             return self._json({"ok": True})
-        cfg = {k: str(body.get(k) or "").strip() for k in ("host", "port", "security", "user", "password", "from_name", "from_addr")}
-        if not cfg["password"]:  # пароль не меняли — берём сохранённый
-            cfg["password"] = mail_config(store.get_client(cid)).get("password", "")
+        cfg = {k: str(body.get(k) or "").strip()[:200] for k in ("host", "port", "security", "user", "password", "from_name", "from_addr")}
+        old = mail_config(store.get_client(cid))
+        if not cfg["password"] and old.get("host") == cfg["host"] and old.get("user") == cfg["user"]:
+            cfg["password"] = old.get("password", "")  # пароль не меняли — берём сохранённый (только для того же сервера)
+        if (cfg["port"] or "465") not in SMTP_PORTS or not public_host(cfg["host"]):
+            raise ValueError(T(L, "mail_bad_server"))
         cfg["from_addr"] = cfg["from_addr"] or cfg["user"]
         if not (cfg["host"] and cfg["user"] and cfg["password"] and re.fullmatch(r"[^@\s]+@[^@\s]+", cfg["from_addr"])):
             raise ValueError(T(L, "mail_incomplete"))
@@ -495,7 +564,8 @@ class Handler(BaseHTTPRequestHandler):
             with smtp_connect(cfg):
                 pass
         except Exception as e:  # noqa: BLE001
-            return self._err(400, T(L, "mail_login_failed", e=str(e)[:160]))
+            log.info("mail settings: client %s: %s", cid, e)
+            return self._err(400, T(L, "mail_login_failed", e=type(e).__name__))
         store.update_client(cid, mail=secret.encrypt(json.dumps(cfg)))
         return self._json({"ok": True})
 
@@ -519,6 +589,8 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError(T(L, "mail_bad_to"))
         if store.emails_sent_today(cid) >= MAIL_PER_DAY:
             return self._err(429, T(L, "mail_limit", n=MAIL_PER_DAY))
+        if not store.claim_email(cid, eid):  # двойной клик: второе нажатие письмо уже не отправит
+            return self._json(store.get_email(cid, eid))
         cfg = mail_config(store.get_client(cid))
         now = time.strftime("%Y-%m-%dT%H:%M:%S")
         if not cfg or body.get("manual"):
@@ -618,7 +690,7 @@ class Handler(BaseHTTPRequestHandler):
                 "telegram": bool(c["tg_token"]), "share_insights": c["share_insights"],
                 "backend": brain.backend(), "demo": False, "fresh": c.get("source") == "signup",
                 "agents": i18n.agents(L, brain.AGENTS), "version": VERSION,
-                "survey_done": bool(_survey(c).get("done")),
+                "survey_done": bool(_survey(c).get("done")), "cal": f"cal/{cid}-{cal_token(cid)}.ics",
                 "plan": plans.status(c), "offers": plans.offers(c), "prefs": proactive.prefs(c),
                 "mail": mail_public(c)})
         if path == "/api/survey":
@@ -655,10 +727,9 @@ class Handler(BaseHTTPRequestHandler):
             f = store.get_file(cid, int(m.group(1)))
             if not f or not os.path.exists(f["path"]):
                 return self._err(404, "not found")
-            safe = re.sub(r"[^\w.-]+", "_", f["name"])  # вне f-строки: обратный слэш в выражении — ошибка до Python 3.12
             with open(f["path"], "rb") as fh:
                 return self._send(200, fh.read(), f["mime"] or "application/octet-stream",
-                                  {"Content-Disposition": f'attachment; filename="{safe}"'})
+                                  {"Content-Disposition": disposition(f["name"])})
         if path == "/api/docs":
             return self._json(store.list_docs(cid))
         if path == "/api/apps":
@@ -675,7 +746,7 @@ class Handler(BaseHTTPRequestHandler):
     def client_post(self, cid, path, body):
         L = i18n.norm(store.get_client(cid)["lang"])
         if path == "/api/chat":
-            text = str(body.get("text", "")).strip()
+            text = str(body.get("text", "")).strip()[:20000]  # длинная простыня — дорогой запрос; файлы — вложениями
             deep = bool(body.get("deep"))
             display = None
             if body.get("potential"):
@@ -690,10 +761,13 @@ class Handler(BaseHTTPRequestHandler):
                 data = str(a.get("data", ""))
                 if mt.startswith("text/") or mt in ("application/json", "text/csv"):
                     atts.append({"name": a.get("name", T(L, "file")), "media_type": "text/plain",
-                                 "text": base64.b64decode(data).decode("utf-8", "replace")})
+                                 "text": base64.b64decode(data).decode("utf-8", "replace")[:60000]})
                 elif mt.startswith("image/") or mt == "application/pdf":
                     atts.append({"name": a.get("name", T(L, "file")), "media_type": mt, "data": data})
-            jid = start_job(cid, str(body.get("agent") or "maya"), text, atts, deep, display=display)
+            agent = str(body.get("agent") or "maya")
+            if agent not in brain.AGENTS:
+                agent = "maya"
+            jid = start_job(cid, agent, text, atts, deep, display=display)
             if not jid:
                 return self._err(409, T(L, "busy"))
             return self._json({"job": jid})
@@ -721,8 +795,22 @@ class Handler(BaseHTTPRequestHandler):
             return self.mail_settings(cid, L, body)
         if path == "/api/docs/create":
             return self.create_doc(cid, L, body)
+        if path == "/api/account/delete":  # удалить аккаунт: только с PIN, перебор режет общий лимит входа
+            c = store.get_client(cid)
+            ip = self._ip()
+            if too_many_fails(ip, c["slug"]):
+                return self._err(429, T(L, "too_many"))
+            if not store.client_by_key(c["slug"], str(body.get("pin") or "")):
+                note_fail(ip, c["slug"])
+                raise ValueError(T(L, "bad_login"))
+            store.delete_client(cid)
+            log.info("account deleted: %s", c["slug"])
+            return self._json({"ok": True}, headers={"Set-Cookie": self._cookie_header("bs_session", "", 0)})
         if path == "/api/messages/clear":
-            store.clear_history(cid, str(body.get("agent") or "maya"))
+            agent = str(body.get("agent") or "maya")
+            if agent not in brain.AGENTS:  # «_archive» и прочее служебное не трогаем: по нему считается дневной лимит
+                raise ValueError(T(L, "try_again"))
+            store.clear_history(cid, agent)
             return self._json({"ok": True})
         if path == "/api/widgets":
             wid = store.add_widget(cid, body.get("kind", "note"), body.get("title") or T(L, "new_widget"),
@@ -747,6 +835,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True})
         if path == "/api/profile":
             fields = {k: body[k] for k in ("profile", "lang", "share_insights") if k in body}
+            if "profile" in fields:
+                fields["profile"] = str(fields["profile"])[:6000]  # профиль идёт в каждый запрос — длинный стоит денег
             if isinstance(body.get("prefs"), dict):
                 fields["prefs"] = json.dumps({k: bool(body["prefs"].get(k)) for k in ("radar", "reminders")})
             if "lang" in fields:
@@ -771,6 +861,11 @@ class Handler(BaseHTTPRequestHandler):
 
     # — API владельца —
     def admin_get(self, path, q):
+        if path == "/api/admin/campaigns":
+            return self._json({"campaigns": plans.campaigns(), "stats": store.campaign_stats(),
+                               "base": (store.meta_get("public_url", "") or "").rstrip("/")})
+        if path == "/api/admin/legal":
+            return self._json(json.loads(store.meta_get("legal", "") or "{}"))
         if path == "/api/admin/clients":
             return self._json(store.list_clients())
         if path == "/api/admin/insights":
@@ -801,6 +896,19 @@ class Handler(BaseHTTPRequestHandler):
         return self._err(404, "not found")
 
     def admin_post(self, path, body):
+        if path == "/api/admin/campaigns":  # {код: {name, lang, trial_days}}
+            out = {}
+            for code, v in (body.get("campaigns") or {}).items():
+                code = str(code).strip().lower()
+                if re.fullmatch(r"[a-z0-9-]{1,30}", code) and isinstance(v, dict):
+                    td = str(v.get("trial_days") or "").strip()
+                    out[code] = {"name": str(v.get("name") or "")[:80], "lang": v.get("lang") if v.get("lang") in ("en", "de", "ua") else "",
+                                 "trial_days": td if td.isdigit() else ""}
+            store.meta_set("campaigns", json.dumps(out, ensure_ascii=False))
+            return self._json({"ok": True})
+        if path == "/api/admin/legal":  # Impressum и Datenschutz — обязательны в Германии для сайта с рекламой
+            store.meta_set("legal", json.dumps({k: str(body.get(k) or "")[:20000] for k in ("impressum", "privacy")}, ensure_ascii=False))
+            return self._json({"ok": True})
         if path == "/api/admin/donate":
             d = {k: str(body.get(k) or "").strip()[:200] for k in ("paypal", "holder", "iban", "bic", "bank")}
             if d["paypal"] and not d["paypal"].startswith("https://"):
@@ -873,8 +981,94 @@ def mail_public(c):
             "user": cfg.get("user", "")}
 
 
+_teaser_cache = {}
+
+
+def teaser(crafts):
+    hit = _teaser_cache.get(crafts)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    res = store.teaser(list(crafts))
+    if len(_teaser_cache) > 200:
+        _teaser_cache.clear()
+    _teaser_cache[crafts] = (time.time(), res)
+    return res
+
+
+def cal_token(cid):
+    """Секрет ссылки на календарь: без хранения в базе, из ключа шифрования сервера."""
+    # имя и дата регистрации в подписи: номер удалённого аккаунта может достаться новому — старая ссылка не откроется
+    c = store.get_client(cid) or {}
+    msg = f"cal:{cid}:{c.get('slug', '')}:{c.get('created', '')}"
+    return hmac.new(secret._key(), msg.encode(), hashlib.sha256).hexdigest()[:24]
+
+
+def calendar_ics(cid):
+    """Дедлайны заявок и дат из списков — событиями на весь день, с напоминанием за 7 и за 1 день."""
+    c = store.get_client(cid) or {}
+    events = []
+    for a in store.list_apps(cid):
+        if a["deadline"] and a["status"] in ("idea", "preparing", "submitted"):
+            events.append((f"app{a['id']}", a["deadline"], a["title"], a.get("url") or ""))
+    for w in store.list_widgets(cid):
+        if w["kind"] == "list":
+            for it in w["data"].get("items") or []:
+                if it.get("date") and not it.get("done"):
+                    events.append((f"w{w['id']}i{it.get('id')}", str(it["date"]), str(it.get("text", ""))[:120], ""))
+    esc = lambda x: re.sub(r"([,;\\])", r"\\\1", str(x)).replace("\n", " ")
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Backstage//Deadlines//EN", "CALSCALE:GREGORIAN",
+             f"X-WR-CALNAME:{esc('Backstage · ' + (c.get('name') or ''))}", "X-PUBLISHED-TTL:PT6H"]
+    for uid, day, title, url in events:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+            continue
+        d = day.replace("-", "")
+        lines += ["BEGIN:VEVENT", f"UID:{uid}-{cid}@backstage", f"DTSTAMP:{stamp}", f"DTSTART;VALUE=DATE:{d}",
+                  f"SUMMARY:{esc('⏰ ' + title)}"] + ([f"URL:{esc(url)}"] if url.startswith("http") else [])
+        for days in (7, 1):
+            lines += ["BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(title)}", f"TRIGGER:-P{days}D", "END:VALARM"]
+        lines.append("END:VEVENT")
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def legal_page(kind, lang):
+    """Impressum / Datenschutz из админки. Пока не заполнено — честная заглушка, а не пустота."""
+    text = (json.loads(store.meta_get("legal", "") or "{}")).get(kind, "").strip()
+    title = {"impressum": "Impressum", "privacy": {"en": "Privacy policy", "de": "Datenschutzerklärung",
+                                                    "ua": "Політика конфіденційності"}[i18n.norm(lang)]}[kind]
+    body = docs.md_to_html(text) if text else "<p>—</p>"
+    return (f'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>{title} · Backstage</title><link rel="icon" href="static/brand/logo-mark.svg" type="image/svg+xml">'
+            '<style>body{margin:0;background:#f7f3ec;color:#1f1d1b;font:16px/1.6 Inter,-apple-system,sans-serif}'
+            'main{max-width:720px;margin:0 auto;padding:32px 16px 60px}h1,h2{font-family:Georgia,serif;font-weight:500}'
+            'a{color:#c9432a}</style></head><body><main><p><a href="./">← Backstage</a></p>'
+            f'<h1>{title}</h1>{body}</main></body></html>')
+
+
+SMTP_PORTS = {"25", "465", "587", "2525"}
+
+
+def public_host(host):
+    """Только публичные адреса: настройки почты и проверка сайта не должны ходить внутрь сервера."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+        return bool(infos) and all(ipaddress.ip_address(i[4][0].split("%")[0]).is_global for i in infos)
+    except (OSError, ValueError, UnicodeError):
+        return False
+
+
+def disposition(name):
+    """Имя файла для скачивания: латиница в filename, полное (кириллица) — в filename*."""
+    stem, ext = os.path.splitext(name)
+    ascii_ = (re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("_.") or "document") + re.sub(r"[^A-Za-z0-9.]", "", ext)
+    return f"attachment; filename=\"{ascii_}\"; filename*=UTF-8''{urllib.parse.quote(name)}"
+
+
 def smtp_connect(cfg):
     import smtplib
+    if not public_host(cfg.get("host", "")):
+        raise ValueError("SMTP host is not public")
     port = int(cfg.get("port") or 465)
     if (cfg.get("security") or ("ssl" if port == 465 else "starttls")) == "ssl":
         s = smtplib.SMTP_SSL(cfg["host"], port, timeout=20, context=ssl.create_default_context())

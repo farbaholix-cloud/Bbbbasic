@@ -1,8 +1,10 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="static/brand/logo-mark.svg" type="image/svg+xml"><link rel="icon" href="static/brand/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="static/brand/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#f7f3ec">
+<meta name="description" content="Nine AI agents for artists and creatives: open calls, grants, offers, emails. You stay in the flow — your backstage crew handles the rest. EN · DE · UA."><meta property="og:type" content="website"><meta property="og:site_name" content="Backstage"><meta property="og:title" content="Backstage — stay in the flow"><meta property="og:description" content="Nine AI agents for artists and creatives: open calls, grants, offers, emails. EN · DE · UA."><meta property="og:url" content="https://backstage-crew.de/"><meta property="og:image" content="https://backstage-crew.de/static/brand/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f7f3ec">
-<title>Backstage</title>
+<title>Backstage — your AI crew for artists &amp; creatives</title>
 <script src="static/legacy.js"></script>
 <script src="static/i18n.js"></script>
 <script src="static/donate.js"></script>
@@ -49,7 +51,7 @@
   input,textarea{width:100%;font:inherit;color:inherit;background:var(--bg);border:1.5px solid transparent;border-radius:12px;
     padding:12px 14px;outline:none;transition:border-color .2s,background .2s}
   input:focus,textarea:focus{border-color:var(--accent);background:var(--card)}
-  input::placeholder,textarea::placeholder{color:var(--faint)}
+  input::placeholder,textarea::placeholder{color:var(--faint);opacity:1}
   textarea{resize:vertical;min-height:150px;line-height:1.5}
   .chips{display:flex;flex-wrap:wrap;gap:7px}
   .chip{--c:var(--accent);border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;
@@ -88,7 +90,28 @@
   .faces .av{width:42px;height:42px;font-size:18px;background:var(--c);border:3px solid var(--card);margin-right:-10px;animation:bob 1.6s ease-in-out infinite}
   .faces .av:nth-child(2){animation-delay:.15s}.faces .av:nth-child(3){animation-delay:.3s}.faces .av:nth-child(4){animation-delay:.45s}.faces .av:nth-child(5){animation-delay:.6s}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-  .meta{font-size:13px;color:var(--faint);margin-top:14px}
+  .meta{font-size:13px;color:var(--muted);margin-top:14px}
+  .brand img{height:22px;display:block}
+  .brand .right{display:flex;align-items:center;gap:12px}
+  .lsw{display:none;gap:2px}.lsw.on{display:flex}
+  .lsw button{border:0;background:none;font:inherit;font-size:11px;letter-spacing:.12em;color:var(--muted);padding:4px 5px;cursor:pointer;border-radius:6px}
+  .lsw button.on{color:var(--ink);background:var(--soft)}
+  .gets{list-style:none;margin:6px 0 4px;padding:0;display:grid;gap:8px}
+  .gets li{display:flex;gap:12px;align-items:flex-start;font-size:15px;line-height:1.4}
+  .gets li::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--c)}
+  .getbox h3{font:600 12px Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  .trust{font-size:13px;color:var(--muted);margin:18px 0 0;padding:10px 12px;border-radius:12px;background:var(--soft)}
+  details.crew{margin-top:16px}
+  details.crew summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--ink);list-style:none;display:flex;align-items:center;gap:8px}
+  details.crew summary::-webkit-details-marker{display:none}
+  details.crew summary::before{content:"+";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--soft);font-weight:700}
+  details.crew[open] summary::before{content:"–"}
+  details.crew .team{margin-top:12px}
+  .teaser{margin-top:16px;padding:12px 14px;border-radius:14px;border:1.5px dashed var(--ruben);font-size:14px;animation:fade .3s ease}
+  .teaser b{color:var(--ruben)}
+  .teaser ul{margin:6px 0;padding-left:18px}.teaser li{margin:2px 0}
+  .teaser small{color:var(--muted)}
+  .legal{margin-top:10px;font-size:12px;text-align:center}.legal a{color:var(--muted)}
   .foot{margin-top:22px;font-size:14px;color:var(--muted)}
   .foot a{color:var(--accent);font-weight:600;text-underline-offset:3px}
   .langs{display:grid;gap:10px;margin:6px 0 4px}
@@ -106,14 +129,16 @@
 </style>
 </head><body>
 <main>
-  <div class="brand"><span>Backstage<b>.</b></span><div class="dots" id="dots"><i></i><i></i><i></i><i></i></div></div>
+  <div class="brand"><img src="static/brand/logo-wordmark.svg" alt="Backstage."><div class="right">
+    <div class="lsw" id="lsw"><button type="button" data-sw="en">EN</button><button type="button" data-sw="de">DE</button><button type="button" data-sw="ua">UA</button></div>
+    <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div></div></div>
 
   <div class="maya">
     <div class="av" aria-hidden="true" data-i="j.av">M</div>
-    <div class="bubble" id="bubble"><small data-i="j.maya"></small><span id="say"></span></div>
+    <div class="bubble" id="bubble" aria-live="polite"><small data-i="j.maya"></small><span id="say"></span></div>
   </div>
 
-  <form class="card" id="f" autocomplete="off" novalidate>
+  <form class="card" id="f" novalidate>
     <!-- язык -->
     <section class="step on" data-step="lang">
       <h1 data-i-html="j.lang.h"></h1>
@@ -123,13 +148,18 @@
         <button type="button" class="lang" data-l="ua" style="--c:var(--hanna)"><span class="code">UA</span><b>Українська</b><span class="tick">✓</span></button>
       </div>
       <p class="lead" id="langLead" data-i="j.lang.lead"></p>
-      <button class="btn" type="button" id="langGo"><span data-i="j.lang.go"></span> <span>→</span></button>
     </section>
 
     <!-- 0 · приветствие -->
     <section class="step" data-step="0">
       <h1 data-i-html="j.h0"></h1>
       <p class="lead" data-i-html="j.lead0"></p>
+      <div class="getbox"><h3 data-i="j.get.h"></h3><ul class="gets">
+        <li style="--c:var(--ruben)" data-i="j.get1"></li><li style="--c:var(--ben)" data-i="j.get2"></li><li style="--c:var(--hanna)" data-i="j.get3"></li></ul></div>
+      <button class="btn" type="button" data-next><span data-i="j.start"></span> <span>→</span></button>
+      <p class="meta" data-i="j.meta0"></p>
+      <p class="trust" data-i="j.trust"></p>
+      <details class="crew"><summary data-i="j.crew"></summary>
       <ul class="team">
         <li class="lead"><i class="av" style="--c:var(--maya)" data-i="j.av.maya"></i><div><b data-i="j.t.maya"></b><span data-i="j.t.maya.r"></span></div></li>
         <li><i class="av" style="--c:var(--ruben)" data-i="j.av.ruben"></i><div><b data-i="j.t.ruben"></b><span data-i="j.t.ruben.r"></span></div></li>
@@ -138,10 +168,9 @@
         <li><i class="av" style="--c:var(--ben)" data-i="j.av.ben"></i><div><b data-i="j.t.ben"></b><span data-i="j.t.ben.r"></span></div></li>
         <li><i class="av" style="--c:var(--noa)" data-i="j.av.noa"></i><div><b data-i="j.t.noa"></b><span data-i="j.t.noa.r"></span></div></li>
         <li><i class="av" style="--c:var(--iris)" data-i="j.av.iris"></i><div><b data-i="j.t.iris"></b><span data-i="j.t.iris.r"></span></div></li>
+        <li><i class="av" style="--c:var(--tarik)" data-i="j.av.tarik"></i><div><b data-i="j.t.tarik"></b><span data-i="j.t.tarik.r"></span></div></li>
         <li><i class="av" style="--c:var(--chuck)" data-i="j.av.chuck"></i><div><b data-i="j.t.chuck"></b><span data-i="j.t.chuck.r"></span></div></li>
-      </ul>
-      <button class="btn" type="button" data-next><span data-i="j.start"></span> <span>→</span></button>
-      <p class="meta" data-i="j.meta0"></p>
+      </ul></details>
       <button class="ghost" type="button" data-back>← <span data-i="j.lang.back">Language</span></button>
     </section>
 
@@ -154,6 +183,8 @@
       <div class="chips" id="crafts"></div>
       <label for="city"><span data-i="j.city"></span> <em data-i="j.opt"></em></label>
       <input id="city" maxlength="60" data-i-ph="j.city.ph">
+      <div class="teaser" id="teaser" hidden></div>
+      <div class="err" data-err></div>
       <button class="btn" type="button" data-next><span data-i="j.next"></span> <span>→</span></button>
       <button class="ghost" type="button" data-back data-i="j.back"></button>
     </section>
@@ -167,6 +198,7 @@
       <textarea id="goal" maxlength="800" data-i-ph="j.goal.ph"></textarea>
       <label for="links"><span data-i="j.links"></span> <em data-i="j.opt"></em></label>
       <input id="links" maxlength="300" data-i-ph="j.links.ph">
+      <div class="err" data-err></div>
       <button class="btn" type="button" data-next><span data-i="j.next"></span> <span>→</span></button>
       <button class="ghost" type="button" data-back data-i="j.back"></button>
     </section>
@@ -176,11 +208,11 @@
       <h1 data-i-html="j.h3"></h1>
       <p class="lead" data-i="j.lead3"></p>
       <label for="slug"><span data-i="j.slug"></span> <em data-i="j.slug.latin"></em></label>
-      <input id="slug" maxlength="25" autocapitalize="none" spellcheck="false" placeholder="olya">
+      <input id="slug" maxlength="25" autocapitalize="none" autocomplete="username" spellcheck="false" placeholder="olya">
       <div class="hint" id="slugHint" data-i="j.slug.hint"></div>
       <div class="row">
-        <div><label for="pin" data-i="j.pin"></label><input id="pin" type="password" inputmode="numeric" maxlength="8" data-i-ph="j.pin.ph"></div>
-        <div><label for="pin2" data-i="j.pin2"></label><input id="pin2" type="password" inputmode="numeric" maxlength="8"></div>
+        <div><label for="pin" data-i="j.pin"></label><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" maxlength="8" data-i-ph="j.pin.ph"></div>
+        <div><label for="pin2" data-i="j.pin2"></label><input id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" maxlength="8"></div>
       </div>
       <div class="trap" aria-hidden="true"><label>Website<input id="website" tabindex="-1" autocomplete="off"></label></div>
       <label class="agree"><input type="checkbox" id="agree"><span data-i="j.agree"></span></label>
@@ -203,6 +235,7 @@
   </form>
   <div class="foot"><span data-i="j.foot"></span> <a href="login" data-i="j.login"></a></div>
   <p class="small" id="dnFoot" style="display:none;margin-top:18px;text-align:center"><a href="#" id="dnLink" style="color:var(--muted)">💛 <span data-i="d.btn"></span></a></p>
+  <p class="legal"><a href="impressum" data-i="j.imp"></a> · <a href="privacy" data-i="j.priv"></a></p>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -225,6 +258,8 @@ function bubbleFor(i) {
 }
 function show(i) {
   cur = i; steps.forEach(s => s.classList.toggle("on", s.dataset.step == String(i)));
+  $("#lsw").classList.toggle("on", i !== "lang");
+  document.querySelectorAll("[data-err]").forEach(e => { e.textContent = ""; });
   document.querySelectorAll("#dots i").forEach((d, k) => { const n = typeof i === "number" ? Math.min(i, 3) : -1; d.classList.toggle("on", k === n); d.classList.toggle("done", k < n); });
   say(bubbleFor(i));
   const onStep = steps.find(s => s.classList.contains("on")), first = onStep && onStep.querySelector("input,textarea");
@@ -234,7 +269,8 @@ function show(i) {
 function setLang(l) {
   BS.set(l);
   document.title = t("j.title");
-  document.querySelectorAll(".lang").forEach(b => b.classList.toggle("on", b.dataset.l === BS.lang));
+  document.querySelectorAll(".lang").forEach(b => { b.classList.toggle("on", b.dataset.l === BS.lang); b.setAttribute("aria-pressed", b.dataset.l === BS.lang); });
+  document.querySelectorAll("#lsw button").forEach(b => b.classList.toggle("on", b.dataset.sw === BS.lang));
   $("#about").placeholder = t("j.ph." + (crafts[0] || "other"));
   const lead = $("#langLead"); lead.style.animation = "none"; lead.offsetHeight; lead.style.animation = "";
   say(bubbleFor(cur));
@@ -259,17 +295,55 @@ function pickCraft(v) {
   // «Другое» — отдельный вариант; конкретные области можно сочетать между собой
   if (crafts.includes(v)) crafts = crafts.filter(c => c !== v);
   else crafts = v === "other" ? ["other"] : [...crafts.filter(c => c !== "other"), v];
-  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", crafts.includes(c.dataset.v)));
+  document.querySelectorAll(".chip").forEach(c => { c.classList.toggle("on", crafts.includes(c.dataset.v)); c.setAttribute("aria-pressed", crafts.includes(c.dataset.v)); });
   say(crafts.length ? craftLine() : t("j.say1"));
   $("#about").placeholder = t("j.ph." + (crafts[0] || "other"));
+  saveDraft(); loadTeaser(); clearErr();
 }
+// Гость с флаера ещё не зарегистрирован, а уже видит пользу: открытые конкурсы по его ремеслу из общего каталога
+let teaserTimer;
+function loadTeaser() {
+  clearTimeout(teaserTimer);
+  const box = $("#teaser");
+  if (!crafts.length) { box.hidden = true; return; }
+  teaserTimer = setTimeout(async () => {
+    try {
+      const r = await (await fetch("api/teaser?crafts=" + encodeURIComponent(crafts.join(",")))).json();
+      if (!r.n) { box.hidden = true; return; }
+      box.innerHTML = `<b>${esc(t("j.teaser", {n: r.n}))}</b><ul>${r.items.map(o =>
+        `<li>${esc(o.title)}${o.deadline ? ` — <small>${esc(o.deadline)}</small>` : ""}</li>`).join("")}</ul><small>${esc(t("j.teaser.after"))}</small>`;
+      box.hidden = false;
+    } catch (_) { box.hidden = true; }
+  }, 300);
+}
+const esc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+// Черновик анкеты: телефон заблокировался или вкладка перезагрузилась — ответы не пропадают
+const FIELDS = ["name", "city", "about", "goal", "links"];
+function saveDraft() {
+  const d = {crafts}; FIELDS.forEach(k => { d[k] = $("#" + k).value; });
+  try { localStorage.setItem("bs_draft", JSON.stringify(d)); } catch (_) {}
+}
+function loadDraft() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem("bs_draft") || "null"); } catch (_) {}
+  if (!d) return;
+  FIELDS.forEach(k => { if (d[k] && !$("#" + k).value) $("#" + k).value = d[k]; });
+  (d.crafts || []).forEach(v => { if (CRAFTS[v] && !crafts.includes(v)) pickCraft(v); });
+}
+FIELDS.forEach(k => $("#" + k).addEventListener("input", () => { saveDraft(); clearErr(); }));
+function clearErr() { document.querySelectorAll("[data-err]").forEach(e => { e.textContent = ""; }); }
 document.addEventListener("click", (e) => {
   const lb = e.target.closest(".lang");
-  if (lb) return setLang(lb.dataset.l);
-  if (e.target.closest("#langGo")) return show(closed && !RESTART ? "closed" : 0);
+  if (lb) { setLang(lb.dataset.l); return setTimeout(() => show(closed && !RESTART ? "closed" : 0), 280); }  // выбор языка = сразу дальше
+  const sw = e.target.closest("[data-sw]");
+  if (sw) return setLang(sw.dataset.sw);
   if (e.target.closest("[data-next]")) {
     const msg = validate(cur);
-    if (msg) { say(msg); return; }
+    if (msg) {  // ошибка — и в пузыре Майи, и прямо у кнопки: на телефоне пузырь бывает за краем экрана
+      say(msg);
+      const box = document.querySelector(".step.on [data-err]"); if (box) box.textContent = msg;
+      return;
+    }
     if (RESTART && cur === 2) return restart();
     if (cur === 1 && !slugTouched) { $("#slug").value = slugify($("#name").value); checkSlug(); }
     show(cur + 1);
@@ -299,12 +373,17 @@ $("#f").addEventListener("submit", async (e) => {
   if (!$("#agree").checked) return err.textContent = t("j.e.agree");
   $("#go").disabled = true; show(4);
   try {
-    const r = await fetch("api/signup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
+    const send = () => fetch("api/signup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
       name: $("#name").value, crafts, craft: crafts[0], city: $("#city").value, about: $("#about").value, goal: $("#goal").value,
-      links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket, lang: BS.lang})});
-    const j = await r.json().catch(() => ({}));
+      links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket, lang: BS.lang, src: SRC})});
+    // билет действует от 6 секунд (защита от ботов): свежему даём «созреть» на экране ожидания
+    const fresh = async () => { await getTicket(); await new Promise(ok => setTimeout(ok, 6500)); };
+    if (!ticket) await fresh();
+    let r = await send(), j = await r.json().catch(() => ({}));
+    if (j.code === "form_stale") { await fresh(); r = await send(); j = await r.json().catch(() => ({})); }  // вкладка висела часами
     if (!r.ok) throw new Error(j.error || t("j.e.generic"));
-    try { if (j.job) localStorage.setItem("bs_job", j.job); } catch (_) {}
+    try { localStorage.removeItem("bs_draft"); } catch (_) {}
+    try { if (j.job) { localStorage.setItem("bs_job", j.job); localStorage.setItem("bs_job_first", j.job); } } catch (_) {}
     setTimeout(() => location.href = "app", 900);
   } catch (ex) { show(3); err.textContent = ex.message; $("#go").disabled = false; say(t("j.e.say", {msg: ex.message})); }
 });
@@ -317,7 +396,7 @@ async function restart() {
     if (r.status === 401) return (location.href = "login");
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || t("j.e.generic"));
-    try { if (j.job) localStorage.setItem("bs_job", j.job); localStorage.removeItem("bs_sv_later"); } catch (_) {}
+    try { if (j.job) { localStorage.setItem("bs_job", j.job); localStorage.setItem("bs_job_first", j.job); } localStorage.removeItem("bs_sv_later"); } catch (_) {}
     setTimeout(() => location.href = "app", 900);
   } catch (ex) { show(2); say(t("j.e.say", {msg: ex.message})); }
 }
@@ -326,16 +405,25 @@ if (RESTART) {
   document.querySelector('[data-step="2"] [data-next] span[data-i]').dataset.i = "j.r.go";
   document.querySelector(".foot").innerHTML = '<span data-i="j.r.cancel"></span> <a href="app" data-i="j.r.back"></a>';
 }
-setLang(BS.lang);
-show("lang");
-(async () => {
+// Метка кампании (QR на флаере, партнёр): запоминаем, даже если человек вернётся позже без неё
+const qs = new URLSearchParams(location.search);
+let SRC = (qs.get("src") || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 30);
+try { if (SRC) localStorage.setItem("bs_src", SRC); else SRC = localStorage.getItem("bs_src") || ""; } catch (_) {}
+async function getTicket() {
   try {
     const st = await (await fetch("api/signup/status")).json();
     ticket = st.ticket || "";
     // только явное «закрыто»; сбой сети — не повод прятать форму
     if (st.open === false) closed = true;
   } catch (_) {}
-})();
+}
+setLang(BS.lang);
+loadDraft();
+// Язык уже выбран (ссылка ?lang= с флаера или прошлый визит) — сразу к делу, переключатель остаётся в шапке
+let chosen = qs.get("lang");
+try { chosen = chosen || localStorage.getItem("bs_lang"); } catch (_) {}
+show(chosen ? 0 : "lang");
+getTicket().then(() => { if (closed && !RESTART && cur === 0) show("closed"); });
 DONATE.load().then(c => { if (c) { document.getElementById("dnFoot").style.display = ""; document.getElementById("dnLink").onclick = (e) => { e.preventDefault(); DONATE.open(); }; } });
 </script>
 </body></html>

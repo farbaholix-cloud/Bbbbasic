@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="static/brand/logo-mark.svg" type="image/svg+xml"><link rel="icon" href="static/brand/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="static/brand/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#f7f3ec">
 <meta name="theme-color" content="#f7f3ec">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Backstage</title>
@@ -11,9 +12,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" onload="window.onChart&&onChart()"></script>
 <style>
-  header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
+  header{position:-webkit-sticky;position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
     padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   header h1{font-size:22px;font-style:italic}
   header h1 span{color:var(--accent)}
@@ -53,14 +54,14 @@
   ul.items .date.soon{color:var(--bad)}
   .note{white-space:pre-wrap}
   /* чат */
-  .chat{position:sticky;top:70px;height:calc(100vh - 86px);display:flex;flex-direction:column;overflow:hidden}
+  .chat{position:-webkit-sticky;position:sticky;top:70px;height:calc(100vh - 86px);display:flex;flex-direction:column;overflow:hidden}
   .agents{display:flex;gap:6px;overflow-x:auto;padding:10px;border-bottom:1px solid var(--line)}
   .agents button{white-space:nowrap;border-radius:999px;padding:3px 11px 3px 3px;font-size:13px;display:inline-flex;align-items:center;gap:7px;transition:all .15s}
   .agents button:hover{border-color:var(--c)}
   .agents button.on{background:var(--c);color:#fff;border-color:var(--c)}
   .agents button.on .av{background:rgba(255,255,255,.25)}
   .msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
-  .msg{max-width:92%;padding:9px 12px;border-radius:12px;font-size:14px;overflow-wrap:anywhere}
+  .msg{max-width:92%;padding:9px 12px;border-radius:12px;font-size:14px;word-wrap:break-word;overflow-wrap:anywhere}
   .msg.user{align-self:flex-end;background:var(--ink);color:var(--bg);white-space:pre-wrap;border-bottom-right-radius:4px}
   .msg.assistant{align-self:flex-start;background:var(--soft);border-left:3px solid var(--c,var(--accent));border-bottom-left-radius:4px}
   .msg.assistant p{margin:.4em 0}.msg.assistant ul{margin:.3em 0;padding-left:1.2em}
@@ -108,6 +109,7 @@
     nav.tabs button.on{color:var(--accent);font-weight:600}
     header .hide-m{display:none}
   }
+  @media (max-width:420px){header #budget{display:none}header h1{min-width:0;overflow:hidden}header{gap:4px}}
   @media (max-width:520px){.grid{grid-template-columns:1fr}.w.s,.w.m,.w.l{grid-column:span 1}}
   .ed-grid{width:100%;font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:140px}
 </style>
@@ -140,6 +142,7 @@
         </label>
         <div class="grow"></div>
         <input type="file" id="file" class="hidden" multiple accept="image/*,application/pdf,.txt,.csv,.md,.json">
+        <button class="ghost" id="btnCall" data-i-title="a.idea4">🔎</button>
         <button class="ghost" id="btnAttach" data-i-title="a.attach">📎</button>
         <button class="ghost" id="btnClear" data-i-title="a.clear">🧹</button>
         <button class="primary" id="btnSend" data-i="a.send"></button>
@@ -207,9 +210,16 @@
     <p class="small" id="usageLine"></p>
     <h3 style="margin-top:18px" data-i="a.set.exp"></h3>
     <div id="insList" class="small"></div>
+    <h3 style="margin-top:18px" data-i="a.cal.h"></h3>
+    <p class="small muted" data-i="a.cal.p"></p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><a id="calAdd" class="small" href="#" style="font-weight:600" data-i="a.cal.add"></a>
+      <button type="button" class="ghost small" id="calCopy" data-i="a.cal.copy"></button></div>
     <h3 style="margin-top:18px" data-i="a.restart"></h3>
     <p class="small muted" data-i="a.restart.p"></p>
     <button type="button" id="btnRestart" style="color:var(--bad);border-color:var(--bad)" data-i="a.restart"></button>
+    <h3 style="margin-top:18px" data-i="a.del.h"></h3>
+    <p class="small muted" data-i="a.del.p"></p>
+    <button type="button" id="btnDelAcc" class="ghost small" style="color:var(--bad)" data-i="a.del.btn"></button>
     <div class="row" style="margin-top:14px"><button type="button" class="ghost" id="btnLogout2" data-i="a.logout"></button><a href="guide" target="_blank" class="small guide-link" data-i="a.guide"></a><div class="grow"></div>
       <button value="cancel" data-i="a.close"></button><button class="primary" id="setOk" value="ok" data-i="a.save"></button></div>
   </form>
@@ -220,7 +230,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const api = async (path, body) => {
   const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
-  if (r.status === 401) { location.href = "./"; throw new Error("auth"); }
+  if (r.status === 401) { location.href = "login"; throw new Error("auth"); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
@@ -238,7 +248,7 @@ function md(src) {
   const inline = (s) => s.replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])[*_]([^*_\n]+)[*_](?=[\s).,!?:;]|$)/g, "$1<i>$2</i>")
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+    .replace(/(^|[\s(])(https?:\/\/[^\s<]*[^\s<.,;:!?)])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
   for (const l of lines) {
     const li = l.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
     if (li) { if (!list) { out += "<ul>"; list = true; } out += `<li>${inline(li[1])}</li>`; continue; }
@@ -310,8 +320,8 @@ function renderBody(w, b) {
     const cols = c.columns || [t("a.col.inbox"), t("a.col.doing"), t("a.col.done")], cards = d.cards || [];
     b.innerHTML = `<div class="board">${cols.map((name, ci) => `<div class="col"><h4>${esc(name)}</h4>
       ${cards.filter(k => (k.col || 0) === ci).map(k => `<div class="kcard">${md(k.text).replace(/^<p>|<\/p>$/g, "")}
-        <div class="acts">${ci > 0 ? `<button data-m="${k.id}" data-d="-1">←</button>` : ""}${ci < cols.length - 1 ? `<button data-m="${k.id}" data-d="1">→</button>` : ""}
-        <div class="grow"></div><button data-x="${k.id}">✕</button></div></div>`).join("")}
+        <div class="acts">${ci > 0 ? `<button data-m="${Number(k.id)}" data-d="-1">←</button>` : ""}${ci < cols.length - 1 ? `<button data-m="${Number(k.id)}" data-d="1">→</button>` : ""}
+        <div class="grow"></div><button data-x="${Number(k.id)}">✕</button></div></div>`).join("")}
       <input placeholder="${t("a.card")}" data-add="${ci}"></div>`).join("")}</div>`;
     b.onclick = (e) => {
       const m = e.target.dataset.m, x = e.target.dataset.x;
@@ -329,10 +339,10 @@ function renderBody(w, b) {
     const soon = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
     const sorted = [...items].sort((a, b) => (a.done - b.done) || String(a.date || "9").localeCompare(String(b.date || "9")));
     b.innerHTML = `<ul class="items">${sorted.map(it => `<li class="${it.done ? "done" : ""}">
-      <input type="checkbox" data-t="${it.id}" ${it.done ? "checked" : ""}>
+      <input type="checkbox" data-t="${Number(it.id)}" ${it.done ? "checked" : ""}>
       <span class="tx grow">${md(it.text).replace(/^<p>|<\/p>$/g, "")}</span>
       ${it.date ? `<span class="date ${!it.done && it.date <= soon ? "soon" : ""}">${esc(it.date)}</span>` : ""}
-      <button class="ghost small" data-x="${it.id}" style="padding:0 4px">✕</button></li>`).join("")}</ul>
+      <button class="ghost small" data-x="${Number(it.id)}" style="padding:0 4px">✕</button></li>`).join("")}</ul>
       <div class="row" style="margin-top:8px"><input placeholder="${t("a.item")}" class="grow" data-new><input type="date" style="width:140px" data-date></div>`;
     b.onchange = (e) => { const id = e.target.dataset.t; if (id) { items.find(i => i.id == id).done = e.target.checked; saveData(w, Object.assign({}, d, {items})); } };
     b.onclick = (e) => { const x = e.target.dataset.x; if (x) saveData(w, Object.assign({}, d, {items: items.filter(i => i.id != x)})); };
@@ -345,7 +355,7 @@ function renderBody(w, b) {
   }
 }
 async function saveData(w, data) {
-  await api(`api/widgets/${w.id}`, {data});
+  try { await api(`api/widgets/${w.id}`, {data}); } catch (e) { toast(e.message); }
   await loadWidgets();
 }
 async function widgetAction(w, i, a) {
@@ -407,7 +417,7 @@ function openEditor(w) {
     if (w.kind === "table") { const r = fromGrid("table", v.grid); data = r.data; config.columns = r.config.columns; }
     if (w.kind === "board") config.columns = v.cols.split("\n").map(s => s.trim()).filter(Boolean);
     if (w.kind === "note") data.text = v.text;
-    await api(`api/widgets/${w.id}`, {title: v.title, size: v.size, config, data});
+    try { await api(`api/widgets/${w.id}`, {title: v.title, size: v.size, config, data}); } catch (e) { toast(e.message); }
     loadWidgets();
   };
   dlg.returnValue = ""; dlg.showModal();
@@ -430,8 +440,11 @@ async function loadMsgs() {
     const ideas = [t("a.idea1"), t("a.idea2"), t("a.idea3")];
     const wrap = document.createElement("div");
     wrap.className = "row"; wrap.style.cssText = "flex-wrap:wrap;gap:6px;align-self:flex-start";
-    wrap.innerHTML = ideas.map(x => `<button class="chip" style="cursor:pointer" data-idea="${esc(x)}">${esc(x)}</button>`).join("");
-    wrap.onclick = (e) => { const x = e.target.dataset.idea; if (x) { $("#input").value = x; wrap.remove(); send(); } };
+    wrap.innerHTML = ideas.map(x => `<button class="chip" style="cursor:pointer" data-idea="${esc(x)}">${esc(x)}</button>`).join("")
+      + `<button class="chip" style="cursor:pointer;border:1px dashed var(--ruben)" data-paste>🔎 ${esc(t("a.idea4"))}</button>`;
+    wrap.onclick = (e) => {
+      if (e.target.closest("[data-paste]")) { $("#input").value = t("a.idea4.text"); grow(); $("#input").focus(); return; }  // ссылку вставит человек
+      const x = e.target.dataset.idea; if (x) { $("#input").value = x; wrap.remove(); send(); } };
     box.append(wrap);
   }
   if (AGENT === "maya") surveyCard(list);
@@ -486,6 +499,7 @@ function addMsg(role, text, meta = {}) {
   $("#msgs").scrollTop = $("#msgs").scrollHeight;
 }
 async function send(extra = {}) {
+  if ($("#btnSend").disabled) return;  // Ctrl+Enter и подсказки не должны запускать второй ответ, пока идёт первый
   const text = $("#input").value.trim();
   if (!text && !extra.potential) return;
   const deep = $("#deep").checked;
@@ -507,19 +521,30 @@ async function send(extra = {}) {
   } catch (e) { wait.remove(); addMsg("assistant", "⚠️ " + e.message); }
   finally { $("#btnSend").disabled = false; LS.del("bs_job"); refreshMe(); }
 }
+// Опрос ответа переживает обрыв сети (экран заблокирован, Wi-Fi → LTE): ждём и пробуем снова, до 20 минут
 async function pollJob(job) {
-  for (;;) {
-    await new Promise(r => setTimeout(r, 2000));
-    const j = await api(`api/job/${job}`);
+  const until = Date.now() + 20 * 60000;
+  let pause = 2000;
+  while (Date.now() < until) {
+    await new Promise(r => setTimeout(r, pause));
+    let j;
+    try { j = await api(`api/job/${job}`); }
+    catch (e) { if (e.message === "auth" || /not found|404/i.test(e.message)) throw e; pause = 5000; continue; }
+    pause = 2000;
     if (j.status === "done") return j.result;
     if (j.status === "error") throw new Error(j.error);
   }
+  throw new Error(t("a.slow"));
 }
 function renderAtts() {
   $("#atts").innerHTML = ATTS.map((a, i) => `<span class="chip">📎 ${esc(a.name)} <button class="ghost" data-ix="${i}" style="padding:0">✕</button></span>`).join("");
 }
 $("#atts").onclick = (e) => { const i = e.target.dataset.ix; if (i !== undefined) { ATTS.splice(i, 1); renderAtts(); } };
 $("#btnAttach").onclick = () => $("#file").click();
+$("#btnCall").onclick = () => {  // «нашёл конкурс — проверь»: Майя позовёт Рубена и Ганну
+  if (AGENT !== "maya") { AGENT = "maya"; renderAgents(); loadMsgs(); }
+  $("#input").value = t("a.idea4.text"); grow(); $("#input").focus();
+};
 $("#file").onchange = async (e) => {
   for (const f of e.target.files) {
     if (f.size > 20 * 1024 * 1024) { toast(t("a.big", {name: f.name})); continue; }
@@ -555,9 +580,11 @@ $("#dlgAdd").onclose = async () => {
   const presets = {kpi: [{unit: "", goal: 0}, {value: 0}], chart: [{type: "line"}, {labels: [], series: [{name: t("a.value"), values: []}]}],
     table: [{columns: [t("a.col1"), t("a.col2")]}, {rows: []}], board: [{columns: [t("a.col.inbox"), t("a.col.doing"), t("a.col.done")]}, {cards: []}],
     list: [{}, {items: []}], note: [{}, {text: ""}]};
-  const w = await api("api/widgets", {kind, title: $("#addTitle").value || t("a.new.h"), config: presets[kind][0], data: presets[kind][1],
-    size: kind === "kpi" ? "s" : kind === "board" ? "l" : "m"});
-  await loadWidgets(); openEditor(w);
+  try {
+    const w = await api("api/widgets", {kind, title: $("#addTitle").value || t("a.new.h"), config: presets[kind][0], data: presets[kind][1],
+      size: kind === "kpi" ? "s" : kind === "board" ? "l" : "m"});
+    await loadWidgets(); openEditor(w);
+  } catch (e) { toast(e.message); }
 };
 $("#btnPotential").onclick = () => { $("#potText").value = ME.profile || ""; $("#dlgPotential").returnValue = ""; $("#dlgPotential").showModal(); };
 $("#dlgPotential").onclose = () => {
@@ -573,27 +600,54 @@ $("#btnSettings").onclick = async () => {
   const pr = ME.prefs || {}; $("#setRadar").checked = pr.radar !== false; $("#setRem").checked = pr.reminders !== false;
   $("#setProfile").value = ME.profile || ""; $("#setShare").checked = !!ME.share_insights; $("#setTg").value = "";
   $("#tgState").textContent = t(ME.telegram ? "a.tg.on" : "a.tg.off");
-  const u = await api("api/usage");
-  const tot = u.reduce((s, r) => s + r.cost, 0), n = u.reduce((s, r) => s + r.n, 0);
-  $("#usageLine").textContent = t("a.usage", {n, sum: tot.toFixed(2), chat: ME.model_chat, deep: ME.model_deep});
-  const ins = await api("api/insights");
-  $("#insList").innerHTML = ins.length ? ins.map(i => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">
-    <b>${esc(i.title)}</b> <span class="chip">${t(i.shared ? "a.exp.shared" : "a.exp.mine")}</span><br>${esc(i.body)}
-    ${i.shared ? "" : `<button class="ghost small" data-del="${i.id}">${t("a.exp.del")}</button>`}</div>`).join("") : `<span class="muted">${t("a.exp.empty")}</span>`;
-  $("#insList").onclick = async (e) => { const id = e.target.dataset.del; if (id) { await api(`api/insights/${id}/delete`, {}); e.target.parentElement.remove(); } };
-  $("#dlgSettings").returnValue = ""; $("#dlgSettings").showModal();
+  $("#usageLine").textContent = "…"; $("#insList").textContent = "…";
+  $("#dlgSettings").returnValue = ""; $("#dlgSettings").showModal();  // сначала окно, медленные данные — следом
+  api("api/usage").then(u => {
+    const tot = u.reduce((s, r) => s + r.cost, 0), n = u.reduce((s, r) => s + r.n, 0);
+    $("#usageLine").textContent = t("a.usage", {n, sum: tot.toFixed(2), chat: ME.model_chat, deep: ME.model_deep});
+  }).catch(() => { $("#usageLine").textContent = ""; });
+  api("api/insights").then(ins => {
+    $("#insList").innerHTML = ins.length ? ins.map(i => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">
+      <b>${esc(i.title)}</b> <span class="chip">${t(i.shared ? "a.exp.shared" : "a.exp.mine")}</span><br>${esc(i.body)}
+      ${i.shared ? "" : `<button type="button" class="ghost small" data-del="${Number(i.id)}">${t("a.exp.del")}</button>`}</div>`).join("") : `<span class="muted">${t("a.exp.empty")}</span>`;
+  }).catch(() => { $("#insList").textContent = ""; });
+  $("#insList").onclick = async (e) => { const id = e.target.dataset.del; if (id) { try { await api(`api/insights/${id}/delete`, {}); e.target.parentElement.remove(); } catch (ex) { toast(ex.message); } } };
 };
 $("#dlgSettings").onclose = async () => {
   if ($("#dlgSettings").returnValue !== "ok") return;
   const newLang = $("#setLang").value;
-  await api("api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0, lang: newLang,
-    prefs: {radar: $("#setRadar").checked, reminders: $("#setRem").checked}});
+  try {
+    await api("api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0, lang: newLang,
+      prefs: {radar: $("#setRadar").checked, reminders: $("#setRem").checked}});
+  } catch (e) { return toast(e.message); }
   const tg = $("#setTg").value.trim();
   if (tg) { try { await api("api/telegram", {token: tg}); toast(t("a.tg.ok")); } catch (e) { toast(e.message); } }
   if (newLang !== BS.lang) { BS.set(newLang); return location.reload(); }
   refreshMe();
 };
+// Enter в поле диалога = главная кнопка. Раньше форма «нажимала» первую кнопку — «Отмена» или «удалить»
+document.querySelectorAll("dialog form").forEach(f => f.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.target.tagName !== "INPUT" || e.target.type === "checkbox") return;
+  e.preventDefault();
+  const ok = f.querySelector('button.primary[value="ok"]');
+  if (ok) ok.click();
+}));
+window.onChart = () => { if (WIDGETS.some(w => w.kind === "chart")) renderGrid(); };  // Chart.js грузится отложенно
 $("#btnRestart").onclick = () => { if (confirm(t("a.restart.q"))) location.href = "./?restart=1"; };
+$("#btnDelAcc").onclick = async () => {
+  const pin = prompt(t("a.del.q"));
+  if (!pin) return;
+  try { await api("api/account/delete", {pin}); alert(t("a.del.done")); location.href = "./"; }
+  catch (e) { toast(e.message); }
+};
+// Календарь: webcal:// открывает подписку в Apple/Outlook; для Google — ссылка «по URL» (копируется)
+const calUrl = () => new URL(ME.cal, location.href).href;
+$("#calAdd").onclick = (e) => { e.preventDefault(); location.href = calUrl().replace(/^https?:/, "webcal:"); };
+$("#calCopy").onclick = () => {
+  const u = calUrl(), done = () => toast(t("a.cal.copied"));
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(done, () => prompt("", u));
+  else prompt("", u);  // старые Safari без clipboard API
+};
 const logout = async () => { await api("api/logout", {}); location.href = "./"; };
 $("#btnLogout").onclick = logout; $("#btnLogout2").onclick = logout;
 function setTab(tab) {
@@ -625,15 +679,17 @@ document.querySelector("nav.tabs").onclick = (e) => { if (e.target.dataset.go) r
     // показываем, что команда работает, а не пустой чат
     const wait = document.createElement("div");
     wait.className = "thinking";
-    const steps = ["a.s1", "a.s2", "a.s3", "a.s4", "a.s5"].map(k => t(k));
+    const first = LS.get("bs_job_first") === pending;
+    const steps = first ? ["a.s1", "a.s2", "a.s3", "a.s4", "a.s5"].map(k => t(k)) : [t("a.thinks", {name: ME.agents[AGENT].name})];
     let k = 0; wait.textContent = steps[0];
     const tick = setInterval(() => { k = (k + 1) % steps.length; wait.textContent = steps[k]; }, 9000);
     if (window.innerWidth <= 1000) setTab("chat");  // сначала показать чат, потом прокрутить — скрытый не прокручивается
     $("#msgs").append(wait);
     requestAnimationFrame(() => { $("#msgs").scrollTop = $("#msgs").scrollHeight; });
-    pollJob(pending).then(() => { LS.del("bs_job"); loadMsgs(); loadWidgets(); refreshMe(); toast(t("a.first.ready")); })
+    $("#btnSend").disabled = true;
+    pollJob(pending).then(() => { LS.del("bs_job"); loadMsgs(); loadWidgets(); refreshMe(); if (first) toast(t("a.first.ready")); })
       .catch((e) => addMsg("assistant", "⚠️ " + e.message))
-      .finally(() => { clearInterval(tick); wait.remove(); LS.del("bs_job"); });
+      .finally(() => { clearInterval(tick); wait.remove(); LS.del("bs_job"); LS.del("bs_job_first"); $("#btnSend").disabled = false; });
   }
   setInterval(() => { if (!document.hidden && !(document.activeElement && document.activeElement.closest && document.activeElement.closest(".grid")) && !document.querySelector("dialog[open]")) loadWidgets(); }, 60000);  // Telegram-мост мог поменять дашборд
 })();

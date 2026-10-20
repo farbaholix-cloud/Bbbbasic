@@ -174,12 +174,12 @@ def reminders(c):
             if it.get("done") or not it.get("date"):
                 continue
             try:
-                left = (datetime.strptime(it["date"], "%Y-%m-%d").date() - today).days
-            except ValueError:
+                left = (datetime.strptime(str(it["date"]), "%Y-%m-%d").date() - today).days
+            except (ValueError, TypeError):
                 continue
             hit = next((d for d in REMIND_DAYS if left == d), None)
             if hit and store.notice_once(c["id"], f"{w['id']}:{it.get('id')}:{hit}"):
-                lines.append(f"- **{it['text']}** — {i18n.t(L, 'in_days', n=left, d=it['date'])}")
+                lines.append(f"- **{it.get('text', '')}** — {i18n.t(L, 'in_days', n=left, d=it['date'])}")
     for a in store.list_apps(c["id"]):
         if a["status"] not in ("idea", "preparing") or not a["deadline"]:
             continue

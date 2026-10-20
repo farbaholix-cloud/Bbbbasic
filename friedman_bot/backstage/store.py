@@ -12,6 +12,7 @@
 """
 import os
 import json
+import re
 import sqlite3
 import secrets
 import hashlib
@@ -162,6 +163,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS ix_widgets_client ON widgets(client_id, pos);
 CREATE INDEX IF NOT EXISTS ix_messages_client ON messages(client_id, agent, id);
 CREATE INDEX IF NOT EXISTS ix_usage_client ON usage(client_id, ts);
+CREATE INDEX IF NOT EXISTS ix_usage_ts ON usage(ts);
 """
 
 
@@ -193,7 +195,7 @@ def init():
             conn.execute("ALTER TABLE clients ADD COLUMN craft TEXT DEFAULT ''")
         if "survey" not in cols:  # подробная анкета: JSON {answers, summary, done, updated}
             conn.execute("ALTER TABLE clients ADD COLUMN survey TEXT DEFAULT ''")
-        for col in ("plan", "plan_until", "stripe_customer", "prefs", "mail"):  # mail — зашифрованные настройки SMTP  # тариф (plans.py) и покупатель в Stripe
+        for col in ("plan", "plan_until", "stripe_customer", "prefs", "mail", "src"):  # src — кампания (QR-флаер, партнёр)  # mail — зашифрованные настройки SMTP  # тариф (plans.py) и покупатель в Stripe
             if col not in cols:
                 conn.execute(f"ALTER TABLE clients ADD COLUMN {col} TEXT DEFAULT ''")
 
@@ -219,6 +221,19 @@ def _opp_key(url, title):
     return u or "t:" + " ".join((title or "").lower().split())[:120]
 
 
+def safe_url(u):
+    """Каталог общий для всех клиентов: только обычные веб-ссылки, никаких javascript: и прочих схем."""
+    u = str(u or "").strip()
+    return u if re.match(r"https?://[^\s<>\"']+$", u, re.I) else ""
+
+
+def _json_capped(v, limit=16000):
+    s = json.dumps(v or {}, ensure_ascii=False)
+    if len(s) > limit:  # данные виджета идут в контекст агента — огромные стоят денег
+        raise ValueError("widget data too large")
+    return s
+
+
 def add_opportunity(o: dict, craft: str, region: str):
     """Новая возможность → в каталог; уже известная — дописываем ремесло. Возвращает id."""
     key = _opp_key(o.get("url"), o.get("title"))
@@ -231,7 +246,7 @@ def add_opportunity(o: dict, craft: str, region: str):
         cur = conn.execute(
             "INSERT INTO opportunities (key, title, org, url, deadline, amount, summary, region, crafts, found) "
             "VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (key, str(o.get("title", ""))[:200], str(o.get("org") or "")[:120], str(o.get("url") or "")[:500],
+            (key, str(o.get("title", ""))[:200], str(o.get("org") or "")[:120], safe_url(o.get("url"))[:500],
              str(o.get("deadline") or "")[:10], str(o.get("amount") or "")[:80], str(o.get("summary") or "")[:400],
              (o.get("region") or region or "intl")[:8], craft, now()))
         return cur.lastrowid
@@ -250,6 +265,31 @@ def match_opportunities(client_id: int, crafts, regions, limit=5, min_deadline="
             "ORDER BY CASE WHEN o.deadline='' THEN 1 ELSE 0 END, o.deadline LIMIT ?",
             (*[f"%,{c},%" for c in crafts], *regions, min_deadline, client_id, limit)).fetchall()
     return [dict(r) for r in rows]
+
+
+def teaser(crafts, limit=3):
+    """Публичный тизер для гостя с флаера: сколько открытых возможностей уже есть по его ремёслам
+    и три ближайшие (только название, организатор, дедлайн)."""
+    crafts = [c for c in crafts if c] or ["other"]
+    cq = " OR ".join("(','||crafts||',') LIKE ?" for _ in crafts)
+    day = datetime.now().strftime("%Y-%m-%d")
+    args = [f"%,{c},%" for c in crafts]
+    with db() as conn:
+        n = conn.execute(f"SELECT COUNT(*) FROM opportunities WHERE ({cq}) AND deadline>=?", (*args, day)).fetchone()[0]
+        rows = conn.execute(f"SELECT title, org, deadline FROM opportunities WHERE ({cq}) AND deadline>=? "
+                            "ORDER BY deadline LIMIT ?", (*args, day, limit)).fetchall()
+    return {"n": n, "items": [dict(r) for r in rows]}
+
+
+def campaign_stats():
+    """Регистрации по кампаниям: всего и тех, кто вернулся (писал команде позже дня регистрации)."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT c.src, COUNT(*) n, SUM(CASE WHEN EXISTS (SELECT 1 FROM messages m WHERE m.client_id=c.id "
+            "AND m.role='user' AND substr(m.created,1,10) > substr(c.created,1,10)) THEN 1 ELSE 0 END) back, "
+            "SUM(CASE WHEN c.plan IN ('basic','pro') THEN 1 ELSE 0 END) paid "
+            "FROM clients c WHERE c.source='signup' GROUP BY c.src").fetchall()
+    return {r["src"] or "": dict(r) for r in rows}
 
 
 def mark_delivered(client_id: int, opp_ids):
@@ -340,6 +380,8 @@ def delete_doc(client_id, did):
 def save_app(client_id, a: dict):
     """Создать (без id) или обновить заявку. Возвращает id."""
     fields = {k: str(a[k])[:500] for k in ("title", "org", "url", "deadline", "status", "note") if a.get(k) is not None}
+    if "url" in fields:
+        fields["url"] = safe_url(fields["url"])
     if "status" in fields and fields["status"] not in APP_STATUSES:
         fields.pop("status")
     with db() as conn:
@@ -407,6 +449,13 @@ def update_email(client_id, eid, **f):
         with db() as conn:
             conn.execute(f"UPDATE outbox SET {', '.join(k + '=?' for k in f)} WHERE id=? AND client_id=?",
                          (*f.values(), eid, client_id))
+
+
+def claim_email(client_id, eid):
+    """Черновик → «отправляется» одним UPDATE: из двух одновременных нажатий пройдёт одно."""
+    with db() as conn:
+        return conn.execute("UPDATE outbox SET status='sending' WHERE id=? AND client_id=? AND status='draft'",
+                            (eid, client_id)).rowcount == 1
 
 
 def emails_sent_today(client_id):
@@ -557,7 +606,7 @@ def list_clients():
 
 CLIENT_EDITABLE = {"name", "profile", "lang", "monthly_budget", "model_chat", "model_deep",
                    "tg_token", "tg_chat_id", "share_insights", "active", "plan", "plan_until", "stripe_customer", "prefs",
-                   "mail"}
+                   "mail", "src"}
 
 
 def update_client(client_id: int, **fields):
@@ -599,7 +648,9 @@ def session_client(tok: str):
     if not tok:
         return None
     with db() as conn:
-        row = conn.execute("SELECT client_id FROM sessions WHERE token=? AND created >= datetime('now', ?)",
+        # отключённый владельцем клиент вылетает сразу, а не через 30 дней жизни сессии
+        row = conn.execute("SELECT s.client_id FROM sessions s LEFT JOIN clients c ON c.id=s.client_id "
+                           "WHERE s.token=? AND s.created >= datetime('now', ?) AND (s.client_id=0 OR c.active=1)",
                            (tok, f"-{SESSION_DAYS} days")).fetchone()
     return row["client_id"] if row else None
 
@@ -673,8 +724,8 @@ def add_widget(client_id: int, kind: str, title: str, config=None, data=None, si
         pos = conn.execute("SELECT COALESCE(MAX(pos),-1)+1 FROM widgets WHERE client_id=?", (client_id,)).fetchone()[0]
         cur = conn.execute(
             "INSERT INTO widgets (client_id, kind, title, config, data, pos, size, updated) VALUES (?,?,?,?,?,?,?,?)",
-            (client_id, kind, title[:120], json.dumps(config or {}, ensure_ascii=False),
-             json.dumps(data or {}, ensure_ascii=False), pos, size if size in ("s", "m", "l") else "m", now()))
+            (client_id, kind, title[:120], _json_capped(config),
+             _json_capped(data), pos, size if size in ("s", "m", "l") else "m", now()))
         return cur.lastrowid
 
 
@@ -686,8 +737,8 @@ def update_widget(client_id: int, wid: int, title=None, config=None, data=None, 
         conn.execute(
             "UPDATE widgets SET title=?, config=?, data=?, size=?, updated=? WHERE id=? AND client_id=?",
             ((title or w["title"])[:120],
-             json.dumps(config if config is not None else w["config"], ensure_ascii=False),
-             json.dumps(data if data is not None else w["data"], ensure_ascii=False),
+             _json_capped(config if config is not None else w["config"]),
+             _json_capped(data if data is not None else w["data"]),
              size if size in ("s", "m", "l") else w["size"], now(), wid, client_id))
     return get_widget(client_id, wid)
 
@@ -758,6 +809,28 @@ def restart_client(client_id: int, name: str, profile: str, craft: str, lang: st
     seed_dashboard(client_id, craft.split(",")[0], lang)
 
 
+def delete_client(client_id: int):
+    """Удалить аккаунт по просьбе клиента (DSGVO, ст. 17): всё личное — из базы и с диска.
+    Остаются только обезличенные строки расхода (токены и деньги без текста) — для учёта."""
+    with db() as conn:
+        paths = [r["path"] for r in conn.execute("SELECT path FROM files WHERE client_id=?", (client_id,))]
+        for table in ("messages", "widgets", "insights", "docs", "applications", "outbox", "client_opps",
+                      "files", "notices", "sessions"):
+            conn.execute(f"DELETE FROM {table} WHERE client_id=?", (client_id,))
+        conn.execute("DELETE FROM clients WHERE id=?", (client_id,))
+        # расход остаётся в общей статистике, но без привязки: номер может достаться новому клиенту
+        conn.execute("UPDATE usage SET client_id=-1 WHERE client_id=?", (client_id,))
+    for p in paths:
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
+    try:
+        os.rmdir(os.path.join(FILES_DIR, str(client_id)))
+    except OSError:
+        pass
+
+
 # ─── Расход ──────────────────────────────────────────────────────────────────
 
 def log_usage(client_id: int, kind: str, model: str, u: dict, cost: float):
@@ -785,7 +858,7 @@ TOKENS_SQL = "COALESCE(SUM(input_tokens + output_tokens + cache_write + cache_re
 def tokens_today(client_id=None) -> int:
     """Токены за сегодня: одного клиента или всей платформы (client_id=None, включая радар)."""
     day = datetime.now().strftime("%Y-%m-%d")
-    q = f"SELECT {TOKENS_SQL} FROM usage WHERE substr(ts,1,10)=?" + (" AND client_id=?" if client_id is not None else "")
+    q = f"SELECT {TOKENS_SQL} FROM usage WHERE ts >= ?" + (" AND client_id=?" if client_id is not None else "")
     with db() as conn:
         return int(conn.execute(q, (day,) + ((client_id,) if client_id is not None else ())).fetchone()[0])
 
@@ -793,7 +866,7 @@ def tokens_today(client_id=None) -> int:
 def usd_today() -> float:
     day = datetime.now().strftime("%Y-%m-%d")
     with db() as conn:
-        return float(conn.execute("SELECT COALESCE(SUM(cost),0) FROM usage WHERE substr(ts,1,10)=?", (day,)).fetchone()[0])
+        return float(conn.execute("SELECT COALESCE(SUM(cost),0) FROM usage WHERE ts >= ?", (day,)).fetchone()[0])
 
 
 def usage_summary(client_id=None, days: int = 31):

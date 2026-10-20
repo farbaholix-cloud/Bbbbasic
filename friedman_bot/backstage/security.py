@@ -46,10 +46,27 @@ def _dns_txt(name):
         return None
 
 
+def public_host(host):
+    """Сайт из профиля клиента — только публичный адрес: проверка не должна заглядывать внутрь сервера."""
+    try:
+        import ipaddress
+        infos = socket.getaddrinfo(host, None)
+        return bool(infos) and all(ipaddress.ip_address(i[4][0].split("%")[0]).is_global for i in infos)
+    except (OSError, ValueError, UnicodeError):
+        return False
+
+
+class _PublicRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not public_host(urllib.parse.urlparse(newurl).hostname or ""):
+            return None
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def check_site(url):
     """Список находок: [{"sev": "critical|important|later", "code": ..., "detail": ...}]."""
     host = urllib.parse.urlparse(url).hostname or ""
-    if not host:
+    if not host or not public_host(host):
         return []
     out = []
     add = lambda sev, code, detail="": out.append({"sev": sev, "code": code, "detail": detail})
@@ -86,7 +103,7 @@ def check_site(url):
     # заголовки и раскрытые версии
     try:
         req = urllib.request.Request(f"https://{host}/", headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.build_opener(_PublicRedirects).open(req, timeout=10) as r:
             h = {k.lower(): v for k, v in r.headers.items()}
             body = r.read(200_000).decode("utf-8", "replace")
         if "strict-transport-security" not in h:

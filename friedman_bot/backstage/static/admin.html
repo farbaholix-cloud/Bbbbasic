@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="ru"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="static/brand/logo-mark.svg" type="image/svg+xml"><link rel="icon" href="static/brand/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="static/brand/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#f7f3ec">
 <title>Backstage — админка</title>
 <script src="static/legacy.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
   section.card{padding:16px;margin-top:16px}
@@ -51,6 +53,29 @@
       </div>
       <label>Название банка (необязательно)</label><input id="dnBank" placeholder="Frankfurter Sparkasse">
       <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="dnSave">Сохранить</button></div>
+    </section>
+
+    <section class="card">
+      <h2>📣 Офлайн-кампании и QR</h2>
+      <p class="small muted">Каждый флаер, плакат или партнёр — своя кампания. Короткая ссылка <b>/s/код</b> открывает анкету сразу на нужном языке и запоминает, откуда пришёл человек. «Пробный период» — для партнёров (школа, галерея, ателье): дней бесплатно вместо обычных 14. «Вернулись» — писали команде позже дня регистрации.</p>
+      <div class="t-wrap"><table><thead><tr><th>Код</th><th>Название</th><th>Язык</th><th>Пробный, дней</th><th>Регистраций</th><th>Вернулись</th><th>Платят</th><th></th></tr></thead><tbody id="cmpRows"></tbody></table></div>
+      <div class="form4" style="margin-top:10px">
+        <div><label>Код (латиница)</label><input id="cmpCode" placeholder="flyer-ffm"></div>
+        <div><label>Название</label><input id="cmpName" placeholder="Флаеры, Франкфурт, ноябрь"></div>
+        <div><label>Язык анкеты</label><select id="cmpLang"><option value="">выбор на месте</option><option value="de">Deutsch</option><option value="en">English</option><option value="ua">Українська</option></select></div>
+        <div><label>Пробный, дней</label><input id="cmpDays" placeholder="14"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><span class="small muted" id="cmpOther"></span><div class="grow"></div><button class="primary" id="cmpAdd">Добавить кампанию</button></div>
+      <div id="qrBox" class="hidden" style="margin-top:14px;text-align:center"><div id="qrImg" style="display:inline-block;padding:14px;background:#fff;border-radius:12px"></div>
+        <p class="link" id="qrLink"></p><button id="qrDl" class="primary">Скачать PNG для печати</button></div>
+    </section>
+
+    <section class="card">
+      <h2>⚖️ Impressum и Datenschutz</h2>
+      <p class="small muted">В Германии сайт, который продвигают и где есть платные тарифы, обязан иметь Impressum (§ 5 DDG) и Datenschutzerklärung (DSGVO). Ссылки уже стоят внизу анкеты: <a href="impressum" target="_blank">/impressum</a> · <a href="privacy" target="_blank">/privacy</a>. Разметка — как в документах: # заголовок, - список.</p>
+      <label>Impressum</label><textarea id="lgImp" rows="8" placeholder="# Impressum&#10;Angaben gemäß § 5 DDG&#10;Vorname Nachname&#10;Straße Nr.&#10;PLZ Ort&#10;E-Mail: …"></textarea>
+      <label>Datenschutzerklärung</label><textarea id="lgPriv" rows="8"></textarea>
+      <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="lgSave">Сохранить</button></div>
     </section>
 
     <section class="card">
@@ -191,6 +216,46 @@ async function load() {
   $("#dnPaypal").value = dn.paypal; $("#dnHolder").value = dn.holder; $("#dnIban").value = dn.iban; $("#dnBic").value = dn.bic; $("#dnBank").value = dn.bank;
   $("#dnSave").onclick = async () => { await api("api/admin/donate", {paypal: $("#dnPaypal").value, holder: $("#dnHolder").value,
     iban: $("#dnIban").value, bic: $("#dnBic").value, bank: $("#dnBank").value}); alert("Сохранено"); };
+  // — кампании —
+  const cm = await api("api/admin/campaigns");
+  const base = cm.base || location.origin + location.pathname.replace(/admin\/?$/, "").replace(/\/$/, "");
+  const camps = cm.campaigns || {};
+  const shortUrl = (code) => `${base}/s/${code}`;
+  const drawCamps = () => {
+    const LN = {de: "DE", en: "EN", ua: "UA", "": "—"};
+    $("#cmpRows").innerHTML = Object.entries(camps).map(([code, v]) => { const st = cm.stats[code] || {};
+      return `<tr data-code="${esc(code)}"><td><b>${esc(code)}</b></td><td>${esc(v.name)}</td><td>${LN[v.lang || ""]}</td><td>${esc(v.trial_days || "14")}</td>
+        <td>${st.n || 0}</td><td>${st.back || 0}</td><td>${st.paid || 0}</td>
+        <td style="white-space:nowrap"><button data-qr>QR</button> <button data-del class="ghost">✕</button></td></tr>`; }).join("")
+      || `<tr><td colspan="8" class="muted">Пока нет кампаний.</td></tr>`;
+    const other = cm.stats[""] || {};
+    $("#cmpOther").textContent = `Без кампании (сайт, сарафан): ${other.n || 0} регистраций, вернулись ${other.back || 0}.`;
+  };
+  const saveCamps = () => api("api/admin/campaigns", {campaigns: camps});
+  drawCamps();
+  $("#cmpAdd").onclick = async () => {
+    const code = $("#cmpCode").value.trim().toLowerCase();
+    if (!/^[a-z0-9-]{1,30}$/.test(code)) return alert("Код: латиница, цифры и дефис, до 30 знаков");
+    camps[code] = {name: $("#cmpName").value.trim(), lang: $("#cmpLang").value, trial_days: $("#cmpDays").value.trim()};
+    await saveCamps(); drawCamps(); $("#cmpCode").value = $("#cmpName").value = $("#cmpDays").value = "";
+  };
+  $("#cmpRows").onclick = async (e) => {
+    const tr = e.target.closest("tr[data-code]"); if (!tr) return;
+    const code = tr.dataset.code;
+    if (e.target.matches("[data-del]") && confirm(`Удалить кампанию ${code}? Регистрации останутся в статистике «без кампании».`)) { delete camps[code]; await saveCamps(); drawCamps(); }
+    if (e.target.matches("[data-qr]")) {
+      if (typeof QRCode !== "function") return alert("Генератор QR не загрузился — проверь интернет");
+      $("#qrImg").innerHTML = ""; $("#qrBox").classList.remove("hidden");
+      new QRCode($("#qrImg"), {text: shortUrl(code), width: 640, height: 640, colorDark: "#1f1d1b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M});
+      const c = $("#qrImg canvas"); if (c) c.style.cssText = "width:220px;height:220px"; const im = $("#qrImg img"); if (im) im.style.cssText = "width:220px;height:220px";
+      $("#qrLink").textContent = shortUrl(code);
+      $("#qrDl").onclick = () => { const cv = $("#qrImg canvas"); const a = document.createElement("a"); a.href = cv.toDataURL("image/png"); a.download = `backstage-qr-${code}.png`; a.click(); };
+    }
+  };
+  // — Impressum / Datenschutz —
+  const lg = await api("api/admin/legal");
+  $("#lgImp").value = lg.impressum || ""; $("#lgPriv").value = lg.privacy || "";
+  $("#lgSave").onclick = async () => { await api("api/admin/legal", {impressum: $("#lgImp").value, privacy: $("#lgPriv").value}); alert("Сохранено"); };
   const sec = await api("api/admin/security");
   const ico = {critical: "🔴", important: "🟠", later: "⚪", ok: "🟢"};
   $("#secPlatform").innerHTML = sec.platform.map(f => `<p style="margin:6px 0">${ico[f.sev] || ""} ${esc(f.text)}</p>`).join("");
@@ -198,7 +263,7 @@ async function load() {
   const rd = await api("api/admin/radar");
   $("#radarInfo").innerHTML = `Раз в день (утром) Рубен обновляет общий каталог по связкам «ремесло + страна» активных клиентов — не чаще раза в неделю на связку, не больше 4 поисков в день. Потом каждый активный клиент раз в неделю получает подборку (без затрат на ИИ) и ежедневно — напоминания о дедлайнах.<br>
     Последний прогон: <b>${esc(rd.last_day || "ещё не было")}</b> · ждут обновления: ${rd.due.length ? rd.due.map(d => esc(d.join("+"))).join(", ") : "ничего"} · в каталоге (последние): ${rd.recent.length}`;
-  $("#opps").innerHTML = rd.recent.map(o => `<tr><td>${o.url ? `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a>` : esc(o.title)}<br><span class="small muted">${esc(o.org)} ${esc(o.amount)}</span></td>
+  $("#opps").innerHTML = rd.recent.map(o => `<tr><td>${/^https?:\/\//i.test(o.url || "") ? `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a>` : esc(o.title)}<br><span class="small muted">${esc(o.org)} ${esc(o.amount)}</span></td>
     <td>${esc(o.deadline || "—")}</td><td>${esc(o.region)}</td><td>${esc(o.crafts)}</td><td class="small">${esc(o.found.slice(0, 10))}</td></tr>`).join("") || '<tr><td colspan="5" class="muted">Каталог пока пуст.</td></tr>';
   $("#radarRun").onclick = async () => { await api("api/admin/radar/run", {}); $("#radarMsg").textContent = " запущено — поиск занимает несколько минут, обнови страницу позже"; };
   const ins = await api("api/admin/insights");

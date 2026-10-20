@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="static/brand/logo-mark.svg" type="image/svg+xml"><link rel="icon" href="static/brand/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="static/brand/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#f7f3ec">
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
 <script src="static/legacy.js"></script>
@@ -43,7 +44,7 @@
 </style>
 </head><body>
 <main>
-  <div class="top"><div class="brand">Backstage<b>.</b></div>
+  <div class="top"><img src="static/brand/logo-wordmark.svg" alt="Backstage." style="height:24px;display:block">
     <div class="sw" id="sw"><button type="button" data-l="en">EN</button><button type="button" data-l="de">DE</button><button type="button" data-l="ua">UA</button></div></div>
   <h1 data-i-html="l.h"></h1>
   <p class="lead" data-i="l.lead"></p>
@@ -58,6 +59,7 @@
   <div class="alt"><a href="./" data-i="l.new"></a>
     <p data-i="l.new2"></p></div>
   <p class="small"><a href="guide" id="guideLink" data-i="l.guide"></a></p>
+  <p class="small" style="text-align:center"><a href="impressum" style="color:var(--muted)">Impressum</a> · <a href="privacy" style="color:var(--muted)" data-i="j.priv"></a></p>
   <p class="small" id="dnFoot" style="display:none;margin-top:18px;text-align:center"><a href="#" id="dnLink" style="color:var(--muted)">💛 <span data-i="d.btn"></span></a></p>
 </main>
 <script>
@@ -72,11 +74,16 @@ lang(BS.lang);
 if (location.search.includes("bad=1")) document.getElementById("err").textContent = BS.t("l.bad");
 document.getElementById("f").onsubmit = async (e) => {
   e.preventDefault();
-  const r = await fetch("api/login", {method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({slug: slug.value, key: key.value, lang: BS.lang})});
-  const j = await r.json().catch(() => ({}));
-  if (r.ok) { if (j.lang) BS.set(j.lang); location.href = "app"; }
-  else document.getElementById("err").textContent = j.error || BS.t("l.fail");
+  const btn = document.querySelector("#f button"), err = document.getElementById("err");
+  btn.disabled = true; err.textContent = "";
+  try {
+    const r = await fetch("api/login", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({slug: slug.value.trim().toLowerCase(), key: key.value.trim(), lang: BS.lang})});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { if (j.lang) BS.set(j.lang); location.href = "app"; return; }
+    err.textContent = j.error || BS.t("l.fail");
+  } catch (_) { err.textContent = BS.t("l.fail"); }  // нет сети — не молчим
+  btn.disabled = false;
 };
 DONATE.load().then(c => { if (c) { document.getElementById("dnFoot").style.display = ""; document.getElementById("dnLink").onclick = (e) => { e.preventDefault(); DONATE.open(); }; } });
 </script>

@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="static/brand/logo-mark.svg" type="image/svg+xml"><link rel="icon" href="static/brand/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="static/brand/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#f7f3ec">
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
 <script src="static/legacy.js"></script>
@@ -10,6 +11,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
 <style>
+  .kitbar{height:6px;border-radius:6px;background:var(--soft);margin-top:8px;overflow:hidden}
+  .kitbar i{display:block;height:100%;background:var(--ruben);border-radius:6px;transition:width .3s}
+  #kit .chip{cursor:pointer}#kit .chip.on{background:var(--ruben);color:#fff}
   header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
     padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;gap:10px;align-items:center}
   header h1{font-size:22px;font-style:italic}
@@ -110,6 +114,7 @@
   <!-- Материалы -->
   <section class="pane" id="p-files">
     <p class="intro" data-i="w.files.p"></p>
+    <div class="card box" id="kit"></div>
     <div class="card box">
       <div class="drop" id="drop">
         <div class="row" style="justify-content:center;gap:8px;flex-wrap:wrap">
@@ -127,6 +132,7 @@
 const $ = (s) => document.querySelector(s);
 const t = BS.t;
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";  // никаких javascript: в ссылках
 const api = async (path, body) => {
   const r = await fetch(path, body === undefined ? {} : {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   if (r.status === 401) { location.href = "login"; throw new Error("auth"); }
@@ -153,7 +159,7 @@ async function loadApps() {
   const soon = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
   $("#apps").innerHTML = APPS.length ? APPS.map(a => `<div class="item" data-id="${a.id}">
     <div class="grow"><b>${esc(a.title)}</b>
-      <div class="sub">${esc(a.org)}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https?:\/\//, "").slice(0, 50))}</a>` : ""}</div>
+      <div class="sub">${esc(a.org)}${safeUrl(a.url) ? ` · <a href="${esc(safeUrl(a.url))}" target="_blank" rel="noopener">${esc(a.url.replace(/^https?:\/\//, "").slice(0, 50))}</a>` : ""}</div>
       ${a.note ? `<div class="sub">${esc(a.note)}</div>` : ""}
       <div class="acts">
         <select class="st st-${a.status}" data-st>${STATUSES.map(s => `<option value="${s}" ${a.status === s ? "selected" : ""}>${esc(t("w.st." + s))}</option>`).join("")}</select>
@@ -167,7 +173,7 @@ async function loadApps() {
   // быстрый выбор из радара: то, что ещё не в учёте
   const radar = await api("api/radar").catch(() => []);
   const titles = new Set(APPS.map(a => a.title));
-  const parse = (txt) => { const m = txt.match(/^\[([^\]]+)\]\(([^)]+)\)(?: — (.*))?/); return m ? {title: m[1], url: m[2], org: m[3] || ""} : {title: txt, url: "", org: ""}; };
+  const parse = (txt) => { const m = txt.match(/^\[([^\]]+)\]\(([^)]+)\)(?: — (.*))?/); return m ? {title: m[1], url: safeUrl(m[2]), org: m[3] || ""} : {title: txt, url: "", org: ""}; };
   const pick = radar.map(i => Object.assign(parse(i.text), {deadline: i.date || ""})).filter(x => !titles.has(x.title)).slice(0, 6);
   $("#radarChips").innerHTML = pick.length ? `<span class="small muted">${esc(t("w.fromradar"))}</span>` + pick.map((x, k) =>
     `<button class="chip" data-r="${k}">${esc(x.title.slice(0, 48))}</button>`).join("") : "";
@@ -188,8 +194,11 @@ $("#apps").onclick = async (e) => {
   if (e.target.matches("[data-learn]")) {
     const note = prompt(t("w.app.note") + ":", a.note || "") || "";
     if (note) await api("api/apps", {id: a.id, note});
-    await api("api/chat", {agent: "maya", text: t("w.app.learn.msg", {t: a.title, s: t("w.st." + a.status), n: note}), deep: false});
-    location.href = "app";
+    try {
+      const r = await api("api/chat", {agent: "maya", text: t("w.app.learn.msg", {t: a.title, s: t("w.st." + a.status), n: note}), deep: false});
+      try { localStorage.setItem("bs_job", r.job); } catch (_) {}  // в чате ответ Майи подхватится сам
+      location.href = "app";
+    } catch (ex) { toast(ex.message); }
   }
 };
 $("#aAdd").onclick = async () => {
@@ -218,13 +227,16 @@ $("#docs").onclick = async (e) => {
   const d = DOCS.find(x => x.id == e.target.closest(".item").dataset.id);
   if (confirm(t("w.del.q", {t: d.title}))) { await api(`api/docs/${d.id}/delete`, {}); loadDocs(); }
 };
-async function pollJob(job) {
-  for (;;) {
+async function pollJob(job) {  // обрыв сети — не повод терять документ: ждём и пробуем снова
+  const until = Date.now() + 20 * 60000;
+  while (Date.now() < until) {
     await new Promise(r => setTimeout(r, 2500));
-    const j = await api(`api/job/${job}`);
+    let j;
+    try { j = await api(`api/job/${job}`); } catch (e) { if (e.message === "auth" || /not found/i.test(e.message)) throw e; continue; }
     if (j.status === "done") return j.result;
     if (j.status === "error") throw new Error(j.error);
   }
+  throw new Error(t("a.slow"));
 }
 $("#dGo").onclick = async () => {
   const body = {kind: $("#dKind").value, brief: $("#dBrief").value, doc_lang: $("#dLang").value, app_id: Number($("#dApp").value),
@@ -235,7 +247,7 @@ $("#dGo").onclick = async () => {
     const name = (ME.agents[agent] && ME.agents[agent].name) || agent;
     $("#dWait").textContent = t("w.doc.wait", {name}); $("#dWait").classList.remove("hidden");
     const res = await pollJob(job);
-    if (res.doc_id) { toast(t("w.done")); window.open(`doc/${res.doc_id}`, "_blank"); $("#dBrief").value = ""; }
+    if (res.doc_id) { toast(t("w.done")); $("#dBrief").value = ""; }  // ссылка — в списке документов (Safari блокирует window.open после ожидания)
     else toast(t("w.doc.fail", {name}));
     loadDocs(); loadApps();
   } catch (ex) { toast(ex.message); }
@@ -252,6 +264,11 @@ async function loadMail() {
 async function loadFiles() {
   const r = await api("api/files"); FILES = r.files;
   $("#fUsed").textContent = t("w.file.used", {used: (r.used / 1048576).toFixed(1), limit: Math.round(r.limit / 1048576)});
+  // Пакет для заявок: что уже лежит, чего не хватает (одно нажатие — и выбран нужный тип файла)
+  const KIT = ["cv", "portfolio", "statement", "bio", "press", "photo"], have = KIT.filter(k => FILES.some(f => f.kind === k));
+  $("#kit").innerHTML = `<b>${esc(t("w.kit.h"))}</b> <span class="small muted">${esc(t("w.kit.p", {n: have.length, total: KIT.length}))}</span>
+    <div class="kitbar"><i style="width:${Math.round(have.length / KIT.length * 100)}%"></i></div>
+    <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px">${KIT.map(k => `<button type="button" class="chip${have.includes(k) ? " on" : ""}" data-kit="${k}">${have.includes(k) ? "✓" : "+"} ${esc(t("w.f." + k))}</button>`).join("")}</div>`;
   $("#files").innerHTML = FILES.length ? FILES.map(f => `<div class="item" data-id="${f.id}">
     <div class="grow"><b>${esc(f.name)}</b><div class="sub">${(f.size / 1048576).toFixed(1)} MB${f.text_len ? " · " + esc(t("w.file.read")) : ""}</div>
       <div class="acts"><a href="api/files/${f.id}/raw">↓</a><button class="ghost" data-del>${esc(t("w.del"))}</button></div></div>
@@ -259,6 +276,7 @@ async function loadFiles() {
   $("#dFiles").innerHTML = FILES.length ? FILES.slice(0, 20).map(f => `<label><input type="checkbox" value="${f.id}" ${["cv", "portfolio", "statement", "bio"].includes(f.kind) ? "checked" : ""}>
     ${esc(f.name)} <span class="kind">${esc(t("w.f." + f.kind))}</span></label>`).join("") : `<p class="small muted">${esc(t("w.doc.nofiles"))}</p>`;
 }
+$("#kit").onclick = (e) => { const b = e.target.closest("[data-kit]"); if (!b) return; $("#fKind").value = b.dataset.kit; $("#fPick").click(); };
 $("#files").onclick = async (e) => {
   if (!e.target.matches("[data-del]")) return;
   const f = FILES.find(x => x.id == e.target.closest(".item").dataset.id);

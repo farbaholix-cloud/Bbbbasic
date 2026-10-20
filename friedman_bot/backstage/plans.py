@@ -10,6 +10,7 @@
 
 import os
 import json
+import re
 from datetime import datetime, timedelta
 
 import store
@@ -56,6 +57,15 @@ def payments_on(plans=None):
     return any((plans[k].get("link") or "").startswith("https://") for k in PAID)
 
 
+def campaigns():
+    """Кампании для офлайна: {код: {name, lang, trial_days}} — QR на флаере, партнёрская школа, галерея."""
+    try:
+        d = json.loads(store.meta_get("campaigns", "") or "{}")
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
 def status(c):
     """Текущий тариф клиента: {plan, name, until, days_left, expired, chat_daily, deep_daily}.
     chat_daily=None — без дневных лимитов."""
@@ -75,7 +85,11 @@ def status(c):
         start = datetime.fromisoformat((c.get("created") or today)[:19])
     except ValueError:
         start = datetime.now()
-    end = (start + timedelta(days=int(t.get("days") or 14))).strftime("%Y-%m-%d")
+    days = int(t.get("days") or 14)
+    camp = campaigns().get(c.get("src") or "")
+    if camp and str(camp.get("trial_days") or "").isdigit():  # партнёрский код — длиннее пробный период
+        days = max(days, min(int(camp["trial_days"]), 90))
+    end = (start + timedelta(days=days)).strftime("%Y-%m-%d")
     if on and end >= today:
         left = (datetime.fromisoformat(end) - datetime.fromisoformat(today)).days
         return {"plan": "trial", "name": t["name"], "until": end, "days_left": left, "expired": False,
@@ -102,6 +116,27 @@ def offers(c):
         out.append({"id": k, "name": p["name"], "price": p.get("price", ""), "chat_daily": p["chat_daily"],
                     "deep_daily": p["deep_daily"], "url": f"{link}{sep}client_reference_id={c['slug']}__{k}"})
     return out
+
+
+def price_cents(p):
+    """«19 € / month» → 1900. Без цены — None."""
+    m = re.search(r"(\d+(?:[.,]\d{1,2})?)", str(p.get("price") or ""))
+    return int(round(float(m.group(1).replace(",", ".")) * 100)) if m else None
+
+
+def plan_for_amount(amount, currency=None):
+    """Какой тариф покрывает оплаченную сумму (центы). None — проверить нечем (нет суммы или цен),
+    False — заплачено меньше самого дешёвого тарифа (например, скидка 100 % или подмена ссылки)."""
+    if amount is None:
+        return None
+    prices = {k: price_cents(p) for k, p in get_plans().items() if k in PAID}
+    if not all(prices.values()):
+        return None
+    best = False
+    for k in PAID:  # PAID упорядочен от дешёвого к дорогому
+        if int(amount) >= prices[k]:
+            best = k
+    return best
 
 
 def activate(client_id, plan, days=PERIOD_DAYS):

@@ -28,7 +28,8 @@ def extract_text(name, mime, raw: bytes) -> str:
                 return p.stdout.decode("utf-8", "replace")
         if n.endswith(".docx"):
             with zipfile.ZipFile(io.BytesIO(raw)) as z:
-                xml = z.read("word/document.xml").decode("utf-8", "replace")
+                with z.open("word/document.xml") as f:  # читаем не больше 5 МБ: защита от zip-бомбы
+                    xml = f.read(5_000_000).decode("utf-8", "replace")
             xml = re.sub(r"</w:p>", "\n", xml)
             return html.unescape(re.sub(r"<[^>]+>", "", xml))
         if mime.startswith("text/") or n.endswith((".txt", ".md", ".csv", ".json")):

@@ -49,3 +49,5 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .bad{color:var(--bad)}
 .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 @media (max-width:520px){.mgrid{grid-template-columns:1fr}}
+/* iOS увеличивает страницу при фокусе на поле со шрифтом меньше 16px — на телефонах держим 16 */
+@media (max-width:1000px){input,select,textarea{font-size:16px}}

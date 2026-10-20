@@ -400,7 +400,7 @@ def run_tool(c, agent_id, name, inp, ctx):
         d = w["data"]
         labels = d.setdefault("labels", [])
         series = d.setdefault("series", [])
-        sname = inp.get("series") or (series[0]["name"] if series else "Значение")
+        sname = inp.get("series") or (series[0]["name"] if series else i18n.t(c.get("lang"), "value"))
         s = next((x for x in series if x["name"] == sname), None)
         if s is None:
             s = {"name": sname, "values": [None] * len(labels)}
@@ -763,18 +763,20 @@ def _cli_argv(system, tools, model, turns, lean):
     стандартного промпта Claude Code (а не в дополнение к нему), только нужные
     инструменты вместо полутора десятков, без MCP-серверов и навыков."""
     argv = [CLAUDE_BIN, "-p", "--model", model, "--output-format", "json", "--max-turns", str(turns)]
+    # Read разрешаем только внутри рабочей папки запроса (там лежат вложения клиента), не весь диск
+    allowed = ",".join("Read(./**)" if t == "Read" else t for t in tools)
     if lean:
         argv += ["--system-prompt", system, "--strict-mcp-config", "--disable-slash-commands",
                  "--tools", ",".join(tools)]
         if tools:
-            argv += ["--allowedTools", ",".join(tools)]
+            argv += ["--allowedTools", allowed]
     else:
         argv += ["--append-system-prompt", system]
-        argv += ["--allowedTools", ",".join(tools)] if tools else ["--tools", ""]
+        argv += ["--allowedTools", allowed] if tools else ["--tools", ""]
     return argv
 
 
-def _cli_call(c, kind, system, prompt, tools, model, timeout, turns=None):
+def _cli_call(c, kind, system, prompt, tools, model, timeout, turns=None, cwd=None):
     import subprocess
     if not os.path.exists(CLAUDE_BIN):
         raise RuntimeError("не найден claude CLI на сервере (~/.local/bin/claude)")
@@ -784,7 +786,7 @@ def _cli_call(c, kind, system, prompt, tools, model, timeout, turns=None):
     for _ in range(2):
         argv = _cli_argv(system, tools, model, turns, _CLI_LEAN[0])
         # промпт — через stdin: большой текст в argv даёт E2BIG (урок ботов Фридмана)
-        p = subprocess.run(argv, input=prompt, capture_output=True, text=True, timeout=timeout, env=env, cwd=_CLI_CWD)
+        p = subprocess.run(argv, input=prompt, capture_output=True, text=True, timeout=timeout, env=env, cwd=cwd or _CLI_CWD)
         err = (p.stderr or "") + (p.stdout or "")[:300]
         if p.returncode != 0 and _CLI_LEAN[0] and ("unknown option" in err or "Unknown option" in err
                                                      or "unrecognized" in err):
@@ -841,19 +843,23 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
     model = CLI_MODEL_DEEP if deep else CLI_MODEL_CHAT
     tools = ["WebSearch", "WebFetch"] if web_allowed(agent_id, deep) else []
     files = []
+    att_dir = None
     extra = ""
     for a in attachments or []:
         if a.get("text") is not None:
             extra += f"\n\nВЛОЖЕНИЕ «{a.get('name', 'файл')}»:\n{a['text'][:60000]}"
         elif a.get("data"):
             ext = ".pdf" if a.get("media_type") == "application/pdf" else ".png" if "png" in a.get("media_type", "") else ".jpg"
-            f = tempfile.NamedTemporaryFile(prefix="bs_att_", suffix=ext, delete=False)
-            f.write(base64.b64decode(a["data"]))
-            f.close()
-            files.append(f.name)
+            # у каждого запроса своя пустая папка: CLI видит только вложения этого клиента
+            att_dir = att_dir or tempfile.mkdtemp(prefix="bs_att_")
+            name = f"file{len(files) + 1}{ext}"
+            with open(os.path.join(att_dir, name), "wb") as f:
+                f.write(base64.b64decode(a["data"]))
+            files.append(name)
     if files:
         tools.append("Read")
-        extra += "\n\nКлиент приложил файлы — прочитай их инструментом Read: " + ", ".join(files)
+        extra += "\n\nКлиент приложил файлы (в текущей папке) — прочитай их инструментом Read: " + ", ".join(
+            os.path.join(att_dir, n) for n in files)
     try:
         lite = depth > 0  # специалисту — профиль, анкета и задача, без всего дашборда и переписки
         prompt = (f"<context>\n{context_block(c, agent_id, lite=lite)}\n</context>\n\n{_history_text(hist)}"
@@ -862,7 +868,7 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
         timeout = 900 if deep else 420
         turns = (14 if deep else 8) if tools else 2
         kind = ("deep" if deep else "chat") if depth == 0 else f"specialist:{agent_id}"
-        reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt, tools, model, timeout, turns))
+        reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt, tools, model, timeout, turns, cwd=att_dir))
         notes = []
         _apply(c, agent_id, actions, ctx, notes)
         asks = [a for a in actions if a.get("type") == "ask" and a.get("agent") in AGENTS
@@ -889,11 +895,9 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
             log.warning("cli actions: %s", notes)
         return reply.strip() or i18n.t(c.get("lang"), "empty_reply")
     finally:
-        for f in files:
-            try:
-                os.unlink(f)
-            except OSError:
-                pass
+        if att_dir:
+            import shutil
+            shutil.rmtree(att_dir, ignore_errors=True)
 
 
 # ─── Радар возможностей: один поиск на связку «ремесло + страна» ─────────────
@@ -908,7 +912,9 @@ deadline is in the future (or rolling). Check every link in your search results;
 Answer with ONE JSON object and nothing else:
 {"items": [{"title": "...", "org": "who runs it", "url": "https://...", "deadline": "YYYY-MM-DD or empty",
 "amount": "money / prize / fee, short", "region": "de|at|ch|ua|eu|intl", "summary": "one English sentence: what and who can apply"}]}
-6 to 10 items, the most valuable first."""
+6 to 10 items, the most valuable first. Skip pay-to-exhibit offers, vanity galleries, paid "awards" without a jury
+or prizes, and calls that take the rights to the work. If a legitimate call has an entry fee, write it in "amount"
+(e.g. "prize 5000 €, entry fee 30 €")."""
 
 
 def radar_search(craft, country):
