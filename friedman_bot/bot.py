@@ -7146,7 +7146,7 @@ def _backstage_welcome(d):
     import time as _t
     import urllib.request
     import urllib.parse
-    if _settings_get("backstage_welcome3"):  # 3 — по подписке, без ключа, с демо-входом
+    if _settings_get("backstage_welcome3"):  # 3 — по подписке, без ключа
         return
     for _ in range(30):  # ждём, пока панель поднимется
         try:
@@ -7163,7 +7163,7 @@ def _backstage_welcome(d):
         return
     text = ("🎬 Backstage готов! Команда работает по твоей подписке Claude — ничего докупать не нужно.\n\n"
             f"Твоя панель (нажми и открой):\n{link}\n\n"
-            f"Демо для показа людям:\n{_backstage_url(ip)}/\nимя Canon, пин-код 1111")
+            f"Ссылка для новых людей — регистрация бесплатная:\n{_backstage_url(ip)}/")
     cid = get_chat_id()
     if not cid or not TOKEN:
         return
@@ -7223,7 +7223,7 @@ async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"\nКлиентов: {n_clients}",
         ("Команда работает по ключу Claude API" if env.get("ANTHROPIC_API_KEY")
          else "Команда работает по твоей подписке Claude"),
-        "Демо-вход: имя Canon, пин-код 1111",
+        f"Регистрация для новых людей: {base}/  (закрыть/открыть — в админке)",
         "\nНовый клиент: /backstageclient код Название [бюджет$]\nнапример /backstageclient farbaholix Farbaholix 50",
     ]
     if not alive:

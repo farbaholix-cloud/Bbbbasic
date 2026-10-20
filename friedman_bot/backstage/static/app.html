@@ -459,7 +459,7 @@ async function refreshMe() {
   ME = await api("api/me");
   $("#who").textContent = ME.name;
   const b = $("#budget");
-  if (ME.backend === "cli") { b.textContent = ME.demo ? "демо" : "подписка"; b.title = "Команда работает по подписке Claude"; }
+  if (ME.backend === "cli") { b.textContent = ME.fresh ? "бесплатно" : "подписка"; b.title = "Команда работает по подписке Claude"; }
   else { b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
     b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : ""; }
 }
@@ -515,7 +515,22 @@ document.querySelector("nav.tabs").onclick = (e) => { const t = e.target.dataset
   await Promise.all([loadWidgets(), loadMsgs()]);
   // Вкладку закрыли посреди ответа — подхватываем задачу, ответ не теряется (он и так сохранён в переписке)
   const pending = LS.get("bs_job");
-  if (pending) pollJob(pending).then(() => { loadMsgs(); loadWidgets(); }).catch(() => {}).finally(() => LS.del("bs_job"));
+  if (pending) {
+    // Первый разбор после регистрации (или ответ, начатый до закрытия вкладки):
+    // показываем, что команда работает, а не пустой чат
+    const wait = document.createElement("div");
+    wait.className = "thinking";
+    const steps = ["Майя читает твою анкету", "Рубен ищет конкурсы и фестивали", "Бен прикидывает цены",
+                   "Раскладываем доску под твою цель", "Собираем первый разбор"];
+    let k = 0; wait.textContent = steps[0];
+    const tick = setInterval(() => { k = (k + 1) % steps.length; wait.textContent = steps[k]; }, 9000);
+    if (window.innerWidth <= 1000) setTab("chat");  // сначала показать чат, потом прокрутить — скрытый не прокручивается
+    $("#msgs").append(wait);
+    requestAnimationFrame(() => { $("#msgs").scrollTop = $("#msgs").scrollHeight; });
+    pollJob(pending).then(() => { loadMsgs(); loadWidgets(); refreshMe(); toast("Первый разбор готов ✨"); })
+      .catch((e) => addMsg("assistant", "⚠️ " + e.message))
+      .finally(() => { clearInterval(tick); wait.remove(); LS.del("bs_job"); });
+  }
   setInterval(() => { if (!document.hidden && !document.activeElement.closest?.(".grid") && !document.querySelector("dialog[open]")) loadWidgets(); }, 60000);  // Telegram-мост мог поменять дашборд
 })();
 </script>

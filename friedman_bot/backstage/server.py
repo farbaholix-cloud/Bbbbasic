@@ -48,7 +48,7 @@ STATIC = os.path.join(HERE, "static")
 MAX_BODY = 30 * 1024 * 1024  # вложения (PDF договора, фото стены) приходят base64 в JSON
 VERSION = "0.1"
 
-PAGES = {"/": "login.html", "/join": "join.html", "/app": "app.html", "/guide": "guide.html", "/admin": "admin.html"}
+PAGES = {"/": "join.html", "/join": "join.html", "/login": "login.html", "/app": "app.html", "/guide": "guide.html", "/admin": "admin.html"}
 SIGNUP_DAILY = int(os.environ.get("BACKSTAGE_SIGNUP_DAILY", "30"))   # новых аккаунтов в сутки на всех
 SIGNUP_PER_IP = int(os.environ.get("BACKSTAGE_SIGNUP_PER_IP", "3"))   # с одного адреса в сутки
 MIME = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
@@ -62,7 +62,7 @@ _running = {}  # client_id → job_id: один ответ за раз на кл
 _jobs_lock = threading.Lock()
 
 
-def start_job(client_id, agent, text, attachments, deep):
+def start_job(client_id, agent, text, attachments, deep, display=None):
     with _jobs_lock:
         busy = _running.get(client_id)
         if busy and JOBS.get(busy, {}).get("status") == "running":
@@ -73,7 +73,7 @@ def start_job(client_id, agent, text, attachments, deep):
 
     def work():
         try:
-            res = brain.chat(client_id, agent, text, attachments=attachments, deep=deep)
+            res = brain.chat(client_id, agent, text, attachments=attachments, deep=deep, display=display)
             JOBS[jid].update(status="done", result=res)
         except brain.BudgetExceeded as e:
             JOBS[jid].update(status="error", error=str(e))
@@ -256,7 +256,7 @@ class Handler(BaseHTTPRequestHandler):
                 c = store.client_by_key(m.group(1), (q.get("k") or [""])[0])
                 if not c:
                     note_fail(ip)
-                    return self._redirect("/?bad=1")
+                    return self._redirect("/login?bad=1")
                 tok = store.new_session(c["id"])
                 return self._redirect("/app", {"Set-Cookie": self._cookie_header("bs_session", tok)})
             if path == "/api/signup/status":
@@ -345,7 +345,7 @@ class Handler(BaseHTTPRequestHandler):
         slug = str(body.get("slug", "")).strip().lower()
         pin = str(body.get("pin", "")).strip()
         craft = str(body.get("craft", "other"))
-        craft = craft if craft in ("animation", "illustration", "music", "mural", "photo", "other") else "other"
+        craft = craft if craft in brain.CRAFTS else "other"
         about = str(body.get("about", "")).strip()[:1500]
         goal = str(body.get("goal", "")).strip()[:800]
         city = str(body.get("city", "")).strip()[:60]
@@ -360,8 +360,7 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Нужно согласие на хранение данных.")
         if store.slug_taken(slug):
             raise ValueError("Это имя уже занято — попробуй другое.")
-        crafts = {"animation": "анимация и мультфильмы", "illustration": "иллюстрация", "music": "музыка",
-                  "mural": "муралы и граффити", "photo": "фотография", "other": "творческая практика"}
+        crafts = brain.CRAFTS
         profile = "\n".join(x for x in [
             f"{name}{', ' + city if city else ''} — {crafts[craft]}.",
             about and f"О себе: {about}", goal and f"Цель на 12 месяцев: {goal}", links and f"Ссылки: {links}"] if x)
@@ -370,7 +369,11 @@ class Handler(BaseHTTPRequestHandler):
         store.add_message(cid, "maya", "assistant", welcome_text(name, craft, goal))
         tok = store.new_session(cid)
         log.info("signup: %s (%s)", slug, craft)
-        return self._json({"ok": True}, headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
+        # Первый разбор стартует сразу: человек заполнил анкету — и уже видит, как
+        # команда работает над ним, а не сталкивается с пустым чатом.
+        jid = start_job(cid, "maya", brain.POTENTIAL_PROMPT + "\n\nОбо мне (из анкеты):\n" + profile, [], True,
+                        display="🎬 Майя, посмотри мою анкету и сделай первый разбор")
+        return self._json({"ok": True, "job": jid}, headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
 
     def admin_login(self, body):
         ip = self._ip()
@@ -392,7 +395,7 @@ class Handler(BaseHTTPRequestHandler):
                 "model_chat": (c["model_chat"] or brain.MODEL_CHAT) if brain.backend() == "api" else f"{brain.CLI_MODEL_CHAT} (подписка)",
                 "model_deep": (c["model_deep"] or brain.MODEL_DEEP) if brain.backend() == "api" else f"{brain.CLI_MODEL_DEEP} (подписка)",
                 "telegram": bool(c["tg_token"]), "share_insights": c["share_insights"],
-                "backend": brain.backend(), "demo": c["slug"] == store.DEMO_SLUG,
+                "backend": brain.backend(), "demo": False, "fresh": c.get("source") == "signup",
                 "agents": brain.AGENTS, "version": VERSION})
         if path == "/api/widgets":
             ws = store.list_widgets(cid)
@@ -532,18 +535,27 @@ def welcome_text(name, craft, goal):
         "animation": "Например: «найди фестивали анимации и питчинги с дедлайнами на ближайшие полгода» или «помоги посчитать цену за минуту анимации».",
         "illustration": "Например: «где искать заказы на детские книги» или «сколько брать за обложку».",
         "music": "Например: «составь план релиза на месяц» или «найди open calls для музыкантов».",
+        "dance": "Например: «найди конкурсы и кастинги на ближайшие месяцы» или «помоги с ценой за постановку номера».",
+        "theatre": "Например: «найди фестивали и гранты для независимого театра».",
+        "film": "Например: «найди фестивали короткого метра с дедлайнами» или «помоги с бюджетом съёмки».",
+        "painting": "Например: «где выставиться в этом году» или «как оценить мои картины».",
+        "design": "Например: «помоги с прайсом» или «где искать клиентов».",
+        "fashion": "Например: «найди показы и маркеты для молодых дизайнеров».",
+        "writing": "Например: «найди конкурсы и издательства для моей рукописи».",
         "mural": "Например: «найди конкурсы на муралы рядом со мной» или «посчитай цену стены 40 м²».",
         "photo": "Например: «где продавать фото» или «помоги с прайсом на съёмку».",
     }.get(craft, "Например: «найди гранты и конкурсы для меня» или «помоги составить прайс».")
     goal_line = f"\n\nТвою цель я записала: «{goal[:160]}». Будем двигаться к ней по шагам." if goal else ""
     return (f"Привет, {first}! Я Майя, твоя продюсерка 🎬\n\n"
             "Слева — твой дашборд: проекты, дедлайны, деньги. Он твой, меняй как хочешь — руками или просто попроси меня."
-            f"{goal_line}\n\nС чего начнём? {hints}")
+            f"{goal_line}\n\nЯ уже позвала команду: сейчас мы изучим твою анкету, поищем для тебя возможности в интернете "
+            "и разложим доску под твою цель. Это займёт несколько минут — можешь пока осмотреться.\n\n"
+            f"Потом спрашивай что угодно. {hints}")
 
 
 def main():
     store.init()
-    store.ensure_demo()
+    store.retire_demo()
     if not ADMIN_KEY:
         log.warning("BACKSTAGE_ADMIN_KEY не задан — админка закрыта")
     if not os.environ.get("ANTHROPIC_API_KEY"):

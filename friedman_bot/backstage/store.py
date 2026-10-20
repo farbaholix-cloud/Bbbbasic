@@ -243,20 +243,15 @@ def update_client(client_id: int, **fields):
         conn.execute(f"UPDATE clients SET {sets} WHERE id=?", (*fields.values(), client_id))
 
 
-DEMO_SLUG, DEMO_PIN = "canon", "1111"
+DEMO_SLUG = "canon"
 
 
-def ensure_demo():
-    """Демо-вход для показа: имя Canon, пин 1111 (подсказка видна на странице входа).
-    Все, кто входит в демо, видят один и тот же дашборд — личного туда не писать."""
+def retire_demo():
+    """Общий демо-вход Canon/1111 больше не предлагается: новички регистрируются сами.
+    Старый демо-аккаунт отключаем (данные не удаляем)."""
     with db() as conn:
-        if conn.execute("SELECT 1 FROM clients WHERE slug=?", (DEMO_SLUG,)).fetchone():
-            conn.execute("UPDATE clients SET source='demo' WHERE slug=?", (DEMO_SLUG,))
-            return
-    create_client(DEMO_SLUG, "Canon · демо",
-                  "Демо-проект. DJ и музыкальный автор (пример: DJ Can-On, Киев). Цель на 12 месяцев — "
-                  "запустить YouTube-канал с миксами, найти гранты на культурные проекты и коллаборации "
-                  "с клубами и фестивалями.", budget=5.0, key=DEMO_PIN, source="demo")
+        conn.execute("UPDATE clients SET active=0 WHERE slug=? AND source IN ('demo','admin') AND key_hash=?",
+                     (DEMO_SLUG, hash_key("1111")))
 
 
 # ─── Сессии ──────────────────────────────────────────────────────────────────
@@ -300,6 +295,13 @@ WIDGET_KINDS = ("kpi", "chart", "table", "board", "list", "note")
 
 CRAFT_BOARDS = {
     "animation": ["Идеи", "Раскадровка", "Анимация", "Сдано"],
+    "dance": ["Идеи", "Постановка", "Репетиции", "Выступления"],
+    "theatre": ["Идеи", "Репетиции", "Премьера", "Гастроли"],
+    "film": ["Идеи", "Сценарий", "Съёмка", "Монтаж"],
+    "painting": ["Идеи", "Холсты в работе", "Готово", "Продано"],
+    "design": ["Входящие", "Концепт", "Правки", "Сдано"],
+    "fashion": ["Идеи", "Эскизы", "Пошив", "Показ / продажа"],
+    "writing": ["Идеи", "Черновик", "Редактура", "Издано"],
     "illustration": ["Идеи", "Эскизы", "В работе", "Сдано"],
     "music": ["Демо", "В работе", "Релиз", "Выступления"],
     "mural": ["Входящие", "Эскиз", "На стене", "Готово"],
@@ -309,6 +311,9 @@ CRAFT_LISTS = {
     "animation": "Фестивали, питчинги и дедлайны",
     "music": "Конкурсы, фестивали и релизы",
     "mural": "Конкурсы, тендеры и дедлайны",
+    "dance": "Конкурсы, фестивали и кастинги",
+    "theatre": "Фестивали, гранты и гастроли",
+    "film": "Фестивали, питчинги и гранты",
 }
 
 

@@ -91,8 +91,8 @@
         <div class="perk"><i style="background:#ece4ff">💶</i>Поможем с ценой, сметой и счётом</div>
         <div class="perk"><i style="background:#dcf7ee">🗂</i>Все проекты и дедлайны — на одной доске</div>
       </div>
-      <button class="btn" type="button" data-next>Поехали →</button>
-      <p class="hint" style="text-align:center">Пока бесплатно · можно с телефона</p>
+      <button class="btn" type="button" data-next style="font-size:19px;padding:18px">Создать свой дашборд →</button>
+      <p class="hint" style="text-align:center">Бесплатно · 3 минуты · можно с телефона.<br>Сразу после анкеты команда сделает твой первый разбор.</p>
     </section>
 
     <!-- 1 · кто ты -->
@@ -104,9 +104,16 @@
       <div class="chips" id="crafts">
         <button type="button" class="chip" data-v="animation">🎞 Анимация</button>
         <button type="button" class="chip" data-v="illustration">✏️ Иллюстрация</button>
-        <button type="button" class="chip" data-v="music">🎧 Музыка</button>
-        <button type="button" class="chip" data-v="mural">🎨 Муралы</button>
+        <button type="button" class="chip" data-v="painting">🖼 Живопись</button>
+        <button type="button" class="chip" data-v="mural">🎨 Муралы и граффити</button>
+        <button type="button" class="chip" data-v="music">🎧 Музыка и DJ</button>
+        <button type="button" class="chip" data-v="dance">💃 Танцы</button>
+        <button type="button" class="chip" data-v="theatre">🎭 Театр</button>
+        <button type="button" class="chip" data-v="film">🎬 Кино и видео</button>
         <button type="button" class="chip" data-v="photo">📷 Фото</button>
+        <button type="button" class="chip" data-v="design">📐 Дизайн</button>
+        <button type="button" class="chip" data-v="fashion">🧵 Мода</button>
+        <button type="button" class="chip" data-v="writing">📖 Тексты</button>
         <button type="button" class="chip" data-v="other">✨ Другое</button>
       </div>
       <label for="city">Город <em>— по желанию</em></label>
@@ -151,7 +158,7 @@
     <section class="step" data-step="4">
       <h1>Готовлю твой дашборд…</h1>
       <div class="spin"></div>
-      <p class="lead" style="text-align:center">Раскладываю доску под твою работу и записываю цель.</p>
+      <p class="lead" style="text-align:center">Раскладываю доску под твою работу, записываю цель и зову команду на первый разбор.</p>
     </section>
 
     <section class="step" data-step="closed">
@@ -159,7 +166,7 @@
       <p class="lead">Сейчас новые места закончились. Загляни чуть позже или попроси приглашение у агентства.</p>
     </section>
   </form>
-  <div class="foot">Уже есть аккаунт? <a href="./">Войти</a></div>
+  <div class="foot">Уже есть дашборд? <a href="login">Войти</a></div>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -177,6 +184,13 @@ const CRAFT_SAY = {
   illustration: "Иллюстраторы — моя слабость. Поищем издательства, конкурсы и заказы.",
   music: "Музыка! Распланируем релизы, найдём площадки и open calls.",
   mural: "Стены — это масштаб. Найдём конкурсы, тендеры и заказчиков.",
+  painting: "Живопись! Поищем выставки, open calls и покупателей.",
+  dance: "Танцы! Найдём конкурсы, фестивали, кастинги и площадки для выступлений.",
+  theatre: "Театр — моя любовь. Поищем фестивали, гранты и площадки.",
+  film: "Кино! Найдём фестивали, питчинги и фонды.",
+  design: "Дизайн! Поможем с прайсом, клиентами и портфолио.",
+  fashion: "Мода! Поищем показы, маркеты и шоурумы.",
+  writing: "Тексты! Найдём конкурсы, издательства и резиденции.",
   photo: "Фото! Поможем с прайсом, съёмками и продажей работ.",
   other: "Отлично, разберёмся вместе — команда подстроится под тебя.",
 };
@@ -185,6 +199,13 @@ const ABOUT_PH = {
   illustration: "Например: рисую детские книги и обложки, работаю в цифре и акварелью",
   music: "Например: диджей и продюсер, хаус и электроника, выступаю в клубах",
   mural: "Например: расписываю стены и фасады, работаю с городом и бизнесом",
+  painting: "Например: пишу маслом, большие форматы, хочу выставляться и продавать",
+  dance: "Например: танцую хип-хоп и контемп, преподаю, ставлю номера для шоу",
+  theatre: "Например: актриса независимого театра, делаю свои перформансы",
+  film: "Например: снимаю короткий метр и клипы, ищу фестивали и продюсеров",
+  design: "Например: графический дизайнер, айдентика и упаковка",
+  fashion: "Например: шью коллекции из переработанных тканей",
+  writing: "Например: пишу сценарии и рассказы, ищу издателя",
   photo: "Например: снимаю портреты и события, ищу постоянных клиентов",
   other: "Что ты делаешь, для кого и в каком стиле",
 };
@@ -246,6 +267,7 @@ $("#f").addEventListener("submit", async (e) => {
       links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || "Что-то пошло не так");
+    try { if (j.job) localStorage.setItem("bs_job", j.job); } catch {}
     setTimeout(() => location.href = "app", 900);
   } catch (ex) { show(3); err.textContent = ex.message; $("#go").disabled = false; say("Ой, не получилось: " + ex.message); }
 });

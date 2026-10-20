@@ -473,7 +473,7 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
     return text or "(пустой ответ)"
 
 
-def chat(client_id, agent_id, text, attachments=None, deep=False):
+def chat(client_id, agent_id, text, attachments=None, deep=False, display=None):
     """Точка входа для веб-панели и Telegram-моста. Сохраняет переписку."""
     c = store.get_client(client_id)
     check_quota(c, deep)
@@ -483,7 +483,7 @@ def chat(client_id, agent_id, text, attachments=None, deep=False):
     note = ""
     if attachments:
         note = "\n\n📎 " + ", ".join(a.get("name", "файл") for a in attachments)
-    store.add_message(client_id, agent_id, "user", text + note, {"deep": deep})
+    store.add_message(client_id, agent_id, "user", (display or text) + note, {"deep": deep})
     ctx = {}
     if backend() == "cli":
         model = CLI_MODEL_DEEP if deep else CLI_MODEL_CHAT
@@ -499,6 +499,13 @@ def chat(client_id, agent_id, text, attachments=None, deep=False):
                       {"model": model, "consulted": ctx.get("consulted", []), "changed": ctx.get("changed", False)})
     return {"text": answer, "consulted": ctx.get("consulted", []), "changed": ctx.get("changed", False), "model": model}
 
+
+CRAFTS = {
+    "animation": "анимация и мультфильмы", "illustration": "иллюстрация", "painting": "живопись и графика",
+    "mural": "муралы и граффити", "music": "музыка и DJ", "dance": "танцы и хореография",
+    "theatre": "театр и перформанс", "film": "кино и видео", "photo": "фотография", "design": "дизайн",
+    "fashion": "мода и костюм", "writing": "литература и сценарии", "other": "творческая практика",
+}
 
 POTENTIAL_PROMPT = """Проведи глубокий первый анализ моей практики (это «Проверка потенциала»).
 
