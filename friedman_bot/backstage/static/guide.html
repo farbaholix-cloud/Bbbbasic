@@ -43,9 +43,9 @@
   <p class="lead">Backstage is your team of eight AI agents. You do the work — the team takes care of everything around it: finding grants and commissions, writing applications, reading contracts, working out prices, promoting you and planning ahead.</p>
 
   <nav class="card toc small">
-    <a href="#start-en">Getting in</a><a href="#team-en">The team</a><a href="#chat-en">Chat</a><a href="#potential-en">Potential check</a><a href="#survey-en">Detailed questionnaire</a>
-    <a href="#dash-en">Dashboard</a><a href="#charts-en">Charts</a><a href="#telegram-en">Telegram</a><a href="#phone-en">On your phone</a>
-    <a href="#money-en">Budget</a><a href="#exp-en">Knowledge base</a><a href="#limits-en">What the team doesn't do</a>
+    <a href="#start-en">Getting in</a><a href="#team-en">The team</a><a href="#chat-en">Chat</a><a href="#potential-en">Potential check</a><a href="#survey-en">Detailed questionnaire</a><a href="#radar-en">Opportunities radar</a>
+    <a href="#dash-en">Dashboard</a><a href="#charts-en">Charts</a><a href="#workspace-en">Workspace</a><a href="#telegram-en">Telegram</a><a href="#phone-en">On your phone</a>
+    <a href="#money-en">Budget</a><a href="#plans-en">Plans</a><a href="#exp-en">Knowledge base</a><a href="#limits-en">What the team doesn't do</a>
   </nav>
 
   <h2 id="start-en">1. Getting in</h2>
@@ -104,7 +104,16 @@
     <li><b>Changing your answers:</b> any time under ⚙ Settings → Detailed questionnaire.</li>
   </ul>
 
-  <h2 id="dash-en">6. Dashboard — a by-product of the work</h2>
+  <h2 id="radar-en">6. Opportunities radar &amp; reminders</h2>
+  <p>Once a week <b>Ruben</b> (scout) looks for current open calls, grants, residencies, contests and commissions that fit your craft and your country. The team keeps a shared, checked catalogue, so one search serves many artists — that's what keeps it affordable.</p>
+  <ul>
+    <li><b>New matches</b> arrive as a short message from Maya in the chat, land in the <b>Opportunities radar</b> list on your dashboard, and also reach your Telegram bot if you've connected one.</li>
+    <li><b>Reminders:</b> every day the team checks the deadlines in your dashboard lists and your applications, and reminds you 14, 7 and 2 days before.</li>
+    <li>You can switch off either one under ⚙ Settings → Notifications.</li>
+  </ul>
+  <p>Your country comes from the detailed questionnaire — fill it in and the results get more precise.</p>
+
+  <h2 id="dash-en">7. Dashboard — a by-product of the work</h2>
   <p>The heart of Backstage is working with the team. Everything the team finds and decides ends up on the <b>Dashboard</b> tab by itself: projects, deadlines, money, charts. You can just drop by to see how things are moving. If you like, you can edit it by hand or simply ask for changes in the chat.</p>
   <div class="t-wrap"><table>
     <tr><th>Widget</th><th>What it's for</th><th>How to edit it by hand</th></tr>
@@ -123,13 +132,22 @@
     <li><b>Practice profile</b> (⚙ Settings) — the most important field of all. The team always reads it: who you are, where you work, your status, your goals, your starting prices, your strongest projects.</li>
   </ul>
 
-  <h2 id="charts-en">7. Charts</h2>
+  <h2 id="charts-en">8. Charts</h2>
   <p>The easiest way is to ask: "make a chart of income and expenses by month since January" or "add a pie chart showing where my commissions come from". The team creates the widget and keeps it up to date whenever you mention new numbers.</p>
   <p>By hand: <b>+ Widget → Chart</b>, then ✎. You enter the data as a table, cells separated by semicolons. The first row holds the series names:</p>
   <div class="ex"><code>Month; Income; Expenses<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
   <p>Two series give you two lines, or two bars side by side. A pie needs a single series: the label is the category, the value is its share.</p>
 
-  <h2 id="telegram-en">8. Telegram — the same team in your messenger</h2>
+  <h2 id="workspace-en">9. Workspace: applications, documents, materials</h2>
+  <p>Open it with the <b>🗂 Workspace</b> button in the header (on your phone, it's the third tab at the bottom). There are three tabs.</p>
+  <h3>Applications</h3>
+  <p>Track every application through its stages: <b>Idea → Preparing → Submitted → Won / Rejected</b>. Add your own, or take one from the radar with a single tap; the team can also add applications itself. Once there's a result, tap <b>Learn from the result</b> and Maya draws the lessons for the next ones.</p>
+  <h3>Documents</h3>
+  <p>Choose a type: application, cover letter, artist statement, short bio, commercial offer, cost estimate or email to a client. Describe what it's for (paste the text of the call or a link), then pick the document language and the materials to use. Hanna writes applications and texts, Ben handles offers and estimates. They never invent facts: anything missing is marked <code>[TO FILL: …]</code>. Then open the result (to print or save as PDF) or download it as DOCX for Word.</p>
+  <h3>Materials</h3>
+  <p>Upload them once: CV, portfolio PDF, artist statement, bio, press kit, photos, video (up to 20 MB per file, 150 MB in total). The team reads the text of PDF and Word files and uses it in every document.</p>
+
+  <h2 id="telegram-en">10. Telegram — the same team in your messenger</h2>
   <p>You can connect your own bot: it talks to the same team, sees the same dashboard and draws on the same budget. Handy when you're on the move: jot down a thought, snap a photo of a wall, forward a PDF.</p>
   <ol>
     <li>In Telegram, open <b>@BotFather</b> → <code>/newbot</code> → pick a name and a username for your bot (it has to end in <code>bot</code>).</li>
@@ -140,10 +158,10 @@
   <p>Bot commands: <code>/team</code> — who's on the team, <code>/agent konrad</code> — write to a specialist directly, <code>/maya</code> — back to Maya, <code>/deep text</code> — deep analysis, <code>/budget</code> — spending. The bot understands photos and PDFs; voice messages aren't supported yet.</p>
   <p class="small muted">To switch to another chat or disconnect the bot, enter the token again or leave the field empty. If your token leaks, run <code>/revoke</code> in @BotFather and enter the new one.</p>
 
-  <h2 id="phone-en">9. On your phone</h2>
-  <p>The app works in your mobile browser: at the bottom there's a <b>Team / Dashboard</b> switch. Add it to your home screen and it opens like an app: Safari → "Share" → "Add to Home Screen"; Chrome → ⋮ → "Add to Home screen".</p>
+  <h2 id="phone-en">11. On your phone</h2>
+  <p>The app works in your mobile browser: at the bottom there's a <b>Team / Dashboard / Workspace</b> switch. Add it to your home screen and it opens like an app: Safari → "Share" → "Add to Home Screen"; Chrome → ⋮ → "Add to Home screen".</p>
 
-  <h2 id="money-en">10. Budget and models</h2>
+  <h2 id="money-en">12. Budget and models</h2>
   <p>Every answer from the team is work done by Claude models, and that costs money. You have a monthly AI budget: you can see it in the header and in the "AI budget" KPI. Once it's used up, the team goes quiet until the start of next month, or until the agency raises the limit.</p>
   <ul>
     <li>Regular chat — Claude Sonnet: fast and economical.</li>
@@ -152,10 +170,14 @@
     <li>To save money: be specific, attach what's needed, and keep your profile and dashboard up to date — then the team doesn't have to ask follow-up questions.</li>
   </ul>
 
-  <h2 id="exp-en">11. Knowledge base</h2>
+  <h2 id="plans-en">13. Plans</h2>
+  <p>New accounts start with a free 14-day trial. After that, you choose a plan under ⚙ Settings → Plan. The plans differ in how many team replies and deep analyses you get per day. Payment runs through Stripe, and everything you've built stays saved even if the trial ends.</p>
+  <p class="small muted">As long as the agency hasn't switched on payments, Backstage stays free, with daily limits.</p>
+
+  <h2 id="exp-en">14. Knowledge base</h2>
   <p>As you work together, the team saves what it learns: what worked in an application, what trap was hidden in a contract, which channel brought in a commission. You'll find all of it under ⚙ Settings → Knowledge base. If you allow it, anonymised takeaways (no names, amounts or contacts) go into a shared playbook once the agency has reviewed them: the agents of all clients learn from each other's experience — and so do you. You can untick the box at any time.</p>
 
-  <h2 id="limits-en">12. What the team doesn't do</h2>
+  <h2 id="limits-en">15. What the team doesn't do</h2>
   <ul>
     <li>It doesn't paint, play or sign anything for you. The creative work and the decisions are yours.</li>
     <li>It doesn't send emails or applications on its own: it prepares the text, you hit send.</li>
@@ -172,9 +194,9 @@
   <p class="lead">Backstage ist dein Team aus acht KI-Agenten. Du kümmerst dich um deine Arbeit, das Team um den Rest: Es sucht Förderungen und Aufträge, schreibt Anträge, liest Verträge, kalkuliert Preise, macht dich sichtbar und plant mit dir voraus.</p>
 
   <nav class="card toc small">
-    <a href="#start-de">Einstieg</a><a href="#team-de">Das Team</a><a href="#chat-de">Chat</a><a href="#potential-de">Potenzial-Check</a><a href="#survey-de">Ausführlicher Fragebogen</a>
-    <a href="#dash-de">Dashboard</a><a href="#charts-de">Diagramme</a><a href="#telegram-de">Telegram</a><a href="#phone-de">Auf dem Handy</a>
-    <a href="#money-de">Budget</a><a href="#exp-de">Erfahrungsdatenbank</a><a href="#limits-de">Was das Team nicht macht</a>
+    <a href="#start-de">Einstieg</a><a href="#team-de">Das Team</a><a href="#chat-de">Chat</a><a href="#potential-de">Potenzial-Check</a><a href="#survey-de">Ausführlicher Fragebogen</a><a href="#radar-de">Chancen-Radar</a>
+    <a href="#dash-de">Dashboard</a><a href="#charts-de">Diagramme</a><a href="#workspace-de">Arbeitsmappe</a><a href="#telegram-de">Telegram</a><a href="#phone-de">Auf dem Handy</a>
+    <a href="#money-de">Budget</a><a href="#plans-de">Tarife</a><a href="#exp-de">Erfahrungsdatenbank</a><a href="#limits-de">Was das Team nicht macht</a>
   </nav>
 
   <h2 id="start-de">1. Einstieg</h2>
@@ -233,7 +255,16 @@
     <li><b>Antworten ändern:</b> jederzeit unter ⚙ Einstellungen → Ausführlicher Fragebogen.</li>
   </ul>
 
-  <h2 id="dash-de">6. Dashboard – ein Nebenprodukt der Arbeit</h2>
+  <h2 id="radar-de">6. Chancen-Radar und Erinnerungen</h2>
+  <p>Einmal pro Woche sucht <b>Ruben</b> (Scout) nach aktuellen Open Calls, Förderungen, Residenzen, Wettbewerben und Aufträgen, die zu deiner Sparte und deinem Land passen. Das Team pflegt dafür einen gemeinsamen, geprüften Katalog – eine Suche bringt also vielen Künstlerinnen und Künstlern etwas, und genau das hält es bezahlbar.</p>
+  <ul>
+    <li><b>Neue Treffer</b> kommen als kurze Nachricht von Maya im Chat, landen in der Liste <b>Chancen-Radar</b> auf deinem Dashboard und auch in deinem Telegram-Bot, wenn er verbunden ist.</li>
+    <li><b>Erinnerungen:</b> Jeden Tag prüft das Team die Fristen in deinen Dashboard-Listen und Bewerbungen und erinnert dich 14, 7 und 2 Tage vorher.</li>
+    <li>Beides kannst du unter ⚙ Einstellungen → Benachrichtigungen ausschalten.</li>
+  </ul>
+  <p>Dein Land kommt aus dem ausführlichen Fragebogen – füll ihn aus, dann werden die Treffer genauer.</p>
+
+  <h2 id="dash-de">7. Dashboard – ein Nebenprodukt der Arbeit</h2>
   <p>Im Mittelpunkt von Backstage steht die Arbeit mit dem Team. Alles, was das Team findet und entscheidet, landet von selbst im Tab <b>Dashboard</b>: Projekte, Deadlines, Geld, Diagramme. Du kannst einfach reinschauen und sehen, wie es vorangeht. Wenn du magst, änderst du dort etwas von Hand oder sagst es einfach im Chat.</p>
   <div class="t-wrap"><table>
     <tr><th>Widget</th><th>Wofür</th><th>So bearbeitest du es von Hand</th></tr>
@@ -252,13 +283,22 @@
     <li><b>Praxisprofil</b> (⚙ Einstellungen) — das wichtigste Feld überhaupt. Das Team liest es jedes Mal: wer du bist, wo du arbeitest, dein Status, deine Ziele, deine Preise „ab“, deine stärksten Projekte.</li>
   </ul>
 
-  <h2 id="charts-de">7. Diagramme</h2>
+  <h2 id="charts-de">8. Diagramme</h2>
   <p>Am einfachsten fragst du: „Mach ein Diagramm mit Einnahmen und Ausgaben pro Monat seit Januar“ oder „füg ein Tortendiagramm hinzu: Woher kommen meine Aufträge?“. Das Team legt das Widget an und ergänzt es, sobald du neue Zahlen nennst.</p>
   <p>Von Hand: <b>+ Widget → Diagramm</b>, dann ✎. Die Daten gibst du als Tabelle ein, Zellen durch Semikolon getrennt. Die erste Zeile enthält die Namen der Reihen:</p>
   <div class="ex"><code>Monat; Einnahmen; Ausgaben<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
   <p>Zwei Reihen ergeben zwei Linien oder zwei Balken nebeneinander. Für eine Torte brauchst du genau eine Reihe: Die Beschriftung ist die Kategorie, der Wert ihr Anteil.</p>
 
-  <h2 id="telegram-de">8. Telegram – dasselbe Team im Messenger</h2>
+  <h2 id="workspace-de">9. Arbeitsmappe: Bewerbungen, Dokumente, Materialien</h2>
+  <p>Du öffnest sie mit dem Button <b>🗂 Arbeitsmappe</b> in der Kopfzeile (auf dem Handy ist es der dritte Tab unten). Sie hat drei Tabs.</p>
+  <h3>Bewerbungen</h3>
+  <p>Hier verfolgst du jede Bewerbung durch ihre Phasen: <b>Idee → In Vorbereitung → Eingereicht → Zusage / Absage</b>. Leg eigene an oder übernimm eine mit einem Tipp aus dem Radar; das Team kann Bewerbungen auch selbst eintragen. Steht das Ergebnis fest, tippst du auf <b>Aus dem Ergebnis lernen</b> – Maya zieht daraus Lehren für die nächsten.</p>
+  <h3>Dokumente</h3>
+  <p>Wähl eine Art: Bewerbung, Anschreiben, künstlerisches Statement, Kurzbiografie, Angebot, Kostenvoranschlag oder E-Mail an Kundschaft. Beschreib, wofür es ist (füg den Ausschreibungstext oder einen Link ein), und wähl die Sprache des Dokuments und die Materialien, die verwendet werden sollen. Hanna schreibt Bewerbungen und Texte, Ben Angebote und Kostenvoranschläge. Beide erfinden keine Fakten: Was fehlt, wird mit <code>[TO FILL: …]</code> markiert. Das Ergebnis kannst du öffnen (drucken oder als PDF speichern) oder als DOCX für Word herunterladen.</p>
+  <h3>Materialien</h3>
+  <p>Einmal hochladen: Lebenslauf, Portfolio-PDF, künstlerisches Statement, Biografie, Pressemappe, Fotos, Video (bis 20 MB pro Datei, insgesamt 150 MB). Das Team liest den Text aus PDF- und Word-Dateien und nutzt ihn für jedes Dokument.</p>
+
+  <h2 id="telegram-de">10. Telegram – dasselbe Team im Messenger</h2>
   <p>Du kannst deinen eigenen Bot verbinden: Er schreibt mit demselben Team, sieht dasselbe Dashboard und nutzt dasselbe Budget. Praktisch unterwegs: schnell einen Gedanken festhalten, eine Wand fotografieren, ein PDF weiterleiten.</p>
   <ol>
     <li>Öffne in Telegram <b>@BotFather</b> → <code>/newbot</code> → denk dir einen Namen und eine Adresse für den Bot aus (sie muss auf <code>bot</code> enden).</li>
@@ -269,10 +309,10 @@
   <p>Bot-Befehle: <code>/team</code> — wer im Team ist, <code>/agent konrad</code> — direkt mit einem Agenten schreiben, <code>/maya</code> — zurück zu Maya, <code>/deep Text</code> — Tiefenanalyse, <code>/budget</code> — Verbrauch. Fotos und PDFs versteht der Bot, Sprachnachrichten noch nicht.</p>
   <p class="small muted">Chat wechseln oder Bot trennen: Token neu eingeben oder das Feld leer lassen. Falls der Token in falsche Hände geraten ist: in @BotFather <code>/revoke</code> ausführen und den neuen Token eintragen.</p>
 
-  <h2 id="phone-de">9. Auf dem Handy</h2>
-  <p>Die App funktioniert im mobilen Browser: Unten wechselst du zwischen <b>Team / Dashboard</b>. Leg sie auf deinen Home-Bildschirm, dann öffnet sie sich wie eine App: Safari → „Teilen“ → „Zum Home-Bildschirm“; Chrome → ⋮ → „Zum Startbildschirm hinzufügen“.</p>
+  <h2 id="phone-de">11. Auf dem Handy</h2>
+  <p>Die App funktioniert im mobilen Browser: Unten wechselst du zwischen <b>Team / Dashboard / Arbeitsmappe</b>. Leg sie auf deinen Home-Bildschirm, dann öffnet sie sich wie eine App: Safari → „Teilen“ → „Zum Home-Bildschirm“; Chrome → ⋮ → „Zum Startbildschirm hinzufügen“.</p>
 
-  <h2 id="money-de">10. Budget und Modelle</h2>
+  <h2 id="money-de">12. Budget und Modelle</h2>
   <p>Jede Antwort des Teams ist Arbeit von Claude-Modellen, und die kostet Geld. Du hast ein monatliches KI-Budget: Du siehst es oben in der Kopfzeile und in der KPI „KI-Budget“. Ist es aufgebraucht, verstummt das Team bis zum nächsten Monatsanfang – oder bis die Agentur das Limit erhöht.</p>
   <ul>
     <li>Normaler Chat — Claude Sonnet: schnell und sparsam.</li>
@@ -281,10 +321,14 @@
     <li>So sparst du: Schreib konkret, häng an, was gebraucht wird, und halte Profil und Dashboard aktuell – dann muss das Team nicht nachfragen.</li>
   </ul>
 
-  <h2 id="exp-de">11. Erfahrungsdatenbank</h2>
+  <h2 id="plans-de">13. Tarife</h2>
+  <p>Neue Konten starten mit einem kostenlosen Test über 14 Tage. Danach wählst du unter ⚙ Einstellungen → Tarif einen Tarif. Die Tarife unterscheiden sich darin, wie viele Antworten des Teams und Tiefenanalysen du pro Tag bekommst. Bezahlt wird über Stripe, und alles, was du aufgebaut hast, bleibt gespeichert – auch wenn der Test abläuft.</p>
+  <p class="small muted">Solange die Agentur keine Zahlungen eingeschaltet hat, bleibt Backstage kostenlos, mit Tageslimits.</p>
+
+  <h2 id="exp-de">14. Erfahrungsdatenbank</h2>
   <p>Während ihr zusammenarbeitet, hält das Team fest, was es gelernt hat: was in einem Antrag funktioniert hat, welche Falle in einem Vertrag steckte, welcher Kanal einen Auftrag gebracht hat. Du findest das unter ⚙ Einstellungen → Erfahrungsdatenbank. Wenn du zustimmst, fließen anonymisierte Erkenntnisse (ohne Namen, Beträge und Kontakte) nach Prüfung durch die Agentur in ein gemeinsames Playbook: Die Agenten aller Kundinnen und Kunden lernen voneinander – und du von den Erfahrungen der anderen. Das Häkchen kannst du jederzeit entfernen.</p>
 
-  <h2 id="limits-de">12. Was das Team nicht macht</h2>
+  <h2 id="limits-de">15. Was das Team nicht macht</h2>
   <ul>
     <li>Es malt, spielt und unterschreibt nicht für dich. Die kreative Arbeit und die Entscheidungen bleiben bei dir.</li>
     <li>Es verschickt keine Mails oder Anträge selbst: Es bereitet den Text vor, abschicken tust du.</li>
@@ -301,9 +345,9 @@
   <p class="lead">Backstage — це твоя команда з восьми ШІ-агентів. Ти займаєшся своєю справою, а команда бере на себе решту: шукає гранти й замовлення, пише заявки, читає договори, рахує ціни, просуває тебе та планує наперед.</p>
 
   <nav class="card toc small">
-    <a href="#start-ua">Вхід</a><a href="#team-ua">Команда</a><a href="#chat-ua">Чат</a><a href="#potential-ua">Перевірка потенціалу</a><a href="#survey-ua">Детальна анкета</a>
-    <a href="#dash-ua">Дашборд</a><a href="#charts-ua">Графіки</a><a href="#telegram-ua">Telegram</a><a href="#phone-ua">На телефоні</a>
-    <a href="#money-ua">Бюджет</a><a href="#exp-ua">База досвіду</a><a href="#limits-ua">Чого команда не робить</a>
+    <a href="#start-ua">Вхід</a><a href="#team-ua">Команда</a><a href="#chat-ua">Чат</a><a href="#potential-ua">Перевірка потенціалу</a><a href="#survey-ua">Детальна анкета</a><a href="#radar-ua">Радар можливостей</a>
+    <a href="#dash-ua">Дашборд</a><a href="#charts-ua">Графіки</a><a href="#workspace-ua">Робоча тека</a><a href="#telegram-ua">Telegram</a><a href="#phone-ua">На телефоні</a>
+    <a href="#money-ua">Бюджет</a><a href="#plans-ua">Тарифи</a><a href="#exp-ua">База досвіду</a><a href="#limits-ua">Чого команда не робить</a>
   </nav>
 
   <h2 id="start-ua">1. Вхід</h2>
@@ -362,7 +406,16 @@
     <li><b>Змінити відповіді:</b> будь-коли в ⚙ Налаштування → Детальна анкета.</li>
   </ul>
 
-  <h2 id="dash-ua">6. Дашборд — побічний результат роботи</h2>
+  <h2 id="radar-ua">6. Радар можливостей і нагадування</h2>
+  <p>Раз на тиждень <b>Рубен</b> (скаут) шукає актуальні open calls, гранти, резиденції, конкурси й замовлення, які пасують до твого напряму та країни. Команда веде спільний перевірений каталог, тож один пошук корисний багатьом митцям — саме це тримає ціну доступною.</p>
+  <ul>
+    <li><b>Нові збіги</b> приходять короткою реплікою від Майї в чаті, потрапляють у список <b>Радар можливостей</b> на дашборді, а також у твій Telegram-бот, якщо його підключено.</li>
+    <li><b>Нагадування:</b> щодня команда перевіряє дедлайни у списках дашборду та в заявках і нагадує за 14, 7 і 2 дні.</li>
+    <li>Обидва можна вимкнути в ⚙ Налаштування → Сповіщення.</li>
+  </ul>
+  <p>Країну команда бере з детальної анкети — заповни її, і результати будуть точнішими.</p>
+
+  <h2 id="dash-ua">7. Дашборд — побічний результат роботи</h2>
   <p>Головне в Backstage — робота з командою. Усе, що команда знаходить і вирішує, саме складається на вкладці <b>Дашборд</b>: проєкти, дедлайни, гроші, графіки. Туди можна просто зазирати, щоб бачити прогрес. За бажання все можна правити вручну або словами в чаті.</p>
   <div class="t-wrap"><table>
     <tr><th>Віджет</th><th>Для чого</th><th>Як правити вручну</th></tr>
@@ -381,13 +434,22 @@
     <li><b>Профіль практики</b> (⚙ Налаштування) — найважливіше поле. Команда читає його завжди: хто ти, де працюєш, твій статус, цілі, ціни «від», найсильніші проєкти.</li>
   </ul>
 
-  <h2 id="charts-ua">7. Графіки</h2>
+  <h2 id="charts-ua">8. Графіки</h2>
   <p>Найпростіше — попросити: «зроби графік доходів і витрат по місяцях від січня» або «додай кругову діаграму: звідки приходять замовлення». Команда створить віджет і доповнюватиме його, щойно ти називатимеш нові цифри.</p>
   <p>Вручну: <b>+ Віджет → Графік</b>, потім ✎. Дані вводяться таблицею, клітинки через крапку з комою. Перший рядок — назви серій:</p>
   <div class="ex"><code>Місяць; Дохід; Витрати<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
   <p>Дві серії — дві лінії або два стовпці поруч. Для кругової діаграми потрібна одна серія: підпис — категорія, значення — частка.</p>
 
-  <h2 id="telegram-ua">8. Telegram — та сама команда в месенджері</h2>
+  <h2 id="workspace-ua">9. Робоча тека: заявки, документи, матеріали</h2>
+  <p>Відкривається кнопкою <b>🗂 Робоча тека</b> в шапці (на телефоні — третя вкладка внизу). Усередині три вкладки.</p>
+  <h3>Заявки</h3>
+  <p>Тут видно кожну заявку на всіх етапах: <b>Ідея → Готуємо → Подано → Перемога / Відмова</b>. Додавай власні або бери з радару одним дотиком; команда теж може додавати заявки сама. Коли є результат, натисни <b>Зробити висновки</b> — Майя винесе уроки на наступні.</p>
+  <h3>Документи</h3>
+  <p>Обери тип: заявка, супровідний лист, artist statement, коротка біографія, комерційна пропозиція, кошторис або лист клієнту. Опиши, для чого він (встав текст конкурсу чи посилання), обери мову документа й матеріали, які варто використати. Ганна пише заявки й тексти, Бен — пропозиції та кошториси. Факти вони не вигадують: чого бракує, позначають <code>[TO FILL: …]</code>. Результат можна відкрити (надрукувати чи зберегти як PDF) або завантажити як DOCX для Word.</p>
+  <h3>Матеріали</h3>
+  <p>Завантаж один раз: резюме, портфоліо в PDF, artist statement, біографію, пресматеріали, фото, відео (до 20 МБ на файл, 150 МБ загалом). Команда читає текст із PDF і файлів Word та використовує його в кожному документі.</p>
+
+  <h2 id="telegram-ua">10. Telegram — та сама команда в месенджері</h2>
   <p>Можна підключити власного бота: він пише тій самій команді, бачить той самий дашборд і витрачає той самий бюджет. Зручно в дорозі: швидко записати думку, сфотографувати стіну, переслати PDF.</p>
   <ol>
     <li>У Telegram відкрий <b>@BotFather</b> → <code>/newbot</code> → придумай ім'я та адресу бота (вона має закінчуватися на <code>bot</code>).</li>
@@ -398,10 +460,10 @@
   <p>Команди бота: <code>/team</code> — склад команди, <code>/agent konrad</code> — писати фахівцеві напряму, <code>/maya</code> — назад до Майї, <code>/deep текст</code> — глибокий аналіз, <code>/budget</code> — витрати. Фото й PDF бот розуміє, голосові — поки що ні.</p>
   <p class="small muted">Змінити чат або відключити бота: введи токен заново або залиш поле порожнім. Якщо токен потрапив у чужі руки — зроби в @BotFather <code>/revoke</code> і введи новий.</p>
 
-  <h2 id="phone-ua">9. На телефоні</h2>
-  <p>Панель працює в мобільному браузері: унизу є перемикач <b>Команда / Дашборд</b>. Додай її на початковий екран — і вона відкриватиметься як застосунок: Safari → «Поширити» → «На початковий екран»; Chrome → ⋮ → «Додати на головний екран».</p>
+  <h2 id="phone-ua">11. На телефоні</h2>
+  <p>Панель працює в мобільному браузері: унизу є перемикач <b>Команда / Дашборд / Робоча тека</b>. Додай її на початковий екран — і вона відкриватиметься як застосунок: Safari → «Поширити» → «На початковий екран»; Chrome → ⋮ → «Додати на головний екран».</p>
 
-  <h2 id="money-ua">10. Бюджет і моделі</h2>
+  <h2 id="money-ua">12. Бюджет і моделі</h2>
   <p>Кожна відповідь команди — це робота моделей Claude, і вона коштує грошей. У тебе є місячний бюджет на ШІ: його видно в шапці та в KPI «Бюджет ШІ». Коли він вичерпаний, команда замовкає до початку наступного місяця або доки агенція не підніме ліміт.</p>
   <ul>
     <li>Звичайний чат — модель Claude Sonnet: швидка та економна.</li>
@@ -410,10 +472,14 @@
     <li>Як заощадити: пиши конкретно, додавай потрібне, тримай профіль і дашборд актуальними — тоді команді не доведеться перепитувати.</li>
   </ul>
 
-  <h2 id="exp-ua">11. База досвіду</h2>
+  <h2 id="plans-ua">13. Тарифи</h2>
+  <p>Нові акаунти починають із безкоштовного пробного періоду на 14 днів. Після нього ти обираєш тариф у ⚙ Налаштування → Тариф. Тарифи відрізняються тим, скільки відповідей команди й глибоких аналізів ти отримуєш на день. Оплата йде через Stripe, а все, що ти вже напрацював(-ла), зберігається, навіть коли пробний період закінчився.</p>
+  <p class="small muted">Поки агенція не ввімкнула оплату, Backstage лишається безкоштовним, з денними лімітами.</p>
+
+  <h2 id="exp-ua">14. База досвіду</h2>
   <p>У процесі роботи команда зберігає висновки: що спрацювало в заявці, яка пастка була в договорі, який канал приніс замовлення. Їх видно в ⚙ Налаштування → База досвіду. Якщо дозволиш, знеособлені висновки (без імен, сум і контактів) після перевірки агенцією потрапляють у спільний плейбук: агенти всіх клієнтів учаться на досвіді одне одного, а ти — на чужому. Галочку можна зняти будь-коли.</p>
 
-  <h2 id="limits-ua">12. Чого команда не робить</h2>
+  <h2 id="limits-ua">15. Чого команда не робить</h2>
   <ul>
     <li>Не малює, не грає і не підписує за тебе. Творчість і рішення — твої.</li>
     <li>Не надсилає листи й заявки сама: готує текст, а надсилаєш ти.</li>
