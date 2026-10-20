@@ -400,7 +400,7 @@
 (function () {
   const LANGS = ["en", "de", "ua"];
   const TITLES = {en: "Backstage — how it works", de: "Backstage — so funktioniert's", ua: "Backstage — як це працює"};
-  const L = new URLSearchParams(location.search).get("lang") || (()=>{try{return localStorage.getItem("bs_lang")}catch{return null}})() || ((navigator.language||"").slice(0,2)==="de"?"de":(navigator.language||"").slice(0,2)==="uk"?"ua":"en");
+  const L = new URLSearchParams(location.search).get("lang") || (()=>{try{return localStorage.getItem("bs_lang")}catch{return null}})() || "en";
   const norm = (x) => { x = String(x || "").toLowerCase(); if (x === "uk" || x === "ru") x = "ua"; return LANGS.includes(x) ? x : "en"; };
   let cur = norm(L);
 

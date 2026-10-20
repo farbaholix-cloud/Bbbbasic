@@ -187,7 +187,7 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": msg}, code)
 
     def _lang(self, body=None, cid=None):
-        """Язык ответа: из запроса, из профиля клиента, из cookie формы, из браузера."""
+        """Язык ответа: из запроса, из профиля клиента, из cookie выбора языка; иначе английский."""
         if body and body.get("lang"):
             return i18n.norm(body["lang"])
         if cid:
@@ -196,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
                 return i18n.norm(c["lang"])
         if self._cookies().get("bs_lang"):
             return i18n.norm(self._cookies()["bs_lang"])
-        return i18n.norm((self.headers.get("Accept-Language") or "")[:2])
+        return i18n.DEFAULT
 
     def _prefix(self):
         # За прокси дашборда (порт 8765, путь /bs) редиректы должны вести на /bs/…

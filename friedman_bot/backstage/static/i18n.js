@@ -437,7 +437,8 @@ const BS = (() => {
     return LANGS.includes(l) ? l : "en";
   };
   const stored = () => { try { return localStorage.getItem("bs_lang"); } catch { return null; } };
-  let lang = norm(new URLSearchParams(location.search).get("lang") || stored() || navigator.language);
+  // Базовый язык — английский; немецкий или украинский только по явному выбору человека
+  let lang = norm(new URLSearchParams(location.search).get("lang") || stored() || "en");
   function t(key, vars) {
     let s = I18N[lang][key] ?? I18N.en[key] ?? key;
     if (vars) s = s.replace(/\{(\w+)\}/g, (_, n) => vars[n] ?? "");
