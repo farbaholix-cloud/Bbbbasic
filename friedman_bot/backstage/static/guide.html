@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="ru"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Backstage — инструкция</title>
+<title>Backstage — how it works</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
@@ -24,123 +24,420 @@
   td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
   .t-wrap{overflow-x:auto}
   kbd{background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:0 5px;font-size:13px}
+  .lang-block{display:none}.lang-block.on{display:block}
+  .lang-switch{display:flex;justify-content:flex-end;gap:6px;margin:0 0 -6px}
+  .lang-switch a{text-decoration:none}
+  .lang-switch a.cur{font-weight:700}
 </style>
+<noscript><style>.lang-block[data-lang="en"]{display:block}</style></noscript>
 </head><body>
 <main>
-  <p class="small"><a href="app">← в панель</a></p>
-  <h1>Как работать<br>с командой BACKSTAGE<span>.</span></h1>
-  <p class="lead">Backstage — это твоя команда из восьми ИИ-агентов. Ты занимаешься работой, команда делает остальное: ищет гранты и заказы, пишет заявки, читает договоры, считает цены, продвигает и планирует.</p>
-
-  <nav class="card toc small">
-    <a href="#start">Вход</a><a href="#team">Команда</a><a href="#chat">Чат</a><a href="#potential">Проверка потенциала</a>
-    <a href="#dash">Показатели</a><a href="#charts">Графики</a><a href="#telegram">Telegram</a><a href="#phone">На телефоне</a>
-    <a href="#money">Бюджет</a><a href="#exp">База опыта</a><a href="#limits">Чего команда не делает</a>
+  <nav class="lang-switch small" aria-label="Language">
+    <a href="?lang=en" data-set-lang="en" class="cur">EN</a><span>·</span><a href="?lang=de" data-set-lang="de">DE</a><span>·</span><a href="?lang=uk" data-set-lang="uk">UK</a>
   </nav>
 
-  <h2 id="start">1. Вход</h2>
-  <p>Агентство присылает тебе персональную ссылку вида <code>http://IP-адрес:8765/bs/c/код?k=ключ</code>. Открой её — панель запомнит тебя на 30 дней. Ссылку никому не пересылай: по ней можно работать от твоего имени. Если она потерялась или утекла, попроси новую — старая сразу перестанет работать.</p>
-  <p>Можно войти и вручную: главная страница → код проекта и ключ.</p>
-  <p class="small muted">Адрес пока без красивого домена — это просто IP сервера агентства. Браузер может показать «Не защищено»: соединение пока без сертификата, поэтому не присылай через панель пароли и банковские данные.</p>
+  <!-- ===================== EN ===================== -->
+  <div class="lang-block" data-lang="en">
+  <p class="small"><a href="app">← back to the team</a></p>
+  <h1>How to work<br>with your BACKSTAGE team<span>.</span></h1>
+  <p class="lead">Backstage is your team of eight AI agents. You do the work — the team takes care of everything around it: finding grants and commissions, writing applications, reading contracts, working out prices, promoting you and planning ahead.</p>
 
-  <h2 id="team">2. Команда</h2>
+  <nav class="card toc small">
+    <a href="#start-en">Getting in</a><a href="#team-en">The team</a><a href="#chat-en">Chat</a><a href="#potential-en">Potential check</a>
+    <a href="#dash-en">Dashboard</a><a href="#charts-en">Charts</a><a href="#telegram-en">Telegram</a><a href="#phone-en">On your phone</a>
+    <a href="#money-en">Budget</a><a href="#exp-en">Knowledge base</a><a href="#limits-en">What the team doesn't do</a>
+  </nav>
+
+  <h2 id="start-en">1. Getting in</h2>
+  <p>New here? On the start page, tap <b>Start working with your team</b>. It's free and takes about three minutes: you tell the team a little about yourself and your work, then set up your <b>Login name</b> and <b>PIN</b> (4–8 digits — pick one that isn't obvious). Right after that, the team does a first review of your practice.</p>
+  <p>To come back later, log in with your <b>Login name</b> and <b>PIN</b>. The app remembers you on that device for 30 days.</p>
+  <p>If the agency set you up, you may get a personal link instead, something like <code>http://IP-address:8765/bs/c/code?k=key</code>. Open it and you're in. Don't forward it to anyone: whoever has it can work in your name. If it gets lost or leaks, ask for a new one — the old one stops working right away.</p>
+  <p class="small muted">For now the address has no proper domain — it's simply the IP of the agency's server. Your browser may say "Not secure": the connection doesn't have a certificate yet, so please don't send passwords or bank details through the app.</p>
+
+  <h2 id="team-en">2. The team</h2>
   <div class="team">
-    <div class="card"><b>🎬 Майя</b> · продюсерка<br><span class="small muted">Главная. Принимает любую задачу, зовёт нужных специалистов и сводит ответ.</span></div>
-    <div class="card"><b>🔭 Рубен</b> · скаут<br><span class="small muted">Конкурсы, тендеры, Kunst am Bau, резиденции, open calls, заказчики. Ищет в интернете.</span></div>
-    <div class="card"><b>✍️ Ганна</b> · грантрайтерка<br><span class="small muted">Превращает портфолио в заявки, которые дочитывают до конца.</span></div>
-    <div class="card"><b>⚖️ Конрад</b> · юридический отдел<br><span class="small muted">Договоры, права использования, лицензии на музыку, налоги, письма в ведомства.</span></div>
-    <div class="card"><b>📈 Ноа</b> · онлайн-маркетинг<br><span class="small muted">Google, ответы ИИ-ассистентов, профили, соцсети.</span></div>
-    <div class="card"><b>🤝 Тарік</b> · PR и офлайн<br><span class="small muted">Пресса, спонсоры, фестивали, партнёры, презентации.</span></div>
-    <div class="card"><b>🎥 Ірис</b> · контент и видео<br><span class="small muted">Форматы, сценарии, контент-план, названия и описания.</span></div>
-    <div class="card"><b>💶 Бен</b> · финансы<br><span class="small muted">Сметы, цены, счета, доходы и расходы.</span></div>
+    <div class="card"><b>🎬 Maya</b> · producer<br><span class="small muted">The lead. Takes on any task, brings in the right specialists and pulls it all together into one answer.</span></div>
+    <div class="card"><b>🔭 Ruben</b> · scout<br><span class="small muted">Competitions, tenders, Kunst am Bau, residencies, open calls, clients. Searches the web.</span></div>
+    <div class="card"><b>✍️ Hanna</b> · grant writer<br><span class="small muted">Turns your portfolio into applications people actually read to the end.</span></div>
+    <div class="card"><b>⚖️ Konrad</b> · legal<br><span class="small muted">Contracts, usage rights, music licensing, taxes, letters to the authorities.</span></div>
+    <div class="card"><b>📈 Noa</b> · online marketing<br><span class="small muted">Google, answers from AI assistants, profiles, social media.</span></div>
+    <div class="card"><b>🤝 Tarik</b> · PR &amp; offline<br><span class="small muted">Press, sponsors, festivals, partners, presentations.</span></div>
+    <div class="card"><b>🎥 Iris</b> · content &amp; video<br><span class="small muted">Formats, scripts, content plans, titles and descriptions.</span></div>
+    <div class="card"><b>💶 Ben</b> · finance<br><span class="small muted">Budgets, prices, invoices, income and expenses.</span></div>
   </div>
-  <p>Все участники — ИИ-агенты на моделях Claude. Портреты нарисованы, чтобы ты знал, с кем говоришь.</p>
+  <p>Everyone on the team is an AI agent running on Claude models. The portraits are drawn so you know who you're talking to.</p>
 
-  <h2 id="chat">3. Чат — главный способ работы</h2>
-  <p>Пиши <b>Майе</b> обо всём подряд, как продюсеру: задачу, сомнение, цифры, ссылку, фото стены, PDF договора. Тебе не нужно решать, к какому специалисту идти: Майя сама поручит работу Рубену, Конраду или Бену и вернёт один сводный ответ. Под ответом видно, кого она позвала и обновились ли показатели.</p>
-  <p>Опыт первой версии системы показал: когда человек сам бегает по восьми чатам, дело идёт хуже. Поэтому прямой чат со специалистом есть (кнопки с именами над перепиской), но обычно быстрее через Майю.</p>
-  <h3>Что можно писать — примеры</h3>
-  <div class="ex"><b>Задача:</b> «Найди мне конкурсы на муралы в Гессене с дедлайном до весны и положи их в дедлайны».</div>
-  <div class="ex"><b>Документ:</b> 📎 договор.pdf + «Что здесь опасно для меня? Особенно про права на изображение».</div>
-  <div class="ex"><b>Цифры:</b> «В сентябре пришло 2400 €, в октябре пока 900» — Бен обновит KPI и график дохода.</div>
-  <div class="ex"><b>Письмо:</b> «Напиши управляющей компании на Hanauer Landstraße, предложи мурал на торце. По-немецки, перевод под ним».</div>
-  <div class="ex"><b>План:</b> «Хочу запустить YouTube-канал с миксами. Сделай план на 8 недель и доску проекта».</div>
-  <div class="ex"><b>Показатели:</b> «Добавь график подписчиков по неделям», «переименуй колонку “Ждём ответа” в “На согласовании”», «убери заметку про выставку».</div>
-  <h3>Кнопки под полем ввода</h3>
+  <h2 id="chat-en">3. Chat — the main way to work</h2>
+  <p>Write to <b>Maya</b> about anything, the way you would talk to a producer: a task, a doubt, some numbers, a link, a photo of a wall, a contract as a PDF. You don't have to work out which specialist to go to: Maya hands the work to Ruben, Konrad or Ben herself and comes back with one combined answer. Below the answer you can see who she brought in and whether your dashboard was updated.</p>
+  <p>The first version of the system taught us something: when people run back and forth between eight chats themselves, things go worse. So yes, you can talk to a specialist directly (the name buttons above the conversation), but going through Maya is usually faster.</p>
+  <h3>What you can write — examples</h3>
+  <div class="ex"><b>Task:</b> "Find me mural competitions in Hesse with deadlines before spring and add them to my deadlines."</div>
+  <div class="ex"><b>Document:</b> 📎 contract.pdf + "What in here could hurt me? Especially around image rights."</div>
+  <div class="ex"><b>Numbers:</b> "September brought in €2,400, October's at 900 so far" — Ben updates the KPI and the income chart.</div>
+  <div class="ex"><b>Letter:</b> "Write to the property management company on Hanauer Landstraße and pitch a mural on the end wall. In German, with an English translation underneath."</div>
+  <div class="ex"><b>Plan:</b> "I want to launch a YouTube channel with my mixes. Make me an 8-week plan and a project board."</div>
+  <div class="ex"><b>Dashboard:</b> "Add a chart of subscribers by week", "rename the column 'Waiting for reply' to 'In approval'", "remove the note about the exhibition".</div>
+  <h3>Buttons below the input field</h3>
   <ul>
-    <li><b>📎</b> — приложить фото, PDF, текст или CSV (до 5 файлов, до 20 МБ каждый). Команда видит вложение только в этом сообщении, поэтому важное из него лучше попросить сохранить в показатели.</li>
-    <li><b>Глубокий анализ</b> — ответ даёт самая мощная модель Claude: дольше думает, ищет в интернете, делает подробный разбор. Нужен для стратегии, большой заявки, сложного договора. Стоит в несколько раз дороже обычного сообщения.</li>
-    <li><b>🧹</b> — очистить переписку с выбранным агентом. Показатели и база опыта остаются.</li>
-    <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> — отправить.</li>
+    <li><b>📎</b> — attach a photo, PDF, text or CSV (up to 5 files, up to 20 MB each). The team only sees the attachment in that one message, so if something in it matters, ask the team to save it to your dashboard.</li>
+    <li><b>Deep analysis</b> — the answer comes from the most powerful Claude model: it thinks longer, searches the web and goes into real detail. Use it for strategy, a big application or a tricky contract. It costs several times as much as a regular message.</li>
+    <li><b>🧹</b> — clear the conversation with the selected agent. Your dashboard and knowledge base stay as they are.</li>
+    <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> — send, same as the <b>Send</b> button.</li>
   </ul>
-  <p>Если закрыть вкладку посреди ответа, ничего не потеряется: команда допишет, и ответ появится в переписке при следующем открытии.</p>
+  <p>If you close the tab in the middle of an answer, nothing gets lost: the team finishes writing, and the answer will be waiting in the conversation next time you open it.</p>
 
-  <h2 id="potential">4. Проверка потенциала</h2>
-  <p>Кнопка вверху панели. Расскажи о своей практике: что делаешь, где, для кого, главная цель на 12 месяцев, сколько часов в неделю уходит на админку. Самая мощная модель:</p>
+  <h2 id="potential-en">4. Potential check</h2>
+  <p>It's the button at the top of the app. Tell the team about your practice: what you do, where, for whom, your main goal for the next 12 months, and how many hours a week go into admin. The most powerful model will:</p>
   <ul>
-    <li>оценит потенциал сотрудничества с командой;</li>
-    <li>предложит, каких агентов на какие задачи поставить в первые 90 дней;</li>
-    <li>найдёт в интернете гранты, конкурсы и заказы, которые выглядят перспективно, со ссылками и дедлайнами;</li>
-    <li>занесёт план в показатели и сохранит главные выводы.</li>
+    <li>assess how much potential there is in working with the team;</li>
+    <li>suggest which agents to put on which tasks in the first 90 days;</li>
+    <li>search the web for promising grants, competitions and commissions, with links and deadlines;</li>
+    <li>put the plan on your dashboard and save the key takeaways.</li>
   </ul>
-  <p>Анализ занимает несколько минут. Запускай его в начале и потом раз в квартал, когда меняются цели.</p>
+  <p>The analysis takes a few minutes. Run it when you start, and then once a quarter, as your goals change.</p>
 
-  <h2 id="dash">5. Показатели — побочный результат работы</h2>
-  <p>Главное в Backstage — работа с командой. Всё, что команда находит и решает, само складывается в показатели на вкладке «Дашборд»: проекты, дедлайны, деньги, графики. Туда можно просто заглядывать, чтобы видеть прогресс. При желании показатели правятся руками или словами в чате.</p>
+  <h2 id="dash-en">5. Dashboard — a by-product of the work</h2>
+  <p>The heart of Backstage is working with the team. Everything the team finds and decides ends up on the <b>Dashboard</b> tab by itself: projects, deadlines, money, charts. You can just drop by to see how things are moving. If you like, you can edit it by hand or simply ask for changes in the chat.</p>
   <div class="t-wrap"><table>
-    <tr><th>Виджет</th><th>Для чего</th><th>Как править руками</th></tr>
-    <tr><td><b>KPI</b></td><td>Одно число с целью и полоской прогресса: доход, подписчики, заявки</td><td>✎ → значение, подпись, единица, цель</td></tr>
-    <tr><td><b>График</b></td><td>Динамика: линия, столбцы, круг, кольцо</td><td>✎ → вид и данные таблицей</td></tr>
-    <tr><td><b>Таблица</b></td><td>Контакты, контент-план, смета, список площадок</td><td>✎ → строки через «;»</td></tr>
-    <tr><td><b>Доска</b></td><td>Проекты по этапам (канбан)</td><td>Поле «+ карточка» в колонке, стрелки ← →, ✕; ✎ → колонки</td></tr>
-    <tr><td><b>Список</b></td><td>Дедлайны, заявки, задачи с датами</td><td>Поле «+ пункт» и дата, галочка — сделано. Дедлайны ближе недели — красные</td></tr>
-    <tr><td><b>Заметка</b></td><td>Профиль, идеи, тексты</td><td>✎ → текст (жирный, списки, ссылки)</td></tr>
+    <tr><th>Widget</th><th>What it's for</th><th>How to edit it by hand</th></tr>
+    <tr><td><b>KPI</b></td><td>A single number with a target and a progress bar: income, subscribers, applications</td><td>✎ → value, label, unit, target</td></tr>
+    <tr><td><b>Chart</b></td><td>Trends over time: line, bars, pie, donut</td><td>✎ → type, and data as a table</td></tr>
+    <tr><td><b>Table</b></td><td>Contacts, content plan, budget, list of venues</td><td>✎ → rows, cells separated by “;”</td></tr>
+    <tr><td><b>Board</b></td><td>Projects by stage (kanban)</td><td>“+ card” field in a column, ← → arrows, ✕; ✎ → columns</td></tr>
+    <tr><td><b>List</b></td><td>Deadlines, applications, tasks with dates</td><td>“+ item” field and a date, tick = done. Deadlines less than a week away turn red</td></tr>
+    <tr><td><b>Note</b></td><td>Profile, ideas, texts</td><td>✎ → text (bold, lists, links)</td></tr>
   </table></div>
   <ul>
-    <li><b>+ Виджет</b> — добавить новый: выбери тип и название, дальше откроется редактор.</li>
-    <li><b>↑ ↓</b> в углу виджета — переставить, <b>✎</b> — редактировать (название, размер, данные), <b>✕</b> — удалить.</li>
-    <li>Размер: маленький, средний или во всю ширину.</li>
-    <li>Команда видит все показатели перед каждым ответом. Чем точнее на нём цифры и проекты, тем точнее советы.</li>
-    <li><b>Профиль практики</b> (⚙ Настройки) — самое важное поле. Команда читает его всегда: кто ты, где работаешь, твой статус, цели, цены «от», сильные проекты.</li>
+    <li><b>+ Widget</b> — add a new one: choose a type and a name, then the editor opens.</li>
+    <li><b>↑ ↓</b> in the corner of a widget — move it, <b>✎</b> — edit it (name, size, data), <b>✕</b> — delete it.</li>
+    <li>Size: small, medium or full width.</li>
+    <li>The team looks at your whole dashboard before every answer. The more accurate the numbers and projects there, the sharper the advice.</li>
+    <li><b>Practice profile</b> (⚙ Settings) — the most important field of all. The team always reads it: who you are, where you work, your status, your goals, your starting prices, your strongest projects.</li>
   </ul>
 
-  <h2 id="charts">6. Графики</h2>
-  <p>Проще всего попросить: «сделай график доходов и расходов по месяцам с января» или «добавь круговую диаграмму: откуда приходят заказы». Команда создаст виджет и будет дополнять его, когда ты называешь новые цифры.</p>
-  <p>Руками: <b>+ Виджет → График</b>, потом ✎. Данные вводятся таблицей, ячейки через точку с запятой. Первая строка — названия серий:</p>
-  <div class="ex"><code>Месяц; Доход; Расходы<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
-  <p>Две серии — две линии или два столбца рядом. Для круга нужна одна серия: подпись — категория, значение — доля.</p>
+  <h2 id="charts-en">6. Charts</h2>
+  <p>The easiest way is to ask: "make a chart of income and expenses by month since January" or "add a pie chart showing where my commissions come from". The team creates the widget and keeps it up to date whenever you mention new numbers.</p>
+  <p>By hand: <b>+ Widget → Chart</b>, then ✎. You enter the data as a table, cells separated by semicolons. The first row holds the series names:</p>
+  <div class="ex"><code>Month; Income; Expenses<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
+  <p>Two series give you two lines, or two bars side by side. A pie needs a single series: the label is the category, the value is its share.</p>
 
-  <h2 id="telegram">7. Telegram — та же команда в мессенджере</h2>
-  <p>Можно подключить собственного бота: он пишет той же команде, видит те же показатели и тратит тот же бюджет. Удобно на ходу: надиктовать мысль, сфотографировать стену, переслать PDF.</p>
+  <h2 id="telegram-en">7. Telegram — the same team in your messenger</h2>
+  <p>You can connect your own bot: it talks to the same team, sees the same dashboard and draws on the same budget. Handy when you're on the move: jot down a thought, snap a photo of a wall, forward a PDF.</p>
   <ol>
-    <li>В Telegram открой <b>@BotFather</b> → <code>/newbot</code> → придумай имя и адрес бота (должен оканчиваться на <code>bot</code>).</li>
-    <li>BotFather пришлёт токен вида <code>123456789:AA…</code>. Скопируй его.</li>
-    <li>В панели: <b>⚙ Настройки → Telegram</b> → вставь токен → Сохранить.</li>
-    <li>В течение минуты бот оживёт. Напиши ему <code>/start</code>: он привяжется к твоему чату и больше никому отвечать не будет.</li>
+    <li>In Telegram, open <b>@BotFather</b> → <code>/newbot</code> → pick a name and a username for your bot (it has to end in <code>bot</code>).</li>
+    <li>BotFather sends you a token like <code>123456789:AA…</code>. Copy it.</li>
+    <li>In the app: <b>⚙ Settings → Telegram</b> → paste the token → <b>Save</b>.</li>
+    <li>Within a minute the bot comes to life. Send it <code>/start</code>: it links itself to your chat and won't answer anyone else.</li>
   </ol>
-  <p>Команды бота: <code>/team</code> — состав, <code>/agent konrad</code> — писать специалисту напрямую, <code>/maya</code> — назад к Майе, <code>/deep текст</code> — глубокий анализ, <code>/budget</code> — расход. Фото и PDF бот понимает, голосовые пока нет.</p>
-  <p class="small muted">Сменить чат или отключить бота: введи токен заново или оставь поле пустым. Если токен утёк — в @BotFather сделай <code>/revoke</code> и введи новый.</p>
+  <p>Bot commands: <code>/team</code> — who's on the team, <code>/agent konrad</code> — write to a specialist directly, <code>/maya</code> — back to Maya, <code>/deep text</code> — deep analysis, <code>/budget</code> — spending. The bot understands photos and PDFs; voice messages aren't supported yet.</p>
+  <p class="small muted">To switch to another chat or disconnect the bot, enter the token again or leave the field empty. If your token leaks, run <code>/revoke</code> in @BotFather and enter the new one.</p>
 
-  <h2 id="phone">8. На телефоне</h2>
-  <p>Панель работает в мобильном браузере: внизу переключатель «Команда / Дашборд». Добавь её на экран «Домой» — откроется как приложение: Safari → «Поделиться» → «На экран “Домой”»; Chrome → ⋮ → «Добавить на главный экран».</p>
+  <h2 id="phone-en">8. On your phone</h2>
+  <p>The app works in your mobile browser: at the bottom there's a <b>Team / Dashboard</b> switch. Add it to your home screen and it opens like an app: Safari → "Share" → "Add to Home Screen"; Chrome → ⋮ → "Add to Home screen".</p>
 
-  <h2 id="money">9. Бюджет и модели</h2>
-  <p>Каждый ответ команды — это работа моделей Claude, она стоит денег. У тебя есть месячный бюджет ИИ: он виден в шапке и в KPI «Бюджет ИИ». Когда он исчерпан, команда замолкает до начала следующего месяца или пока агентство не поднимет лимит.</p>
+  <h2 id="money-en">9. Budget and models</h2>
+  <p>Every answer from the team is work done by Claude models, and that costs money. You have a monthly AI budget: you can see it in the header and in the "AI budget" KPI. Once it's used up, the team goes quiet until the start of next month, or until the agency raises the limit.</p>
   <ul>
-    <li>Обычный чат — сильная модель Claude Opus: быстрая и экономная.</li>
-    <li>Глубокий анализ и Проверка потенциала — самая мощная из доступных моделей Claude: дороже, но для решений, от которых зависят деньги и сроки.</li>
-    <li>Экономия: пиши конкретно, прикладывай нужное, держи профиль и показатели актуальными — тогда команде не приходится переспрашивать.</li>
+    <li>Regular chat — Claude Opus, a strong model: fast and economical.</li>
+    <li>Deep analysis and Potential check — the most powerful Claude model available: more expensive, but meant for decisions where money and deadlines are at stake.</li>
+    <li>To save money: be specific, attach what's needed, and keep your profile and dashboard up to date — then the team doesn't have to ask follow-up questions.</li>
   </ul>
 
-  <h2 id="exp">10. База опыта</h2>
-  <p>По ходу работы команда сохраняет выводы: что сработало в заявке, какая ловушка была в договоре, какой канал дал заказ. Их видно в ⚙ Настройки → База опыта. Если разрешишь, обезличенные выводы (без имён, сумм и контактов) после проверки агентством попадают в общий плейбук: агенты всех клиентов учатся на опыте друг друга, и ты — на чужом. Галочку можно снять в любой момент.</p>
+  <h2 id="exp-en">10. Knowledge base</h2>
+  <p>As you work together, the team saves what it learns: what worked in an application, what trap was hidden in a contract, which channel brought in a commission. You'll find all of it under ⚙ Settings → Knowledge base. If you allow it, anonymised takeaways (no names, amounts or contacts) go into a shared playbook once the agency has reviewed them: the agents of all clients learn from each other's experience — and so do you. You can untick the box at any time.</p>
 
-  <h2 id="limits">11. Чего команда не делает</h2>
+  <h2 id="limits-en">11. What the team doesn't do</h2>
   <ul>
-    <li>Не рисует, не играет и не подписывает за тебя. Творчество и решения — твои.</li>
-    <li>Не отправляет письма и заявки сама: готовит текст, отправляешь ты.</li>
-    <li>Не заменяет юриста и налогового консультанта, когда ставки высоки: Конрад готовит и проверяет, финальное решение подтверждает специалист.</li>
-    <li>Может ошибаться, особенно в датах и суммах из интернета. Проверяй ссылки перед подачей.</li>
+    <li>It doesn't paint, play or sign anything for you. The creative work and the decisions are yours.</li>
+    <li>It doesn't send emails or applications on its own: it prepares the text, you hit send.</li>
+    <li>It doesn't replace a lawyer or tax advisor when the stakes are high: Konrad prepares and checks, a professional confirms the final call.</li>
+    <li>It can make mistakes, especially with dates and amounts found online. Check the links before you submit anything.</li>
   </ul>
-  <p>Полагаться на команду целиком не стоит, но на ней можно строить значимые ходы: поиск, подготовку, расчёт, план. Финальный шаг всегда за тобой.</p>
+  <p>Don't hand everything over to the team blindly — but you can build serious moves on it: research, preparation, calculations, planning. The final step is always yours.</p>
+  </div>
+
+  <!-- ===================== DE ===================== -->
+  <div class="lang-block" data-lang="de">
+  <p class="small"><a href="app">← zurück zum Team</a></p>
+  <h1>So arbeitest du<br>mit dem BACKSTAGE-Team<span>.</span></h1>
+  <p class="lead">Backstage ist dein Team aus acht KI-Agenten. Du kümmerst dich um deine Arbeit, das Team um den Rest: Es sucht Förderungen und Aufträge, schreibt Anträge, liest Verträge, kalkuliert Preise, macht dich sichtbar und plant mit dir voraus.</p>
+
+  <nav class="card toc small">
+    <a href="#start-de">Einstieg</a><a href="#team-de">Das Team</a><a href="#chat-de">Chat</a><a href="#potential-de">Potenzial-Check</a>
+    <a href="#dash-de">Dashboard</a><a href="#charts-de">Diagramme</a><a href="#telegram-de">Telegram</a><a href="#phone-de">Auf dem Handy</a>
+    <a href="#money-de">Budget</a><a href="#exp-de">Erfahrungsdatenbank</a><a href="#limits-de">Was das Team nicht macht</a>
+  </nav>
+
+  <h2 id="start-de">1. Einstieg</h2>
+  <p>Neu hier? Tippe auf der Startseite auf <b>Starte mit deinem Team</b>. Das ist kostenlos und dauert etwa drei Minuten: Du erzählst dem Team kurz von dir und deiner Arbeit und legst deine Zugangsdaten fest – <b>Login-Name</b> und <b>PIN</b> (4–8 Ziffern, nimm keine naheliegende). Gleich danach schaut sich das Team deine Praxis ein erstes Mal genauer an.</p>
+  <p>Wenn du wiederkommst, meldest du dich mit <b>Login-Name</b> und <b>PIN</b> an. Auf diesem Gerät bleibst du 30 Tage angemeldet.</p>
+  <p>Falls die Agentur dich eingerichtet hat, bekommst du stattdessen vielleicht einen persönlichen Link wie <code>http://IP-Adresse:8765/bs/c/code?k=schluessel</code>. Öffnen – und du bist drin. Gib ihn an niemanden weiter: Wer ihn hat, kann in deinem Namen arbeiten. Wenn er verloren geht oder in falsche Hände gerät, frag nach einem neuen – der alte funktioniert dann sofort nicht mehr.</p>
+  <p class="small muted">Noch läuft alles ohne schöne Domain, nur über die IP-Adresse des Agentur-Servers. Dein Browser zeigt vielleicht „Nicht sicher“ an: Die Verbindung hat noch kein Zertifikat. Schick über die App also bitte keine Passwörter und keine Bankdaten.</p>
+
+  <h2 id="team-de">2. Das Team</h2>
+  <div class="team">
+    <div class="card"><b>🎬 Maya</b> · Produzentin<br><span class="small muted">Die Chefin. Nimmt jede Aufgabe an, holt die passenden Leute dazu und bündelt alles zu einer Antwort.</span></div>
+    <div class="card"><b>🔭 Ruben</b> · Scout<br><span class="small muted">Wettbewerbe, Ausschreibungen, Kunst am Bau, Residenzen, Open Calls, Auftraggeber. Sucht im Netz.</span></div>
+    <div class="card"><b>✍️ Hanna</b> · Antragsschreiberin<br><span class="small muted">Macht aus deinem Portfolio Anträge, die man bis zum Ende liest.</span></div>
+    <div class="card"><b>⚖️ Konrad</b> · Rechtsabteilung<br><span class="small muted">Verträge, Nutzungsrechte, Musiklizenzen, Steuern, Schreiben an Behörden.</span></div>
+    <div class="card"><b>📈 Noa</b> · Online-Marketing<br><span class="small muted">Google, Antworten von KI-Assistenten, Profile, Social Media.</span></div>
+    <div class="card"><b>🤝 Tarik</b> · PR &amp; Offline<br><span class="small muted">Presse, Sponsoren, Festivals, Partner, Präsentationen.</span></div>
+    <div class="card"><b>🎥 Iris</b> · Content &amp; Video<br><span class="small muted">Formate, Drehbücher, Content-Plan, Titel und Beschreibungen.</span></div>
+    <div class="card"><b>💶 Ben</b> · Finanzen<br><span class="small muted">Kalkulationen, Preise, Rechnungen, Einnahmen und Ausgaben.</span></div>
+  </div>
+  <p>Alle im Team sind KI-Agenten auf Basis von Claude-Modellen. Die Porträts sind gezeichnet, damit du weißt, mit wem du sprichst.</p>
+
+  <h2 id="chat-de">3. Der Chat – dein wichtigstes Werkzeug</h2>
+  <p>Schreib <b>Maya</b> einfach alles, so wie du es einer Produzentin erzählen würdest: eine Aufgabe, einen Zweifel, Zahlen, einen Link, ein Foto von einer Wand, einen Vertrag als PDF. Du musst nicht überlegen, wer zuständig ist: Maya gibt die Arbeit selbst an Ruben, Konrad oder Ben weiter und kommt mit einer gebündelten Antwort zurück. Unter der Antwort siehst du, wen sie dazugeholt hat und ob dein Dashboard aktualisiert wurde.</p>
+  <p>Aus der ersten Version des Systems wissen wir: Wenn man selbst zwischen acht Chats hin- und herspringt, läuft es schlechter. Deshalb gibt es zwar den direkten Chat mit einzelnen Agenten (die Namensbuttons über dem Verlauf), aber über Maya geht es meistens schneller.</p>
+  <h3>Was du schreiben kannst – Beispiele</h3>
+  <div class="ex"><b>Aufgabe:</b> „Such mir Mural-Wettbewerbe in Hessen mit Deadline bis zum Frühjahr und trag sie in die Deadlines ein.“</div>
+  <div class="ex"><b>Dokument:</b> 📎 vertrag.pdf + „Was ist hier gefährlich für mich? Vor allem bei den Bildrechten.“</div>
+  <div class="ex"><b>Zahlen:</b> „Im September kamen 2.400 € rein, im Oktober bisher 900“ – Ben aktualisiert die KPI und das Einnahmen-Diagramm.</div>
+  <div class="ex"><b>Anschreiben:</b> „Schreib der Hausverwaltung in der Hanauer Landstraße und schlag ein Mural an der Giebelwand vor. Förmlich, mit Sie, und nenn zwei Referenzprojekte.“</div>
+  <div class="ex"><b>Plan:</b> „Ich will einen YouTube-Kanal mit meinen Mixes starten. Mach mir einen 8-Wochen-Plan und ein Projekt-Board.“</div>
+  <div class="ex"><b>Dashboard:</b> „Füg ein Diagramm mit den Abonnenten pro Woche hinzu“, „benenne die Spalte ‚Warten auf Antwort‘ in ‚In Abstimmung‘ um“, „lösch die Notiz zur Ausstellung“.</div>
+  <h3>Die Buttons unter dem Eingabefeld</h3>
+  <ul>
+    <li><b>📎</b> — Foto, PDF, Text oder CSV anhängen (bis zu 5 Dateien, je bis 20 MB). Das Team sieht den Anhang nur in dieser einen Nachricht – steht etwas Wichtiges drin, bitte das Team, es im Dashboard zu speichern.</li>
+    <li><b>Tiefenanalyse</b> — die Antwort kommt vom stärksten Claude-Modell: Es denkt länger nach, recherchiert im Netz und geht richtig ins Detail. Sinnvoll für Strategie, einen großen Antrag oder einen kniffligen Vertrag. Kostet ein Mehrfaches einer normalen Nachricht.</li>
+    <li><b>🧹</b> — den Verlauf mit dem ausgewählten Agenten löschen. Dashboard und Erfahrungsdatenbank bleiben erhalten.</li>
+    <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> — senden, genau wie der Button <b>Senden</b>.</li>
+  </ul>
+  <p>Wenn du den Tab mitten in einer Antwort schließt, geht nichts verloren: Das Team schreibt zu Ende, und die Antwort steht beim nächsten Öffnen im Verlauf.</p>
+
+  <h2 id="potential-de">4. Potenzial-Check</h2>
+  <p>Der Button oben in der App. Erzähl von deiner Praxis: was du machst, wo, für wen, dein wichtigstes Ziel für die nächsten 12 Monate und wie viele Stunden pro Woche für Bürokram draufgehen. Das stärkste Modell:</p>
+  <ul>
+    <li>schätzt ein, wie viel Potenzial in der Zusammenarbeit mit dem Team steckt;</li>
+    <li>schlägt vor, welche Agenten du in den ersten 90 Tagen auf welche Aufgaben ansetzt;</li>
+    <li>sucht im Netz vielversprechende Förderungen, Wettbewerbe und Aufträge – mit Links und Deadlines;</li>
+    <li>trägt den Plan ins Dashboard ein und speichert die wichtigsten Erkenntnisse.</li>
+  </ul>
+  <p>Die Analyse dauert ein paar Minuten. Starte sie gleich am Anfang und danach einmal im Quartal, wenn sich deine Ziele verschieben.</p>
+
+  <h2 id="dash-de">5. Dashboard – ein Nebenprodukt der Arbeit</h2>
+  <p>Im Mittelpunkt von Backstage steht die Arbeit mit dem Team. Alles, was das Team findet und entscheidet, landet von selbst im Tab <b>Dashboard</b>: Projekte, Deadlines, Geld, Diagramme. Du kannst einfach reinschauen und sehen, wie es vorangeht. Wenn du magst, änderst du dort etwas von Hand oder sagst es einfach im Chat.</p>
+  <div class="t-wrap"><table>
+    <tr><th>Widget</th><th>Wofür</th><th>So bearbeitest du es von Hand</th></tr>
+    <tr><td><b>KPI</b></td><td>Eine Zahl mit Ziel und Fortschrittsbalken: Einnahmen, Abonnenten, Anträge</td><td>✎ → Wert, Beschriftung, Einheit, Ziel</td></tr>
+    <tr><td><b>Diagramm</b></td><td>Entwicklung über die Zeit: Linie, Balken, Torte, Ring</td><td>✎ → Art und Daten als Tabelle</td></tr>
+    <tr><td><b>Tabelle</b></td><td>Kontakte, Content-Plan, Kalkulation, Liste von Locations</td><td>✎ → Zeilen, Zellen mit „;“ getrennt</td></tr>
+    <tr><td><b>Board</b></td><td>Projekte nach Phasen (Kanban)</td><td>Feld „+ Karte“ in der Spalte, Pfeile ← →, ✕; ✎ → Spalten</td></tr>
+    <tr><td><b>Liste</b></td><td>Deadlines, Anträge, Aufgaben mit Datum</td><td>Feld „+ Punkt“ und Datum, Häkchen = erledigt. Deadlines in weniger als einer Woche werden rot</td></tr>
+    <tr><td><b>Notiz</b></td><td>Profil, Ideen, Texte</td><td>✎ → Text (fett, Listen, Links)</td></tr>
+  </table></div>
+  <ul>
+    <li><b>+ Widget</b> — ein neues hinzufügen: Typ und Namen wählen, danach öffnet sich der Editor.</li>
+    <li><b>↑ ↓</b> in der Ecke eines Widgets — verschieben, <b>✎</b> — bearbeiten (Name, Größe, Daten), <b>✕</b> — löschen.</li>
+    <li>Größe: klein, mittel oder volle Breite.</li>
+    <li>Das Team sieht vor jeder Antwort dein ganzes Dashboard. Je genauer die Zahlen und Projekte dort stimmen, desto treffender die Ratschläge.</li>
+    <li><b>Praxisprofil</b> (⚙ Einstellungen) — das wichtigste Feld überhaupt. Das Team liest es jedes Mal: wer du bist, wo du arbeitest, dein Status, deine Ziele, deine Preise „ab“, deine stärksten Projekte.</li>
+  </ul>
+
+  <h2 id="charts-de">6. Diagramme</h2>
+  <p>Am einfachsten fragst du: „Mach ein Diagramm mit Einnahmen und Ausgaben pro Monat seit Januar“ oder „füg ein Tortendiagramm hinzu: Woher kommen meine Aufträge?“. Das Team legt das Widget an und ergänzt es, sobald du neue Zahlen nennst.</p>
+  <p>Von Hand: <b>+ Widget → Diagramm</b>, dann ✎. Die Daten gibst du als Tabelle ein, Zellen durch Semikolon getrennt. Die erste Zeile enthält die Namen der Reihen:</p>
+  <div class="ex"><code>Monat; Einnahmen; Ausgaben<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
+  <p>Zwei Reihen ergeben zwei Linien oder zwei Balken nebeneinander. Für eine Torte brauchst du genau eine Reihe: Die Beschriftung ist die Kategorie, der Wert ihr Anteil.</p>
+
+  <h2 id="telegram-de">7. Telegram – dasselbe Team im Messenger</h2>
+  <p>Du kannst deinen eigenen Bot verbinden: Er schreibt mit demselben Team, sieht dasselbe Dashboard und nutzt dasselbe Budget. Praktisch unterwegs: schnell einen Gedanken festhalten, eine Wand fotografieren, ein PDF weiterleiten.</p>
+  <ol>
+    <li>Öffne in Telegram <b>@BotFather</b> → <code>/newbot</code> → denk dir einen Namen und eine Adresse für den Bot aus (sie muss auf <code>bot</code> enden).</li>
+    <li>BotFather schickt dir einen Token wie <code>123456789:AA…</code>. Kopier ihn.</li>
+    <li>In der App: <b>⚙ Einstellungen → Telegram</b> → Token einfügen → <b>Speichern</b>.</li>
+    <li>Innerhalb einer Minute ist der Bot startklar. Schreib ihm <code>/start</code>: Er verknüpft sich mit deinem Chat und antwortet niemandem sonst.</li>
+  </ol>
+  <p>Bot-Befehle: <code>/team</code> — wer im Team ist, <code>/agent konrad</code> — direkt mit einem Agenten schreiben, <code>/maya</code> — zurück zu Maya, <code>/deep Text</code> — Tiefenanalyse, <code>/budget</code> — Verbrauch. Fotos und PDFs versteht der Bot, Sprachnachrichten noch nicht.</p>
+  <p class="small muted">Chat wechseln oder Bot trennen: Token neu eingeben oder das Feld leer lassen. Falls der Token in falsche Hände geraten ist: in @BotFather <code>/revoke</code> ausführen und den neuen Token eintragen.</p>
+
+  <h2 id="phone-de">8. Auf dem Handy</h2>
+  <p>Die App funktioniert im mobilen Browser: Unten wechselst du zwischen <b>Team / Dashboard</b>. Leg sie auf deinen Home-Bildschirm, dann öffnet sie sich wie eine App: Safari → „Teilen“ → „Zum Home-Bildschirm“; Chrome → ⋮ → „Zum Startbildschirm hinzufügen“.</p>
+
+  <h2 id="money-de">9. Budget und Modelle</h2>
+  <p>Jede Antwort des Teams ist Arbeit von Claude-Modellen, und die kostet Geld. Du hast ein monatliches KI-Budget: Du siehst es oben in der Kopfzeile und in der KPI „KI-Budget“. Ist es aufgebraucht, verstummt das Team bis zum nächsten Monatsanfang – oder bis die Agentur das Limit erhöht.</p>
+  <ul>
+    <li>Normaler Chat — Claude Opus, ein starkes Modell: schnell und sparsam.</li>
+    <li>Tiefenanalyse und Potenzial-Check — das stärkste verfügbare Claude-Modell: teurer, aber gedacht für Entscheidungen, bei denen es um Geld und Fristen geht.</li>
+    <li>So sparst du: Schreib konkret, häng an, was gebraucht wird, und halte Profil und Dashboard aktuell – dann muss das Team nicht nachfragen.</li>
+  </ul>
+
+  <h2 id="exp-de">10. Erfahrungsdatenbank</h2>
+  <p>Während ihr zusammenarbeitet, hält das Team fest, was es gelernt hat: was in einem Antrag funktioniert hat, welche Falle in einem Vertrag steckte, welcher Kanal einen Auftrag gebracht hat. Du findest das unter ⚙ Einstellungen → Erfahrungsdatenbank. Wenn du zustimmst, fließen anonymisierte Erkenntnisse (ohne Namen, Beträge und Kontakte) nach Prüfung durch die Agentur in ein gemeinsames Playbook: Die Agenten aller Kundinnen und Kunden lernen voneinander – und du von den Erfahrungen der anderen. Das Häkchen kannst du jederzeit entfernen.</p>
+
+  <h2 id="limits-de">11. Was das Team nicht macht</h2>
+  <ul>
+    <li>Es malt, spielt und unterschreibt nicht für dich. Die kreative Arbeit und die Entscheidungen bleiben bei dir.</li>
+    <li>Es verschickt keine Mails oder Anträge selbst: Es bereitet den Text vor, abschicken tust du.</li>
+    <li>Es ersetzt keine Anwältin und keinen Steuerberater, wenn viel auf dem Spiel steht: Konrad bereitet vor und prüft, die endgültige Entscheidung bestätigt eine Fachperson.</li>
+    <li>Es kann sich irren, besonders bei Daten und Beträgen aus dem Netz. Prüf die Links, bevor du etwas einreichst.</li>
+  </ul>
+  <p>Blind verlassen solltest du dich nicht auf das Team – aber du kannst wichtige Schritte darauf aufbauen: Recherche, Vorbereitung, Kalkulation, Planung. Der letzte Schritt liegt immer bei dir.</p>
+  </div>
+
+  <!-- ===================== UK ===================== -->
+  <div class="lang-block" data-lang="uk">
+  <p class="small"><a href="app">← назад до команди</a></p>
+  <h1>Як працювати<br>з командою BACKSTAGE<span>.</span></h1>
+  <p class="lead">Backstage — це твоя команда з восьми ШІ-агентів. Ти займаєшся своєю справою, а команда бере на себе решту: шукає гранти й замовлення, пише заявки, читає договори, рахує ціни, просуває тебе та планує наперед.</p>
+
+  <nav class="card toc small">
+    <a href="#start-uk">Вхід</a><a href="#team-uk">Команда</a><a href="#chat-uk">Чат</a><a href="#potential-uk">Перевірка потенціалу</a>
+    <a href="#dash-uk">Дашборд</a><a href="#charts-uk">Графіки</a><a href="#telegram-uk">Telegram</a><a href="#phone-uk">На телефоні</a>
+    <a href="#money-uk">Бюджет</a><a href="#exp-uk">База досвіду</a><a href="#limits-uk">Чого команда не робить</a>
+  </nav>
+
+  <h2 id="start-uk">1. Вхід</h2>
+  <p>Уперше тут? На стартовій сторінці натисни <b>Почни роботу з командою</b>. Це безкоштовно й займає близько трьох хвилин: ти коротко розповідаєш команді про себе та свою роботу і задаєш дані для входу — <b>Ім'я для входу</b> та <b>PIN-код</b> (4–8 цифр, обери неочевидний). Одразу після цього команда зробить перший розбір твоєї практики.</p>
+  <p>Щоб повернутися, увійди, вказавши <b>Ім'я для входу</b> та <b>PIN-код</b>. На цьому пристрої панель пам'ятатиме тебе 30 днів.</p>
+  <p>Якщо тебе підключила агенція, ти можеш отримати натомість персональне посилання на кшталт <code>http://IP-адреса:8765/bs/c/код?k=ключ</code>. Відкрий його — і ти вже всередині. Нікому його не пересилай: за ним можна працювати від твого імені. Якщо воно загубилося або потрапило в чужі руки, попроси нове — старе одразу перестане працювати.</p>
+  <p class="small muted">Поки що адреса без гарного домену — це просто IP сервера агенції. Браузер може показати «Не захищено»: з'єднання поки без сертифіката, тож не надсилай через панель паролі та банківські дані.</p>
+
+  <h2 id="team-uk">2. Команда</h2>
+  <div class="team">
+    <div class="card"><b>🎬 Майя</b> · продюсерка<br><span class="small muted">Головна. Береться за будь-яке завдання, кличе потрібних фахівців і зводить усе в одну відповідь.</span></div>
+    <div class="card"><b>🔭 Рубен</b> · скаут<br><span class="small muted">Конкурси, тендери, Kunst am Bau, резиденції, open calls, замовники. Шукає в інтернеті.</span></div>
+    <div class="card"><b>✍️ Ганна</b> · грантрайтерка<br><span class="small muted">Перетворює портфоліо на заявки, які дочитують до кінця.</span></div>
+    <div class="card"><b>⚖️ Конрад</b> · юридичний відділ<br><span class="small muted">Договори, права використання, ліцензії на музику, податки, листи до установ.</span></div>
+    <div class="card"><b>📈 Ноа</b> · онлайн-маркетинг<br><span class="small muted">Google, відповіді ШІ-асистентів, профілі, соцмережі.</span></div>
+    <div class="card"><b>🤝 Тарік</b> · PR та офлайн<br><span class="small muted">Преса, спонсори, фестивалі, партнери, презентації.</span></div>
+    <div class="card"><b>🎥 Ірис</b> · контент і відео<br><span class="small muted">Формати, сценарії, контент-план, назви та описи.</span></div>
+    <div class="card"><b>💶 Бен</b> · фінанси<br><span class="small muted">Кошториси, ціни, рахунки, доходи й витрати.</span></div>
+  </div>
+  <p>Усі учасники — ШІ-агенти на моделях Claude. Портрети намальовані, щоб було видно, з ким ти говориш.</p>
+
+  <h2 id="chat-uk">3. Чат — головний спосіб роботи</h2>
+  <p>Пиши <b>Майї</b> про все поспіль, як продюсерці: завдання, сумнів, цифри, посилання, фото стіни, PDF договору. Не треба вирішувати, до якого фахівця йти: Майя сама доручить роботу Рубену, Конраду чи Бену й поверне одну зведену відповідь. Під відповіддю видно, кого вона залучила і чи оновився дашборд.</p>
+  <p>Досвід першої версії системи показав: коли людина сама бігає між вісьмома чатами, справа йде гірше. Тому прямий чат із фахівцем є (кнопки з іменами над листуванням), але зазвичай швидше через Майю.</p>
+  <h3>Що можна писати — приклади</h3>
+  <div class="ex"><b>Завдання:</b> «Знайди мені конкурси на мурали в Гессені з дедлайном до весни й додай їх у дедлайни».</div>
+  <div class="ex"><b>Документ:</b> 📎 договір.pdf + «Що тут небезпечно для мене? Особливо щодо прав на зображення».</div>
+  <div class="ex"><b>Цифри:</b> «У вересні надійшло 2400 €, у жовтні поки 900» — Бен оновить KPI і графік доходу.</div>
+  <div class="ex"><b>Лист:</b> «Напиши керуючій компанії на Hanauer Landstraße, запропонуй мурал на торцевій стіні. Німецькою, з перекладом під ним».</div>
+  <div class="ex"><b>План:</b> «Хочу запустити YouTube-канал зі своїми міксами. Зроби план на 8 тижнів і дошку проєкту».</div>
+  <div class="ex"><b>Дашборд:</b> «Додай графік підписників по тижнях», «перейменуй колонку “Чекаємо відповіді” на “На погодженні”», «прибери нотатку про виставку».</div>
+  <h3>Кнопки під полем введення</h3>
+  <ul>
+    <li><b>📎</b> — додати фото, PDF, текст або CSV (до 5 файлів, до 20 МБ кожен). Команда бачить вкладення лише в цьому повідомленні, тож важливе з нього краще попросити зберегти в дашборді.</li>
+    <li><b>Глибокий аналіз</b> — відповідає найпотужніша модель Claude: довше думає, шукає в інтернеті, робить детальний розбір. Знадобиться для стратегії, великої заявки чи складного договору. Коштує в кілька разів дорожче за звичайне повідомлення.</li>
+    <li><b>🧹</b> — очистити листування з вибраним агентом. Дашборд і база досвіду залишаються.</li>
+    <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> — надіслати, як кнопка <b>Надіслати</b>.</li>
+  </ul>
+  <p>Якщо закрити вкладку посеред відповіді, нічого не загубиться: команда допише, і відповідь з'явиться в листуванні, коли ти наступного разу відкриєш панель.</p>
+
+  <h2 id="potential-uk">4. Перевірка потенціалу</h2>
+  <p>Кнопка вгорі панелі. Розкажи про свою практику: що робиш, де, для кого, яка головна мета на 12 місяців і скільки годин на тиждень іде на адміністративну роботу. Найпотужніша модель:</p>
+  <ul>
+    <li>оцінить потенціал співпраці з командою;</li>
+    <li>запропонує, яких агентів на які завдання поставити в перші 90 днів;</li>
+    <li>знайде в інтернеті перспективні гранти, конкурси й замовлення — з посиланнями та дедлайнами;</li>
+    <li>занесе план у дашборд і збереже головні висновки.</li>
+  </ul>
+  <p>Аналіз триває кілька хвилин. Запускай його на початку, а потім раз на квартал, коли змінюються цілі.</p>
+
+  <h2 id="dash-uk">5. Дашборд — побічний результат роботи</h2>
+  <p>Головне в Backstage — робота з командою. Усе, що команда знаходить і вирішує, саме складається на вкладці <b>Дашборд</b>: проєкти, дедлайни, гроші, графіки. Туди можна просто зазирати, щоб бачити прогрес. За бажання все можна правити вручну або словами в чаті.</p>
+  <div class="t-wrap"><table>
+    <tr><th>Віджет</th><th>Для чого</th><th>Як правити вручну</th></tr>
+    <tr><td><b>KPI</b></td><td>Одне число з метою та смужкою прогресу: дохід, підписники, заявки</td><td>✎ → значення, підпис, одиниця, мета</td></tr>
+    <tr><td><b>Графік</b></td><td>Динаміка: лінія, стовпці, кругова діаграма, кільце</td><td>✎ → вид і дані таблицею</td></tr>
+    <tr><td><b>Таблиця</b></td><td>Контакти, контент-план, кошторис, список майданчиків</td><td>✎ → рядки, клітинки через «;»</td></tr>
+    <tr><td><b>Дошка</b></td><td>Проєкти за етапами (канбан)</td><td>Поле «+ картка» в колонці, стрілки ← →, ✕; ✎ → колонки</td></tr>
+    <tr><td><b>Список</b></td><td>Дедлайни, заявки, завдання з датами</td><td>Поле «+ пункт» і дата, галочка — зроблено. Дедлайни, до яких менше тижня, — червоні</td></tr>
+    <tr><td><b>Нотатка</b></td><td>Профіль, ідеї, тексти</td><td>✎ → текст (жирний, списки, посилання)</td></tr>
+  </table></div>
+  <ul>
+    <li><b>+ Віджет</b> — додати новий: обери тип і назву, далі відкриється редактор.</li>
+    <li><b>↑ ↓</b> у куті віджета — переставити, <b>✎</b> — редагувати (назва, розмір, дані), <b>✕</b> — видалити.</li>
+    <li>Розмір: малий, середній або на всю ширину.</li>
+    <li>Команда бачить увесь дашборд перед кожною відповіддю. Що точніші там цифри й проєкти, то точніші поради.</li>
+    <li><b>Профіль практики</b> (⚙ Налаштування) — найважливіше поле. Команда читає його завжди: хто ти, де працюєш, твій статус, цілі, ціни «від», найсильніші проєкти.</li>
+  </ul>
+
+  <h2 id="charts-uk">6. Графіки</h2>
+  <p>Найпростіше — попросити: «зроби графік доходів і витрат по місяцях від січня» або «додай кругову діаграму: звідки приходять замовлення». Команда створить віджет і доповнюватиме його, щойно ти називатимеш нові цифри.</p>
+  <p>Вручну: <b>+ Віджет → Графік</b>, потім ✎. Дані вводяться таблицею, клітинки через крапку з комою. Перший рядок — назви серій:</p>
+  <div class="ex"><code>Місяць; Дохід; Витрати<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
+  <p>Дві серії — дві лінії або два стовпці поруч. Для кругової діаграми потрібна одна серія: підпис — категорія, значення — частка.</p>
+
+  <h2 id="telegram-uk">7. Telegram — та сама команда в месенджері</h2>
+  <p>Можна підключити власного бота: він пише тій самій команді, бачить той самий дашборд і витрачає той самий бюджет. Зручно в дорозі: швидко записати думку, сфотографувати стіну, переслати PDF.</p>
+  <ol>
+    <li>У Telegram відкрий <b>@BotFather</b> → <code>/newbot</code> → придумай ім'я та адресу бота (вона має закінчуватися на <code>bot</code>).</li>
+    <li>BotFather надішле токен на кшталт <code>123456789:AA…</code>. Скопіюй його.</li>
+    <li>У панелі: <b>⚙ Налаштування → Telegram</b> → встав токен → <b>Зберегти</b>.</li>
+    <li>Протягом хвилини бот оживе. Напиши йому <code>/start</code>: він прив'яжеться до твого чату й більше нікому не відповідатиме.</li>
+  </ol>
+  <p>Команди бота: <code>/team</code> — склад команди, <code>/agent konrad</code> — писати фахівцеві напряму, <code>/maya</code> — назад до Майї, <code>/deep текст</code> — глибокий аналіз, <code>/budget</code> — витрати. Фото й PDF бот розуміє, голосові — поки що ні.</p>
+  <p class="small muted">Змінити чат або відключити бота: введи токен заново або залиш поле порожнім. Якщо токен потрапив у чужі руки — зроби в @BotFather <code>/revoke</code> і введи новий.</p>
+
+  <h2 id="phone-uk">8. На телефоні</h2>
+  <p>Панель працює в мобільному браузері: унизу є перемикач <b>Команда / Дашборд</b>. Додай її на початковий екран — і вона відкриватиметься як застосунок: Safari → «Поширити» → «На початковий екран»; Chrome → ⋮ → «Додати на головний екран».</p>
+
+  <h2 id="money-uk">9. Бюджет і моделі</h2>
+  <p>Кожна відповідь команди — це робота моделей Claude, і вона коштує грошей. У тебе є місячний бюджет на ШІ: його видно в шапці та в KPI «Бюджет ШІ». Коли він вичерпаний, команда замовкає до початку наступного місяця або доки агенція не підніме ліміт.</p>
+  <ul>
+    <li>Звичайний чат — сильна модель Claude Opus: швидка та економна.</li>
+    <li>Глибокий аналіз і Перевірка потенціалу — найпотужніша з доступних моделей Claude: дорожча, але для рішень, від яких залежать гроші та терміни.</li>
+    <li>Як заощадити: пиши конкретно, додавай потрібне, тримай профіль і дашборд актуальними — тоді команді не доведеться перепитувати.</li>
+  </ul>
+
+  <h2 id="exp-uk">10. База досвіду</h2>
+  <p>У процесі роботи команда зберігає висновки: що спрацювало в заявці, яка пастка була в договорі, який канал приніс замовлення. Їх видно в ⚙ Налаштування → База досвіду. Якщо дозволиш, знеособлені висновки (без імен, сум і контактів) після перевірки агенцією потрапляють у спільний плейбук: агенти всіх клієнтів учаться на досвіді одне одного, а ти — на чужому. Галочку можна зняти будь-коли.</p>
+
+  <h2 id="limits-uk">11. Чого команда не робить</h2>
+  <ul>
+    <li>Не малює, не грає і не підписує за тебе. Творчість і рішення — твої.</li>
+    <li>Не надсилає листи й заявки сама: готує текст, а надсилаєш ти.</li>
+    <li>Не замінює юриста й податкового консультанта, коли ставки високі: Конрад готує та перевіряє, остаточне рішення підтверджує фахівець.</li>
+    <li>Може помилятися, особливо в датах і сумах з інтернету. Перевіряй посилання перед поданням.</li>
+  </ul>
+  <p>Покладатися на команду цілком не варто, але на ній можна будувати важливі кроки: пошук, підготовку, розрахунки, план. Останній крок завжди за тобою.</p>
+  </div>
 </main>
+<script>
+(function () {
+  const LANGS = ["en", "de", "uk"];
+  const TITLES = {en: "Backstage — how it works", de: "Backstage — so funktioniert's", uk: "Backstage — як це працює"};
+  const L = new URLSearchParams(location.search).get("lang") || (()=>{try{return localStorage.getItem("bs_lang")}catch{return null}})() || ((navigator.language||"").slice(0,2)==="de"?"de":(navigator.language||"").slice(0,2)==="uk"?"uk":"en");
+  const norm = (x) => { x = String(x || "").toLowerCase(); return LANGS.includes(x) ? x : "en"; };
+  let cur = norm(L);
+
+  function show(x) {
+    cur = norm(x);
+    document.querySelectorAll(".lang-block").forEach(b => b.classList.toggle("on", b.dataset.lang === cur));
+    document.querySelectorAll("[data-set-lang]").forEach(a => {
+      const on = a.dataset.setLang === cur;
+      a.classList.toggle("cur", on);
+      if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+    });
+    document.documentElement.lang = cur;
+    document.title = TITLES[cur];
+  }
+
+  // "#telegram" (as the app links it) or "#telegram-de" -> the section in the visible language
+  function scrollToHash() {
+    let h = location.hash.slice(1);
+    try { h = decodeURIComponent(h); } catch {}
+    if (!h) return false;
+    const el = document.getElementById(h.replace(/-(en|de|uk)$/, "") + "-" + cur);
+    if (el) { el.scrollIntoView(); return true; }
+    return false;
+  }
+
+  document.querySelectorAll("[data-set-lang]").forEach(a => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    const x = norm(a.dataset.setLang);
+    show(x);
+    try { localStorage.setItem("bs_lang", x); } catch {}
+    try { history.replaceState(null, "", "?lang=" + x + location.hash); } catch {}
+    if (!scrollToHash()) window.scrollTo(0, 0);
+  }));
+
+  window.addEventListener("hashchange", scrollToHash);
+  show(cur);
+  scrollToHash();
+})();
+</script>
 </body></html>

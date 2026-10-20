@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="ru"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f3ec">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Backstage — панель</title>
+<title>Backstage</title>
+<script src="static/i18n.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
@@ -99,13 +100,13 @@
 <header>
   <h1>Backstage<span>.</span></h1>
   <span class="chip" id="who">…</span>
-  <span class="chip" id="budget" title="Расход ИИ в этом месяце">$0</span>
+  <span class="chip" id="budget" data-i-title="a.spend">$0</span>
   <div class="grow"></div>
-  <button class="primary" id="btnPotential"><span class="hide-m">Проверка потенциала</span><span class="show-m">Потенциал</span></button>
-  <button id="btnAdd" title="Добавить виджет">+<span class="hide-m"> Виджет</span></button>
-  <button id="btnSettings" title="Настройки">⚙</button>
-  <a class="hide-m small" href="guide" target="_blank">Инструкция</a>
-  <button class="ghost small hide-m" id="btnLogout">Выйти</button>
+  <button class="primary" id="btnPotential"><span class="hide-m" data-i="a.potential"></span><span class="show-m" data-i="a.potential.s"></span></button>
+  <button id="btnAdd" data-i-title="a.addw">+<span class="hide-m" data-i="a.widget"></span></button>
+  <button id="btnSettings" data-i-title="a.settings">⚙</button>
+  <a class="hide-m small guide-link" href="guide" target="_blank" data-i="a.guide"></a>
+  <button class="ghost small hide-m" id="btnLogout" data-i="a.logout"></button>
 </header>
 
 <div class="layout">
@@ -115,73 +116,72 @@
     <div class="msgs" id="msgs"></div>
     <div class="composer">
       <div class="atts" id="atts"></div>
-      <textarea id="input" rows="2" placeholder="Напиши Майе: задачу, вопрос, идею, ссылку — она раздаст работу команде"></textarea>
+      <textarea id="input" rows="2" data-i-ph="a.input"></textarea>
       <div class="row">
-        <label class="row small muted" style="margin:0;gap:6px;width:auto" title="Самая мощная модель, веб-поиск, дольше и дороже">
-          <input type="checkbox" id="deep" style="width:auto"> Глубокий анализ
+        <label class="row small muted" style="margin:0;gap:6px;width:auto" data-i-title="a.deep.t">
+          <input type="checkbox" id="deep" style="width:auto"> <span data-i="a.deep"></span>
         </label>
         <div class="grow"></div>
         <input type="file" id="file" class="hidden" multiple accept="image/*,application/pdf,.txt,.csv,.md,.json">
-        <button class="ghost" id="btnAttach" title="Приложить файл">📎</button>
-        <button class="ghost" id="btnClear" title="Очистить переписку с этим агентом">🧹</button>
-        <button class="primary" id="btnSend">Отправить</button>
+        <button class="ghost" id="btnAttach" data-i-title="a.attach">📎</button>
+        <button class="ghost" id="btnClear" data-i-title="a.clear">🧹</button>
+        <button class="primary" id="btnSend" data-i="a.send"></button>
       </div>
     </div>
   </aside>
 </div>
 <nav class="tabs">
-  <button data-tab="chat" class="on">Команда</button>
-  <button data-tab="dash">Дашборд</button>
+  <button data-tab="chat" class="on" data-i="a.tab.team"></button>
+  <button data-tab="dash" data-i="a.tab.dash"></button>
 </nav>
 
 <dialog id="dlgEdit"><form method="dialog" id="fEdit"></form></dialog>
 <dialog id="dlgAdd">
   <form method="dialog">
-    <h2>Новый виджет</h2>
-    <label>Тип</label>
+    <h2 data-i="a.new.h"></h2>
+    <label data-i="a.type"></label>
     <select id="addKind">
-      <option value="kpi">KPI — одно число с целью</option>
-      <option value="chart">График — линия, столбцы, круг</option>
-      <option value="table">Таблица</option>
-      <option value="board">Доска проектов (канбан)</option>
-      <option value="list">Список с датами и галочками</option>
-      <option value="note">Заметка</option>
+      <option value="kpi" data-i="a.k.kpi"></option>
+      <option value="chart" data-i="a.k.chart"></option>
+      <option value="table" data-i="a.k.table"></option>
+      <option value="board" data-i="a.k.board"></option>
+      <option value="list" data-i="a.k.list"></option>
+      <option value="note" data-i="a.k.note"></option>
     </select>
-    <label>Название</label><input id="addTitle" placeholder="например, Подписчики YouTube">
-    <p class="small muted">Можно и проще: напиши в чат «добавь график подписчиков по неделям» — команда соберёт виджет сама.</p>
+    <label data-i="a.name"></label><input id="addTitle" data-i-ph="a.name.ph">
+    <p class="small muted" data-i="a.new.tip"></p>
     <div class="row" style="margin-top:14px"><div class="grow"></div>
-      <button value="cancel">Отмена</button><button class="primary" id="addOk" value="ok">Создать</button></div>
+      <button value="cancel" data-i="a.cancel"></button><button class="primary" id="addOk" value="ok" data-i="a.create"></button></div>
   </form>
 </dialog>
 <dialog id="dlgPotential">
   <form method="dialog">
-    <h2>Проверка потенциала</h2>
-    <p class="small muted">Расскажи о практике: что делаешь, где, для кого, главная цель на 12 месяцев, сколько часов в неделю уходит на админку.
-      Майя соберёт команду, самая мощная модель Claude найдёт в интернете гранты и заказы и разложит план по шагам.
-      Анализ идёт несколько минут и стоит заметно дороже обычного сообщения.</p>
+    <h2 data-i="a.pot.h"></h2>
+    <p class="small muted" data-i="a.pot.p"></p>
     <textarea id="potText" rows="8"></textarea>
     <div class="row" style="margin-top:14px"><div class="grow"></div>
-      <button value="cancel">Отмена</button><button class="primary" id="potOk" value="ok">Запустить анализ</button></div>
+      <button value="cancel" data-i="a.cancel"></button><button class="primary" id="potOk" value="ok" data-i="a.pot.go"></button></div>
   </form>
 </dialog>
 <dialog id="dlgSettings">
   <form method="dialog">
-    <h2>Настройки</h2>
-    <label>Профиль практики — команда читает его перед каждым ответом</label>
+    <h2 data-i="a.set.h"></h2>
+    <label data-i="a.set.lang"></label>
+    <select id="setLang"><option value="en">English</option><option value="de">Deutsch</option><option value="uk">Українська</option></select>
+    <label data-i="a.set.profile"></label>
     <textarea id="setProfile" rows="6"></textarea>
     <label class="row" style="gap:8px"><input type="checkbox" id="setShare" style="width:auto">
-      Делиться обезличенными выводами с общим плейбуком агентства</label>
+      <span data-i="a.set.share"></span></label>
     <h3 style="margin-top:18px">Telegram</h3>
-    <p class="small muted">Свой бот, который пишет той же команде. В Telegram открой @BotFather → /newbot → скопируй токен сюда.
-      Потом напиши своему боту /start. Подробно — в <a href="guide#telegram" target="_blank">инструкции</a>.</p>
-    <input id="setTg" placeholder="123456789:AA…  (пусто — отключить)">
+    <p class="small muted"><span data-i="a.set.tg"></span> <a href="guide#telegram" target="_blank" class="guide-link" data-i="a.set.tg.link"></a>.</p>
+    <input id="setTg" data-i-ph="a.set.tg.ph">
     <p class="small" id="tgState"></p>
-    <h3 style="margin-top:18px">Расход</h3>
+    <h3 style="margin-top:18px" data-i="a.set.usage"></h3>
     <p class="small" id="usageLine"></p>
-    <h3 style="margin-top:18px">База опыта</h3>
+    <h3 style="margin-top:18px" data-i="a.set.exp"></h3>
     <div id="insList" class="small"></div>
-    <div class="row" style="margin-top:14px"><button type="button" class="ghost" id="btnLogout2">Выйти</button><a href="guide" target="_blank" class="small">Инструкция</a><div class="grow"></div>
-      <button value="cancel">Закрыть</button><button class="primary" id="setOk" value="ok">Сохранить</button></div>
+    <div class="row" style="margin-top:14px"><button type="button" class="ghost" id="btnLogout2" data-i="a.logout"></button><a href="guide" target="_blank" class="small guide-link" data-i="a.guide"></a><div class="grow"></div>
+      <button value="cancel" data-i="a.close"></button><button class="primary" id="setOk" value="ok" data-i="a.save"></button></div>
   </form>
 </dialog>
 
@@ -195,6 +195,7 @@ const api = async (path, body) => {
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 };
+const t = BS.t;
 const toast = (t) => { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), 3500); };
 
 const LS = {get: k => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -227,27 +228,27 @@ async function loadWidgets() {
 function renderGrid() {
   Object.values(CHARTS).forEach(c => c.destroy()); CHARTS = {};
   const g = $("#grid"); g.innerHTML = "";
-  if (!WIDGETS.length) g.innerHTML = `<div class="empty card" style="grid-column:1/-1">Дашборд пуст. Нажми «+ Виджет» или попроси команду в чате.</div>`;
+  if (!WIDGETS.length) g.innerHTML = `<div class="empty card" style="grid-column:1/-1">${esc(t("a.dash.empty"))}</div>`;
   WIDGETS.forEach((w, i) => {
     const el = document.createElement("div");
     el.className = `card w ${w.size || "m"}`;
     el.innerHTML = `<div class="w-head"><h3 title="${esc(w.title)}">${esc(w.title)}</h3>
       <div class="w-tools">
-        <button data-a="up" title="Выше">↑</button><button data-a="down" title="Ниже">↓</button>
-        ${w.config.system ? "" : '<button data-a="edit" title="Редактировать">✎</button><button data-a="del" title="Удалить">✕</button>'}
+        <button data-a="up" title="${t("a.up")}">↑</button><button data-a="down" title="${t("a.down")}">↓</button>
+        ${w.config.system ? "" : `<button data-a="edit" title="${t("a.edit")}">✎</button><button data-a="del" title="${t("a.del")}">✕</button>`}
       </div></div><div class="w-body"></div>`;
     el.querySelector(".w-tools").onclick = (e) => { const a = e.target.dataset.a; if (a) widgetAction(w, i, a); };
     renderBody(w, el.querySelector(".w-body"));
     g.append(el);
   });
 }
-const num = (v) => (typeof v === "number" ? v.toLocaleString("ru-RU") : esc(v ?? "—"));
+const num = (v) => (typeof v === "number" ? v.toLocaleString({en: "en-GB", de: "de-DE", uk: "uk-UA"}[BS.lang]) : esc(v ?? "—"));
 function renderBody(w, b) {
   const d = w.data || {}, c = w.config || {};
   if (w.kind === "kpi") {
     const goal = Number(c.goal) || 0, val = Number(d.value) || 0;
     b.innerHTML = `<div class="kpi-val">${num(d.value)}<span class="muted" style="font-size:18px"> ${esc(c.unit || "")}</span></div>
-      <div class="small muted">${esc(d.delta || "")}${goal ? ` · цель ${num(goal)} ${esc(c.unit || "")}` : ""}</div>
+      <div class="small muted">${esc(d.delta || "")}${goal ? ` · ${t("a.goal")} ${num(goal)} ${esc(c.unit || "")}` : ""}</div>
       ${goal ? `<div class="bar"><i style="width:${Math.min(100, val / goal * 100)}%"></i></div>` : ""}`;
   } else if (w.kind === "chart") {
     b.innerHTML = `<div class="chart-box"><canvas></canvas></div>`;
@@ -268,14 +269,14 @@ function renderBody(w, b) {
     const cols = c.columns || [], rows = d.rows || [];
     b.innerHTML = `<div class="t-wrap"><table class="t"><thead><tr>${cols.map(x => `<th>${esc(x)}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r => `<tr>${r.map(x => `<td>${md(String(x)).replace(/^<p>|<\/p>$/g, "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
-      ${rows.length ? "" : '<p class="small muted">Пусто. ✎ — добавить строки.</p>'}`;
+      ${rows.length ? "" : `<p class="small muted">${t("a.t.empty")}</p>`}`;
   } else if (w.kind === "board") {
-    const cols = c.columns || ["Входящие", "В работе", "Готово"], cards = d.cards || [];
+    const cols = c.columns || [t("a.col.inbox"), t("a.col.doing"), t("a.col.done")], cards = d.cards || [];
     b.innerHTML = `<div class="board">${cols.map((name, ci) => `<div class="col"><h4>${esc(name)}</h4>
       ${cards.filter(k => (k.col || 0) === ci).map(k => `<div class="kcard">${md(k.text).replace(/^<p>|<\/p>$/g, "")}
         <div class="acts">${ci > 0 ? `<button data-m="${k.id}" data-d="-1">←</button>` : ""}${ci < cols.length - 1 ? `<button data-m="${k.id}" data-d="1">→</button>` : ""}
         <div class="grow"></div><button data-x="${k.id}">✕</button></div></div>`).join("")}
-      <input placeholder="+ карточка" data-add="${ci}"></div>`).join("")}</div>`;
+      <input placeholder="${t("a.card")}" data-add="${ci}"></div>`).join("")}</div>`;
     b.onclick = (e) => {
       const m = e.target.dataset.m, x = e.target.dataset.x;
       if (m) { const k = cards.find(k => k.id == m); k.col = (k.col || 0) + Number(e.target.dataset.d); saveData(w, {...d, cards}); }
@@ -296,8 +297,8 @@ function renderBody(w, b) {
       <span class="tx grow">${md(it.text).replace(/^<p>|<\/p>$/g, "")}</span>
       ${it.date ? `<span class="date ${!it.done && it.date <= soon ? "soon" : ""}">${esc(it.date)}</span>` : ""}
       <button class="ghost small" data-x="${it.id}" style="padding:0 4px">✕</button></li>`).join("")}</ul>
-      <div class="row" style="margin-top:8px"><input placeholder="+ пункт" class="grow" data-new><input type="date" style="width:140px" data-date></div>`;
-    b.onchange = (e) => { const t = e.target.dataset.t; if (t) { items.find(i => i.id == t).done = e.target.checked; saveData(w, {...d, items}); } };
+      <div class="row" style="margin-top:8px"><input placeholder="${t("a.item")}" class="grow" data-new><input type="date" style="width:140px" data-date></div>`;
+    b.onchange = (e) => { const id = e.target.dataset.t; if (id) { items.find(i => i.id == id).done = e.target.checked; saveData(w, {...d, items}); } };
     b.onclick = (e) => { const x = e.target.dataset.x; if (x) saveData(w, {...d, items: items.filter(i => i.id != x)}); };
     const inp = b.querySelector("[data-new]");
     inp.onkeydown = (e) => { if (e.key === "Enter" && inp.value.trim()) {
@@ -312,7 +313,7 @@ async function saveData(w, data) {
   await loadWidgets();
 }
 async function widgetAction(w, i, a) {
-  if (a === "del") { if (confirm(`Удалить «${w.title}»?`)) { await api(`api/widgets/${w.id}/delete`, {}); loadWidgets(); } return; }
+  if (a === "del") { if (confirm(t("a.del.q", {t: w.title}))) { await api(`api/widgets/${w.id}/delete`, {}); loadWidgets(); } return; }
   if (a === "up" || a === "down") {
     const ids = WIDGETS.map(x => x.id), j = a === "up" ? i - 1 : i + 1;
     if (j < 0 || j >= ids.length) return;
@@ -326,7 +327,7 @@ async function widgetAction(w, i, a) {
 const SEP = ";";
 function toGrid(w) {
   const d = w.data || {}, c = w.config || {};
-  if (w.kind === "chart") return [["Подпись", ...(d.series || []).map(s => s.name)].join(SEP),
+  if (w.kind === "chart") return [[t("a.ed.label"), ...(d.series || []).map(s => s.name)].join(SEP),
     ...(d.labels || []).map((l, i) => [l, ...(d.series || []).map(s => s.values?.[i] ?? "")].join(SEP))].join("\n");
   if (w.kind === "table") return [(c.columns || []).join(SEP), ...(d.rows || []).map(r => r.join(SEP))].join("\n");
   return "";
@@ -341,25 +342,25 @@ function fromGrid(kind, text) {
 function openEditor(w) {
   const f = $("#fEdit"), c = w.config || {}, d = w.data || {};
   let extra = "";
-  if (w.kind === "kpi") extra = `<label>Значение</label><input name="value" value="${esc(d.value ?? "")}">
-    <label>Подпись под числом</label><input name="delta" value="${esc(d.delta || "")}">
-    <div class="row"><div class="grow"><label>Единица</label><input name="unit" value="${esc(c.unit || "")}"></div>
-    <div class="grow"><label>Цель</label><input name="goal" value="${esc(c.goal ?? "")}"></div></div>`;
-  if (w.kind === "chart") extra = `<label>Вид</label><select name="type">${["line", "bar", "pie", "doughnut"].map(t =>
-    `<option ${c.type === t ? "selected" : ""} value="${t}">${{line: "Линия", bar: "Столбцы", pie: "Круг", doughnut: "Кольцо"}[t]}</option>`).join("")}</select>
-    <label>Данные: первая строка — названия серий, дальше «подпись; значение; значение…»</label>
+  if (w.kind === "kpi") extra = `<label>${t("a.ed.value")}</label><input name="value" value="${esc(d.value ?? "")}">
+    <label>${t("a.ed.caption")}</label><input name="delta" value="${esc(d.delta || "")}">
+    <div class="row"><div class="grow"><label>${t("a.ed.unit")}</label><input name="unit" value="${esc(c.unit || "")}"></div>
+    <div class="grow"><label>${t("a.ed.goal")}</label><input name="goal" value="${esc(c.goal ?? "")}"></div></div>`;
+  if (w.kind === "chart") extra = `<label>${t("a.ed.kind")}</label><select name="type">${["line", "bar", "pie", "doughnut"].map(k =>
+    `<option ${c.type === k ? "selected" : ""} value="${k}">${t("a.ch." + k)}</option>`).join("")}</select>
+    <label>${t("a.ed.chart")}</label>
     <textarea name="grid" class="ed-grid">${esc(toGrid(w))}</textarea>`;
-  if (w.kind === "table") extra = `<label>Первая строка — колонки, дальше строки; ячейки через «;»</label>
+  if (w.kind === "table") extra = `<label>${t("a.ed.table")}</label>
     <textarea name="grid" class="ed-grid">${esc(toGrid(w))}</textarea>`;
-  if (w.kind === "board") extra = `<label>Колонки доски, по одной на строку</label>
+  if (w.kind === "board") extra = `<label>${t("a.ed.board")}</label>
     <textarea name="cols" rows="5">${esc((c.columns || []).join("\n"))}</textarea>`;
-  if (w.kind === "note") extra = `<label>Текст (можно **жирный**, списки через «- », ссылки)</label>
+  if (w.kind === "note") extra = `<label>${esc(t("a.ed.note"))}</label>
     <textarea name="text" rows="10">${esc(d.text || "")}</textarea>`;
-  f.innerHTML = `<h2>Виджет</h2><label>Название</label><input name="title" value="${esc(w.title)}">
-    <label>Размер</label><select name="size">${[["s", "Маленький"], ["m", "Средний"], ["l", "Во всю ширину"]].map(([v, t]) =>
-      `<option value="${v}" ${w.size === v ? "selected" : ""}>${t}</option>`).join("")}</select>
-    ${extra}<div class="row" style="margin-top:14px"><div class="grow"></div><button value="cancel">Отмена</button>
-    <button class="primary" value="ok">Сохранить</button></div>`;
+  f.innerHTML = `<h2>${t("a.ed.h")}</h2><label>${t("a.name")}</label><input name="title" value="${esc(w.title)}">
+    <label>${t("a.ed.size")}</label><select name="size">${["s", "m", "l"].map(v =>
+      `<option value="${v}" ${w.size === v ? "selected" : ""}>${t("a.sz." + v)}</option>`).join("")}</select>
+    ${extra}<div class="row" style="margin-top:14px"><div class="grow"></div><button value="cancel">${t("a.cancel")}</button>
+    <button class="primary" value="ok">${t("a.save")}</button></div>`;
   const dlg = $("#dlgEdit");
   dlg.onclose = async () => {
     if (dlg.returnValue !== "ok") return;
@@ -387,14 +388,14 @@ async function loadMsgs() {
   const list = await api(`api/messages?agent=${AGENT}`);
   const box = $("#msgs"), a = ME.agents[AGENT];
   box.innerHTML = list.length ? "" : `<div class="empty"><b>${esc(a.name)}</b>, ${esc(a.role.toLowerCase())}.<br>
-    ${AGENT === "maya" ? "Пиши мне обо всём: я раздам задачи команде и соберу ответ." : "Можно писать напрямую, но обычно быстрее через Майю."}</div>`;
+    ${esc(t(AGENT === "maya" ? "a.empty.maya" : "a.empty.other"))}</div>`;
   list.forEach(m => addMsg(m.role, m.text, m.meta));
   if (AGENT === "maya" && list.filter(m => m.role === "user").length === 0) {
-    const ideas = ["Найди для меня конкурсы и фестивали с дедлайнами", "Помоги посчитать цену моей работы", "Составь план на этот месяц"];
+    const ideas = [t("a.idea1"), t("a.idea2"), t("a.idea3")];
     const wrap = document.createElement("div");
     wrap.className = "row"; wrap.style.cssText = "flex-wrap:wrap;gap:6px;align-self:flex-start";
-    wrap.innerHTML = ideas.map(t => `<button class="chip" style="cursor:pointer" data-idea="${esc(t)}">${esc(t)}</button>`).join("");
-    wrap.onclick = (e) => { const t = e.target.dataset.idea; if (t) { $("#input").value = t; wrap.remove(); send(); } };
+    wrap.innerHTML = ideas.map(x => `<button class="chip" style="cursor:pointer" data-idea="${esc(x)}">${esc(x)}</button>`).join("");
+    wrap.onclick = (e) => { const x = e.target.dataset.idea; if (x) { $("#input").value = x; wrap.remove(); send(); } };
     box.append(wrap);
   }
   box.scrollTop = box.scrollHeight;
@@ -406,8 +407,8 @@ function addMsg(role, text, meta = {}) {
   else {
     el.innerHTML = md(text);
     const bits = [];
-    if (meta.consulted?.length) bits.push("позвала: " + meta.consulted.map(id => ME.agents[id]?.name || id).join(", "));
-    if (meta.changed) bits.push("показатели обновлены");
+    if (meta.consulted?.length) bits.push(t("a.asked") + meta.consulted.map(id => ME.agents[id]?.name || id).join(", "));
+    if (meta.changed) bits.push(t("a.changed"));
     if (meta.model) bits.push(meta.model);
     if (bits.length) el.insertAdjacentHTML("beforeend", `<div class="meta">${esc(bits.join(" · "))}</div>`);
   }
@@ -422,7 +423,7 @@ async function send(extra = {}) {
   $("#input").value = ""; $("#btnSend").disabled = true;
   const wait = document.createElement("div");
   wait.className = "thinking";
-  wait.textContent = (extra.potential || deep) ? "Глубокий анализ идёт, это займёт несколько минут" : `${ME.agents[AGENT].name} думает`;
+  wait.textContent = (extra.potential || deep) ? t("a.deepwait") : t("a.thinks", {name: ME.agents[AGENT].name});
   $("#msgs").append(wait); $("#msgs").scrollTop = $("#msgs").scrollHeight;
   try {
     const {job} = await api("api/chat", {agent: AGENT, text, deep, attachments: ATTS, ...extra});
@@ -444,13 +445,13 @@ async function pollJob(job) {
   }
 }
 function renderAtts() {
-  $("#atts").innerHTML = ATTS.map((a, i) => `<span class="chip">📎 ${esc(a.name)} <button class="ghost" data-i="${i}" style="padding:0">✕</button></span>`).join("");
+  $("#atts").innerHTML = ATTS.map((a, i) => `<span class="chip">📎 ${esc(a.name)} <button class="ghost" data-ix="${i}" style="padding:0">✕</button></span>`).join("");
 }
-$("#atts").onclick = (e) => { const i = e.target.dataset.i; if (i !== undefined) { ATTS.splice(i, 1); renderAtts(); } };
+$("#atts").onclick = (e) => { const i = e.target.dataset.ix; if (i !== undefined) { ATTS.splice(i, 1); renderAtts(); } };
 $("#btnAttach").onclick = () => $("#file").click();
 $("#file").onchange = async (e) => {
   for (const f of e.target.files) {
-    if (f.size > 20 * 1024 * 1024) { toast(`${f.name}: больше 20 МБ`); continue; }
+    if (f.size > 20 * 1024 * 1024) { toast(t("a.big", {name: f.name})); continue; }
     const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(",")[1]); fr.readAsDataURL(f); });
     ATTS.push({name: f.name, media_type: f.type || "text/plain", data: b64});
   }
@@ -458,14 +459,18 @@ $("#file").onchange = async (e) => {
 };
 $("#btnSend").onclick = () => send();
 $("#input").onkeydown = (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); };
-$("#btnClear").onclick = async () => { if (confirm("Очистить переписку с этим агентом? Дашборд и база опыта останутся.")) { await api("api/messages/clear", {agent: AGENT}); loadMsgs(); } };
+$("#btnClear").onclick = async () => { if (confirm(t("a.clear.q"))) { await api("api/messages/clear", {agent: AGENT}); loadMsgs(); } };
 
 // ─── Шапка, диалоги, вкладки ───
 async function refreshMe() {
   ME = await api("api/me");
+  if (ME.lang !== BS.lang || !document.documentElement.dataset.ready) {
+    BS.set(ME.lang); document.title = t("a.title"); document.documentElement.dataset.ready = 1;
+    document.querySelectorAll(".guide-link").forEach(a => a.href = a.getAttribute("href").replace(/^guide(\?lang=\w+)?/, "guide?lang=" + BS.lang));
+  }
   $("#who").textContent = ME.name;
   const b = $("#budget");
-  if (ME.backend === "cli") { b.textContent = ME.fresh ? "бесплатно" : "подписка"; b.title = "Команда работает по подписке Claude"; }
+  if (ME.backend === "cli") { b.textContent = t(ME.fresh ? "a.free" : "a.sub"); b.title = t("a.sub.t"); }
   else { b.textContent = `$${ME.spent.toFixed(2)} / $${Number(ME.budget).toFixed(0)}`;
     b.style.color = ME.spent >= ME.budget ? "var(--bad)" : ME.spent > ME.budget * .8 ? "var(--warn)" : ""; }
 }
@@ -473,10 +478,10 @@ $("#btnAdd").onclick = () => { $("#addTitle").value = ""; $("#dlgAdd").returnVal
 $("#dlgAdd").onclose = async () => {
   if ($("#dlgAdd").returnValue !== "ok") return;
   const kind = $("#addKind").value;
-  const presets = {kpi: [{unit: "", goal: 0}, {value: 0}], chart: [{type: "line"}, {labels: [], series: [{name: "Значение", values: []}]}],
-    table: [{columns: ["Колонка 1", "Колонка 2"]}, {rows: []}], board: [{columns: ["Входящие", "В работе", "Готово"]}, {cards: []}],
+  const presets = {kpi: [{unit: "", goal: 0}, {value: 0}], chart: [{type: "line"}, {labels: [], series: [{name: t("a.value"), values: []}]}],
+    table: [{columns: [t("a.col1"), t("a.col2")]}, {rows: []}], board: [{columns: [t("a.col.inbox"), t("a.col.doing"), t("a.col.done")]}, {cards: []}],
     list: [{}, {items: []}], note: [{}, {text: ""}]};
-  const w = await api("api/widgets", {kind, title: $("#addTitle").value || "Новый виджет", config: presets[kind][0], data: presets[kind][1],
+  const w = await api("api/widgets", {kind, title: $("#addTitle").value || t("a.new.h"), config: presets[kind][0], data: presets[kind][1],
     size: kind === "kpi" ? "s" : kind === "board" ? "l" : "m"});
   await loadWidgets(); openEditor(w);
 };
@@ -488,33 +493,36 @@ $("#dlgPotential").onclose = () => {
   loadMsgs().then(() => send({potential: true}));
 };
 $("#btnSettings").onclick = async () => {
+  $("#setLang").value = BS.lang;
   $("#setProfile").value = ME.profile || ""; $("#setShare").checked = !!ME.share_insights; $("#setTg").value = "";
-  $("#tgState").textContent = ME.telegram ? "✅ Бот подключён. Новый токен заменит старый." : "Бот не подключён.";
+  $("#tgState").textContent = t(ME.telegram ? "a.tg.on" : "a.tg.off");
   const u = await api("api/usage");
   const tot = u.reduce((s, r) => s + r.cost, 0), n = u.reduce((s, r) => s + r.n, 0);
-  $("#usageLine").textContent = `За 31 день: ${n} запросов к Claude, $${tot.toFixed(2)}. Чат: ${ME.model_chat}, глубокий анализ: ${ME.model_deep}.`;
+  $("#usageLine").textContent = t("a.usage", {n, sum: tot.toFixed(2), chat: ME.model_chat, deep: ME.model_deep});
   const ins = await api("api/insights");
   $("#insList").innerHTML = ins.length ? ins.map(i => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">
-    <b>${esc(i.title)}</b> <span class="chip">${i.shared ? "общий плейбук" : "мой"}</span><br>${esc(i.body)}
-    ${i.shared ? "" : `<button class="ghost small" data-del="${i.id}">удалить</button>`}</div>`).join("") : '<span class="muted">Пока пусто. Команда сохраняет сюда то, что стоит запомнить.</span>';
+    <b>${esc(i.title)}</b> <span class="chip">${t(i.shared ? "a.exp.shared" : "a.exp.mine")}</span><br>${esc(i.body)}
+    ${i.shared ? "" : `<button class="ghost small" data-del="${i.id}">${t("a.exp.del")}</button>`}</div>`).join("") : `<span class="muted">${t("a.exp.empty")}</span>`;
   $("#insList").onclick = async (e) => { const id = e.target.dataset.del; if (id) { await api(`api/insights/${id}/delete`, {}); e.target.parentElement.remove(); } };
   $("#dlgSettings").returnValue = ""; $("#dlgSettings").showModal();
 };
 $("#dlgSettings").onclose = async () => {
   if ($("#dlgSettings").returnValue !== "ok") return;
-  await api("api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0});
+  const newLang = $("#setLang").value;
+  await api("api/profile", {profile: $("#setProfile").value, share_insights: $("#setShare").checked ? 1 : 0, lang: newLang});
   const tg = $("#setTg").value.trim();
-  if (tg) { try { await api("api/telegram", {token: tg}); toast("Бот подключён — напиши ему /start"); } catch (e) { toast(e.message); } }
+  if (tg) { try { await api("api/telegram", {token: tg}); toast(t("a.tg.ok")); } catch (e) { toast(e.message); } }
+  if (newLang !== BS.lang) { BS.set(newLang); return location.reload(); }
   refreshMe();
 };
 const logout = async () => { await api("api/logout", {}); location.href = "./"; };
 $("#btnLogout").onclick = logout; $("#btnLogout2").onclick = logout;
-function setTab(t) {
-  document.body.dataset.tab = t;
-  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
-  if (t === "dash") Object.values(CHARTS).forEach(c => c.resize());
+function setTab(tab) {
+  document.body.dataset.tab = tab;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  if (tab === "dash") Object.values(CHARTS).forEach(c => c.resize());
 }
-document.querySelector("nav.tabs").onclick = (e) => { const t = e.target.dataset.tab; if (t) setTab(t); };
+document.querySelector("nav.tabs").onclick = (e) => { const tab = e.target.dataset.tab; if (tab) setTab(tab); };
 
 (async () => {
   await refreshMe(); renderAgents();
@@ -526,14 +534,13 @@ document.querySelector("nav.tabs").onclick = (e) => { const t = e.target.dataset
     // показываем, что команда работает, а не пустой чат
     const wait = document.createElement("div");
     wait.className = "thinking";
-    const steps = ["Майя читает анкету", "Рубен ищет конкурсы и фестивали", "Бен прикидывает цены",
-                   "Команда сверяет найденное", "Майя собирает первый разбор"];
+    const steps = ["a.s1", "a.s2", "a.s3", "a.s4", "a.s5"].map(k => t(k));
     let k = 0; wait.textContent = steps[0];
     const tick = setInterval(() => { k = (k + 1) % steps.length; wait.textContent = steps[k]; }, 9000);
     if (window.innerWidth <= 1000) setTab("chat");  // сначала показать чат, потом прокрутить — скрытый не прокручивается
     $("#msgs").append(wait);
     requestAnimationFrame(() => { $("#msgs").scrollTop = $("#msgs").scrollHeight; });
-    pollJob(pending).then(() => { loadMsgs(); loadWidgets(); refreshMe(); toast("Первый разбор готов"); })
+    pollJob(pending).then(() => { loadMsgs(); loadWidgets(); refreshMe(); toast(t("a.first.ready")); })
       .catch((e) => addMsg("assistant", "⚠️ " + e.message))
       .finally(() => { clearInterval(tick); wait.remove(); LS.del("bs_job"); });
   }

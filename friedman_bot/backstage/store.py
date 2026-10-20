@@ -144,7 +144,7 @@ def hash_key(key: str) -> str:
 
 # ─── Клиенты ─────────────────────────────────────────────────────────────────
 
-def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0, lang: str = "ru", key: str = None,
+def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0, lang: str = "en", key: str = None,
                   source: str = "admin", craft: str = ""):
     """Создаёт клиента со стартовым дашбордом. Возвращает (client_id, access_key) —
     ключ показывается один раз, в базе лежит только его хэш."""
@@ -155,7 +155,7 @@ def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0,
             "VALUES (?,?,?,?,?,?,?,?,?)",
             (slug, name, hash_key(key), profile, budget, lang, now(), source, craft))
         cid = cur.lastrowid
-    seed_dashboard(cid, craft.split(",")[0])
+    seed_dashboard(cid, craft.split(",")[0], lang)
     return cid, key
 
 
@@ -293,46 +293,24 @@ def drop_client_sessions(client_id: int):
 WIDGET_KINDS = ("kpi", "chart", "table", "board", "list", "note")
 
 
-CRAFT_BOARDS = {
-    "animation": ["Идеи", "Раскадровка", "Анимация", "Сдано"],
-    "dance": ["Идеи", "Постановка", "Репетиции", "Выступления"],
-    "theatre": ["Идеи", "Репетиции", "Премьера", "Гастроли"],
-    "film": ["Идеи", "Сценарий", "Съёмка", "Монтаж"],
-    "painting": ["Идеи", "Холсты в работе", "Готово", "Продано"],
-    "design": ["Входящие", "Концепт", "Правки", "Сдано"],
-    "fashion": ["Идеи", "Эскизы", "Пошив", "Показ / продажа"],
-    "writing": ["Идеи", "Черновик", "Редактура", "Издано"],
-    "illustration": ["Идеи", "Эскизы", "В работе", "Сдано"],
-    "music": ["Демо", "В работе", "Релиз", "Выступления"],
-    "mural": ["Входящие", "Эскиз", "На стене", "Готово"],
-    "photo": ["Идеи", "Съёмка", "Обработка", "Сдано"],
-}
-CRAFT_LISTS = {
-    "animation": "Фестивали, питчинги и дедлайны",
-    "music": "Конкурсы, фестивали и релизы",
-    "mural": "Конкурсы, тендеры и дедлайны",
-    "dance": "Конкурсы, фестивали и кастинги",
-    "theatre": "Фестивали, гранты и гастроли",
-    "film": "Фестивали, питчинги и гранты",
-}
-
-
-def seed_dashboard(client_id: int, craft: str = ""):
+def seed_dashboard(client_id: int, craft: str = "", lang: str = "en"):
     """Базовая версия дашборда — то, с чего начинает любой клиент. Менее
     персонализированная, чем «Капитанский мостик» Фридмана: дальше клиент
-    перестраивает её руками или через чат."""
+    перестраивает её руками или через чат. Подписи — на языке клиента."""
+    import i18n
+    L = i18n.norm(lang)
+    S = i18n.SEED[L]
     month = datetime.now().strftime("%Y-%m")
     seed = [
-        ("kpi", "Доход за месяц", {"unit": "€", "goal": 3000}, {"value": 0, "delta": ""}, "s"),
-        ("kpi", "Заявки в работе", {"unit": ""}, {"value": 0, "delta": ""}, "s"),
-        ("kpi", "Бюджет ИИ на месяц", {"unit": "$", "system": "budget"}, {"value": 0}, "s"),
-        ("board", "Проекты", {"columns": CRAFT_BOARDS.get(craft, ["Входящие", "В работе", "Ждём ответа", "Готово"])},
-         {"cards": [{"id": 1, "col": 0, "text": "Рассказать Майе о своей практике"}]}, "l"),
-        ("chart", "Доход по месяцам", {"type": "bar", "unit": "€"},
-         {"labels": [month], "series": [{"name": "Доход", "values": [0]}]}, "m"),
-        ("list", CRAFT_LISTS.get(craft, "Дедлайны и заявки"), {}, {"items": []}, "m"),
-        ("note", "Профиль практики", {}, {"text": "Кто я, что делаю, чего хочу добиться за 12 месяцев. "
-                                                  "Команда читает эту заметку перед каждым ответом."}, "m"),
+        ("kpi", S["income"], {"unit": "€", "goal": 3000}, {"value": 0, "delta": ""}, "s"),
+        ("kpi", S["apps"], {"unit": ""}, {"value": 0, "delta": ""}, "s"),
+        ("kpi", S["budget"], {"unit": "$", "system": "budget"}, {"value": 0}, "s"),
+        ("board", S["projects"], {"columns": i18n.BOARDS[L].get(craft) or i18n.BOARDS[L]["_"]},
+         {"cards": [{"id": 1, "col": 0, "text": S["card"]}]}, "l"),
+        ("chart", S["chart"], {"type": "bar", "unit": "€"},
+         {"labels": [month], "series": [{"name": S["series"], "values": [0]}]}, "m"),
+        ("list", i18n.LISTS[L].get(craft) or i18n.LISTS[L]["_"], {}, {"items": []}, "m"),
+        ("note", S["profile"], {}, {"text": S["profile_text"]}, "m"),
     ]
     with db() as conn:
         for i, (kind, title, cfg, data, size) in enumerate(seed):

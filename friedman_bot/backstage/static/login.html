@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="ru"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f3ec">
-<title>Backstage — вход</title>
+<title>Backstage</title>
+<script src="static/i18n.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -33,32 +34,46 @@
   .alt p{color:var(--muted);margin:4px 0 0;font-size:14px}
   .small{font-size:13px;color:var(--faint);margin-top:18px}
   .small a{color:var(--muted)}
+  .top{display:flex;justify-content:space-between;align-items:center}
+  .sw{display:flex;gap:4px}
+  .sw button{all:unset;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--faint);padding:4px 7px;border-radius:8px}
+  .sw button.on{color:#fff;background:var(--accent)}
 </style>
 </head><body>
 <main>
-  <div class="brand">Backstage<b>.</b></div>
-  <h1>С возвращением к <em>команде</em></h1>
-  <p class="lead">Войди по имени и пин-коду, которые задаются при регистрации.</p>
+  <div class="top"><div class="brand">Backstage<b>.</b></div>
+    <div class="sw" id="sw"><button type="button" data-l="en">EN</button><button type="button" data-l="de">DE</button><button type="button" data-l="uk">UK</button></div></div>
+  <h1 data-i-html="l.h"></h1>
+  <p class="lead" data-i="l.lead"></p>
   <form id="f">
-    <label for="slug">Имя для входа</label>
+    <label for="slug" data-i="l.slug"></label>
     <input id="slug" autocomplete="username" autocapitalize="none" required>
-    <label for="key">Пин-код</label>
+    <label for="key" data-i="l.pin"></label>
     <input id="key" type="password" inputmode="numeric" autocomplete="current-password" required>
-    <button type="submit">Войти <span>→</span></button>
+    <button type="submit"><span data-i="l.go"></span> <span>→</span></button>
     <div class="err" id="err"></div>
   </form>
-  <div class="alt"><a href="./">Впервые здесь? Начни работу с командой →</a>
-    <p>Бесплатно, около трёх минут.</p></div>
-  <p class="small"><a href="guide">Как устроена работа с командой</a></p>
+  <div class="alt"><a href="./" data-i="l.new"></a>
+    <p data-i="l.new2"></p></div>
+  <p class="small"><a href="guide" id="guideLink" data-i="l.guide"></a></p>
 </main>
 <script>
-if (location.search.includes("bad=1")) document.getElementById("err").textContent = "Ссылка недействительна — проверь ключ или попроси новый.";
+function lang(l) {
+  BS.set(l);
+  document.title = BS.t("l.title");
+  document.querySelectorAll("#sw button").forEach(b => b.classList.toggle("on", b.dataset.l === BS.lang));
+  document.getElementById("guideLink").href = "guide?lang=" + BS.lang;
+}
+document.getElementById("sw").onclick = (e) => { const l = e.target.dataset.l; if (l) lang(l); };
+lang(BS.lang);
+if (location.search.includes("bad=1")) document.getElementById("err").textContent = BS.t("l.bad");
 document.getElementById("f").onsubmit = async (e) => {
   e.preventDefault();
   const r = await fetch("api/login", {method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({slug: slug.value, key: key.value})});
-  if (r.ok) location.href = "app";
-  else document.getElementById("err").textContent = (await r.json()).error || "Не получилось войти";
+    body: JSON.stringify({slug: slug.value, key: key.value, lang: BS.lang})});
+  const j = await r.json().catch(() => ({}));
+  if (r.ok) { if (j.lang) BS.set(j.lang); location.href = "app"; }
+  else document.getElementById("err").textContent = j.error || BS.t("l.fail");
 };
 </script>
 </body></html>

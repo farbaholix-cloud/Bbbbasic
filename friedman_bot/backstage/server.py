@@ -34,6 +34,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(HERE, ".env"))
 
 import store  # noqa: E402  (после .env — путь к базе может прийти оттуда)
+import i18n  # noqa: E402
+from i18n import t as T  # noqa: E402
 import brain  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -79,7 +81,7 @@ def start_job(client_id, agent, text, attachments, deep, display=None):
             JOBS[jid].update(status="error", error=str(e))
         except Exception as e:  # noqa: BLE001 — любую ошибку показываем клиенту, а не роняем поток
             log.exception("chat job failed")
-            JOBS[jid].update(status="error", error=f"Ошибка команды: {e}")
+            JOBS[jid].update(status="error", error=T(store.get_client(client_id)["lang"], "team_error", e=e))
         finally:
             # старые задачи чистим, чтобы словарь не рос бесконечно
             cutoff = time.time() - 3600
@@ -184,6 +186,18 @@ class Handler(BaseHTTPRequestHandler):
     def _err(self, code, msg):
         self._json({"error": msg}, code)
 
+    def _lang(self, body=None, cid=None):
+        """Язык ответа: из запроса, из профиля клиента, из cookie формы, из браузера."""
+        if body and body.get("lang"):
+            return i18n.norm(body["lang"])
+        if cid:
+            c = store.get_client(cid)
+            if c:
+                return i18n.norm(c["lang"])
+        if self._cookies().get("bs_lang"):
+            return i18n.norm(self._cookies()["bs_lang"])
+        return i18n.norm((self.headers.get("Accept-Language") or "")[:2])
+
     def _prefix(self):
         # За прокси дашборда (порт 8765, путь /bs) редиректы должны вести на /bs/…
         p = self.headers.get("X-Forwarded-Prefix", "")
@@ -212,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > MAX_BODY:
-            raise ValueError("слишком большой запрос (лимит 30 МБ)")
+            raise ValueError(T(self._lang(), "too_big"))
         raw = self.rfile.read(n) if n else b""
         return json.loads(raw or b"{}")
 
@@ -252,7 +266,7 @@ class Handler(BaseHTTPRequestHandler):
             if m:  # персональная ссылка клиента: /c/<код>?k=<ключ>
                 ip = self._ip()
                 if too_many_fails(ip):
-                    return self._send(429, "Слишком много попыток, подожди 10 минут.", "text/plain; charset=utf-8")
+                    return self._send(429, T(self._lang(), "too_many"), "text/plain; charset=utf-8")
                 c = store.client_by_key(m.group(1), (q.get("k") or [""])[0])
                 if not c:
                     note_fail(ip)
@@ -272,7 +286,7 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith("/api/"):
                 cid = self._client_id()
                 if not cid:
-                    return self._err(401, "нужен вход")
+                    return self._err(401, T(self._lang(), "need_login"))
                 return self.client_get(cid, path, q)
             return self._err(404, "not found")
         except Exception as e:  # noqa: BLE001
@@ -303,7 +317,7 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith("/api/"):
                 cid = self._client_id()
                 if not cid:
-                    return self._err(401, "нужен вход")
+                    return self._err(401, T(self._lang(), "need_login"))
                 return self.client_post(cid, path, body)
             return self._err(404, "not found")
         except ValueError as e:
@@ -315,32 +329,35 @@ class Handler(BaseHTTPRequestHandler):
     # — вход —
     def login(self, body):
         ip = self._ip()
+        L = self._lang(body)
         if too_many_fails(ip):
-            return self._err(429, "Слишком много попыток, подожди 10 минут.")
+            return self._err(429, T(L, "too_many"))
         slug = str(body.get("slug", "")).strip().lower()
         if too_many_fails(ip, slug):
-            return self._err(429, "Слишком много попыток для этого имени, подожди 15 минут.")
+            return self._err(429, T(L, "too_many_slug"))
         c = store.client_by_key(slug, str(body.get("key", "")).strip())
         if not c:
             note_fail(ip, slug)
-            return self._err(401, "Неверное имя или пин-код")
+            return self._err(401, T(L, "bad_login"))
         tok = store.new_session(c["id"])
-        return self._json({"ok": True}, headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
+        return self._json({"ok": True, "lang": i18n.norm(c["lang"])},
+                          headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
 
     def signup(self, body):
         """Саморегистрация: бесплатно, с защитой от ботов и от выжигания подписки."""
         ip = self._ip()
+        L = self._lang(body)
         if store.meta_get("signup_open", "1") != "1":
-            return self._err(403, "Регистрация сейчас закрыта. Напиши агентству — пришлют приглашение.")
+            return self._err(403, T(L, "signup_closed"))
         if str(body.get("website", "")).strip():          # ловушка: поле невидимо для людей
-            return self._err(400, "Не получилось, попробуй ещё раз.")
+            return self._err(400, T(L, "try_again"))
         if not ticket_ok(body.get("ticket")):
-            return self._err(400, "Форма устарела или заполнена слишком быстро — обнови страницу.")
+            return self._err(400, T(L, "form_stale"))
         ip_hash = store.hash_key("ip:" + ip)[:16]
         if store.signups_since(24, ip_hash) >= SIGNUP_PER_IP:
-            return self._err(429, "С этого устройства сегодня уже регистрировались. Попробуй завтра.")
+            return self._err(429, T(L, "device_limit"))
         if store.signups_since(24) >= SIGNUP_DAILY:
-            return self._err(429, "Сегодня места для новых участников закончились — загляни завтра.")
+            return self._err(429, T(L, "daily_full"))
         name = re.sub(r"\s+", " ", str(body.get("name", ""))).strip()[:40]
         slug = str(body.get("slug", "")).strip().lower()
         pin = str(body.get("pin", "")).strip()
@@ -356,28 +373,30 @@ class Handler(BaseHTTPRequestHandler):
         city = str(body.get("city", "")).strip()[:60]
         links = str(body.get("links", "")).strip()[:300]
         if len(name) < 2:
-            raise ValueError("Как тебя зовут? Хотя бы два символа.")
+            raise ValueError(T(L, "name_short"))
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,24}", slug) or slug in RESERVED:
-            raise ValueError("Имя для входа: 3–25 латинских букв, цифр или дефисов.")
+            raise ValueError(T(L, "slug_bad"))
         if not re.fullmatch(r"\d{4,8}", pin) or weak_pin(pin):
-            raise ValueError("Пин-код: 4–8 цифр, и не такой простой, как 1234 или 1111.")
+            raise ValueError(T(L, "pin_bad"))
         if not body.get("agree"):
-            raise ValueError("Нужно согласие на хранение данных.")
+            raise ValueError(T(L, "need_agree"))
         if store.slug_taken(slug):
-            raise ValueError("Это имя уже занято — попробуй другое.")
-        crafts = brain.CRAFTS
+            raise ValueError(T(L, "slug_taken"))
+        crafts = i18n.CRAFTS[L]
         profile = "\n".join(x for x in [
             f"{name}{', ' + city if city else ''} — {', '.join(crafts[c] for c in picked)}.",
-            about and f"О себе: {about}", goal and f"Цель на 12 месяцев: {goal}", links and f"Ссылки: {links}"] if x)
-        cid, _ = store.create_client(slug, name, profile, budget=0, key=pin, source="signup", craft=",".join(picked))
+            about and f"{T(L, 'about')}: {about}", goal and f"{T(L, 'goal')}: {goal}",
+            links and f"{T(L, 'links')}: {links}"] if x)
+        cid, _ = store.create_client(slug, name, profile, budget=0, lang=L, key=pin, source="signup",
+                                     craft=",".join(picked))
         store.note_signup(ip_hash)
-        store.add_message(cid, "maya", "assistant", welcome_text(name, craft, goal))
+        store.add_message(cid, "maya", "assistant", i18n.welcome(L, name, craft, goal))
         tok = store.new_session(cid)
-        log.info("signup: %s (%s)", slug, ",".join(picked))
+        log.info("signup: %s (%s, %s)", slug, ",".join(picked), L)
         # Первый разбор стартует сразу: человек заполнил анкету — и уже видит, как
         # команда работает над ним, а не сталкивается с пустым чатом.
-        jid = start_job(cid, "maya", brain.POTENTIAL_PROMPT + "\n\nОбо мне (из анкеты):\n" + profile, [], True,
-                        display="Майя, посмотри мою анкету и сделай первый разбор")
+        jid = start_job(cid, "maya", brain.POTENTIAL_PROMPT + "\n\nAbout me (from the questionnaire):\n" + profile,
+                        [], True, display=T(L, "first_review"))
         return self._json({"ok": True, "job": jid}, headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
 
     def admin_login(self, body):
@@ -393,26 +412,28 @@ class Handler(BaseHTTPRequestHandler):
     # — API клиента —
     def client_get(self, cid, path, q):
         c = store.get_client(cid)
+        L = i18n.norm(c["lang"])
         if path == "/api/me":
+            sub = T(L, "subscription")
             return self._json({
-                "name": c["name"], "slug": c["slug"], "profile": c["profile"], "lang": c["lang"],
+                "name": c["name"], "slug": c["slug"], "profile": c["profile"], "lang": L,
                 "budget": c["monthly_budget"], "spent": round(store.spent_this_month(cid), 4),
-                "model_chat": (c["model_chat"] or brain.MODEL_CHAT) if brain.backend() == "api" else f"{brain.CLI_MODEL_CHAT} (подписка)",
-                "model_deep": (c["model_deep"] or brain.MODEL_DEEP) if brain.backend() == "api" else f"{brain.CLI_MODEL_DEEP} (подписка)",
+                "model_chat": (c["model_chat"] or brain.MODEL_CHAT) if brain.backend() == "api" else f"{brain.CLI_MODEL_CHAT} ({sub})",
+                "model_deep": (c["model_deep"] or brain.MODEL_DEEP) if brain.backend() == "api" else f"{brain.CLI_MODEL_DEEP} ({sub})",
                 "telegram": bool(c["tg_token"]), "share_insights": c["share_insights"],
                 "backend": brain.backend(), "demo": False, "fresh": c.get("source") == "signup",
-                "agents": brain.AGENTS, "version": VERSION})
+                "agents": i18n.agents(L, brain.AGENTS), "version": VERSION})
         if path == "/api/widgets":
             ws = store.list_widgets(cid)
             for w in ws:  # системный KPI «Бюджет ИИ» считается сервером
                 if w["config"].get("system") == "budget":
                     if brain.backend() == "cli":  # по подписке денег нет — показываем, сколько работала команда
                         n = sum(r["n"] for r in store.usage_summary(cid, days=31))
-                        w.update(title="Работа команды", config={**w["config"], "unit": ""})
-                        w["data"] = {"value": n, "delta": "запросов за 31 день · по подписке"}
+                        w.update(title=T(L, "team_work"), config={**w["config"], "unit": ""})
+                        w["data"] = {"value": n, "delta": T(L, "team_work_delta")}
                     else:
                         w["data"] = {"value": round(store.spent_this_month(cid), 2),
-                                     "delta": f"из ${c['monthly_budget']:.0f}"}
+                                     "delta": T(L, "budget_of", b=f"{c['monthly_budget']:.0f}")}
             return self._json(ws)
         if path == "/api/messages":
             agent = (q.get("agent") or ["maya"])[0]
@@ -421,7 +442,7 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             j = JOBS.get(m.group(1))
             if not j or j["client_id"] != cid:
-                return self._err(404, "задача не найдена")
+                return self._err(404, T(L, "job_missing"))
             return self._json({k: v for k, v in j.items() if k != "client_id"})
         if path == "/api/insights":
             return self._json(store.insights_for(cid, limit=200))
@@ -430,32 +451,35 @@ class Handler(BaseHTTPRequestHandler):
         return self._err(404, "not found")
 
     def client_post(self, cid, path, body):
+        L = i18n.norm(store.get_client(cid)["lang"])
         if path == "/api/chat":
             text = str(body.get("text", "")).strip()
             deep = bool(body.get("deep"))
+            display = None
             if body.get("potential"):
-                text = brain.POTENTIAL_PROMPT + ("\n\nО себе: " + text if text else "")
+                display = T(L, "potential") + (": " + text if text else "")
+                text = brain.POTENTIAL_PROMPT + ("\n\nAbout me: " + text if text else "")
                 deep = True
             if not text:
-                raise ValueError("пустое сообщение")
+                raise ValueError(T(L, "empty_msg"))
             atts = []
             for a in (body.get("attachments") or [])[:5]:
                 mt = str(a.get("media_type", ""))
                 data = str(a.get("data", ""))
                 if mt.startswith("text/") or mt in ("application/json", "text/csv"):
-                    atts.append({"name": a.get("name", "файл"), "media_type": "text/plain",
+                    atts.append({"name": a.get("name", T(L, "file")), "media_type": "text/plain",
                                  "text": base64.b64decode(data).decode("utf-8", "replace")})
                 elif mt.startswith("image/") or mt == "application/pdf":
-                    atts.append({"name": a.get("name", "файл"), "media_type": mt, "data": data})
-            jid = start_job(cid, str(body.get("agent") or "maya"), text, atts, deep)
+                    atts.append({"name": a.get("name", T(L, "file")), "media_type": mt, "data": data})
+            jid = start_job(cid, str(body.get("agent") or "maya"), text, atts, deep, display=display)
             if not jid:
-                return self._err(409, "Команда ещё отвечает на прошлое сообщение")
+                return self._err(409, T(L, "busy"))
             return self._json({"job": jid})
         if path == "/api/messages/clear":
             store.clear_history(cid, str(body.get("agent") or "maya"))
             return self._json({"ok": True})
         if path == "/api/widgets":
-            wid = store.add_widget(cid, body.get("kind", "note"), body.get("title") or "Новый виджет",
+            wid = store.add_widget(cid, body.get("kind", "note"), body.get("title") or T(L, "new_widget"),
                                    body.get("config"), body.get("data"), body.get("size", "m"))
             return self._json(store.get_widget(cid, wid))
         if path == "/api/widgets/reorder":
@@ -471,12 +495,18 @@ class Handler(BaseHTTPRequestHandler):
                                                   body.get("data"), body.get("size")))
         if path == "/api/profile":
             fields = {k: body[k] for k in ("profile", "lang", "share_insights") if k in body}
+            if "lang" in fields:
+                fields["lang"] = i18n.norm(fields["lang"])
+                for w in store.list_widgets(cid):
+                    upd = i18n.relabel(L, fields["lang"], w)
+                    if upd:
+                        store.update_widget(cid, w["id"], *upd, None)
             store.update_client(cid, **fields)
             return self._json({"ok": True})
         if path == "/api/telegram":
             tok = str(body.get("token", "")).strip()
             if tok and not re.fullmatch(r"\d{5,}:[A-Za-z0-9_-]{30,}", tok):
-                raise ValueError("Это не похоже на токен бота от @BotFather")
+                raise ValueError(T(L, "bad_tg"))
             store.update_client(cid, tg_token=tok, tg_chat_id="")
             return self._json({"ok": True, "connected": bool(tok)})
         m = re.fullmatch(r"/api/insights/(\d+)/delete", path)
@@ -510,7 +540,7 @@ class Handler(BaseHTTPRequestHandler):
             if not re.fullmatch(r"[a-z0-9-]{2,40}", slug):
                 raise ValueError("код клиента: латиница, цифры и дефис, 2–40 символов")
             cid, key = store.create_client(slug, body.get("name") or slug, body.get("profile", ""),
-                                           float(body.get("budget") or 20), body.get("lang", "ru"))
+                                           float(body.get("budget") or 20), i18n.norm(body.get("lang", "en")))
             return self._json({"id": cid, "slug": slug, "key": key, "link": f"c/{slug}?k={key}"})
         m = re.fullmatch(r"/api/admin/clients/(\d+)(/reset_key)?", path)
         if m:
@@ -532,33 +562,6 @@ class Handler(BaseHTTPRequestHandler):
                 store.set_insight_shared(iid, int(bool(body.get("shared"))), body.get("title"), body.get("body"))
             return self._json({"ok": True})
         return self._err(404, "not found")
-
-
-def welcome_text(name, craft, goal):
-    first = name.split()[0]
-    hints = {
-        "animation": "Например: «найди фестивали анимации и питчинги с дедлайнами на ближайшие полгода» или «помоги посчитать цену за минуту анимации».",
-        "illustration": "Например: «где искать заказы на детские книги» или «сколько брать за обложку».",
-        "music": "Например: «составь план релиза на месяц» или «найди open calls для музыкантов».",
-        "dance": "Например: «найди конкурсы и кастинги на ближайшие месяцы» или «помоги с ценой за постановку номера».",
-        "theatre": "Например: «найди фестивали и гранты для независимого театра».",
-        "film": "Например: «найди фестивали короткого метра с дедлайнами» или «помоги с бюджетом съёмки».",
-        "painting": "Например: «где выставиться в этом году» или «как оценить мои картины».",
-        "design": "Например: «помоги с прайсом» или «где искать клиентов».",
-        "fashion": "Например: «найди показы и маркеты для молодых дизайнеров».",
-        "writing": "Например: «найди конкурсы и издательства для моей рукописи».",
-        "mural": "Например: «найди конкурсы на муралы рядом со мной» или «посчитай цену стены 40 м²».",
-        "photo": "Например: «где продавать фото» или «помоги с прайсом на съёмку».",
-    }.get(craft, "Например: «найди гранты и конкурсы для меня» или «помоги составить прайс».")
-    goal_line = f"\n\nТвою цель я записала: «{goal[:160]}». Будем двигаться к ней по шагам." if goal else ""
-    return (f"Приветствую, {first}! Я Майя, продюсер твоей команды. Я здесь для того, чтобы у тебя оставалось "
-            "время на творчество и на жизнь, а не на рутину.\n\n"
-            "Со мной Рубен (ищет возможности), Ганна (пишет заявки), Конрад (читает договоры), Ноа и Тарік (продвижение), "
-            "Ірис (контент) и Бен (деньги). Тебе не нужно писать каждому: пиши мне, я раздам задачи и соберу ответ."
-            f"{goal_line}\n\nЯ уже позвала их на первый разбор твоей анкеты: поищем для тебя возможности в интернете "
-            "и наметим первые шаги. Это займёт несколько минут.\n\n"
-            "Всё, что мы находим и решаем, само складывается в показатели на вкладке «Дашборд» — "
-            f"туда можно просто заглядывать. А работа идёт здесь, в разговоре. {hints}")
 
 
 def main():

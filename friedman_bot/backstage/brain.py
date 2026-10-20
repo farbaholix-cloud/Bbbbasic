@@ -30,6 +30,7 @@ except ImportError:  # библиотека ещё ставится — пане
     anthropic = None
 
 import store
+import i18n
 
 log = logging.getLogger("backstage.brain")
 
@@ -141,6 +142,7 @@ def context_block(c, agent_id):
     widgets = store.list_widgets(c["id"])
     ins = store.insights_for(c["id"], limit=30)
     lines = [
+        i18n.lang_rule(c.get("lang")),
         f"СЕГОДНЯ: {datetime.now().strftime('%Y-%m-%d, %A')}",
         f"КЛИЕНТ: {c['name']}",
         f"ПРОФИЛЬ ПРАКТИКИ:\n{c['profile'] or '(не заполнен — узнай у клиента и предложи сохранить в заметку «Профиль практики»)'}",
@@ -151,6 +153,7 @@ def context_block(c, agent_id):
             f"- [{'общий' if i['shared'] else 'свой'}] {i['title']}: {i['body'][:400]}" for i in ins))
     budget = c["monthly_budget"] or 0
     lines.append(f"БЮДЖЕТ ИИ: потрачено ${store.spent_this_month(c['id']):.2f} из ${budget:.2f} в этом месяце.")
+    lines.append(f"REMINDER: reply in {i18n.LANG_NAME[i18n.norm(c.get('lang'))]}.")
     return "\n\n".join(lines)
 
 
@@ -365,11 +368,9 @@ def check_quota(c, deep=False):
         return
     used = store.requests_today(c["id"])
     if deep and used.get("deep", 0) >= FREE_DAILY_DEEP:
-        raise BudgetExceeded(f"Глубокий анализ в бесплатной версии — {FREE_DAILY_DEEP} раза в день. "
-                             "Завтра снова можно, а обычный чат работает.")
+        raise BudgetExceeded(i18n.t(c.get("lang"), "quota_deep", n=FREE_DAILY_DEEP))
     if used.get("chat", 0) + used.get("deep", 0) >= FREE_DAILY_CHAT:
-        raise BudgetExceeded(f"На сегодня лимит бесплатной версии — {FREE_DAILY_CHAT} ответов команды. "
-                             "Завтра продолжим — всё, что сделано, сохранено.")
+        raise BudgetExceeded(i18n.t(c.get("lang"), "quota_chat", n=FREE_DAILY_CHAT))
 
 
 def check_budget(c):
@@ -377,8 +378,7 @@ def check_budget(c):
         return  # по подписке денег не считаем — работаем в её лимитах
     budget = float(c["monthly_budget"] or 0)
     if budget > 0 and store.spent_this_month(c["id"]) >= budget:
-        raise BudgetExceeded(
-            f"Месячный бюджет ИИ (${budget:.2f}) исчерпан. Владелец платформы может поднять лимит в админке.")
+        raise BudgetExceeded(i18n.t(c.get("lang"), "budget_out", b=f"{budget:.2f}"))
 
 
 def _call(model, effort, system, tools, messages, max_tokens):
@@ -448,7 +448,7 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
         messages.append({"role": "assistant", "content": resp.content})
 
         if resp.stop_reason == "refusal":
-            return "Эту просьбу модель отклонила. Попробуй переформулировать задачу."
+            return i18n.t(c.get("lang"), "refused")
         if resp.stop_reason == "pause_turn":
             continue  # серверный поиск взял паузу — отправляем как есть, он продолжит
         if resp.stop_reason != "tool_use":
@@ -469,8 +469,8 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
 
     text = "\n\n".join(b.text for b in (resp.content if resp else []) if b.type == "text").strip()
     if resp is not None and resp.stop_reason == "max_tokens":
-        text += "\n\n_(ответ упёрся в лимит длины — попроси продолжить)_"
-    return text or "(пустой ответ)"
+        text += "\n\n" + i18n.t(c.get("lang"), "cut")
+    return text or i18n.t(c.get("lang"), "empty_reply")
 
 
 def chat(client_id, agent_id, text, attachments=None, deep=False, display=None):
@@ -482,7 +482,7 @@ def chat(client_id, agent_id, text, attachments=None, deep=False, display=None):
     hist = store.history(client_id, agent_id, limit=24)
     note = ""
     if attachments:
-        note = "\n\n📎 " + ", ".join(a.get("name", "файл") for a in attachments)
+        note = "\n\n📎 " + ", ".join(a.get("name", i18n.t(c.get("lang"), "file")) for a in attachments)
     store.add_message(client_id, agent_id, "user", (display or text) + note, {"deep": deep})
     ctx = {}
     if backend() == "cli":
@@ -507,15 +507,15 @@ CRAFTS = {
     "fashion": "мода и костюм", "writing": "литература и сценарии", "other": "творческая практика",
 }
 
-POTENTIAL_PROMPT = """Проведи глубокий первый анализ моей практики (это «Проверка потенциала»).
+POTENTIAL_PROMPT = """Run a deep first analysis of my practice (this is the "Potential check").
 
-1. Оцени потенциал сотрудничества с командой по 10-балльной шкале и объясни оценку.
-2. Предложи состав команды под мой проект: каких агентов и на какие задачи поставить в первые 90 дней.
-3. Найди в интернете источники финансирования и заказов, которые на первый взгляд выглядят перспективными для меня: название, суть, сумма, дедлайн, ссылка. Минимум пять.
-4. Занеси план в мои показатели: карточки проектов на доске, дедлайны в списке, нужные KPI. Ничего не удаляй без необходимости.
-5. Сохрани 2–3 главных вывода в базу опыта.
+1. Rate the potential of working with the team on a 10-point scale and explain the rating.
+2. Propose a team line-up for my project: which agents to put on which tasks in the first 90 days.
+3. Search the web for funding sources and commissions that look promising for me at first glance: name, what it is, amount, deadline, link. At least five.
+4. Put the plan into my dashboard: project cards on the board, deadlines in the list, the KPIs that matter. Don't delete anything unless necessary.
+5. Save the 2–3 key takeaways to the knowledge base.
 
-В конце — три шага на эту неделю."""
+Finish with three steps for this week. Reply in my language (see LANGUAGE in the context)."""
 
 
 # ─── Режим подписки: claude CLI ──────────────────────────────────────────────
@@ -661,7 +661,7 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
             _apply(c, agent_id, [a for a in actions if a.get("type") != "ask"], ctx, notes)
         if notes:
             log.warning("cli actions: %s", notes)
-        return reply.strip() or "(пустой ответ)"
+        return reply.strip() or i18n.t(c.get("lang"), "empty_reply")
     finally:
         for f in files:
             try:

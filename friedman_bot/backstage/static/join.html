@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="ru"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f3ec">
-<title>Backstage — твоя закулисная команда</title>
+<title>Backstage</title>
+<script src="static/i18n.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -88,196 +89,195 @@
   .meta{font-size:13px;color:var(--faint);margin-top:14px}
   .foot{margin-top:22px;font-size:14px;color:var(--muted)}
   .foot a{color:var(--accent);font-weight:600;text-underline-offset:3px}
+  .langs{display:grid;gap:10px;margin:6px 0 4px}
+  .lang{--c:var(--accent);display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:1.5px solid var(--line);
+    background:var(--card);color:var(--ink);border-radius:16px;padding:16px 18px;font:inherit;cursor:pointer;transition:all .15s}
+  .lang:hover{border-color:var(--c);transform:translateY(-1px)}
+  .lang .code{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--soft);
+    font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--muted);transition:all .15s}
+  .lang b{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:22px;flex:1}
+  .lang .tick{opacity:0;color:var(--c);font-size:20px;transition:opacity .15s}
+  .lang.on{border-color:var(--c);background:linear-gradient(100deg,color-mix(in srgb,var(--c) 10%,transparent),transparent)}
+  .lang.on .code{background:var(--c);color:#fff}
+  .lang.on .tick{opacity:1}
+  #langLead{margin:20px 0 0;animation:fade .3s ease}
 </style>
 </head><body>
 <main>
-  <div class="brand"><span>Backstage<b>.</b></span><div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div></div>
+  <div class="brand"><span>Backstage<b>.</b></span><div class="dots" id="dots"><i></i><i></i><i></i><i></i></div></div>
 
   <div class="maya">
-    <div class="av" aria-hidden="true">М</div>
-    <div class="bubble" id="bubble"><small>Майя · продюсер команды</small><span id="say">Приветствую, я Майя. Я здесь для того, чтобы у тебя оставалось время на творчество и на жизнь, а не на рутину.</span></div>
+    <div class="av" aria-hidden="true" data-i="j.av">M</div>
+    <div class="bubble" id="bubble"><small data-i="j.maya"></small><span id="say"></span></div>
   </div>
 
   <form class="card" id="f" autocomplete="off" novalidate>
+    <!-- язык -->
+    <section class="step on" data-step="lang">
+      <h1 data-i-html="j.lang.h"></h1>
+      <div class="langs" id="langs">
+        <button type="button" class="lang" data-l="en" style="--c:var(--konrad)"><span class="code">EN</span><b>English</b><span class="tick">✓</span></button>
+        <button type="button" class="lang" data-l="de" style="--c:var(--accent)"><span class="code">DE</span><b>Deutsch</b><span class="tick">✓</span></button>
+        <button type="button" class="lang" data-l="uk" style="--c:var(--hanna)"><span class="code">UK</span><b>Українська</b><span class="tick">✓</span></button>
+      </div>
+      <p class="lead" id="langLead" data-i="j.lang.lead"></p>
+      <button class="btn" type="button" id="langGo"><span data-i="j.lang.go"></span> <span>→</span></button>
+    </section>
+
     <!-- 0 · приветствие -->
-    <section class="step on" data-step="0">
-      <h1>Твоя закулисная <em>команда</em></h1>
-      <p class="lead">Восемь ИИ-агентов берут на себя всё, что вокруг творчества: заказы и фестивали, заявки, договоры, цены, продвижение. <b>Ты пишешь одному агенту — Майе</b>, а она подключает остальных.</p>
+    <section class="step" data-step="0">
+      <h1 data-i-html="j.h0"></h1>
+      <p class="lead" data-i-html="j.lead0"></p>
       <ul class="team">
-        <li class="lead"><i class="av" style="--c:var(--maya)">М</i><div><b>Майя</b><span>продюсер: принимает задачу, раздаёт её команде и собирает ответ</span></div></li>
-        <li><i class="av" style="--c:var(--ruben)">Р</i><div><b>Рубен</b><span>конкурсы, резиденции, заказы</span></div></li>
-        <li><i class="av" style="--c:var(--hanna)">Г</i><div><b>Ганна</b><span>заявки и гранты</span></div></li>
-        <li><i class="av" style="--c:var(--konrad)">К</i><div><b>Конрад</b><span>договоры и права</span></div></li>
-        <li><i class="av" style="--c:var(--ben)">Б</i><div><b>Бен</b><span>цены, сметы, деньги</span></div></li>
-        <li><i class="av" style="--c:var(--noa)">Н</i><div><b>Ноа и Тарік</b><span>продвижение онлайн и офлайн</span></div></li>
-        <li><i class="av" style="--c:var(--iris)">І</i><div><b>Ірис</b><span>контент и видео</span></div></li>
+        <li class="lead"><i class="av" style="--c:var(--maya)" data-i="j.av.maya"></i><div><b data-i="j.t.maya"></b><span data-i="j.t.maya.r"></span></div></li>
+        <li><i class="av" style="--c:var(--ruben)" data-i="j.av.ruben"></i><div><b data-i="j.t.ruben"></b><span data-i="j.t.ruben.r"></span></div></li>
+        <li><i class="av" style="--c:var(--hanna)" data-i="j.av.hanna"></i><div><b data-i="j.t.hanna"></b><span data-i="j.t.hanna.r"></span></div></li>
+        <li><i class="av" style="--c:var(--konrad)" data-i="j.av.konrad"></i><div><b data-i="j.t.konrad"></b><span data-i="j.t.konrad.r"></span></div></li>
+        <li><i class="av" style="--c:var(--ben)" data-i="j.av.ben"></i><div><b data-i="j.t.ben"></b><span data-i="j.t.ben.r"></span></div></li>
+        <li><i class="av" style="--c:var(--noa)" data-i="j.av.noa"></i><div><b data-i="j.t.noa"></b><span data-i="j.t.noa.r"></span></div></li>
+        <li><i class="av" style="--c:var(--iris)" data-i="j.av.iris"></i><div><b data-i="j.t.iris"></b><span data-i="j.t.iris.r"></span></div></li>
       </ul>
-      <button class="btn" type="button" data-next>Начни работу с командой <span>→</span></button>
-      <p class="meta">Бесплатно · около трёх минут · сразу после анкеты команда сделает первый разбор твоей практики</p>
+      <button class="btn" type="button" data-next><span data-i="j.start"></span> <span>→</span></button>
+      <p class="meta" data-i="j.meta0"></p>
+      <button class="ghost" type="button" data-back>← <span data-i="j.lang.back">Language</span></button>
     </section>
 
     <!-- 1 · кто ты -->
     <section class="step" data-step="1">
-      <h1>Давай <em>познакомимся</em></h1>
-      <label for="name">Как к тебе обращаться</label>
-      <input id="name" maxlength="40" placeholder="Имя">
-      <label>Чем занимаешься <em>— можно выбрать несколько</em></label>
-      <div class="chips" id="crafts">
-        <button type="button" class="chip" data-v="animation" style="--c:var(--noa)">Анимация</button>
-        <button type="button" class="chip" data-v="illustration" style="--c:var(--iris)">Иллюстрация</button>
-        <button type="button" class="chip" data-v="painting" style="--c:var(--maya)">Живопись</button>
-        <button type="button" class="chip" data-v="mural" style="--c:var(--ben)">Муралы и граффити</button>
-        <button type="button" class="chip" data-v="music" style="--c:var(--konrad)">Музыка и DJ</button>
-        <button type="button" class="chip" data-v="dance" style="--c:var(--noa)">Танцы</button>
-        <button type="button" class="chip" data-v="theatre" style="--c:var(--iris)">Театр</button>
-        <button type="button" class="chip" data-v="film" style="--c:var(--konrad)">Кино и видео</button>
-        <button type="button" class="chip" data-v="photo" style="--c:var(--ruben)">Фото</button>
-        <button type="button" class="chip" data-v="design" style="--c:var(--hanna)">Дизайн</button>
-        <button type="button" class="chip" data-v="fashion" style="--c:var(--maya)">Мода</button>
-        <button type="button" class="chip" data-v="writing" style="--c:var(--tarik)">Тексты</button>
-        <button type="button" class="chip" data-v="other" style="--c:var(--faint)">Другое</button>
-      </div>
-      <label for="city">Город <em>— по желанию</em></label>
-      <input id="city" maxlength="60" placeholder="Франкфурт, Киев, Берлин…">
-      <button class="btn" type="button" data-next>Дальше <span>→</span></button>
-      <button class="ghost" type="button" data-back>← назад</button>
+      <h1 data-i-html="j.h1"></h1>
+      <label for="name" data-i="j.name"></label>
+      <input id="name" maxlength="40" data-i-ph="j.name.ph">
+      <label><span data-i="j.craft"></span> <em data-i="j.craft.many"></em></label>
+      <div class="chips" id="crafts"></div>
+      <label for="city"><span data-i="j.city"></span> <em data-i="j.opt"></em></label>
+      <input id="city" maxlength="60" data-i-ph="j.city.ph">
+      <button class="btn" type="button" data-next><span data-i="j.next"></span> <span>→</span></button>
+      <button class="ghost" type="button" data-back data-i="j.back"></button>
     </section>
 
     <!-- 2 · о себе и цель -->
     <section class="step" data-step="2">
-      <h1>О твоей <em>работе</em></h1>
-      <label for="about">Что ты делаешь и для кого</label>
+      <h1 data-i-html="j.h2"></h1>
+      <label for="about" data-i="j.about"></label>
       <textarea id="about" maxlength="1500"></textarea>
-      <label for="goal">Чего хочешь добиться за год</label>
-      <textarea id="goal" maxlength="800" placeholder="Например: стабильные заказы, свой короткометражный фильм, выйти на фестивали"></textarea>
-      <label for="links">Портфолио или соцсети <em>— по желанию</em></label>
-      <input id="links" maxlength="300" placeholder="ссылка на Instagram, Behance, сайт">
-      <button class="btn" type="button" data-next>Дальше <span>→</span></button>
-      <button class="ghost" type="button" data-back>← назад</button>
+      <label for="goal" data-i="j.goal"></label>
+      <textarea id="goal" maxlength="800" data-i-ph="j.goal.ph"></textarea>
+      <label for="links"><span data-i="j.links"></span> <em data-i="j.opt"></em></label>
+      <input id="links" maxlength="300" data-i-ph="j.links.ph">
+      <button class="btn" type="button" data-next><span data-i="j.next"></span> <span>→</span></button>
+      <button class="ghost" type="button" data-back data-i="j.back"></button>
     </section>
 
     <!-- 3 · вход -->
     <section class="step" data-step="3">
-      <h1>Твой <em>вход</em></h1>
-      <p class="lead">По этому имени и пин-коду ты будешь возвращаться к своей команде.</p>
-      <label for="slug">Имя для входа <em>— латиницей</em></label>
+      <h1 data-i-html="j.h3"></h1>
+      <p class="lead" data-i="j.lead3"></p>
+      <label for="slug"><span data-i="j.slug"></span> <em data-i="j.slug.latin"></em></label>
       <input id="slug" maxlength="25" autocapitalize="none" spellcheck="false" placeholder="olya">
-      <div class="hint" id="slugHint">3–25 символов: буквы, цифры, дефис</div>
+      <div class="hint" id="slugHint" data-i="j.slug.hint"></div>
       <div class="row">
-        <div><label for="pin">Пин-код</label><input id="pin" type="password" inputmode="numeric" maxlength="8" placeholder="4–8 цифр"></div>
-        <div><label for="pin2">Ещё раз</label><input id="pin2" type="password" inputmode="numeric" maxlength="8"></div>
+        <div><label for="pin" data-i="j.pin"></label><input id="pin" type="password" inputmode="numeric" maxlength="8" data-i-ph="j.pin.ph"></div>
+        <div><label for="pin2" data-i="j.pin2"></label><input id="pin2" type="password" inputmode="numeric" maxlength="8"></div>
       </div>
-      <div class="trap" aria-hidden="true"><label>Сайт<input id="website" tabindex="-1" autocomplete="off"></label></div>
-      <label class="agree"><input type="checkbox" id="agree">
-        <span>Даю согласие на то, что мои ответы хранятся на сервере Backstage и доступны моей ИИ-команде. Это тестовая версия: данные удалим по первой просьбе.</span></label>
-      <button class="btn" type="submit" id="go">Познакомиться с командой <span>→</span></button>
-      <button class="ghost" type="button" data-back>← назад</button>
+      <div class="trap" aria-hidden="true"><label>Website<input id="website" tabindex="-1" autocomplete="off"></label></div>
+      <label class="agree"><input type="checkbox" id="agree"><span data-i="j.agree"></span></label>
+      <button class="btn" type="submit" id="go"><span data-i="j.go"></span> <span>→</span></button>
+      <button class="ghost" type="button" data-back data-i="j.back"></button>
       <div class="err" id="err"></div>
     </section>
 
-    <!-- 4 · создаём -->
+    <!-- 4 · передаём анкету -->
     <section class="step" data-step="4">
-      <h1>Передаю анкету <em>команде</em></h1>
-      <div class="faces" aria-hidden="true"><i class="av" style="--c:var(--maya)">М</i><i class="av" style="--c:var(--ruben)">Р</i><i class="av" style="--c:var(--hanna)">Г</i><i class="av" style="--c:var(--konrad)">К</i><i class="av" style="--c:var(--ben)">Б</i></div>
-      <p class="lead">Рубен, Ганна, Бен и остальные уже читают её. Первый разбор начинается.</p>
+      <h1 data-i-html="j.h4"></h1>
+      <div class="faces" aria-hidden="true"><i class="av" style="--c:var(--maya)" data-i="j.av.maya"></i><i class="av" style="--c:var(--ruben)" data-i="j.av.ruben"></i><i class="av" style="--c:var(--hanna)" data-i="j.av.hanna"></i><i class="av" style="--c:var(--konrad)" data-i="j.av.konrad"></i><i class="av" style="--c:var(--ben)" data-i="j.av.ben"></i></div>
+      <p class="lead" data-i="j.lead4"></p>
     </section>
 
     <section class="step" data-step="closed">
-      <h1>Регистрация на <em>паузе</em></h1>
-      <p class="lead">На сегодня свободные места закончились. Загляни завтра или попроси приглашение у агентства.</p>
+      <h1 data-i-html="j.hc"></h1>
+      <p class="lead" data-i="j.leadc"></p>
     </section>
   </form>
-  <div class="foot">Уже работаешь с командой? <a href="login">Войти</a></div>
+  <div class="foot"><span data-i="j.foot"></span> <a href="login" data-i="j.login"></a></div>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
+const t = BS.t;
 const steps = [...document.querySelectorAll(".step")];
-let cur = 0, crafts = [], ticket = "", slugTouched = false;
-const SAY = [
-  "Приветствую, я Майя. Я здесь для того, чтобы у тебя оставалось время на творчество и на жизнь, а не на рутину.",
-  "Начнём с простого: как к тебе обращаться и чем ты занимаешься?",
-  "Расскажи своими словами, без резюме. Чем точнее цель, тем точнее будут предложения команды.",
-  "И последнее: данные для входа. Пин-код лучше выбрать неочевидный.",
-  "Спасибо! Передаю анкету команде.",
-];
-const CRAFT_SAY = {
-  animation: "Анимация. Посмотрим фестивали, питчинги и студии, которым нужны художники.",
-  illustration: "Иллюстрация. Издательства, конкурсы, заказы — с этого и начнём.",
-  painting: "Живопись. Выставки, open calls, галереи и покупатели.",
-  mural: "Муралы. Конкурсы, тендеры и заказчики, которым нужна стена.",
-  music: "Музыка. Релизы, площадки, open calls и коллаборации.",
-  dance: "Танец. Конкурсы, фестивали, кастинги и площадки для собственных классов.",
-  theatre: "Театр. Фестивали, гранты и площадки для постановок.",
-  film: "Кино. Фестивали, питчинги и фонды.",
-  photo: "Фотография. Заказы, прайс и продажа работ.",
-  design: "Дизайн. Клиенты, прайс и портфолио.",
-  fashion: "Мода. Показы, маркеты, шоурумы и производство.",
-  writing: "Тексты. Конкурсы, издательства и резиденции.",
-  other: "Отлично. Команда подстроится под твою практику.",
-};
-const ABOUT_PH = {
-  animation: "Например: художник-аниматор, рисую фоны и персонажей для мультфильмов, работаю с небольшими студиями и делаю свой короткий метр",
-  illustration: "Например: рисую детские книги и обложки, работаю в цифре и акварелью",
-  music: "Например: диджей и продюсер, хаус и электроника, выступаю в клубах",
-  mural: "Например: расписываю стены и фасады, работаю с городом и бизнесом",
-  painting: "Например: пишу маслом, большие форматы, хочу выставляться и продавать",
-  dance: "Например: танцую хип-хоп и контемп, преподаю, ставлю номера для шоу",
-  theatre: "Например: актриса независимого театра, делаю свои перформансы",
-  film: "Например: снимаю короткий метр и клипы, ищу фестивали и продюсеров",
-  design: "Например: графический дизайнер, айдентика и упаковка",
-  fashion: "Например: шью коллекции из переработанных тканей",
-  writing: "Например: пишу сценарии и рассказы, ищу издателя",
-  photo: "Например: снимаю портреты и события, ищу постоянных клиентов",
-  other: "Что ты делаешь, для кого и в каком стиле",
-};
+const CRAFTS = {animation: "noa", illustration: "iris", painting: "maya", mural: "ben", music: "konrad", dance: "noa", theatre: "iris",
+  film: "konrad", photo: "ruben", design: "hanna", fashion: "maya", writing: "tarik", other: "faint"};
+let cur = "lang", crafts = [], ticket = "", slugTouched = false, closed = false;
+$("#crafts").innerHTML = Object.entries(CRAFTS).map(([k, c]) =>
+  `<button type="button" class="chip" data-v="${k}" style="--c:var(--${c})" data-i="j.c.${k}"></button>`).join("");
+function say(txt) { const b = $("#bubble"); $("#say").textContent = txt; b.style.animation = "none"; b.offsetHeight; b.style.animation = ""; }
+function bubbleFor(i) {
+  if (i === "lang") return t("j.say.lang");
+  if (i === "closed") return t("j.sayc");
+  if (i === 1 && crafts.length) return craftLine();
+  return t("j.say" + i);
+}
+function show(i) {
+  cur = i; steps.forEach(s => s.classList.toggle("on", s.dataset.step == String(i)));
+  document.querySelectorAll("#dots i").forEach((d, k) => { const n = typeof i === "number" ? Math.min(i, 3) : -1; d.classList.toggle("on", k === n); d.classList.toggle("done", k < n); });
+  say(bubbleFor(i));
+  const first = steps.find(s => s.classList.contains("on"))?.querySelector("input,textarea");
+  if (first && window.innerWidth > 700) first.focus();
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+function setLang(l) {
+  BS.set(l);
+  document.title = t("j.title");
+  document.querySelectorAll(".lang").forEach(b => b.classList.toggle("on", b.dataset.l === BS.lang));
+  $("#about").placeholder = t("j.ph." + (crafts[0] || "other"));
+  const lead = $("#langLead"); lead.style.animation = "none"; lead.offsetHeight; lead.style.animation = "";
+  say(bubbleFor(cur));
+}
+const TR = {а:"a",б:"b",в:"v",г:"h",ґ:"g",д:"d",е:"e",є:"ye",ж:"zh",з:"z",и:"y",і:"i",ї:"yi",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"kh",ц:"ts",ч:"ch",ш:"sh",щ:"shch",ь:"",ю:"yu",я:"ya","'":"","’":"",ä:"ae",ö:"oe",ü:"ue",ß:"ss",ё:"e",ы:"y",э:"e",ъ:""};
+const slugify = (s) => [...s.toLowerCase()].map(c => TR[c] ?? c).join("").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 25);
+function validate(i) {
+  if (i === 1) {
+    if ($("#name").value.trim().length < 2) return t("j.v.name");
+    if (!crafts.length) return t("j.v.craft");
+  }
+  if (i === 2 && $("#about").value.trim().length < 10) return t("j.v.about");
+  return "";
+}
+function craftLine() {
+  if (crafts.length === 1) return t("j.cs." + crafts[0]);
+  const names = crafts.map(c => t("j.c." + c)).join(", ");
+  return t("j.many", {list: names});
+}
 function pickCraft(v) {
   // «Другое» — отдельный вариант; конкретные области можно сочетать между собой
   if (crafts.includes(v)) crafts = crafts.filter(c => c !== v);
   else crafts = v === "other" ? ["other"] : [...crafts.filter(c => c !== "other"), v];
   document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", crafts.includes(c.dataset.v)));
-  const names = crafts.map(c => document.querySelector(`.chip[data-v="${c}"]`).textContent.trim()).map(t => t[0].toLowerCase() + t.slice(1));
-  if (!crafts.length) say(SAY[1]);
-  else if (crafts.length === 1) say(CRAFT_SAY[crafts[0]]);
-  else say(`${names.join(", ")} — отлично, команда будет вести все направления сразу.`.replace(/^./, ch => ch.toUpperCase()));
-  $("#about").placeholder = ABOUT_PH[crafts[0]] || ABOUT_PH.other;
-}
-function say(t) { const b = $("#bubble"); $("#say").textContent = t; b.style.animation = "none"; b.offsetHeight; b.style.animation = ""; }
-function show(i) {
-  cur = i; steps.forEach(s => s.classList.toggle("on", s.dataset.step == String(i)));
-  document.querySelectorAll("#dots i").forEach((d, k) => { const n = typeof i === "number" ? Math.min(i, 3) : -1; d.classList.toggle("on", k === n); d.classList.toggle("done", k < n); });
-  if (typeof i === "number") say(SAY[i] || "");
-  const first = steps.find(s => s.classList.contains("on"))?.querySelector("input,textarea");
-  if (first && window.innerWidth > 700) first.focus();
-  window.scrollTo({top: 0, behavior: "smooth"});
-}
-const TR = {а:"a",б:"b",в:"v",г:"g",ґ:"g",д:"d",е:"e",ё:"e",є:"ye",ж:"zh",з:"z",и:"i",і:"i",ї:"yi",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya"};
-const slugify = (t) => [...t.toLowerCase()].map(c => TR[c] ?? c).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 25);
-function validate(i) {
-  if (i === 1) {
-    if ($("#name").value.trim().length < 2) return "Напиши, как к тебе обращаться.";
-    if (!crafts.length) return "Выбери хотя бы одну область — подойдёт и «Другое».";
-  }
-  if (i === 2 && $("#about").value.trim().length < 10) return "Пары предложений достаточно — так команда поймёт, с чего начать.";
-  return "";
+  say(crafts.length ? craftLine() : t("j.say1"));
+  $("#about").placeholder = t("j.ph." + (crafts[0] || "other"));
 }
 document.addEventListener("click", (e) => {
-  if (e.target.matches("[data-next]")) {
+  const lb = e.target.closest(".lang");
+  if (lb) return setLang(lb.dataset.l);
+  if (e.target.closest("#langGo")) return show(closed ? "closed" : 0);
+  if (e.target.closest("[data-next]")) {
     const msg = validate(cur);
     if (msg) { say(msg); return; }
     if (cur === 1 && !slugTouched) { $("#slug").value = slugify($("#name").value); checkSlug(); }
     show(cur + 1);
   }
-  if (e.target.matches("[data-back]")) show(cur - 1);
+  if (e.target.closest("[data-back]")) show(cur === 0 ? "lang" : cur - 1);
   const chip = e.target.closest(".chip");
   if (chip) pickCraft(chip.dataset.v);
 });
 let slugTimer;
 async function checkSlug() {
   const v = $("#slug").value.trim().toLowerCase(), h = $("#slugHint");
-  if (!/^[a-z0-9][a-z0-9-]{2,24}$/.test(v)) { h.className = "hint"; h.textContent = "3–25 символов: латинские буквы, цифры, дефис"; return; }
+  h.removeAttribute("data-i");
+  if (!/^[a-z0-9][a-z0-9-]{2,24}$/.test(v)) { h.className = "hint"; h.textContent = t("j.slug.hint"); return; }
   try {
     const r = await (await fetch("api/signup/check?slug=" + encodeURIComponent(v))).json();
-    h.className = "hint " + (r.free ? "ok" : "bad"); h.textContent = r.free ? "✓ свободно" : "занято — попробуй другое";
+    h.className = "hint " + (r.free ? "ok" : "bad"); h.textContent = t(r.free ? "j.slug.ok" : "j.slug.bad");
   } catch { h.textContent = ""; }
 }
 $("#slug").addEventListener("input", () => { slugTouched = true; $("#slug").value = $("#slug").value.toLowerCase().replace(/[^a-z0-9-]/g, ""); clearTimeout(slugTimer); slugTimer = setTimeout(checkSlug, 350); });
@@ -286,26 +286,28 @@ $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const err = $("#err"); err.textContent = "";
   const pin = $("#pin").value;
-  if (pin.length < 4) return err.textContent = "Пин-код — от 4 до 8 цифр";
-  if (pin !== $("#pin2").value) return err.textContent = "Пин-коды не совпадают";
-  if (!$("#agree").checked) return err.textContent = "Отметь согласие, пожалуйста";
+  if (pin.length < 4) return err.textContent = t("j.e.pin");
+  if (pin !== $("#pin2").value) return err.textContent = t("j.e.pin2");
+  if (!$("#agree").checked) return err.textContent = t("j.e.agree");
   $("#go").disabled = true; show(4);
   try {
     const r = await fetch("api/signup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
       name: $("#name").value, crafts, craft: crafts[0], city: $("#city").value, about: $("#about").value, goal: $("#goal").value,
-      links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket})});
+      links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket, lang: BS.lang})});
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error || "Что-то пошло не так");
+    if (!r.ok) throw new Error(j.error || t("j.e.generic"));
     try { if (j.job) localStorage.setItem("bs_job", j.job); } catch {}
     setTimeout(() => location.href = "app", 900);
-  } catch (ex) { show(3); err.textContent = ex.message; $("#go").disabled = false; say("Не получилось: " + ex.message); }
+  } catch (ex) { show(3); err.textContent = ex.message; $("#go").disabled = false; say(t("j.e.say", {msg: ex.message})); }
 });
+setLang(BS.lang);
+show("lang");
 (async () => {
   try {
     const st = await (await fetch("api/signup/status")).json();
     ticket = st.ticket || "";
     // только явное «закрыто»; сбой сети — не повод прятать форму
-    if (st.open === false) { show("closed"); say("Сейчас новые места закончились. Загляни чуть позже."); }
+    if (st.open === false) closed = true;
   } catch {}
 })();
 </script>
