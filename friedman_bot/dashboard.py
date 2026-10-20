@@ -6271,6 +6271,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.headers.get(h):
                 req.add_header(h, self.headers[h])
         req.add_header("X-Forwarded-Prefix", "/bs")
+        req.add_header("X-Forwarded-For", self.client_address[0])  # иначе Backstage видит всех как 127.0.0.1
 
         class _NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, *a, **k):

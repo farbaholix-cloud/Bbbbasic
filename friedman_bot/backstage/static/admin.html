@@ -34,6 +34,12 @@
     </section>
 
     <section class="card">
+      <h2>Регистрация</h2>
+      <p class="small" id="suInfo"></p>
+      <button id="suToggle" style="margin-top:8px"></button>
+    </section>
+
+    <section class="card">
       <h2>Новый клиент</h2>
       <div class="form4">
         <div><label>Код (латиница)</label><input id="nslug" placeholder="dj-can-on"></div>
@@ -76,13 +82,17 @@ const full = (p) => new URL(p.replace(/^\//, ""), location.href).href;
 async function load() {
   const cfg = await api("api/admin/config");
   $("#login").classList.add("hidden"); $("#panel").classList.remove("hidden");
+  $("#suInfo").innerHTML = `Свободная регистрация по ссылке <b>${esc(new URL("join", location.href).href)}</b> — сейчас
+    <b>${cfg.signup_open ? "открыта" : "закрыта"}</b>. За сутки зарегистрировалось ${cfg.signups_24h} из ${cfg.signup_daily}.`;
+  $("#suToggle").textContent = cfg.signup_open ? "Закрыть регистрацию" : "Открыть регистрацию";
+  $("#suToggle").onclick = async () => { await api("api/admin/signup", {open: !cfg.signup_open}); load(); };
   const usage = await api("api/admin/usage");
   const tot = usage.reduce((s, r) => s + r.cost, 0);
   $("#cfg").innerHTML = `Версия ${esc(cfg.version)} · чат: <b>${esc(cfg.model_chat)}</b> (effort ${esc(cfg.effort_chat)}) · глубокий анализ: <b>${esc(cfg.model_deep)}</b> (effort ${esc(cfg.effort_deep)})<br>
     Ключ Claude API: ${cfg.api_key_set ? "✅ задан" : "❌ не задан — чат не работает"} · расход всех клиентов за 31 день: <b>$${tot.toFixed(2)}</b>`;
   const cl = await api("api/admin/clients");
   $("#clients").innerHTML = cl.map(c => `<tr data-id="${c.id}">
-    <td><b>${esc(c.name)}</b><br><span class="small muted">${esc(c.slug)}${c.active ? "" : " · отключён"}</span></td>
+    <td><b>${esc(c.name)}</b><br><span class="small muted">${esc(c.slug)}${c.source === "signup" ? " · сам зарегистрировался" : c.source === "demo" ? " · демо" : ""}${c.active ? "" : " · отключён"}</span></td>
     <td>$${c.spent_month.toFixed(2)} / <input data-f="monthly_budget" value="${c.monthly_budget}" style="width:70px"></td>
     <td>$${c.spent_total.toFixed(2)}</td>
     <td><input data-f="model_chat" value="${esc(c.model_chat)}" placeholder="${esc(cfg.model_chat)}"></td>

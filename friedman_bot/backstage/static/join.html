@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#fff4e8">
+<title>Backstage — давай знакомиться</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#fff4e8;--card:#fffdf9;--ink:#2d2433;--muted:#7a6f80;--coral:#ff7a59;--coral2:#ffb199;
+    --lilac:#b49cff;--mint:#7fdcc0;--sun:#ffd166;--line:#f0e2d3;color-scheme:light}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:16px/1.5 Nunito,-apple-system,sans-serif}
+  body{background:radial-gradient(60% 40% at 0% 0%,#ffe3d6 0,transparent 70%),radial-gradient(50% 35% at 100% 10%,#ece4ff 0,transparent 70%),
+    radial-gradient(60% 40% at 50% 100%,#dcf7ee 0,transparent 70%),var(--bg);background-attachment:fixed}
+  main{max-width:520px;margin:0 auto;padding:28px 16px 48px;padding-top:calc(24px + env(safe-area-inset-top))}
+  .brand{font-weight:900;letter-spacing:.06em;font-size:15px;color:var(--muted);text-align:center}
+  .brand b{color:var(--coral)}
+  .dots{display:flex;gap:8px;justify-content:center;margin:14px 0 6px}
+  .dots i{width:9px;height:9px;border-radius:9px;background:var(--line);transition:all .3s}
+  .dots i.on{width:26px;background:var(--coral)}
+  .maya{display:flex;gap:12px;align-items:flex-end;margin:18px 0 14px}
+  .maya svg{flex:none;width:76px;height:76px;filter:drop-shadow(0 6px 10px rgba(255,122,89,.25))}
+  .bubble{background:var(--card);border:2px solid var(--line);border-radius:22px 22px 22px 6px;padding:12px 16px;font-weight:600;
+    box-shadow:0 6px 18px rgba(45,36,51,.06);animation:pop .35s ease}
+  .bubble small{display:block;font-weight:700;color:var(--coral);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:26px;padding:22px;box-shadow:0 10px 30px rgba(45,36,51,.07)}
+  h1{font-size:30px;line-height:1.15;margin:0 0 8px;font-weight:900}
+  h1 span{background:linear-gradient(transparent 62%,var(--sun) 62%)}
+  p.lead{color:var(--muted);font-weight:600;margin:0 0 18px}
+  label{display:block;font-weight:800;font-size:14px;margin:14px 0 6px}
+  label em{font-style:normal;font-weight:600;color:var(--muted)}
+  input,textarea{width:100%;font:inherit;color:inherit;background:#fff;border:2px solid var(--line);border-radius:16px;padding:12px 14px;outline:none;transition:border .2s}
+  input:focus,textarea:focus{border-color:var(--lilac)}
+  textarea{resize:vertical;min-height:96px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:2px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;font:inherit;font-weight:700;cursor:pointer;transition:all .15s}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink);transform:translateY(-1px)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .btn{display:block;width:100%;margin-top:20px;border:0;border-radius:18px;padding:15px;font:inherit;font-weight:900;font-size:17px;
+    color:#fff;background:linear-gradient(135deg,var(--coral),#ff9a6b);box-shadow:0 8px 20px rgba(255,122,89,.35);cursor:pointer}
+  .btn:disabled{opacity:.5;box-shadow:none;cursor:default}
+  .ghost{background:none;border:0;color:var(--muted);font:inherit;font-weight:700;cursor:pointer;margin-top:12px;width:100%}
+  .hint{font-size:13px;color:var(--muted);font-weight:600;margin-top:6px}
+  .ok{color:#1f9d77}.bad{color:#d94b3d}
+  .err{color:#d94b3d;font-weight:700;margin-top:12px;min-height:1.4em}
+  .agree{display:flex;gap:10px;align-items:flex-start;font-weight:600;font-size:14px;color:var(--muted);margin-top:16px}
+  .agree input{width:20px;height:20px;flex:none;margin-top:2px}
+  .trap{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .perks{display:grid;gap:10px;margin:6px 0 4px}
+  .perk{display:flex;gap:12px;align-items:center;font-weight:700}
+  .perk i{font-style:normal;width:40px;height:40px;border-radius:14px;display:grid;place-items:center;font-size:20px;flex:none}
+  .step{display:none}.step.on{display:block;animation:pop .3s ease}
+  .spin{width:54px;height:54px;border-radius:50%;border:6px solid var(--line);border-top-color:var(--coral);animation:sp 1s linear infinite;margin:20px auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .foot{text-align:center;margin-top:18px;font-weight:700;color:var(--muted)}
+  .foot a{color:var(--coral)}
+</style>
+</head><body>
+<main>
+  <div class="brand">BACKSTAGE<b>.</b></div>
+  <div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
+
+  <div class="maya">
+    <!-- Майя: продюсерка с хлопушкой -->
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="54" r="38" fill="#ffd9c7"/>
+      <path d="M14 46c4-24 24-34 40-32 18 2 32 14 33 30-10-8-24-12-38-11-14 1-26 6-35 13z" fill="#5b3a6e"/>
+      <ellipse cx="66" cy="20" rx="20" ry="7" fill="#ff7a59" transform="rotate(-12 66 20)"/>
+      <circle cx="81" cy="15" r="4" fill="#ff7a59"/>
+      <circle cx="37" cy="56" r="5" fill="#2d2433"/><circle cx="63" cy="56" r="5" fill="#2d2433"/>
+      <circle cx="39" cy="54" r="1.6" fill="#fff"/><circle cx="65" cy="54" r="1.6" fill="#fff"/>
+      <circle cx="28" cy="66" r="5" fill="#ffb199" opacity=".8"/><circle cx="72" cy="66" r="5" fill="#ffb199" opacity=".8"/>
+      <path d="M40 70q10 9 20 0" stroke="#2d2433" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <g transform="translate(70 70) rotate(-14)">
+        <rect x="0" y="6" width="26" height="16" rx="2" fill="#2d2433"/>
+        <path d="M0 6l26-5 1 5-26 5z" fill="#fff"/><path d="M5 5l4-1 3 4-4 1zM14 3l4-1 3 4-4 1z" fill="#2d2433"/>
+      </g>
+    </svg>
+    <div class="bubble" id="bubble"><small>Майя</small><span id="say">Привет! Я Майя, продюсерка. Давай знакомиться — это займёт пару минут.</span></div>
+  </div>
+
+  <form class="card" id="f" autocomplete="off" novalidate>
+    <!-- 0 · приветствие -->
+    <section class="step on" data-step="0">
+      <h1>Твоя закулисная <span>команда</span></h1>
+      <p class="lead">Ты создаёшь — остальное берём на себя: поиск заказов и фестивалей, цены, письма, план. Сначала коротко расскажи о себе, а потом увидишь свой собственный дашборд.</p>
+      <div class="perks">
+        <div class="perk"><i style="background:#ffe3d6">🔭</i>Найдём конкурсы, питчинги и заказы под тебя</div>
+        <div class="perk"><i style="background:#ece4ff">💶</i>Поможем с ценой, сметой и счётом</div>
+        <div class="perk"><i style="background:#dcf7ee">🗂</i>Все проекты и дедлайны — на одной доске</div>
+      </div>
+      <button class="btn" type="button" data-next>Поехали →</button>
+      <p class="hint" style="text-align:center">Пока бесплатно · можно с телефона</p>
+    </section>
+
+    <!-- 1 · кто ты -->
+    <section class="step" data-step="1">
+      <h1>Кто ты?</h1>
+      <label for="name">Как тебя зовут</label>
+      <input id="name" maxlength="40" placeholder="Например, Оля">
+      <label>Чем занимаешься</label>
+      <div class="chips" id="crafts">
+        <button type="button" class="chip" data-v="animation">🎞 Анимация</button>
+        <button type="button" class="chip" data-v="illustration">✏️ Иллюстрация</button>
+        <button type="button" class="chip" data-v="music">🎧 Музыка</button>
+        <button type="button" class="chip" data-v="mural">🎨 Муралы</button>
+        <button type="button" class="chip" data-v="photo">📷 Фото</button>
+        <button type="button" class="chip" data-v="other">✨ Другое</button>
+      </div>
+      <label for="city">Город <em>— по желанию</em></label>
+      <input id="city" maxlength="60" placeholder="Франкфурт, Киев, Берлин…">
+      <button class="btn" type="button" data-next>Дальше →</button>
+      <button class="ghost" type="button" data-back>← назад</button>
+    </section>
+
+    <!-- 2 · о себе и цель -->
+    <section class="step" data-step="2">
+      <h1>Немного о тебе</h1>
+      <label for="about">Что ты делаешь и для кого</label>
+      <textarea id="about" maxlength="1500"></textarea>
+      <label for="goal">Чего хочешь добиться за год</label>
+      <textarea id="goal" maxlength="800" placeholder="Например: стабильные заказы, свой короткометражный фильм, выйти на фестивали"></textarea>
+      <label for="links">Портфолио или соцсети <em>— по желанию</em></label>
+      <input id="links" maxlength="300" placeholder="ссылка на Instagram, Behance, сайт">
+      <button class="btn" type="button" data-next>Дальше →</button>
+      <button class="ghost" type="button" data-back>← назад</button>
+    </section>
+
+    <!-- 3 · вход -->
+    <section class="step" data-step="3">
+      <h1>Твой вход</h1>
+      <p class="lead">По этому имени и пин-коду ты будешь заходить в свой дашборд.</p>
+      <label for="slug">Имя для входа <em>— латиницей</em></label>
+      <input id="slug" maxlength="25" autocapitalize="none" spellcheck="false" placeholder="olya">
+      <div class="hint" id="slugHint">3–25 символов: буквы, цифры, дефис</div>
+      <div class="row">
+        <div><label for="pin">Пин-код</label><input id="pin" type="password" inputmode="numeric" maxlength="8" placeholder="4–8 цифр"></div>
+        <div><label for="pin2">Ещё раз</label><input id="pin2" type="password" inputmode="numeric" maxlength="8"></div>
+      </div>
+      <div class="trap" aria-hidden="true"><label>Сайт<input id="website" tabindex="-1" autocomplete="off"></label></div>
+      <label class="agree"><input type="checkbox" id="agree">
+        <span>Согласен(на), что мои ответы хранятся на сервере Backstage и их видит моя ИИ-команда. Это тестовая версия: данные можно удалить по просьбе.</span></label>
+      <button class="btn" type="submit" id="go">Создать мой дашборд ✨</button>
+      <button class="ghost" type="button" data-back>← назад</button>
+      <div class="err" id="err"></div>
+    </section>
+
+    <!-- 4 · создаём -->
+    <section class="step" data-step="4">
+      <h1>Готовлю твой дашборд…</h1>
+      <div class="spin"></div>
+      <p class="lead" style="text-align:center">Раскладываю доску под твою работу и записываю цель.</p>
+    </section>
+
+    <section class="step" data-step="closed">
+      <h1>Регистрация на паузе</h1>
+      <p class="lead">Сейчас новые места закончились. Загляни чуть позже или попроси приглашение у агентства.</p>
+    </section>
+  </form>
+  <div class="foot">Уже есть аккаунт? <a href="./">Войти</a></div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const steps = [...document.querySelectorAll(".step")];
+let cur = 0, craft = "", ticket = "", slugTouched = false;
+const SAY = [
+  "Привет! Я Майя, продюсерка. Давай знакомиться — это займёт пару минут.",
+  "Как тебя зовут и чем ты занимаешься? Под это я разложу твою доску проектов.",
+  "Расскажи своими словами, без официоза. Чем точнее цель — тем точнее советы команды.",
+  "Последний шаг — придумай вход. Пин лучше не 1234 😉",
+  "Секундочку… собираю твоё закулисье.",
+];
+const CRAFT_SAY = {
+  animation: "Анимация! Обожаю. Помогу найти фестивали, питчинги и студии, которым нужны художники.",
+  illustration: "Иллюстраторы — моя слабость. Поищем издательства, конкурсы и заказы.",
+  music: "Музыка! Распланируем релизы, найдём площадки и open calls.",
+  mural: "Стены — это масштаб. Найдём конкурсы, тендеры и заказчиков.",
+  photo: "Фото! Поможем с прайсом, съёмками и продажей работ.",
+  other: "Отлично, разберёмся вместе — команда подстроится под тебя.",
+};
+const ABOUT_PH = {
+  animation: "Например: художник-аниматор, рисую фоны и персонажей для мультфильмов, работаю с небольшими студиями и делаю свой короткий метр",
+  illustration: "Например: рисую детские книги и обложки, работаю в цифре и акварелью",
+  music: "Например: диджей и продюсер, хаус и электроника, выступаю в клубах",
+  mural: "Например: расписываю стены и фасады, работаю с городом и бизнесом",
+  photo: "Например: снимаю портреты и события, ищу постоянных клиентов",
+  other: "Что ты делаешь, для кого и в каком стиле",
+};
+function say(t) { const b = $("#bubble"); $("#say").textContent = t; b.style.animation = "none"; b.offsetHeight; b.style.animation = ""; }
+function show(i) {
+  cur = i; steps.forEach(s => s.classList.toggle("on", s.dataset.step == String(i)));
+  document.querySelectorAll("#dots i").forEach((d, k) => d.classList.toggle("on", k === Math.min(i, 3)));
+  if (typeof i === "number") say(SAY[i] || "");
+  const first = steps.find(s => s.classList.contains("on"))?.querySelector("input,textarea");
+  if (first && window.innerWidth > 700) first.focus();
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+const TR = {а:"a",б:"b",в:"v",г:"g",ґ:"g",д:"d",е:"e",ё:"e",є:"ye",ж:"zh",з:"z",и:"i",і:"i",ї:"yi",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya"};
+const slugify = (t) => [...t.toLowerCase()].map(c => TR[c] ?? c).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 25);
+function validate(i) {
+  if (i === 1) {
+    if ($("#name").value.trim().length < 2) return "Напиши, как тебя зовут 🙂";
+    if (!craft) return "Выбери, чем занимаешься — можно «Другое»";
+  }
+  if (i === 2 && $("#about").value.trim().length < 10) return "Пару предложений о себе — так команда поймёт, чем помогать";
+  return "";
+}
+document.addEventListener("click", (e) => {
+  if (e.target.matches("[data-next]")) {
+    const msg = validate(cur);
+    if (msg) { say(msg); return; }
+    if (cur === 1 && !slugTouched) { $("#slug").value = slugify($("#name").value); checkSlug(); }
+    show(cur + 1);
+  }
+  if (e.target.matches("[data-back]")) show(cur - 1);
+  const chip = e.target.closest(".chip");
+  if (chip) {
+    document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === chip));
+    craft = chip.dataset.v; say(CRAFT_SAY[craft]); $("#about").placeholder = ABOUT_PH[craft];
+  }
+});
+let slugTimer;
+async function checkSlug() {
+  const v = $("#slug").value.trim().toLowerCase(), h = $("#slugHint");
+  if (!/^[a-z0-9][a-z0-9-]{2,24}$/.test(v)) { h.className = "hint"; h.textContent = "3–25 символов: латинские буквы, цифры, дефис"; return; }
+  try {
+    const r = await (await fetch("api/signup/check?slug=" + encodeURIComponent(v))).json();
+    h.className = "hint " + (r.free ? "ok" : "bad"); h.textContent = r.free ? "✓ свободно" : "занято — попробуй другое";
+  } catch { h.textContent = ""; }
+}
+$("#slug").addEventListener("input", () => { slugTouched = true; $("#slug").value = $("#slug").value.toLowerCase().replace(/[^a-z0-9-]/g, ""); clearTimeout(slugTimer); slugTimer = setTimeout(checkSlug, 350); });
+["#pin", "#pin2"].forEach(s => $(s).addEventListener("input", (e) => e.target.value = e.target.value.replace(/\D/g, "")));
+$("#f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = $("#err"); err.textContent = "";
+  const pin = $("#pin").value;
+  if (pin.length < 4) return err.textContent = "Пин-код — от 4 до 8 цифр";
+  if (pin !== $("#pin2").value) return err.textContent = "Пин-коды не совпадают";
+  if (!$("#agree").checked) return err.textContent = "Отметь согласие, пожалуйста";
+  $("#go").disabled = true; show(4);
+  try {
+    const r = await fetch("api/signup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
+      name: $("#name").value, craft, city: $("#city").value, about: $("#about").value, goal: $("#goal").value,
+      links: $("#links").value, slug: $("#slug").value, pin, agree: true, website: $("#website").value, ticket})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Что-то пошло не так");
+    setTimeout(() => location.href = "app", 900);
+  } catch (ex) { show(3); err.textContent = ex.message; $("#go").disabled = false; say("Ой, не получилось: " + ex.message); }
+});
+(async () => {
+  try {
+    const st = await (await fetch("api/signup/status")).json();
+    ticket = st.ticket;
+    if (!st.open) { show("closed"); say("Сейчас новые места закончились — загляни чуть позже 🙏"); }
+  } catch {}
+})();
+</script>
+</body></html>

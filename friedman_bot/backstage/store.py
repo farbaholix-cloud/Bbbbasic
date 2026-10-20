@@ -16,7 +16,7 @@ import sqlite3
 import secrets
 import hashlib
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DB = os.environ.get("BACKSTAGE_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "backstage.db"))
 
@@ -80,6 +80,10 @@ CREATE TABLE IF NOT EXISTS insights (
     shared INTEGER DEFAULT 0,
     created TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
 CREATE TABLE IF NOT EXISTS sessions (
     token TEXT PRIMARY KEY,
     client_id INTEGER NOT NULL,
@@ -112,6 +116,22 @@ def init():
     with db() as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(SCHEMA)
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(clients)").fetchall()}
+        if "source" not in cols:  # admin | signup | demo — кто завёл клиента
+            conn.execute("ALTER TABLE clients ADD COLUMN source TEXT DEFAULT 'admin'")
+        if "craft" not in cols:
+            conn.execute("ALTER TABLE clients ADD COLUMN craft TEXT DEFAULT ''")
+
+
+def meta_get(key, default=None):
+    with db() as conn:
+        r = conn.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+    return r["value"] if r else default
+
+
+def meta_set(key, value):
+    with db() as conn:
+        conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?,?)", (key, str(value)))
 
 
 def now():
@@ -124,18 +144,51 @@ def hash_key(key: str) -> str:
 
 # ─── Клиенты ─────────────────────────────────────────────────────────────────
 
-def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0, lang: str = "ru", key: str = None):
+def create_client(slug: str, name: str, profile: str = "", budget: float = 20.0, lang: str = "ru", key: str = None,
+                  source: str = "admin", craft: str = ""):
     """Создаёт клиента со стартовым дашбордом. Возвращает (client_id, access_key) —
     ключ показывается один раз, в базе лежит только его хэш."""
     key = key or secrets.token_urlsafe(18)
     with db() as conn:
         cur = conn.execute(
-            "INSERT INTO clients (slug, name, key_hash, profile, monthly_budget, lang, created) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (slug, name, hash_key(key), profile, budget, lang, now()))
+            "INSERT INTO clients (slug, name, key_hash, profile, monthly_budget, lang, created, source, craft) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (slug, name, hash_key(key), profile, budget, lang, now(), source, craft))
         cid = cur.lastrowid
-    seed_dashboard(cid)
+    seed_dashboard(cid, craft)
     return cid, key
+
+
+def slug_taken(slug: str) -> bool:
+    with db() as conn:
+        return bool(conn.execute("SELECT 1 FROM clients WHERE slug=?", (slug,)).fetchone())
+
+
+def signups_since(hours: int = 24, ip_hash: str = None) -> int:
+    with db() as conn:
+        if ip_hash:
+            return conn.execute("SELECT COUNT(*) FROM meta WHERE key LIKE ? AND value >= datetime('now', ?)",
+                                (f"signup:{ip_hash}:%", f"-{hours} hours")).fetchone()[0]
+        return conn.execute("SELECT COUNT(*) FROM clients WHERE source='signup' AND created >= ?",
+                            ((datetime.now() - timedelta(hours=hours)).isoformat(timespec="seconds"),)).fetchone()[0]
+
+
+def note_signup(ip_hash: str):
+    with db() as conn:
+        conn.execute("INSERT INTO meta (key, value) VALUES (?, datetime('now'))",
+                     (f"signup:{ip_hash}:{secrets.token_hex(4)}",))
+
+
+def requests_today(client_id: int) -> dict:
+    """Сколько сообщений клиент сегодня отправил команде (обычных и с глубоким анализом).
+    Считаем сообщения, а не вызовы модели: одно сообщение Майе может стоить
+    нескольких вызовов (она зовёт специалистов), а лимит — про человека."""
+    day = datetime.now().strftime("%Y-%m-%d")
+    with db() as conn:
+        rows = conn.execute("SELECT meta FROM messages WHERE client_id=? AND role='user' AND substr(created,1,10)=?",
+                            (client_id, day)).fetchall()
+    deep = sum(1 for r in rows if '"deep": true' in (r["meta"] or ""))
+    return {"chat": len(rows) - deep, "deep": deep}
 
 
 def reset_key(client_id: int) -> str:
@@ -198,11 +251,12 @@ def ensure_demo():
     Все, кто входит в демо, видят один и тот же дашборд — личного туда не писать."""
     with db() as conn:
         if conn.execute("SELECT 1 FROM clients WHERE slug=?", (DEMO_SLUG,)).fetchone():
+            conn.execute("UPDATE clients SET source='demo' WHERE slug=?", (DEMO_SLUG,))
             return
     create_client(DEMO_SLUG, "Canon · демо",
                   "Демо-проект. DJ и музыкальный автор (пример: DJ Can-On, Киев). Цель на 12 месяцев — "
                   "запустить YouTube-канал с миксами, найти гранты на культурные проекты и коллаборации "
-                  "с клубами и фестивалями.", budget=5.0, key=DEMO_PIN)
+                  "с клубами и фестивалями.", budget=5.0, key=DEMO_PIN, source="demo")
 
 
 # ─── Сессии ──────────────────────────────────────────────────────────────────
@@ -244,7 +298,21 @@ def drop_client_sessions(client_id: int):
 WIDGET_KINDS = ("kpi", "chart", "table", "board", "list", "note")
 
 
-def seed_dashboard(client_id: int):
+CRAFT_BOARDS = {
+    "animation": ["Идеи", "Раскадровка", "Анимация", "Сдано"],
+    "illustration": ["Идеи", "Эскизы", "В работе", "Сдано"],
+    "music": ["Демо", "В работе", "Релиз", "Выступления"],
+    "mural": ["Входящие", "Эскиз", "На стене", "Готово"],
+    "photo": ["Идеи", "Съёмка", "Обработка", "Сдано"],
+}
+CRAFT_LISTS = {
+    "animation": "Фестивали, питчинги и дедлайны",
+    "music": "Конкурсы, фестивали и релизы",
+    "mural": "Конкурсы, тендеры и дедлайны",
+}
+
+
+def seed_dashboard(client_id: int, craft: str = ""):
     """Базовая версия дашборда — то, с чего начинает любой клиент. Менее
     персонализированная, чем «Капитанский мостик» Фридмана: дальше клиент
     перестраивает её руками или через чат."""
@@ -253,11 +321,11 @@ def seed_dashboard(client_id: int):
         ("kpi", "Доход за месяц", {"unit": "€", "goal": 3000}, {"value": 0, "delta": ""}, "s"),
         ("kpi", "Заявки в работе", {"unit": ""}, {"value": 0, "delta": ""}, "s"),
         ("kpi", "Бюджет ИИ на месяц", {"unit": "$", "system": "budget"}, {"value": 0}, "s"),
-        ("board", "Проекты", {"columns": ["Входящие", "В работе", "Ждём ответа", "Готово"]},
+        ("board", "Проекты", {"columns": CRAFT_BOARDS.get(craft, ["Входящие", "В работе", "Ждём ответа", "Готово"])},
          {"cards": [{"id": 1, "col": 0, "text": "Рассказать команде о своей практике (чат справа)"}]}, "l"),
         ("chart", "Доход по месяцам", {"type": "bar", "unit": "€"},
          {"labels": [month], "series": [{"name": "Доход", "values": [0]}]}, "m"),
-        ("list", "Дедлайны и заявки", {}, {"items": []}, "m"),
+        ("list", CRAFT_LISTS.get(craft, "Дедлайны и заявки"), {}, {"items": []}, "m"),
         ("note", "Профиль практики", {}, {"text": "Кто я, что делаю, чего хочу добиться за 12 месяцев. "
                                                   "Команда читает эту заметку перед каждым ответом."}, "m"),
     ]

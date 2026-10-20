@@ -48,7 +48,9 @@ STATIC = os.path.join(HERE, "static")
 MAX_BODY = 30 * 1024 * 1024  # вложения (PDF договора, фото стены) приходят base64 в JSON
 VERSION = "0.1"
 
-PAGES = {"/": "login.html", "/app": "app.html", "/guide": "guide.html", "/admin": "admin.html"}
+PAGES = {"/": "login.html", "/join": "join.html", "/app": "app.html", "/guide": "guide.html", "/admin": "admin.html"}
+SIGNUP_DAILY = int(os.environ.get("BACKSTAGE_SIGNUP_DAILY", "30"))   # новых аккаунтов в сутки на всех
+SIGNUP_PER_IP = int(os.environ.get("BACKSTAGE_SIGNUP_PER_IP", "3"))   # с одного адреса в сутки
 MIME = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
         ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
         ".json": "application/json", ".webmanifest": "application/manifest+json"}
@@ -93,15 +95,61 @@ def start_job(client_id, agent, text, attachments, deep):
 _fails = {}
 
 
-def too_many_fails(ip):
+def too_many_fails(ip, slug=None):
+    """10 ошибок с адреса за 10 минут или 6 ошибок по одному имени за 15 минут —
+    пауза. Второе важно: пин короткий, и перебирать его можно с разных адресов."""
     now = time.time()
     lst = [t for t in _fails.get(ip, []) if now - t < 600]
     _fails[ip] = lst
-    return len(lst) >= 10
+    if len(lst) >= 10:
+        return True
+    if slug:
+        sl = [t for t in _fails.get("slug:" + slug, []) if now - t < 900]
+        _fails["slug:" + slug] = sl
+        return len(sl) >= 6
+    return False
 
 
-def note_fail(ip):
+def note_fail(ip, slug=None):
     _fails.setdefault(ip, []).append(time.time())
+    if slug:
+        _fails.setdefault("slug:" + slug, []).append(time.time())
+
+
+WEAK_PINS = {"1234", "12345", "123456", "1234567", "12345678", "4321", "0123", "1212", "2580", "6969", "1122"}
+RESERVED = {"admin", "api", "app", "join", "guide", "static", "canon", "demo", "root", "backstage", "test", "maya"}
+
+
+def weak_pin(pin):
+    return (pin in WEAK_PINS or len(set(pin)) == 1
+            or pin in "0123456789012345" or pin in "9876543210987654")
+
+
+def _ticket_key():
+    k = store.meta_get("signup_key")
+    if not k:
+        k = __import__("secrets").token_hex(16)
+        store.meta_set("signup_key", k)
+    return k
+
+
+def make_ticket():
+    import hmac, hashlib
+    ts = str(int(time.time()))
+    return ts + "." + hmac.new(_ticket_key().encode(), ts.encode(), hashlib.sha256).hexdigest()[:24]
+
+
+def ticket_ok(t):
+    """Билет выдаётся при открытии формы. Регистрация раньше чем через 6 секунд
+    (так быстро заполняют только боты) или позже чем через 3 часа — отказ."""
+    import hmac, hashlib
+    try:
+        ts, sig = str(t).split(".", 1)
+        good = hmac.new(_ticket_key().encode(), ts.encode(), hashlib.sha256).hexdigest()[:24]
+        age = time.time() - int(ts)
+        return hmac.compare_digest(sig, good) and 6 <= age <= 3 * 3600
+    except Exception:
+        return False
 
 
 # ─── HTTP ────────────────────────────────────────────────────────────────────
@@ -168,6 +216,13 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(n) if n else b""
         return json.loads(raw or b"{}")
 
+    def _ip(self):
+        """За прокси дашборда (127.0.0.1) — адрес из X-Forwarded-For, иначе прямой."""
+        ip = self.client_address[0]
+        if ip in ("127.0.0.1", "::1") and self.headers.get("X-Forwarded-For"):
+            return self.headers["X-Forwarded-For"].split(",")[0].strip()
+        return ip
+
     def _cookies(self):
         c = SimpleCookie()
         try:
@@ -195,7 +250,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._static(path[len("/static/"):])
             m = re.fullmatch(r"/c/([a-z0-9-]{2,40})", path)
             if m:  # персональная ссылка клиента: /c/<код>?k=<ключ>
-                ip = self.client_address[0]
+                ip = self._ip()
                 if too_many_fails(ip):
                     return self._send(429, "Слишком много попыток, подожди 10 минут.", "text/plain; charset=utf-8")
                 c = store.client_by_key(m.group(1), (q.get("k") or [""])[0])
@@ -204,6 +259,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._redirect("/?bad=1")
                 tok = store.new_session(c["id"])
                 return self._redirect("/app", {"Set-Cookie": self._cookie_header("bs_session", tok)})
+            if path == "/api/signup/status":
+                return self._json({"open": store.meta_get("signup_open", "1") == "1", "ticket": make_ticket()})
+            if path == "/api/signup/check":  # свободно ли имя — подсказка прямо в форме
+                slug = (q.get("slug") or [""])[0].strip().lower()
+                ok = bool(re.fullmatch(r"[a-z0-9][a-z0-9-]{2,24}", slug)) and slug not in RESERVED and not store.slug_taken(slug)
+                return self._json({"free": ok})
             if path.startswith("/api/admin/"):
                 if not self._is_admin():
                     return self._err(401, "нужен вход владельца")
@@ -229,6 +290,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.login(body)
             if path == "/api/admin/login":
                 return self.admin_login(body)
+            if path == "/api/signup":
+                return self.signup(body)
             if path == "/api/logout":
                 for name in ("bs_session", "bs_admin"):
                     store.drop_session(self._cookies().get(name, ""))
@@ -251,18 +314,66 @@ class Handler(BaseHTTPRequestHandler):
 
     # — вход —
     def login(self, body):
-        ip = self.client_address[0]
+        ip = self._ip()
         if too_many_fails(ip):
             return self._err(429, "Слишком много попыток, подожди 10 минут.")
-        c = store.client_by_key(str(body.get("slug", "")).strip().lower(), str(body.get("key", "")).strip())
+        slug = str(body.get("slug", "")).strip().lower()
+        if too_many_fails(ip, slug):
+            return self._err(429, "Слишком много попыток для этого имени, подожди 15 минут.")
+        c = store.client_by_key(slug, str(body.get("key", "")).strip())
         if not c:
-            note_fail(ip)
-            return self._err(401, "Неверный код или ключ")
+            note_fail(ip, slug)
+            return self._err(401, "Неверное имя или пин-код")
         tok = store.new_session(c["id"])
         return self._json({"ok": True}, headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
 
+    def signup(self, body):
+        """Саморегистрация: бесплатно, с защитой от ботов и от выжигания подписки."""
+        ip = self._ip()
+        if store.meta_get("signup_open", "1") != "1":
+            return self._err(403, "Регистрация сейчас закрыта. Напиши агентству — пришлют приглашение.")
+        if str(body.get("website", "")).strip():          # ловушка: поле невидимо для людей
+            return self._err(400, "Не получилось, попробуй ещё раз.")
+        if not ticket_ok(body.get("ticket")):
+            return self._err(400, "Форма устарела или заполнена слишком быстро — обнови страницу.")
+        ip_hash = store.hash_key("ip:" + ip)[:16]
+        if store.signups_since(24, ip_hash) >= SIGNUP_PER_IP:
+            return self._err(429, "С этого устройства сегодня уже регистрировались. Попробуй завтра.")
+        if store.signups_since(24) >= SIGNUP_DAILY:
+            return self._err(429, "Сегодня места для новых участников закончились — загляни завтра.")
+        name = re.sub(r"\s+", " ", str(body.get("name", ""))).strip()[:40]
+        slug = str(body.get("slug", "")).strip().lower()
+        pin = str(body.get("pin", "")).strip()
+        craft = str(body.get("craft", "other"))
+        craft = craft if craft in ("animation", "illustration", "music", "mural", "photo", "other") else "other"
+        about = str(body.get("about", "")).strip()[:1500]
+        goal = str(body.get("goal", "")).strip()[:800]
+        city = str(body.get("city", "")).strip()[:60]
+        links = str(body.get("links", "")).strip()[:300]
+        if len(name) < 2:
+            raise ValueError("Как тебя зовут? Хотя бы два символа.")
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,24}", slug) or slug in RESERVED:
+            raise ValueError("Имя для входа: 3–25 латинских букв, цифр или дефисов.")
+        if not re.fullmatch(r"\d{4,8}", pin) or weak_pin(pin):
+            raise ValueError("Пин-код: 4–8 цифр, и не такой простой, как 1234 или 1111.")
+        if not body.get("agree"):
+            raise ValueError("Нужно согласие на хранение данных.")
+        if store.slug_taken(slug):
+            raise ValueError("Это имя уже занято — попробуй другое.")
+        crafts = {"animation": "анимация и мультфильмы", "illustration": "иллюстрация", "music": "музыка",
+                  "mural": "муралы и граффити", "photo": "фотография", "other": "творческая практика"}
+        profile = "\n".join(x for x in [
+            f"{name}{', ' + city if city else ''} — {crafts[craft]}.",
+            about and f"О себе: {about}", goal and f"Цель на 12 месяцев: {goal}", links and f"Ссылки: {links}"] if x)
+        cid, _ = store.create_client(slug, name, profile, budget=0, key=pin, source="signup", craft=craft)
+        store.note_signup(ip_hash)
+        store.add_message(cid, "maya", "assistant", welcome_text(name, craft, goal))
+        tok = store.new_session(cid)
+        log.info("signup: %s (%s)", slug, craft)
+        return self._json({"ok": True}, headers={"Set-Cookie": self._cookie_header("bs_session", tok)})
+
     def admin_login(self, body):
-        ip = self.client_address[0]
+        ip = self._ip()
         if too_many_fails(ip):
             return self._err(429, "Слишком много попыток, подожди 10 минут.")
         if not ADMIN_KEY or not __import__("secrets").compare_digest(str(body.get("key", "")), ADMIN_KEY):
@@ -375,13 +486,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/admin/usage":
             return self._json(store.usage_summary(None, days=int((q.get("days") or ["31"])[0])))
         if path == "/api/admin/config":
-            return self._json({"model_chat": brain.MODEL_CHAT, "model_deep": brain.MODEL_DEEP,
+            return self._json({"signup_open": store.meta_get("signup_open", "1") == "1",
+                               "signups_24h": store.signups_since(24), "signup_daily": SIGNUP_DAILY,"model_chat": brain.MODEL_CHAT, "model_deep": brain.MODEL_DEEP,
                                "effort_chat": brain.EFFORT_CHAT, "effort_deep": brain.EFFORT_DEEP,
                                "prices": brain.PRICES, "api_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
                                "version": VERSION})
         return self._err(404, "not found")
 
     def admin_post(self, path, body):
+        if path == "/api/admin/signup":
+            store.meta_set("signup_open", "1" if body.get("open") else "0")
+            return self._json({"ok": True})
         if path == "/api/admin/clients":
             slug = str(body.get("slug", "")).strip().lower()
             if not re.fullmatch(r"[a-z0-9-]{2,40}", slug):
@@ -409,6 +524,21 @@ class Handler(BaseHTTPRequestHandler):
                 store.set_insight_shared(iid, int(bool(body.get("shared"))), body.get("title"), body.get("body"))
             return self._json({"ok": True})
         return self._err(404, "not found")
+
+
+def welcome_text(name, craft, goal):
+    first = name.split()[0]
+    hints = {
+        "animation": "Например: «найди фестивали анимации и питчинги с дедлайнами на ближайшие полгода» или «помоги посчитать цену за минуту анимации».",
+        "illustration": "Например: «где искать заказы на детские книги» или «сколько брать за обложку».",
+        "music": "Например: «составь план релиза на месяц» или «найди open calls для музыкантов».",
+        "mural": "Например: «найди конкурсы на муралы рядом со мной» или «посчитай цену стены 40 м²».",
+        "photo": "Например: «где продавать фото» или «помоги с прайсом на съёмку».",
+    }.get(craft, "Например: «найди гранты и конкурсы для меня» или «помоги составить прайс».")
+    goal_line = f"\n\nТвою цель я записала: «{goal[:160]}». Будем двигаться к ней по шагам." if goal else ""
+    return (f"Привет, {first}! Я Майя, твоя продюсерка 🎬\n\n"
+            "Слева — твой дашборд: проекты, дедлайны, деньги. Он твой, меняй как хочешь — руками или просто попроси меня."
+            f"{goal_line}\n\nС чего начнём? {hints}")
 
 
 def main():

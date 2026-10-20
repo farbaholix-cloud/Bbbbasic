@@ -354,6 +354,24 @@ def _usage(resp):
             "web": (getattr(stu, "web_search_requests", 0) or 0) if stu else 0}
 
 
+FREE_DAILY_CHAT = int(os.environ.get("BACKSTAGE_FREE_DAILY_CHAT", "25"))
+FREE_DAILY_DEEP = int(os.environ.get("BACKSTAGE_FREE_DAILY_DEEP", "2"))
+
+
+def check_quota(c, deep=False):
+    """Бесплатные аккаунты (саморегистрация, демо) работают на подписке владельца —
+    дневной лимит не даёт одному человеку или боту выжечь её за всех."""
+    if (c.get("source") or "admin") not in ("signup", "demo"):
+        return
+    used = store.requests_today(c["id"])
+    if deep and used.get("deep", 0) >= FREE_DAILY_DEEP:
+        raise BudgetExceeded(f"Глубокий анализ в бесплатной версии — {FREE_DAILY_DEEP} раза в день. "
+                             "Завтра снова можно, а обычный чат работает.")
+    if used.get("chat", 0) + used.get("deep", 0) >= FREE_DAILY_CHAT:
+        raise BudgetExceeded(f"На сегодня лимит бесплатной версии — {FREE_DAILY_CHAT} ответов команды. "
+                             "Завтра продолжим! Всё, что сделано, сохранено на дашборде.")
+
+
 def check_budget(c):
     if backend() != "api":
         return  # по подписке денег не считаем — работаем в её лимитах
@@ -458,6 +476,7 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
 def chat(client_id, agent_id, text, attachments=None, deep=False):
     """Точка входа для веб-панели и Telegram-моста. Сохраняет переписку."""
     c = store.get_client(client_id)
+    check_quota(c, deep)
     if agent_id not in AGENTS:
         agent_id = "maya"
     hist = store.history(client_id, agent_id, limit=24)

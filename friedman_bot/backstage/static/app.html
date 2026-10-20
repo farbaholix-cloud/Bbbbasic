@@ -383,6 +383,14 @@ async function loadMsgs() {
   box.innerHTML = list.length ? "" : `<div class="empty">${a.emoji} <b>${esc(a.name)}</b>, ${esc(a.role.toLowerCase())}.<br>
     ${AGENT === "maya" ? "Пиши мне обо всём — я раздам задачи команде и сведу ответ." : "Можно напрямую, но обычно быстрее через Майю."}</div>`;
   list.forEach(m => addMsg(m.role, m.text, m.meta));
+  if (AGENT === "maya" && list.filter(m => m.role === "user").length === 0) {
+    const ideas = ["Найди для меня конкурсы и фестивали с дедлайнами", "Помоги посчитать цену моей работы", "Составь план на этот месяц"];
+    const wrap = document.createElement("div");
+    wrap.className = "row"; wrap.style.cssText = "flex-wrap:wrap;gap:6px;align-self:flex-start";
+    wrap.innerHTML = ideas.map(t => `<button class="chip" style="cursor:pointer" data-idea="${esc(t)}">${esc(t)}</button>`).join("");
+    wrap.onclick = (e) => { const t = e.target.dataset.idea; if (t) { $("#input").value = t; wrap.remove(); send(); } };
+    box.append(wrap);
+  }
   box.scrollTop = box.scrollHeight;
 }
 function addMsg(role, text, meta = {}) {
