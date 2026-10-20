@@ -13,7 +13,8 @@
     padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   header h1{font-size:22px}
   header h1 span{color:var(--accent)}
-  .layout{display:grid;grid-template-columns:1fr 420px;gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+  .layout{display:grid;grid-template-columns:minmax(440px,560px) 1fr;gap:16px;padding:16px;max-width:1600px;margin:0 auto}
+  .layout .chat{order:-1}
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-content:start}
   .w{padding:14px;min-width:0;display:flex;flex-direction:column}
   .w.s{grid-column:span 1}.w.m{grid-column:span 2}.w.l{grid-column:span 4}
@@ -90,7 +91,7 @@
   @media (max-width:520px){.grid{grid-template-columns:1fr}.w.s,.w.m,.w.l{grid-column:span 1}}
   .ed-grid{width:100%;font-family:ui-monospace,Menlo,monospace;font-size:13px;min-height:140px}
 </style>
-</head><body data-tab="dash">
+</head><body data-tab="chat">
 <header>
   <h1>BACKSTAGE<span>.</span></h1>
   <span class="chip" id="who">…</span>
@@ -110,7 +111,7 @@
     <div class="msgs" id="msgs"></div>
     <div class="composer">
       <div class="atts" id="atts"></div>
-      <textarea id="input" rows="2" placeholder="Напиши команде: задачу, вопрос, цифры, ссылку…"></textarea>
+      <textarea id="input" rows="2" placeholder="Напиши Майе: задачу, вопрос, идею, ссылку — она раздаст работу команде"></textarea>
       <div class="row">
         <label class="row small muted" style="margin:0;gap:6px;width:auto" title="Самая мощная модель, веб-поиск, дольше и дороже">
           <input type="checkbox" id="deep" style="width:auto"> Глубокий анализ
@@ -125,8 +126,8 @@
   </aside>
 </div>
 <nav class="tabs">
-  <button data-tab="dash" class="on">Дашборд</button>
-  <button data-tab="chat">Команда</button>
+  <button data-tab="chat" class="on">Команда</button>
+  <button data-tab="dash">Дашборд</button>
 </nav>
 
 <dialog id="dlgEdit"><form method="dialog" id="fEdit"></form></dialog>
@@ -152,7 +153,7 @@
   <form method="dialog">
     <h2>Проверка потенциала</h2>
     <p class="small muted">Расскажи о практике: что делаешь, где, для кого, главная цель на 12 месяцев, сколько часов в неделю уходит на админку.
-      Майя соберёт команду, самая мощная модель Claude найдёт в интернете гранты и заказы и перестроит дашборд под план.
+      Майя соберёт команду, самая мощная модель Claude найдёт в интернете гранты и заказы и разложит план по шагам.
       Анализ идёт несколько минут и стоит заметно дороже обычного сообщения.</p>
     <textarea id="potText" rows="8"></textarea>
     <div class="row" style="margin-top:14px"><div class="grow"></div>
@@ -401,7 +402,7 @@ function addMsg(role, text, meta = {}) {
     el.innerHTML = md(text);
     const bits = [];
     if (meta.consulted?.length) bits.push("позвала: " + meta.consulted.map(id => ME.agents[id]?.name || id).join(", "));
-    if (meta.changed) bits.push("дашборд обновлён");
+    if (meta.changed) bits.push("показатели обновлены");
     if (meta.model) bits.push(meta.model);
     if (bits.length) el.insertAdjacentHTML("beforeend", `<div class="meta">${esc(bits.join(" · "))}</div>`);
   }

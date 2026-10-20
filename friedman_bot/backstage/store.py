@@ -327,7 +327,7 @@ def seed_dashboard(client_id: int, craft: str = ""):
         ("kpi", "Заявки в работе", {"unit": ""}, {"value": 0, "delta": ""}, "s"),
         ("kpi", "Бюджет ИИ на месяц", {"unit": "$", "system": "budget"}, {"value": 0}, "s"),
         ("board", "Проекты", {"columns": CRAFT_BOARDS.get(craft, ["Входящие", "В работе", "Ждём ответа", "Готово"])},
-         {"cards": [{"id": 1, "col": 0, "text": "Рассказать команде о своей практике (чат справа)"}]}, "l"),
+         {"cards": [{"id": 1, "col": 0, "text": "Рассказать Майе о своей практике"}]}, "l"),
         ("chart", "Доход по месяцам", {"type": "bar", "unit": "€"},
          {"labels": [month], "series": [{"name": "Доход", "values": [0]}]}, "m"),
         ("list", CRAFT_LISTS.get(craft, "Дедлайны и заявки"), {}, {"items": []}, "m"),

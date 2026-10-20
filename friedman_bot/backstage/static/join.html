@@ -2,7 +2,7 @@
 <html lang="ru"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fff4e8">
-<title>Backstage — давай знакомиться</title>
+<title>Backstage — твоя закулисная команда</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -85,13 +85,14 @@
     <!-- 0 · приветствие -->
     <section class="step on" data-step="0">
       <h1>Твоя закулисная <span>команда</span></h1>
-      <p class="lead">Ты создаёшь — остальное берём на себя: поиск заказов и фестивалей, цены, письма, план. Сначала коротко расскажи о себе, а потом увидишь свой собственный дашборд.</p>
+      <p class="lead">Восемь ИИ-агентов, которые работают на тебя: ищут заказы и фестивали, пишут заявки и письма, считают цены, планируют. Расскажи коротко о себе — и команда сразу возьмётся за дело.</p>
       <div class="perks">
-        <div class="perk"><i style="background:#ffe3d6">🔭</i>Найдём конкурсы, питчинги и заказы под тебя</div>
-        <div class="perk"><i style="background:#ece4ff">💶</i>Поможем с ценой, сметой и счётом</div>
-        <div class="perk"><i style="background:#dcf7ee">🗂</i>Все проекты и дедлайны — на одной доске</div>
+        <div class="perk"><i style="background:#fff0c9">🎬</i>Пишешь одной Майе — она раздаёт задачи команде и сводит ответ</div>
+        <div class="perk"><i style="background:#ffe3d6">🔭</i>Рубен находит конкурсы, питчинги и заказы под тебя</div>
+        <div class="perk"><i style="background:#ece4ff">✍️</i>Ганна пишет заявки, Конрад читает договоры, Бен считает цены</div>
+        <div class="perk"><i style="background:#dcf7ee">📈</i>Результаты и показатели складываются сами</div>
       </div>
-      <button class="btn" type="button" data-next style="font-size:19px;padding:18px">Создать свой дашборд →</button>
+      <button class="btn" type="button" data-next style="font-size:19px;padding:18px">Начни работу с командой →</button>
       <p class="hint" style="text-align:center">Бесплатно · 3 минуты · можно с телефона.<br>Сразу после анкеты команда сделает твой первый разбор.</p>
     </section>
 
@@ -138,7 +139,7 @@
     <!-- 3 · вход -->
     <section class="step" data-step="3">
       <h1>Твой вход</h1>
-      <p class="lead">По этому имени и пин-коду ты будешь заходить в свой дашборд.</p>
+      <p class="lead">По этому имени и пин-коду ты будешь возвращаться к своей команде.</p>
       <label for="slug">Имя для входа <em>— латиницей</em></label>
       <input id="slug" maxlength="25" autocapitalize="none" spellcheck="false" placeholder="olya">
       <div class="hint" id="slugHint">3–25 символов: буквы, цифры, дефис</div>
@@ -149,16 +150,16 @@
       <div class="trap" aria-hidden="true"><label>Сайт<input id="website" tabindex="-1" autocomplete="off"></label></div>
       <label class="agree"><input type="checkbox" id="agree">
         <span>Согласен(на), что мои ответы хранятся на сервере Backstage и их видит моя ИИ-команда. Это тестовая версия: данные можно удалить по просьбе.</span></label>
-      <button class="btn" type="submit" id="go">Создать мой дашборд ✨</button>
+      <button class="btn" type="submit" id="go">Начать работу с командой ✨</button>
       <button class="ghost" type="button" data-back>← назад</button>
       <div class="err" id="err"></div>
     </section>
 
     <!-- 4 · создаём -->
     <section class="step" data-step="4">
-      <h1>Готовлю твой дашборд…</h1>
+      <h1>Знакомлю тебя с командой…</h1>
       <div class="spin"></div>
-      <p class="lead" style="text-align:center">Раскладываю доску под твою работу, записываю цель и зову команду на первый разбор.</p>
+      <p class="lead" style="text-align:center">Передаю твою анкету Рубену, Бену и остальным — первый разбор уже начинается.</p>
     </section>
 
     <section class="step" data-step="closed">
@@ -166,7 +167,7 @@
       <p class="lead">Сейчас новые места закончились. Загляни чуть позже или попроси приглашение у агентства.</p>
     </section>
   </form>
-  <div class="foot">Уже есть дашборд? <a href="login">Войти</a></div>
+  <div class="foot">Уже работаешь с командой? <a href="login">Войти</a></div>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -174,7 +175,7 @@ const steps = [...document.querySelectorAll(".step")];
 let cur = 0, craft = "", ticket = "", slugTouched = false;
 const SAY = [
   "Привет! Я Майя, продюсерка. Давай знакомиться — это займёт пару минут.",
-  "Как тебя зовут и чем ты занимаешься? Под это я разложу твою доску проектов.",
+  "Как тебя зовут и чем ты занимаешься? Под это я подберу команду.",
   "Расскажи своими словами, без официоза. Чем точнее цель — тем точнее советы команды.",
   "Последний шаг — придумай вход. Пин лучше не 1234 😉",
   "Секундочку… собираю твоё закулисье.",
@@ -274,8 +275,9 @@ $("#f").addEventListener("submit", async (e) => {
 (async () => {
   try {
     const st = await (await fetch("api/signup/status")).json();
-    ticket = st.ticket;
-    if (!st.open) { show("closed"); say("Сейчас новые места закончились — загляни чуть позже 🙏"); }
+    ticket = st.ticket || "";
+    // только явное «закрыто»; сбой сети — не повод прятать форму
+    if (st.open === false) { show("closed"); say("Сейчас новые места закончились — загляни чуть позже 🙏"); }
   } catch {}
 })();
 </script>

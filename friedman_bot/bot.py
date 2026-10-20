@@ -7162,7 +7162,7 @@ def _backstage_welcome(d):
         _settings_set("backstage_welcome3", "skip")
         return
     text = ("🎬 Backstage готов! Команда работает по твоей подписке Claude — ничего докупать не нужно.\n\n"
-            f"Твоя панель (нажми и открой):\n{link}\n\n"
+            f"Твоя команда ждёт (нажми и открой):\n{link}\n\n"
             f"Ссылка для новых людей — регистрация бесплатная:\n{_backstage_url(ip)}/")
     cid = get_chat_id()
     if not cid or not TOKEN:
