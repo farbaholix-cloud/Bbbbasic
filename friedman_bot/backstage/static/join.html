@@ -91,7 +91,7 @@
   .faces .av:nth-child(2){animation-delay:.15s}.faces .av:nth-child(3){animation-delay:.3s}.faces .av:nth-child(4){animation-delay:.45s}.faces .av:nth-child(5){animation-delay:.6s}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
   .meta{font-size:13px;color:var(--muted);margin-top:14px}
-  .brand img{height:22px;display:block}
+  .brand picture,.brand img{height:22px;display:block}
   .brand .right{display:flex;align-items:center;gap:12px}
   .lsw{display:none;gap:2px}.lsw.on{display:flex}
   .lsw button{border:0;background:none;font:inherit;font-size:11px;letter-spacing:.12em;color:var(--muted);padding:4px 5px;cursor:pointer;border-radius:6px}
@@ -129,7 +129,7 @@
 </style>
 </head><body>
 <main>
-  <div class="brand"><img src="static/brand/logo-wordmark.svg" alt="Backstage."><div class="right">
+  <div class="brand"><picture><source srcset="static/brand/logo-wordmark-inverse.svg" media="(prefers-color-scheme: dark)"><img src="static/brand/logo-wordmark.svg" alt="Backstage."></picture><div class="right">
     <div class="lsw" id="lsw"><button type="button" data-sw="en">EN</button><button type="button" data-sw="de">DE</button><button type="button" data-sw="ua">UA</button></div>
     <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div></div></div>
 
