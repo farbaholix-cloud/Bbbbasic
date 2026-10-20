@@ -1,38 +1,52 @@
 <!doctype html>
 <html lang="ru"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f1ea">
 <title>Backstage — вход</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="static/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  main{max-width:420px;margin:0 auto;padding:12vh 16px 40px}
-  .brand{font-size:40px;line-height:1}
-  .brand span{color:var(--accent)}
-  form.card{padding:22px;margin-top:28px}
-  form button{width:100%;margin-top:16px;padding:12px}
-  .err{color:var(--bad);margin-top:10px;min-height:1.2em}
-  .hint{color:var(--muted);opacity:.75;font-size:13px;text-align:center;margin:4px 0 0}
-  .hint b{font-weight:600}
-  footer{margin-top:28px;text-align:center}
-  .joinlink{display:inline-block;font-weight:700;font-size:15px}
+  :root{--bg:#f5f1ea;--card:#fffdf9;--ink:#1d1c1a;--muted:#6f6a62;--faint:#a39d93;--line:#e4ddd1;--accent:#b5532c;color-scheme:light}
+  @media (prefers-color-scheme:dark){:root{--bg:#161513;--card:#1e1d1a;--ink:#efebe4;--muted:#a59f95;--faint:#77726a;--line:#2f2d29;--accent:#d9774c;color-scheme:dark}}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  main{max-width:440px;margin:0 auto;padding:32px 16px 56px;padding-top:calc(28px + env(safe-area-inset-top))}
+  .brand{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .brand b{color:var(--accent)}
+  h1{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:34px;line-height:1.1;margin:40px 0 10px}
+  h1 em{font-style:italic;color:var(--accent)}
+  p.lead{color:var(--muted);margin:0 0 22px}
+  form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px}
+  label{display:block;font-weight:500;font-size:13px;margin:0 0 7px}
+  label+input{margin-bottom:16px}
+  input{width:100%;font:inherit;color:inherit;background:transparent;border:1px solid var(--line);border-radius:10px;padding:12px 14px;outline:none}
+  input:focus{border-color:var(--ink)}
+  button{display:flex;justify-content:space-between;width:100%;margin-top:8px;border:0;border-radius:10px;padding:15px 20px;font:inherit;
+    font-weight:500;color:var(--bg);background:var(--ink);cursor:pointer;transition:background .2s}
+  button:hover{background:var(--accent)}
+  .err{color:#b3412f;margin-top:12px;min-height:1.4em;font-size:14px}
+  .alt{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);font-size:15px}
+  .alt a{color:var(--ink);font-weight:500;text-underline-offset:3px}
+  .alt p{color:var(--muted);margin:4px 0 0;font-size:14px}
+  .small{font-size:13px;color:var(--faint);margin-top:18px}
+  .small a{color:var(--muted)}
 </style>
 </head><body>
 <main>
-  <h1 class="brand">BACKSTAGE<span>.</span></h1>
-  <p class="muted">Закулисная команда ИИ-агентов для художников, музыкантов и авторов. Создавай своё — остальное берёт команда.</p>
-  <form class="card" id="f">
-    <label for="slug">Имя</label>
-    <input id="slug" autocomplete="username" autocapitalize="none" placeholder="твоё имя для входа" required>
+  <div class="brand">Backstage<b>.</b></div>
+  <h1>С возвращением к <em>команде</em></h1>
+  <p class="lead">Войди по имени и пин-коду, которые ты выбрал при регистрации.</p>
+  <form id="f">
+    <label for="slug">Имя для входа</label>
+    <input id="slug" autocomplete="username" autocapitalize="none" required>
     <label for="key">Пин-код</label>
-    <input id="key" type="password" autocomplete="current-password" placeholder="пин-код" required>
-    <button class="primary" type="submit">Войти</button>
+    <input id="key" type="password" inputmode="numeric" autocomplete="current-password" required>
+    <button type="submit">Войти <span>→</span></button>
     <div class="err" id="err"></div>
   </form>
-  <footer class="small muted">
-    <a href="join" class="joinlink">Впервые здесь? Начни работу с командой — бесплатно ✨</a><br><br>
-    <a href="guide">Что умеет панель</a>
-  </footer>
+  <div class="alt"><a href="./">Впервые здесь? Начни работу с командой →</a>
+    <p>Бесплатно, около трёх минут.</p></div>
+  <p class="small"><a href="guide">Как устроена работа с командой</a></p>
 </main>
 <script>
 if (location.search.includes("bad=1")) document.getElementById("err").textContent = "Ссылка недействительна — проверь ключ или попроси новый.";
