@@ -50,7 +50,8 @@ STATIC = os.path.join(HERE, "static")
 MAX_BODY = 30 * 1024 * 1024  # вложения (PDF договора, фото стены) приходят base64 в JSON
 VERSION = "0.1"
 
-PAGES = {"/": "join.html", "/join": "join.html", "/login": "login.html", "/app": "app.html", "/guide": "guide.html", "/admin": "admin.html"}
+PAGES = {"/": "join.html", "/join": "join.html", "/login": "login.html", "/app": "app.html", "/guide": "guide.html", "/admin": "admin.html",
+         "/survey": "survey.html"}
 SIGNUP_DAILY = int(os.environ.get("BACKSTAGE_SIGNUP_DAILY", "30"))   # новых аккаунтов в сутки на всех
 SIGNUP_PER_IP = int(os.environ.get("BACKSTAGE_SIGNUP_PER_IP", "3"))   # с одного адреса в сутки
 MIME = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
@@ -119,7 +120,7 @@ def note_fail(ip, slug=None):
 
 
 WEAK_PINS = {"1234", "12345", "123456", "1234567", "12345678", "4321", "0123", "1212", "2580", "6969", "1122"}
-RESERVED = {"admin", "api", "app", "join", "guide", "static", "canon", "demo", "root", "backstage", "test", "maya"}
+RESERVED = {"admin", "api", "app", "join", "guide", "static", "canon", "demo", "root", "backstage", "test", "maya", "survey"}
 
 
 def weak_pin(pin):
@@ -422,7 +423,12 @@ class Handler(BaseHTTPRequestHandler):
                 "model_deep": (c["model_deep"] or brain.MODEL_DEEP) if brain.backend() == "api" else f"{brain.CLI_MODEL_DEEP} ({sub})",
                 "telegram": bool(c["tg_token"]), "share_insights": c["share_insights"],
                 "backend": brain.backend(), "demo": False, "fresh": c.get("source") == "signup",
-                "agents": i18n.agents(L, brain.AGENTS), "version": VERSION})
+                "agents": i18n.agents(L, brain.AGENTS), "version": VERSION,
+                "survey_done": bool(_survey(c).get("done"))})
+        if path == "/api/survey":
+            sv = _survey(c)
+            return self._json({"answers": sv.get("answers") or {}, "done": bool(sv.get("done")), "lang": L,
+                               "crafts": [x for x in (c.get("craft") or "").split(",") if x]})
         if path == "/api/widgets":
             ws = store.list_widgets(cid)
             for w in ws:  # системный KPI «Бюджет ИИ» считается сервером
@@ -493,6 +499,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             return self._json(store.update_widget(cid, wid, body.get("title"), body.get("config"),
                                                   body.get("data"), body.get("size")))
+        if path == "/api/survey":
+            answers = body.get("answers") if isinstance(body.get("answers"), dict) else {}
+            if len(json.dumps(answers, ensure_ascii=False)) > 60000:
+                raise ValueError("too large")
+            store.set_survey(cid, answers, str(body.get("summary", ""))[:4000], bool(body.get("done")))
+            return self._json({"ok": True})
         if path == "/api/profile":
             fields = {k: body[k] for k in ("profile", "lang", "share_insights") if k in body}
             if "lang" in fields:
@@ -562,6 +574,13 @@ class Handler(BaseHTTPRequestHandler):
                 store.set_insight_shared(iid, int(bool(body.get("shared"))), body.get("title"), body.get("body"))
             return self._json({"ok": True})
         return self._err(404, "not found")
+
+
+def _survey(c):
+    try:
+        return json.loads(c.get("survey") or "{}")
+    except Exception:
+        return {}
 
 
 def main():

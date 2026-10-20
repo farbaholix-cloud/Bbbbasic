@@ -43,7 +43,7 @@
   <p class="lead">Backstage is your team of eight AI agents. You do the work — the team takes care of everything around it: finding grants and commissions, writing applications, reading contracts, working out prices, promoting you and planning ahead.</p>
 
   <nav class="card toc small">
-    <a href="#start-en">Getting in</a><a href="#team-en">The team</a><a href="#chat-en">Chat</a><a href="#potential-en">Potential check</a>
+    <a href="#start-en">Getting in</a><a href="#team-en">The team</a><a href="#chat-en">Chat</a><a href="#potential-en">Potential check</a><a href="#survey-en">Detailed questionnaire</a>
     <a href="#dash-en">Dashboard</a><a href="#charts-en">Charts</a><a href="#telegram-en">Telegram</a><a href="#phone-en">On your phone</a>
     <a href="#money-en">Budget</a><a href="#exp-en">Knowledge base</a><a href="#limits-en">What the team doesn't do</a>
   </nav>
@@ -96,7 +96,15 @@
   </ul>
   <p>The analysis takes a few minutes. Run it when you start, and then once a quarter, as your goals change.</p>
 
-  <h2 id="dash-en">5. Dashboard — a by-product of the work</h2>
+  <h2 id="survey-en">5. Detailed questionnaire</h2>
+  <p>After you sign up, the team does a first review of your practice. Right after that, Maya offers you a detailed questionnaire: a card in the chat with the button <b>Fill in the questionnaire</b>. It takes 7–10 minutes, every question is optional, and you can stop at any point with <b>Save and finish later</b>.</p>
+  <p>The questions adapt to you. There are common parts for everyone — practice, income and prices, clients and market, grants and applications, visibility, time and energy, goals — plus parts only for your crafts, such as animation, dance or murals. Follow-up questions depend on your answers: you only get the KSK question if you live in Germany, and questions about students only if you teach.</p>
+  <ul>
+    <li><b>Why it's worth it:</b> the team reads a compact summary of your answers before every reply, so prices, grants and client suggestions get more precise. Once you've saved, tap <b>Refine my plan using the detailed questionnaire</b>.</li>
+    <li><b>Changing your answers:</b> any time under ⚙ Settings → Detailed questionnaire.</li>
+  </ul>
+
+  <h2 id="dash-en">6. Dashboard — a by-product of the work</h2>
   <p>The heart of Backstage is working with the team. Everything the team finds and decides ends up on the <b>Dashboard</b> tab by itself: projects, deadlines, money, charts. You can just drop by to see how things are moving. If you like, you can edit it by hand or simply ask for changes in the chat.</p>
   <div class="t-wrap"><table>
     <tr><th>Widget</th><th>What it's for</th><th>How to edit it by hand</th></tr>
@@ -115,13 +123,13 @@
     <li><b>Practice profile</b> (⚙ Settings) — the most important field of all. The team always reads it: who you are, where you work, your status, your goals, your starting prices, your strongest projects.</li>
   </ul>
 
-  <h2 id="charts-en">6. Charts</h2>
+  <h2 id="charts-en">7. Charts</h2>
   <p>The easiest way is to ask: "make a chart of income and expenses by month since January" or "add a pie chart showing where my commissions come from". The team creates the widget and keeps it up to date whenever you mention new numbers.</p>
   <p>By hand: <b>+ Widget → Chart</b>, then ✎. You enter the data as a table, cells separated by semicolons. The first row holds the series names:</p>
   <div class="ex"><code>Month; Income; Expenses<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
   <p>Two series give you two lines, or two bars side by side. A pie needs a single series: the label is the category, the value is its share.</p>
 
-  <h2 id="telegram-en">7. Telegram — the same team in your messenger</h2>
+  <h2 id="telegram-en">8. Telegram — the same team in your messenger</h2>
   <p>You can connect your own bot: it talks to the same team, sees the same dashboard and draws on the same budget. Handy when you're on the move: jot down a thought, snap a photo of a wall, forward a PDF.</p>
   <ol>
     <li>In Telegram, open <b>@BotFather</b> → <code>/newbot</code> → pick a name and a username for your bot (it has to end in <code>bot</code>).</li>
@@ -132,21 +140,22 @@
   <p>Bot commands: <code>/team</code> — who's on the team, <code>/agent konrad</code> — write to a specialist directly, <code>/maya</code> — back to Maya, <code>/deep text</code> — deep analysis, <code>/budget</code> — spending. The bot understands photos and PDFs; voice messages aren't supported yet.</p>
   <p class="small muted">To switch to another chat or disconnect the bot, enter the token again or leave the field empty. If your token leaks, run <code>/revoke</code> in @BotFather and enter the new one.</p>
 
-  <h2 id="phone-en">8. On your phone</h2>
+  <h2 id="phone-en">9. On your phone</h2>
   <p>The app works in your mobile browser: at the bottom there's a <b>Team / Dashboard</b> switch. Add it to your home screen and it opens like an app: Safari → "Share" → "Add to Home Screen"; Chrome → ⋮ → "Add to Home screen".</p>
 
-  <h2 id="money-en">9. Budget and models</h2>
+  <h2 id="money-en">10. Budget and models</h2>
   <p>Every answer from the team is work done by Claude models, and that costs money. You have a monthly AI budget: you can see it in the header and in the "AI budget" KPI. Once it's used up, the team goes quiet until the start of next month, or until the agency raises the limit.</p>
   <ul>
-    <li>Regular chat — Claude Opus, a strong model: fast and economical.</li>
-    <li>Deep analysis and Potential check — the most powerful Claude model available: more expensive, but meant for decisions where money and deadlines are at stake.</li>
+    <li>Regular chat — Claude Sonnet: fast and economical.</li>
+    <li>Deep analysis and Potential check — Claude Opus, the most capable model in the standard setup: more expensive, but meant for decisions where money and deadlines are at stake.</li>
+    <li>In regular chat only Ruben (scout) and Hanna (grant writer) search the web; the whole team goes online only in Deep analysis — that keeps the team affordable.</li>
     <li>To save money: be specific, attach what's needed, and keep your profile and dashboard up to date — then the team doesn't have to ask follow-up questions.</li>
   </ul>
 
-  <h2 id="exp-en">10. Knowledge base</h2>
+  <h2 id="exp-en">11. Knowledge base</h2>
   <p>As you work together, the team saves what it learns: what worked in an application, what trap was hidden in a contract, which channel brought in a commission. You'll find all of it under ⚙ Settings → Knowledge base. If you allow it, anonymised takeaways (no names, amounts or contacts) go into a shared playbook once the agency has reviewed them: the agents of all clients learn from each other's experience — and so do you. You can untick the box at any time.</p>
 
-  <h2 id="limits-en">11. What the team doesn't do</h2>
+  <h2 id="limits-en">12. What the team doesn't do</h2>
   <ul>
     <li>It doesn't paint, play or sign anything for you. The creative work and the decisions are yours.</li>
     <li>It doesn't send emails or applications on its own: it prepares the text, you hit send.</li>
@@ -163,7 +172,7 @@
   <p class="lead">Backstage ist dein Team aus acht KI-Agenten. Du kümmerst dich um deine Arbeit, das Team um den Rest: Es sucht Förderungen und Aufträge, schreibt Anträge, liest Verträge, kalkuliert Preise, macht dich sichtbar und plant mit dir voraus.</p>
 
   <nav class="card toc small">
-    <a href="#start-de">Einstieg</a><a href="#team-de">Das Team</a><a href="#chat-de">Chat</a><a href="#potential-de">Potenzial-Check</a>
+    <a href="#start-de">Einstieg</a><a href="#team-de">Das Team</a><a href="#chat-de">Chat</a><a href="#potential-de">Potenzial-Check</a><a href="#survey-de">Ausführlicher Fragebogen</a>
     <a href="#dash-de">Dashboard</a><a href="#charts-de">Diagramme</a><a href="#telegram-de">Telegram</a><a href="#phone-de">Auf dem Handy</a>
     <a href="#money-de">Budget</a><a href="#exp-de">Erfahrungsdatenbank</a><a href="#limits-de">Was das Team nicht macht</a>
   </nav>
@@ -216,7 +225,15 @@
   </ul>
   <p>Die Analyse dauert ein paar Minuten. Starte sie gleich am Anfang und danach einmal im Quartal, wenn sich deine Ziele verschieben.</p>
 
-  <h2 id="dash-de">5. Dashboard – ein Nebenprodukt der Arbeit</h2>
+  <h2 id="survey-de">5. Ausführlicher Fragebogen</h2>
+  <p>Nach der Anmeldung schaut sich das Team deine Praxis ein erstes Mal an. Direkt danach bietet dir Maya einen ausführlichen Fragebogen an: eine Karte im Chat mit dem Button <b>Fragebogen ausfüllen</b>. Das dauert 7–10 Minuten, alle Fragen sind freiwillig, und mit <b>Speichern und später weitermachen</b> kannst du jederzeit unterbrechen.</p>
+  <p>Die Fragen passen sich dir an. Es gibt gemeinsame Teile für alle – Praxis, Einnahmen und Preise, Kundschaft und Markt, Förderungen und Anträge, Sichtbarkeit, Zeit und Energie, Ziele – und dazu Teile nur für deine Sparten, zum Beispiel Animation, Tanz oder Murals. Welche Nachfragen kommen, hängt von deinen Antworten ab: Die Frage zur KSK bekommst du nur, wenn du in Deutschland lebst, Fragen zu Schülerinnen und Schülern nur, wenn du unterrichtest.</p>
+  <ul>
+    <li><b>Warum sich das lohnt:</b> Das Team liest vor jeder Antwort eine kompakte Zusammenfassung deiner Angaben – so werden Preise, Förderungen und Vorschläge für Auftraggeber genauer. Nach dem Speichern tippst du auf <b>Verfeinere meinen Plan anhand des ausführlichen Fragebogens</b>.</li>
+    <li><b>Antworten ändern:</b> jederzeit unter ⚙ Einstellungen → Ausführlicher Fragebogen.</li>
+  </ul>
+
+  <h2 id="dash-de">6. Dashboard – ein Nebenprodukt der Arbeit</h2>
   <p>Im Mittelpunkt von Backstage steht die Arbeit mit dem Team. Alles, was das Team findet und entscheidet, landet von selbst im Tab <b>Dashboard</b>: Projekte, Deadlines, Geld, Diagramme. Du kannst einfach reinschauen und sehen, wie es vorangeht. Wenn du magst, änderst du dort etwas von Hand oder sagst es einfach im Chat.</p>
   <div class="t-wrap"><table>
     <tr><th>Widget</th><th>Wofür</th><th>So bearbeitest du es von Hand</th></tr>
@@ -235,13 +252,13 @@
     <li><b>Praxisprofil</b> (⚙ Einstellungen) — das wichtigste Feld überhaupt. Das Team liest es jedes Mal: wer du bist, wo du arbeitest, dein Status, deine Ziele, deine Preise „ab“, deine stärksten Projekte.</li>
   </ul>
 
-  <h2 id="charts-de">6. Diagramme</h2>
+  <h2 id="charts-de">7. Diagramme</h2>
   <p>Am einfachsten fragst du: „Mach ein Diagramm mit Einnahmen und Ausgaben pro Monat seit Januar“ oder „füg ein Tortendiagramm hinzu: Woher kommen meine Aufträge?“. Das Team legt das Widget an und ergänzt es, sobald du neue Zahlen nennst.</p>
   <p>Von Hand: <b>+ Widget → Diagramm</b>, dann ✎. Die Daten gibst du als Tabelle ein, Zellen durch Semikolon getrennt. Die erste Zeile enthält die Namen der Reihen:</p>
   <div class="ex"><code>Monat; Einnahmen; Ausgaben<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
   <p>Zwei Reihen ergeben zwei Linien oder zwei Balken nebeneinander. Für eine Torte brauchst du genau eine Reihe: Die Beschriftung ist die Kategorie, der Wert ihr Anteil.</p>
 
-  <h2 id="telegram-de">7. Telegram – dasselbe Team im Messenger</h2>
+  <h2 id="telegram-de">8. Telegram – dasselbe Team im Messenger</h2>
   <p>Du kannst deinen eigenen Bot verbinden: Er schreibt mit demselben Team, sieht dasselbe Dashboard und nutzt dasselbe Budget. Praktisch unterwegs: schnell einen Gedanken festhalten, eine Wand fotografieren, ein PDF weiterleiten.</p>
   <ol>
     <li>Öffne in Telegram <b>@BotFather</b> → <code>/newbot</code> → denk dir einen Namen und eine Adresse für den Bot aus (sie muss auf <code>bot</code> enden).</li>
@@ -252,21 +269,22 @@
   <p>Bot-Befehle: <code>/team</code> — wer im Team ist, <code>/agent konrad</code> — direkt mit einem Agenten schreiben, <code>/maya</code> — zurück zu Maya, <code>/deep Text</code> — Tiefenanalyse, <code>/budget</code> — Verbrauch. Fotos und PDFs versteht der Bot, Sprachnachrichten noch nicht.</p>
   <p class="small muted">Chat wechseln oder Bot trennen: Token neu eingeben oder das Feld leer lassen. Falls der Token in falsche Hände geraten ist: in @BotFather <code>/revoke</code> ausführen und den neuen Token eintragen.</p>
 
-  <h2 id="phone-de">8. Auf dem Handy</h2>
+  <h2 id="phone-de">9. Auf dem Handy</h2>
   <p>Die App funktioniert im mobilen Browser: Unten wechselst du zwischen <b>Team / Dashboard</b>. Leg sie auf deinen Home-Bildschirm, dann öffnet sie sich wie eine App: Safari → „Teilen“ → „Zum Home-Bildschirm“; Chrome → ⋮ → „Zum Startbildschirm hinzufügen“.</p>
 
-  <h2 id="money-de">9. Budget und Modelle</h2>
+  <h2 id="money-de">10. Budget und Modelle</h2>
   <p>Jede Antwort des Teams ist Arbeit von Claude-Modellen, und die kostet Geld. Du hast ein monatliches KI-Budget: Du siehst es oben in der Kopfzeile und in der KPI „KI-Budget“. Ist es aufgebraucht, verstummt das Team bis zum nächsten Monatsanfang – oder bis die Agentur das Limit erhöht.</p>
   <ul>
-    <li>Normaler Chat — Claude Opus, ein starkes Modell: schnell und sparsam.</li>
-    <li>Tiefenanalyse und Potenzial-Check — das stärkste verfügbare Claude-Modell: teurer, aber gedacht für Entscheidungen, bei denen es um Geld und Fristen geht.</li>
+    <li>Normaler Chat — Claude Sonnet: schnell und sparsam.</li>
+    <li>Tiefenanalyse und Potenzial-Check — Claude Opus, das leistungsstärkste Modell in der Standardeinstellung: teurer, aber gedacht für Entscheidungen, bei denen es um Geld und Fristen geht.</li>
+    <li>Im normalen Chat suchen nur Ruben (Scout) und Hanna (Antragsschreiberin) im Netz, das ganze Team recherchiert online nur in der Tiefenanalyse – so bleibt das Team bezahlbar.</li>
     <li>So sparst du: Schreib konkret, häng an, was gebraucht wird, und halte Profil und Dashboard aktuell – dann muss das Team nicht nachfragen.</li>
   </ul>
 
-  <h2 id="exp-de">10. Erfahrungsdatenbank</h2>
+  <h2 id="exp-de">11. Erfahrungsdatenbank</h2>
   <p>Während ihr zusammenarbeitet, hält das Team fest, was es gelernt hat: was in einem Antrag funktioniert hat, welche Falle in einem Vertrag steckte, welcher Kanal einen Auftrag gebracht hat. Du findest das unter ⚙ Einstellungen → Erfahrungsdatenbank. Wenn du zustimmst, fließen anonymisierte Erkenntnisse (ohne Namen, Beträge und Kontakte) nach Prüfung durch die Agentur in ein gemeinsames Playbook: Die Agenten aller Kundinnen und Kunden lernen voneinander – und du von den Erfahrungen der anderen. Das Häkchen kannst du jederzeit entfernen.</p>
 
-  <h2 id="limits-de">11. Was das Team nicht macht</h2>
+  <h2 id="limits-de">12. Was das Team nicht macht</h2>
   <ul>
     <li>Es malt, spielt und unterschreibt nicht für dich. Die kreative Arbeit und die Entscheidungen bleiben bei dir.</li>
     <li>Es verschickt keine Mails oder Anträge selbst: Es bereitet den Text vor, abschicken tust du.</li>
@@ -283,7 +301,7 @@
   <p class="lead">Backstage — це твоя команда з восьми ШІ-агентів. Ти займаєшся своєю справою, а команда бере на себе решту: шукає гранти й замовлення, пише заявки, читає договори, рахує ціни, просуває тебе та планує наперед.</p>
 
   <nav class="card toc small">
-    <a href="#start-ua">Вхід</a><a href="#team-ua">Команда</a><a href="#chat-ua">Чат</a><a href="#potential-ua">Перевірка потенціалу</a>
+    <a href="#start-ua">Вхід</a><a href="#team-ua">Команда</a><a href="#chat-ua">Чат</a><a href="#potential-ua">Перевірка потенціалу</a><a href="#survey-ua">Детальна анкета</a>
     <a href="#dash-ua">Дашборд</a><a href="#charts-ua">Графіки</a><a href="#telegram-ua">Telegram</a><a href="#phone-ua">На телефоні</a>
     <a href="#money-ua">Бюджет</a><a href="#exp-ua">База досвіду</a><a href="#limits-ua">Чого команда не робить</a>
   </nav>
@@ -336,7 +354,15 @@
   </ul>
   <p>Аналіз триває кілька хвилин. Запускай його на початку, а потім раз на квартал, коли змінюються цілі.</p>
 
-  <h2 id="dash-ua">5. Дашборд — побічний результат роботи</h2>
+  <h2 id="survey-ua">5. Детальна анкета</h2>
+  <p>Після реєстрації команда робить перший розбір твоєї практики. Одразу після нього Майя запропонує тобі детальну анкету: картку в чаті з кнопкою <b>Заповнити анкету</b>. Це займає 7–10 хвилин, усі питання необов'язкові, а зупинитися можна будь-коли — кнопкою <b>Зберегти й продовжити пізніше</b>.</p>
+  <p>Питання підлаштовуються під тебе. Є спільні частини для всіх — практика, доходи й ціни, клієнти та ринок, гранти й заявки, видимість, час і енергія, цілі — і частини лише для твоїх напрямів, наприклад анімація, танець чи мурали. Уточнювальні питання залежать від твоїх відповідей: питання про KSK буде, лише якщо ти живеш у Німеччині, а про учнів — лише якщо ти викладаєш.</p>
+  <ul>
+    <li><b>Навіщо це:</b> перед кожною відповіддю команда читає стислий підсумок анкети, тож ціни, гранти й пропозиції щодо замовників стають точнішими. Після збереження натисни <b>Уточни мій план з урахуванням детальної анкети</b>.</li>
+    <li><b>Змінити відповіді:</b> будь-коли в ⚙ Налаштування → Детальна анкета.</li>
+  </ul>
+
+  <h2 id="dash-ua">6. Дашборд — побічний результат роботи</h2>
   <p>Головне в Backstage — робота з командою. Усе, що команда знаходить і вирішує, саме складається на вкладці <b>Дашборд</b>: проєкти, дедлайни, гроші, графіки. Туди можна просто зазирати, щоб бачити прогрес. За бажання все можна правити вручну або словами в чаті.</p>
   <div class="t-wrap"><table>
     <tr><th>Віджет</th><th>Для чого</th><th>Як правити вручну</th></tr>
@@ -355,13 +381,13 @@
     <li><b>Профіль практики</b> (⚙ Налаштування) — найважливіше поле. Команда читає його завжди: хто ти, де працюєш, твій статус, цілі, ціни «від», найсильніші проєкти.</li>
   </ul>
 
-  <h2 id="charts-ua">6. Графіки</h2>
+  <h2 id="charts-ua">7. Графіки</h2>
   <p>Найпростіше — попросити: «зроби графік доходів і витрат по місяцях від січня» або «додай кругову діаграму: звідки приходять замовлення». Команда створить віджет і доповнюватиме його, щойно ти називатимеш нові цифри.</p>
   <p>Вручну: <b>+ Віджет → Графік</b>, потім ✎. Дані вводяться таблицею, клітинки через крапку з комою. Перший рядок — назви серій:</p>
   <div class="ex"><code>Місяць; Дохід; Витрати<br>2026-08; 2400; 600<br>2026-09; 3100; 850<br>2026-10; 900; 300</code></div>
   <p>Дві серії — дві лінії або два стовпці поруч. Для кругової діаграми потрібна одна серія: підпис — категорія, значення — частка.</p>
 
-  <h2 id="telegram-ua">7. Telegram — та сама команда в месенджері</h2>
+  <h2 id="telegram-ua">8. Telegram — та сама команда в месенджері</h2>
   <p>Можна підключити власного бота: він пише тій самій команді, бачить той самий дашборд і витрачає той самий бюджет. Зручно в дорозі: швидко записати думку, сфотографувати стіну, переслати PDF.</p>
   <ol>
     <li>У Telegram відкрий <b>@BotFather</b> → <code>/newbot</code> → придумай ім'я та адресу бота (вона має закінчуватися на <code>bot</code>).</li>
@@ -372,21 +398,22 @@
   <p>Команди бота: <code>/team</code> — склад команди, <code>/agent konrad</code> — писати фахівцеві напряму, <code>/maya</code> — назад до Майї, <code>/deep текст</code> — глибокий аналіз, <code>/budget</code> — витрати. Фото й PDF бот розуміє, голосові — поки що ні.</p>
   <p class="small muted">Змінити чат або відключити бота: введи токен заново або залиш поле порожнім. Якщо токен потрапив у чужі руки — зроби в @BotFather <code>/revoke</code> і введи новий.</p>
 
-  <h2 id="phone-ua">8. На телефоні</h2>
+  <h2 id="phone-ua">9. На телефоні</h2>
   <p>Панель працює в мобільному браузері: унизу є перемикач <b>Команда / Дашборд</b>. Додай її на початковий екран — і вона відкриватиметься як застосунок: Safari → «Поширити» → «На початковий екран»; Chrome → ⋮ → «Додати на головний екран».</p>
 
-  <h2 id="money-ua">9. Бюджет і моделі</h2>
+  <h2 id="money-ua">10. Бюджет і моделі</h2>
   <p>Кожна відповідь команди — це робота моделей Claude, і вона коштує грошей. У тебе є місячний бюджет на ШІ: його видно в шапці та в KPI «Бюджет ШІ». Коли він вичерпаний, команда замовкає до початку наступного місяця або доки агенція не підніме ліміт.</p>
   <ul>
-    <li>Звичайний чат — сильна модель Claude Opus: швидка та економна.</li>
-    <li>Глибокий аналіз і Перевірка потенціалу — найпотужніша з доступних моделей Claude: дорожча, але для рішень, від яких залежать гроші та терміни.</li>
+    <li>Звичайний чат — модель Claude Sonnet: швидка та економна.</li>
+    <li>Глибокий аналіз і Перевірка потенціалу — Claude Opus, найпотужніша модель у стандартному налаштуванні: дорожча, але для рішень, від яких залежать гроші та терміни.</li>
+    <li>У звичайному чаті в інтернеті шукають лише Рубен (скаут) і Ганна (грантрайтерка), а вся команда — тільки в глибокому аналізі: так робота команди лишається доступною за ціною.</li>
     <li>Як заощадити: пиши конкретно, додавай потрібне, тримай профіль і дашборд актуальними — тоді команді не доведеться перепитувати.</li>
   </ul>
 
-  <h2 id="exp-ua">10. База досвіду</h2>
+  <h2 id="exp-ua">11. База досвіду</h2>
   <p>У процесі роботи команда зберігає висновки: що спрацювало в заявці, яка пастка була в договорі, який канал приніс замовлення. Їх видно в ⚙ Налаштування → База досвіду. Якщо дозволиш, знеособлені висновки (без імен, сум і контактів) після перевірки агенцією потрапляють у спільний плейбук: агенти всіх клієнтів учаться на досвіді одне одного, а ти — на чужому. Галочку можна зняти будь-коли.</p>
 
-  <h2 id="limits-ua">11. Чого команда не робить</h2>
+  <h2 id="limits-ua">12. Чого команда не робить</h2>
   <ul>
     <li>Не малює, не грає і не підписує за тебе. Творчість і рішення — твої.</li>
     <li>Не надсилає листи й заявки сама: готує текст, а надсилаєш ти.</li>

@@ -13,9 +13,10 @@ Claude API (console.anthropic.com) с предоплаченным баланс�
     месячные бюджеты, самые мощные модели.
 
 Модели в режиме API (меняются в .env или для отдельного клиента в админке):
-  BACKSTAGE_MODEL_CHAT  — повседневный чат с командой, по умолчанию claude-opus-5-5
-  BACKSTAGE_MODEL_DEEP  — «Глубокий анализ», по умолчанию claude-fable-5-1,
-                          самая мощная из общедоступных моделей Claude
+  BACKSTAGE_MODEL_CHAT  — повседневный чат с командой, по умолчанию claude-sonnet-5-5
+                          (в разы дешевле Opus, для переписки с командой хватает)
+  BACKSTAGE_MODEL_DEEP  — «Глубокий анализ», по умолчанию claude-opus-5-5;
+                          claude-fable-5-1 мощнее, но вдвое дороже — включается через .env
 """
 import os
 import re
@@ -38,10 +39,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 AGENTS_DIR = os.path.join(HERE, "agents")
 PACKS_DIR = os.path.join(HERE, "packs")
 
-MODEL_CHAT = os.environ.get("BACKSTAGE_MODEL_CHAT", "claude-opus-5-5")
-MODEL_DEEP = os.environ.get("BACKSTAGE_MODEL_DEEP", "claude-fable-5-1")
-EFFORT_CHAT = os.environ.get("BACKSTAGE_EFFORT_CHAT", "high")
-EFFORT_DEEP = os.environ.get("BACKSTAGE_EFFORT_DEEP", "xhigh")
+MODEL_CHAT = os.environ.get("BACKSTAGE_MODEL_CHAT", "claude-sonnet-5-5")
+MODEL_DEEP = os.environ.get("BACKSTAGE_MODEL_DEEP", "claude-opus-5-5")
+EFFORT_CHAT = os.environ.get("BACKSTAGE_EFFORT_CHAT", "medium")
+EFFORT_DEEP = os.environ.get("BACKSTAGE_EFFORT_DEEP", "high")
+
+# ─── Экономия токенов ────────────────────────────────────────────────────────
+# История: последние N сообщений, длинные ответы обрезаются — старые разборы
+# по 5 000 знаков иначе едут в каждый следующий запрос.
+HIST_MSGS = int(os.environ.get("BACKSTAGE_HISTORY_MSGS", "10"))
+HIST_CHARS = int(os.environ.get("BACKSTAGE_HISTORY_CHARS", "1500"))
+# Веб-поиск — самое дорогое: в обычном чате он есть только у тех, чья работа —
+# искать (скаут и грантрайтер); в глубоком анализе — у всей команды.
+CHAT_WEB_AGENTS = set(os.environ.get("BACKSTAGE_CHAT_WEB", "ruben,hanna").split(","))
+MAX_ASKS_CHAT = int(os.environ.get("BACKSTAGE_MAX_ASKS_CHAT", "2"))
+MAX_ASKS_DEEP = int(os.environ.get("BACKSTAGE_MAX_ASKS_DEEP", "4"))
+SPECIALIST_ANSWER_CHARS = 3500
 MAX_TOOL_ROUNDS = 12
 
 # $ за 1M токенов: вход, выход, чтение кэша. Запись в кэш (5 мин) = 1.25 × вход.
@@ -81,7 +94,7 @@ class BudgetExceeded(Exception):
 
 
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN") or os.path.expanduser("~/.local/bin/claude")
-CLI_MODEL_CHAT = os.environ.get("BACKSTAGE_CLI_MODEL_CHAT", "opus")
+CLI_MODEL_CHAT = os.environ.get("BACKSTAGE_CLI_MODEL_CHAT", "sonnet")
 CLI_MODEL_DEEP = os.environ.get("BACKSTAGE_CLI_MODEL_DEEP", "opus")
 
 
@@ -131,30 +144,73 @@ def system_prompt(agent_id):
 
 
 def _compact_widget(w):
-    data = w["data"]
-    s = json.dumps(data, ensure_ascii=False)
-    if len(s) > 3000:  # большой виджет — показываем хвост, чтобы не раздувать контекст
-        s = s[:3000] + "…"
+    """Виджет для контекста: только то, что нужно агенту, без хвостов истории."""
+    d = w["data"] or {}
+    if w["kind"] == "list":
+        items = d.get("items") or []
+        d = {"items": [i for i in items if not i.get("done")][-15:], "done_count": sum(1 for i in items if i.get("done"))}
+    elif w["kind"] == "chart":
+        d = {"labels": (d.get("labels") or [])[-12:],
+             "series": [{"name": x.get("name"), "values": (x.get("values") or [])[-12:]} for x in d.get("series") or []]}
+    elif w["kind"] == "table":
+        d = {"rows": (d.get("rows") or [])[-15:]}
+    elif w["kind"] == "board":
+        d = {"cards": (d.get("cards") or [])[-30:]}
+    s = json.dumps(d, ensure_ascii=False)
+    if len(s) > 1200:
+        s = s[:1200] + "…"
     return f'- id={w["id"]} [{w["kind"]}] «{w["title"]}» config={json.dumps(w["config"], ensure_ascii=False)} data={s}'
 
 
-def context_block(c, agent_id):
+def survey_text(c):
+    """Подробная анкета клиента — сжатое резюме (собирается при сохранении)."""
+    try:
+        return (json.loads(c.get("survey") or "{}").get("summary") or "")[:3500]
+    except Exception:
+        return ""
+
+
+def context_block(c, agent_id, lite=False):
+    """lite — для специалистов и второго прохода Майи: профиль и анкета, а дашборд
+    только списком id и названий (без данных), без базы опыта."""
     widgets = store.list_widgets(c["id"])
-    ins = store.insights_for(c["id"], limit=30)
+    sv = survey_text(c)
     lines = [
         i18n.lang_rule(c.get("lang")),
         f"СЕГОДНЯ: {datetime.now().strftime('%Y-%m-%d, %A')}",
         f"КЛИЕНТ: {c['name']}",
         f"ПРОФИЛЬ ПРАКТИКИ:\n{c['profile'] or '(не заполнен — узнай у клиента и предложи сохранить в заметку «Профиль практики»)'}",
-        "ДАШБОРД КЛИЕНТА:\n" + ("\n".join(_compact_widget(w) for w in widgets) or "(пусто)"),
     ]
-    if ins:
-        lines.append("БАЗА ОПЫТА (свои выводы клиента и общий плейбук агентства):\n" + "\n".join(
-            f"- [{'общий' if i['shared'] else 'свой'}] {i['title']}: {i['body'][:400]}" for i in ins))
-    budget = c["monthly_budget"] or 0
-    lines.append(f"БЮДЖЕТ ИИ: потрачено ${store.spent_this_month(c['id']):.2f} из ${budget:.2f} в этом месяце.")
-    lines.append(f"REMINDER: reply in {i18n.LANG_NAME[i18n.norm(c.get('lang'))]}.")
+    if sv:
+        lines.append("ПОДРОБНАЯ АНКЕТА КЛИЕНТА:\n" + sv)
+    if lite:
+        lines.append("ДАШБОРД (id и названия):\n" + ("\n".join(f'- id={w["id"]} [{w["kind"]}] «{w["title"]}»' for w in widgets) or "(пусто)"))
+    else:
+        lines.append("ДАШБОРД КЛИЕНТА:\n" + ("\n".join(_compact_widget(w) for w in widgets) or "(пусто)"))
+        ins = store.insights_for(c["id"], limit=12)
+        if ins:
+            lines.append("БАЗА ОПЫТА (свои выводы клиента и общий плейбук агентства):\n" + "\n".join(
+                f"- [{'общий' if i['shared'] else 'свой'}] {i['title']}: {i['body'][:240]}" for i in ins))
+        if backend() == "api":
+            budget = c["monthly_budget"] or 0
+            lines.append(f"БЮДЖЕТ ИИ: потрачено ${store.spent_this_month(c['id']):.2f} из ${budget:.2f} в этом месяце.")
+    lines.append(f"REMINDER: reply in {i18n.LANG_NAME[i18n.norm(c.get('lang'))]}. Be concise: no filler, no repeating the question.")
     return "\n\n".join(lines)
+
+
+def trim_history(hist):
+    out = []
+    for m in (hist or [])[-HIST_MSGS:]:
+        t = m["text"]
+        out.append({**m, "text": t if len(t) <= HIST_CHARS else t[:HIST_CHARS] + " […]"})
+    return out
+
+
+def web_allowed(agent_id, deep):
+    a = AGENTS[agent_id]
+    if deep:
+        return bool(a.get("web") or a.get("lead"))
+    return agent_id in CHAT_WEB_AGENTS
 
 
 # ─── Инструменты ─────────────────────────────────────────────────────────────
@@ -231,7 +287,7 @@ def tools_for(agent_id, allow_delegate=True, web=True):
     t = list(DASH_TOOLS)
     if AGENTS[agent_id].get("lead") and allow_delegate:
         t.append(ASK_TOOL)
-    if web and (AGENTS[agent_id].get("web") or AGENTS[agent_id].get("lead")):
+    if web:
         t.append(dict(WEB_TOOL))
     return t
 
@@ -334,10 +390,13 @@ def run_tool(c, agent_id, name, inp, ctx):
         sub = inp["agent"]
         if sub not in AGENTS or AGENTS[sub].get("lead"):
             raise ValueError("нет такого специалиста")
+        limit = MAX_ASKS_DEEP if ctx.get("deep") else MAX_ASKS_CHAT
+        if len(ctx.get("consulted", [])) >= limit:
+            raise ValueError(f"лимит: не больше {limit} специалистов на один ответ — сведи итог сама")
         ctx.setdefault("consulted", []).append(sub)
         answer = run_agent(c, sub, inp["task"], history=[], model=ctx["model"], effort=ctx["effort"],
-                           kind=f"specialist:{sub}", allow_delegate=False, ctx=ctx)
-        return answer
+                           kind=f"specialist:{sub}", allow_delegate=False, ctx=ctx, lite=True)
+        return answer[:SPECIALIST_ANSWER_CHARS]
     raise ValueError(f"неизвестный инструмент {name}")
 
 
@@ -401,7 +460,7 @@ def _call(model, effort, system, tools, messages, max_tokens):
 
 
 def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kind="chat",
-              attachments=None, allow_delegate=True, ctx=None, max_tokens=32000):
+              attachments=None, allow_delegate=True, ctx=None, max_tokens=16000, lite=False):
     """Один ход агента: контекст + история + сообщение → ответ текстом.
     Пишет расход по каждому запросу. Дашборд агент меняет через инструменты."""
     check_budget(c)
@@ -410,9 +469,10 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
     ctx = ctx if ctx is not None else {}
     ctx.setdefault("model", model)
     ctx.setdefault("effort", effort)
+    ctx.setdefault("deep", kind == "deep")
 
     messages = []
-    for m in history or []:
+    for m in trim_history(history):
         messages.append({"role": "user" if m["role"] == "user" else "assistant", "content": m["text"]})
     content = []
     for a in attachments or []:
@@ -425,11 +485,11 @@ def run_agent(c, agent_id, user_text, history=None, model=None, effort=None, kin
         elif a.get("text") is not None:
             content.append({"type": "document", "title": a.get("name", "файл"),
                             "source": {"type": "text", "media_type": "text/plain", "data": a["text"]}})
-    content.append({"type": "text", "text": f"<context>\n{context_block(c, agent_id)}\n</context>\n\n{user_text}"})
+    content.append({"type": "text", "text": f"<context>\n{context_block(c, agent_id, lite=lite)}\n</context>\n\n{user_text}"})
     messages.append({"role": "user", "content": content})
 
     system = system_prompt(agent_id)
-    tools = tools_for(agent_id, allow_delegate=allow_delegate)
+    tools = tools_for(agent_id, allow_delegate=allow_delegate, web=web_allowed(agent_id, ctx["deep"]))
     resp = None
     for _ in range(MAX_TOOL_ROUNDS):
         try:
@@ -479,7 +539,7 @@ def chat(client_id, agent_id, text, attachments=None, deep=False, display=None):
     check_quota(c, deep)
     if agent_id not in AGENTS:
         agent_id = "maya"
-    hist = store.history(client_id, agent_id, limit=24)
+    hist = store.history(client_id, agent_id, limit=HIST_MSGS)
     note = ""
     if attachments:
         note = "\n\n📎 " + ", ".join(a.get("name", i18n.t(c.get("lang"), "file")) for a in attachments)
@@ -491,7 +551,7 @@ def chat(client_id, agent_id, text, attachments=None, deep=False, display=None):
     elif deep:
         model = c.get("model_deep") or MODEL_DEEP
         answer = run_agent(c, agent_id, text, hist, model=model, effort=EFFORT_DEEP, kind="deep",
-                           attachments=attachments, ctx=ctx, max_tokens=64000)
+                           attachments=attachments, ctx=ctx, max_tokens=32000)
     else:
         model = c.get("model_chat") or MODEL_CHAT
         answer = run_agent(c, agent_id, text, hist, model=model, kind="chat", attachments=attachments, ctx=ctx)
@@ -563,16 +623,44 @@ def _parse_cli_json(text):
     return t, []  # модель ответила простым текстом — показываем как есть
 
 
-def _cli_call(c, kind, system, prompt, tools, model, timeout):
+_CLI_LEAN = [os.environ.get("BACKSTAGE_CLI_LEAN", "1") == "1"]
+_CLI_CWD = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cli_cwd")
+
+
+def _cli_argv(system, tools, model, turns, lean):
+    """lean — главный рычаг экономии по подписке: свой системный промпт ВМЕСТО
+    стандартного промпта Claude Code (а не в дополнение к нему), только нужные
+    инструменты вместо полутора десятков, без MCP-серверов и навыков."""
+    argv = [CLAUDE_BIN, "-p", "--model", model, "--output-format", "json", "--max-turns", str(turns)]
+    if lean:
+        argv += ["--system-prompt", system, "--strict-mcp-config", "--disable-slash-commands",
+                 "--tools", ",".join(tools)]
+        if tools:
+            argv += ["--allowedTools", ",".join(tools)]
+    else:
+        argv += ["--append-system-prompt", system]
+        argv += ["--allowedTools", ",".join(tools)] if tools else ["--tools", ""]
+    return argv
+
+
+def _cli_call(c, kind, system, prompt, tools, model, timeout, turns=None):
     import subprocess
     if not os.path.exists(CLAUDE_BIN):
         raise RuntimeError("не найден claude CLI на сервере (~/.local/bin/claude)")
-    argv = [CLAUDE_BIN, "-p", "--append-system-prompt", system, "--model", model,
-            "--output-format", "json", "--max-turns", "12" if tools else "3"]
-    argv += ["--allowedTools", ",".join(tools)] if tools else ["--tools", ""]
+    turns = turns or (8 if tools else 2)
     env = {**os.environ, "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", "")}
-    # промпт — через stdin: большой текст в argv даёт E2BIG (урок ботов Фридмана)
-    p = subprocess.run(argv, input=prompt, capture_output=True, text=True, timeout=timeout, env=env)
+    os.makedirs(_CLI_CWD, exist_ok=True)  # пустая папка: CLI не подхватывает CLAUDE.md проекта
+    for _ in range(2):
+        argv = _cli_argv(system, tools, model, turns, _CLI_LEAN[0])
+        # промпт — через stdin: большой текст в argv даёт E2BIG (урок ботов Фридмана)
+        p = subprocess.run(argv, input=prompt, capture_output=True, text=True, timeout=timeout, env=env, cwd=_CLI_CWD)
+        err = (p.stderr or "") + (p.stdout or "")[:300]
+        if p.returncode != 0 and _CLI_LEAN[0] and ("unknown option" in err or "Unknown option" in err
+                                                     or "unrecognized" in err):
+            log.warning("claude CLI не знает экономных флагов — работаю по-старому: %s", err[-200:])
+            _CLI_LEAN[0] = False
+            continue
+        break
     out = (p.stdout or "").strip()
     try:
         j = json.loads(out)
@@ -600,7 +688,7 @@ def _cli_system(agent_id, lead):
 def _history_text(hist):
     if not hist:
         return ""
-    lines = [("КЛИЕНТ: " if m["role"] == "user" else "ТЫ: ") + m["text"] for m in hist[-16:]]
+    lines = [("КЛИЕНТ: " if m["role"] == "user" else "ТЫ: ") + m["text"] for m in trim_history(hist)]
     return "ПРЕДЫДУЩАЯ ПЕРЕПИСКА:\n" + "\n\n".join(lines) + "\n\n"
 
 
@@ -620,9 +708,7 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
     ctx = ctx if ctx is not None else {}
     lead = bool(AGENTS[agent_id].get("lead")) and depth == 0
     model = CLI_MODEL_DEEP if deep else CLI_MODEL_CHAT
-    tools = []
-    if AGENTS[agent_id].get("web") or AGENTS[agent_id].get("lead") or deep:
-        tools += ["WebSearch", "WebFetch"]
+    tools = ["WebSearch", "WebFetch"] if web_allowed(agent_id, deep) else []
     files = []
     extra = ""
     for a in attachments or []:
@@ -638,26 +724,31 @@ def cli_agent(c, agent_id, user_text, hist, deep=False, attachments=None, ctx=No
         tools.append("Read")
         extra += "\n\nКлиент приложил файлы — прочитай их инструментом Read: " + ", ".join(files)
     try:
-        prompt = (f"<context>\n{context_block(c, agent_id)}\n</context>\n\n{_history_text(hist)}"
+        lite = depth > 0  # специалисту — профиль, анкета и задача, без всего дашборда и переписки
+        prompt = (f"<context>\n{context_block(c, agent_id, lite=lite)}\n</context>\n\n{_history_text(hist)}"
                   f"НОВОЕ СООБЩЕНИЕ КЛИЕНТА:\n{user_text}{extra}")
         system = _cli_system(agent_id, lead)
         timeout = 900 if deep else 420
+        turns = (14 if deep else 8) if tools else 2
         kind = ("deep" if deep else "chat") if depth == 0 else f"specialist:{agent_id}"
-        reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt, tools, model, timeout))
+        reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt, tools, model, timeout, turns))
         notes = []
         _apply(c, agent_id, actions, ctx, notes)
         asks = [a for a in actions if a.get("type") == "ask" and a.get("agent") in AGENTS
-                and not AGENTS[a["agent"]].get("lead")][:4]
+                and not AGENTS[a["agent"]].get("lead")][:MAX_ASKS_DEEP if deep else MAX_ASKS_CHAT]
         if lead and asks:
             answers = []
             for a in asks:
                 ctx.setdefault("consulted", []).append(a["agent"])
                 sub = cli_agent(c, a["agent"], str(a.get("task", "")), [], deep=deep, ctx=ctx, depth=1)
-                answers.append(f"### {AGENTS[a['agent']]['name']} ({AGENTS[a['agent']]['role']})\n{sub}")
-            prompt2 = (prompt + f"\n\nТВОЙ ПЕРВЫЙ ОТВЕТ: {reply}\n\nОТВЕТЫ СПЕЦИАЛИСТОВ:\n\n" + "\n\n".join(answers) +
+                answers.append(f"### {AGENTS[a['agent']]['name']} ({AGENTS[a['agent']]['role']})\n{sub[:SPECIALIST_ANSWER_CHARS]}")
+            # Второй проход — без повторной отправки всего дашборда и переписки: всё нужное уже в ответах
+            prompt2 = (f"<context>\n{context_block(c, agent_id, lite=True)}\n</context>\n\n"
+                       f"СООБЩЕНИЕ КЛИЕНТА:\n{user_text}\n\nТВОЙ ПЕРВЫЙ ОТВЕТ: {reply}\n\nОТВЕТЫ СПЕЦИАЛИСТОВ:\n\n"
+                       + "\n\n".join(answers) +
                        "\n\nСведи итог для клиента. Действия из первого ответа уже применены — не повторяй их. "
-                       "Новых поручений не давай.")
-            reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt2, tools, model, timeout))
+                       "Новых поручений не давай. Новый поиск в интернете не нужен.")
+            reply, actions = _parse_cli_json(_cli_call(c, kind, system, prompt2, [], model, timeout, 2))
             _apply(c, agent_id, [a for a in actions if a.get("type") != "ask"], ctx, notes)
         if notes:
             log.warning("cli actions: %s", notes)

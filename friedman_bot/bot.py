@@ -6566,7 +6566,7 @@ UPDATE_FILES = ["bot.py", "jurist_bot.py", "sales_bot.py", "director_bot.py", "i
                 "backstage/agents/iris.md", "backstage/agents/ben.md", "backstage/packs/README.md",
                 "backstage/static/style.css", "backstage/static/login.html", "backstage/static/app.html",
                 "backstage/static/guide.html", "backstage/static/admin.html", "backstage/static/join.html",
-                "backstage/static/i18n.js"]
+                "backstage/static/i18n.js", "backstage/static/survey.html", "backstage/static/survey.js"]
 _SHA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".deployed_sha")
 _TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".gh_token")
 
@@ -9570,7 +9570,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.09"  # видимая метка сборки бота
+BOT_VERSION = "09.10"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (

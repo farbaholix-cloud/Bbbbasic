@@ -121,6 +121,20 @@ def init():
             conn.execute("ALTER TABLE clients ADD COLUMN source TEXT DEFAULT 'admin'")
         if "craft" not in cols:
             conn.execute("ALTER TABLE clients ADD COLUMN craft TEXT DEFAULT ''")
+        if "survey" not in cols:  # подробная анкета: JSON {answers, summary, done, updated}
+            conn.execute("ALTER TABLE clients ADD COLUMN survey TEXT DEFAULT ''")
+
+
+def set_survey(client_id: int, answers: dict, summary: str, done: bool):
+    old = {}
+    with db() as conn:
+        r = conn.execute("SELECT survey FROM clients WHERE id=?", (client_id,)).fetchone()
+        try:
+            old = json.loads((r and r["survey"]) or "{}")
+        except Exception:
+            old = {}
+        data = {"answers": answers, "summary": summary, "done": bool(done or old.get("done")), "updated": now()}
+        conn.execute("UPDATE clients SET survey=? WHERE id=?", (json.dumps(data, ensure_ascii=False), client_id))
 
 
 def meta_get(key, default=None):

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f3ec">
+<title>Backstage</title>
+<script src="static/i18n.js"></script>
+<script src="static/survey.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f7f3ec;--card:#fffdf9;--ink:#1f1d1b;--muted:#6b665e;--faint:#a29c92;--line:#e7e0d4;
+    --accent:#e0573a;--accent2:#c9432a;--mark:#ffd86b;--soft:#f1ebe1;color-scheme:light;
+    --maya:#e0573a;--ruben:#2b8a9a;--hanna:#d89a1e;--konrad:#4659c4;--noa:#cc4a80;--tarik:#3c9a68;--iris:#8a5cd0;--ben:#ec7f2b}
+  @media (prefers-color-scheme:dark){:root{--bg:#151412;--card:#1e1c1a;--ink:#f0ece5;--muted:#a8a197;--faint:#79736b;
+    --line:#302d29;--accent:#f06a4b;--accent2:#ff8063;--mark:#8a6a14;--soft:#262421;color-scheme:dark}}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(70px);opacity:.38;pointer-events:none}
+  body::before{width:420px;height:420px;top:-140px;right:-120px;background:radial-gradient(circle,#ffb38f,transparent 70%)}
+  body::after{width:460px;height:460px;bottom:-180px;left:-160px;background:radial-gradient(circle,#8fd3d6,transparent 70%)}
+  main{max-width:560px;margin:0 auto;padding:32px 16px 56px;padding-top:calc(28px + env(safe-area-inset-top));position:relative}
+  .serif,h1{font-family:Fraunces,Georgia,serif;font-optical-sizing:auto}
+  .brand{display:flex;justify-content:space-between;align-items:center;font-size:12px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--muted);font-weight:600}
+  .brand b{color:var(--accent);font-weight:700}
+  .dots{display:flex;gap:6px}
+  .dots i{width:22px;height:4px;border-radius:4px;background:var(--line);transition:background .3s,width .3s}
+  .dots i.on{width:34px;background:linear-gradient(90deg,var(--maya),var(--ben))}
+  .dots i.done{background:var(--ruben)}
+  .maya{display:flex;gap:14px;align-items:flex-start;margin:30px 0 18px}
+  .av{flex:none;display:grid;place-items:center;border-radius:50%;color:#fff;font-family:Fraunces,Georgia,serif;font-style:italic;font-weight:500}
+  .maya .av{width:50px;height:50px;font-size:23px;background:linear-gradient(140deg,#f08a54,var(--maya) 60%,#c23d58);
+    box-shadow:0 6px 18px -6px rgba(224,87,58,.55);transform:rotate(-4deg)}
+  .bubble{flex:1;background:var(--card);border:1px solid var(--line);border-radius:4px 18px 18px 18px;padding:12px 16px;
+    box-shadow:0 8px 24px -16px rgba(60,40,20,.35);animation:fade .35s ease}
+  .bubble small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--maya);font-weight:600;margin-bottom:3px}
+  .bubble span{font-family:Fraunces,Georgia,serif;font-size:18px;line-height:1.45}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:28px 26px;
+    box-shadow:0 20px 50px -30px rgba(60,40,20,.35)}
+  h1{font-size:36px;line-height:1.1;margin:0 0 12px;font-weight:500;letter-spacing:-.01em}
+  h1 em{font-style:italic;background:linear-gradient(transparent 62%,var(--mark) 62%,var(--mark) 92%,transparent 92%);padding:0 .08em}
+  p.lead{color:var(--muted);margin:0 0 22px;font-size:16px}
+  p.lead b{color:var(--ink);font-weight:600}
+  label{display:block;font-weight:500;font-size:13px;margin:18px 0 7px;color:var(--ink)}
+  label em{font-style:normal;color:var(--faint);font-weight:400}
+  input,textarea{width:100%;font:inherit;color:inherit;background:var(--bg);border:1.5px solid transparent;border-radius:12px;
+    padding:12px 14px;outline:none;transition:border-color .2s,background .2s}
+  input:focus,textarea:focus{border-color:var(--accent);background:var(--card)}
+  input::placeholder,textarea::placeholder{color:var(--faint)}
+  textarea{resize:vertical;min-height:100px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{--c:var(--accent);border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;
+    font:inherit;font-size:14px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:7px}
+  .chip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+  .chip:hover{border-color:var(--c);transform:translateY(-1px)}
+  .chip.on{background:var(--c);color:#fff;border-color:var(--c)}
+  .chip.on::before{background:#fff}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .btn{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:26px;border:0;border-radius:14px;padding:16px 20px;
+    font:inherit;font-weight:600;font-size:16px;color:#fff;background:var(--accent);cursor:pointer;
+    box-shadow:0 10px 24px -12px rgba(224,87,58,.8);transition:transform .15s,background .2s,box-shadow .2s}
+  .btn span{transition:transform .2s}
+  .btn:hover{background:var(--accent2);transform:translateY(-1px)}
+  .btn:hover span{transform:translateX(4px)}
+  .btn:active{transform:scale(.99)}
+  .btn:disabled{opacity:.5;cursor:default;transform:none}
+  .ghost{background:none;border:0;color:var(--muted);font:inherit;font-size:14px;cursor:pointer;margin-top:14px;padding:4px 0}
+  .ghost:hover{color:var(--ink)}
+  .hint{font-size:13px;color:var(--muted);margin-top:8px}
+  .ok{color:#2f8a5b}.bad{color:#c13d2b}
+  .err{color:#c13d2b;margin-top:12px;min-height:1.4em;font-size:14px}
+  .agree{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--muted);margin-top:18px;font-weight:400}
+  .agree input{width:16px;height:16px;flex:none;margin-top:3px;accent-color:var(--accent)}
+  .trap{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .team{list-style:none;margin:4px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .team li{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:14px;background:var(--bg);font-size:13px;line-height:1.3}
+  .team .av{width:34px;height:34px;font-size:16px;background:var(--c)}
+  .team b{display:block;font-size:14px;font-weight:600}
+  .team span{color:var(--muted)}
+  .team li.lead{grid-column:1/-1;background:linear-gradient(100deg,rgba(224,87,58,.12),rgba(236,127,43,.06))}
+  @media (max-width:420px){.team{grid-template-columns:1fr}}
+  .step{display:none}.step.on{display:block;animation:fade .3s ease}
+  .faces{display:flex;margin:26px 0 18px}
+  .faces .av{width:42px;height:42px;font-size:18px;background:var(--c);border:3px solid var(--card);margin-right:-10px;animation:bob 1.6s ease-in-out infinite}
+  .faces .av:nth-child(2){animation-delay:.15s}.faces .av:nth-child(3){animation-delay:.3s}.faces .av:nth-child(4){animation-delay:.45s}.faces .av:nth-child(5){animation-delay:.6s}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .meta{font-size:13px;color:var(--faint);margin-top:14px}
+  .foot{margin-top:22px;font-size:14px;color:var(--muted)}
+  .foot a{color:var(--accent);font-weight:600;text-underline-offset:3px}
+  .langs{display:grid;gap:10px;margin:6px 0 4px}
+  .lang{--c:var(--accent);display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:1.5px solid var(--line);
+    background:var(--card);color:var(--ink);border-radius:16px;padding:16px 18px;font:inherit;cursor:pointer;transition:all .15s}
+  .lang:hover{border-color:var(--c);transform:translateY(-1px)}
+  .lang .code{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--soft);
+    font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--muted);transition:all .15s}
+  .lang b{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:22px;flex:1}
+  .lang .tick{opacity:0;color:var(--c);font-size:20px;transition:opacity .15s}
+  .lang.on{border-color:var(--c);background:linear-gradient(100deg,color-mix(in srgb,var(--c) 10%,transparent),transparent)}
+  .lang.on .code{background:var(--c);color:#fff}
+  .lang.on .tick{opacity:1}
+  #langLead{margin:20px 0 0;animation:fade .3s ease}
+  .dots{flex-wrap:wrap;justify-content:flex-end;max-width:60%}
+  .dots i{width:14px}.dots i.on{width:26px}
+  .q{margin-top:22px}
+  .q>label{margin:0 0 8px;font-size:14px}
+  .stepinfo{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:8px}
+  .later{display:block;margin:16px auto 0}
+  .chip::before{background:var(--accent)}
+  .chip.on{background:var(--accent);border-color:var(--accent)}
+</style>
+</head><body>
+<main>
+  <div class="brand"><a href="app" style="color:inherit;text-decoration:none">Backstage<b>.</b></a><div class="dots" id="dots"></div></div>
+  <div class="maya">
+    <div class="av" aria-hidden="true" data-i="j.av">M</div>
+    <div class="bubble" id="bubble"><small data-i="j.maya"></small><span id="say"></span></div>
+  </div>
+  <div class="card">
+    <div class="stepinfo" id="stepinfo"></div>
+    <h1 id="secTitle"></h1>
+    <div id="qs"></div>
+    <button class="btn" type="button" id="next"><span id="nextLabel"></span> <span>→</span></button>
+    <button class="ghost" type="button" id="back" data-i="s.back"></button>
+    <div class="err" id="err"></div>
+  </div>
+  <button class="ghost later" type="button" id="later" data-i="s.later"></button>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const t = BS.t;
+const LI = () => ({en: 0, de: 1, ua: 2}[BS.lang]);
+const tx = (arr) => arr[LI()] ?? arr[0];
+const ol = (o, i = LI()) => o[1 + i] ?? o[1];  // подпись варианта; одна подпись — для всех языков
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+let A = {}, CRAFTS = [], secs = [], cur = 0;
+
+function visibleSections() {
+  const cr = CRAFTS.length ? CRAFTS : ["other"];
+  return SURVEY.filter(s => !s.craft || cr.includes(s.craft));
+}
+function shown(sec, q) {
+  if (!q.if) return true;
+  return Object.entries(q.if).every(([k, vals]) => {
+    const v = A[sec.id]?.[k];
+    return Array.isArray(v) ? v.some(x => vals.includes(x)) : vals.includes(v);
+  });
+}
+function say(txt) { const b = $("#bubble"); $("#say").textContent = txt; b.style.animation = "none"; b.offsetHeight; b.style.animation = ""; }
+function sayFor(sec, i) {
+  if (i === 0) return t("s.say.intro");
+  if (sec.craft) return t("s.say.craft", {craft: tx(sec.t)});
+  return t("s.say." + sec.id);
+}
+function render(keep = false) {
+  secs = visibleSections();
+  const sec = secs[cur], a = A[sec.id] || (A[sec.id] = {});
+  $("#dots").innerHTML = secs.map((_, k) => `<i class="${k === cur ? "on" : k < cur ? "done" : ""}"></i>`).join("");
+  $("#stepinfo").textContent = t("s.step", {n: cur + 1, total: secs.length});
+  $("#secTitle").textContent = tx(sec.t);
+  $("#qs").innerHTML = sec.q.filter(q => shown(sec, q)).map(q => {
+    const lab = `<label for="q_${q.id}">${esc(tx(q.t))}${q.type === "many" ? ` <em>${esc(t("s.multi"))}</em>` : ""}</label>`;
+    const v = a[q.id];
+    if (q.type === "one" || q.type === "many") {
+      const on = (id) => (Array.isArray(v) ? v.includes(id) : v === id) ? " on" : "";
+      return `<div class="q">${lab}<div class="chips">${q.o.map(o =>
+        `<button type="button" class="chip${on(o[0])}" data-q="${q.id}" data-v="${esc(o[0])}">${esc(ol(o))}</button>`).join("")}</div></div>`;
+    }
+    if (q.type === "text") return `<div class="q">${lab}<textarea id="q_${q.id}" data-q="${q.id}" maxlength="1500" rows="3" placeholder="${esc(t("s.ph"))}">${esc(v || "")}</textarea></div>`;
+    return `<div class="q">${lab}<input id="q_${q.id}" data-q="${q.id}" maxlength="200" ${q.type === "num" ? 'inputmode="numeric"' : ""} value="${esc(v || "")}" placeholder="${esc(t("s.ph"))}"></div>`;
+  }).join("");
+  $("#nextLabel").textContent = t(cur === secs.length - 1 ? "s.finish" : "s.next");
+  $("#back").style.visibility = cur ? "visible" : "hidden";
+  if (keep) return;
+  say(sayFor(sec, cur));
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+document.addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip[data-q]");
+  if (!chip) return;
+  const sec = secs[cur], q = sec.q.find(x => x.id === chip.dataset.q), a = A[sec.id], v = chip.dataset.v;
+  if (q.type === "one") a[q.id] = a[q.id] === v ? undefined : v;
+  else { const arr = a[q.id] || []; a[q.id] = arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]; }
+  // от ответа могут зависеть следующие вопросы — перерисовываем, сохранив введённый текст
+  collect(); render(true);
+});
+function collect() {
+  const a = A[secs[cur].id];
+  document.querySelectorAll("#qs [data-q]:not(.chip)").forEach(el => { a[el.dataset.q] = el.value.trim() || undefined; });
+}
+// Резюме для команды — по-английски и коротко: оно едет в каждый запрос, каждое слово — токены
+function summary() {
+  const out = [];
+  for (const sec of visibleSections()) {
+    const a = A[sec.id] || {}, part = [];
+    for (const q of sec.q) {
+      const v = a[q.id];
+      if (!shown(sec, q) || v === undefined || v === "" || (Array.isArray(v) && !v.length)) continue;
+      const lab = (id) => { const o = (q.o || []).find(o => o[0] === id); return o ? ol(o, 0) : id; };
+      const txt = q.type === "one" ? lab(v) : q.type === "many" ? v.map(lab).join(", ") : String(v).slice(0, 500);
+      part.push(`- ${q.t[0]}: ${txt}`);
+    }
+    if (part.length) out.push(sec.t[0] + ":", ...part);
+  }
+  return out.join("\n");
+}
+async function save(done) {
+  collect();
+  const r = await fetch("api/survey", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({answers: A, summary: summary(), done})});
+  if (r.status === 401) { location.href = "login"; throw new Error("auth"); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+}
+$("#next").onclick = async () => {
+  $("#err").textContent = "";
+  if (cur < secs.length - 1) { collect(); cur++; render(); save(false).catch(() => {}); return; }
+  $("#next").disabled = true;
+  try { await save(true); location.href = "app?survey=done"; }
+  catch (ex) { $("#err").textContent = t("s.err", {msg: ex.message}); $("#next").disabled = false; }
+};
+$("#back").onclick = () => { collect(); cur = Math.max(0, cur - 1); render(); };
+$("#later").onclick = async () => {
+  try { await save(false); location.href = "app"; } catch (ex) { $("#err").textContent = t("s.err", {msg: ex.message}); }
+};
+(async () => {
+  const r = await fetch("api/survey");
+  if (r.status === 401) return (location.href = "login");
+  const j = await r.json();
+  BS.set(j.lang); document.title = t("s.title");
+  A = j.answers || {}; CRAFTS = j.crafts || [];
+  render();
+})();
+</script>
+</body></html>

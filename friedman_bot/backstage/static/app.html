@@ -71,6 +71,11 @@
   .thinking::after{content:"";display:inline-block;width:1.2em;animation:dots 1.4s steps(4) infinite}
   @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
   .empty{color:var(--muted);text-align:center;margin:auto;padding:20px;font-size:14px}
+  .svcard{align-self:stretch;border:1.5px solid var(--accent);border-radius:16px;padding:14px 16px;
+    background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent)}
+  .svcard h4{margin:0 0 4px;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:17px}
+  .svcard p{margin:0 0 10px;font-size:14px;color:var(--muted)}
+  .svcard .row{gap:8px}
   nav.tabs{display:none}
   .show-m{display:none}
   @media (max-width:1000px){.show-m{display:inline}}
@@ -172,6 +177,7 @@
     <textarea id="setProfile" rows="6"></textarea>
     <label class="row" style="gap:8px"><input type="checkbox" id="setShare" style="width:auto">
       <span data-i="a.set.share"></span></label>
+    <p style="margin:12px 0 0"><a href="survey" class="small" data-i="a.sv.edit"></a> →</p>
     <h3 style="margin-top:18px">Telegram</h3>
     <p class="small muted"><span data-i="a.set.tg"></span> <a href="guide#telegram" target="_blank" class="guide-link" data-i="a.set.tg.link"></a>.</p>
     <input id="setTg" data-i-ph="a.set.tg.ph">
@@ -398,7 +404,22 @@ async function loadMsgs() {
     wrap.onclick = (e) => { const x = e.target.dataset.idea; if (x) { $("#input").value = x; wrap.remove(); send(); } };
     box.append(wrap);
   }
+  if (AGENT === "maya") surveyCard(list);
   box.scrollTop = box.scrollHeight;
+}
+// Подробная анкета: предлагаем после первого разбора (приветствие + разбор = 2 ответа Майи),
+// пока она не заполнена; «Позже» прячет приглашение на три дня
+function surveyCard(list) {
+  if (ME.survey_done || LS.get("bs_job") || list.filter(m => m.role === "assistant").length < 2) return;
+  if (Number(LS.get("bs_sv_later") || 0) > Date.now()) return;
+  const el = document.createElement("div");
+  el.className = "svcard";
+  el.innerHTML = `<h4>${esc(t("a.sv.h"))}</h4><p>${esc(t("a.sv.p"))}</p>
+    <div class="row"><button class="primary" type="button" data-go>${esc(t("a.sv.go"))} →</button>
+    <button class="ghost" type="button" data-later>${esc(t("a.sv.later"))}</button></div>`;
+  el.querySelector("[data-go]").onclick = () => { location.href = "survey"; };
+  el.querySelector("[data-later]").onclick = () => { LS.set("bs_sv_later", String(Date.now() + 3 * 864e5)); el.remove(); };
+  $("#msgs").append(el);
 }
 function addMsg(role, text, meta = {}) {
   const el = document.createElement("div");
@@ -527,6 +548,16 @@ document.querySelector("nav.tabs").onclick = (e) => { const tab = e.target.datas
 (async () => {
   await refreshMe(); renderAgents();
   await Promise.all([loadWidgets(), loadMsgs()]);
+  if (location.search.includes("survey=done")) {
+    // вернулись из анкеты: подсказка уточнить план — обычным (недорогим) сообщением, не глубоким анализом
+    history.replaceState(null, "", "app");
+    toast(t("a.sv.done")); setTab("chat");
+    const wrap = document.createElement("div");
+    wrap.className = "row"; wrap.style.cssText = "flex-wrap:wrap;gap:6px;align-self:flex-start";
+    wrap.innerHTML = `<button class="chip" style="cursor:pointer">${esc(t("a.sv.refine"))}</button>`;
+    wrap.onclick = () => { $("#input").value = t("a.sv.refine"); wrap.remove(); send(); };
+    $("#msgs").append(wrap); $("#msgs").scrollTop = $("#msgs").scrollHeight;
+  }
   // Вкладку закрыли посреди ответа — подхватываем задачу, ответ не теряется (он и так сохранён в переписке)
   const pending = LS.get("bs_job");
   if (pending) {
@@ -540,7 +571,7 @@ document.querySelector("nav.tabs").onclick = (e) => { const tab = e.target.datas
     if (window.innerWidth <= 1000) setTab("chat");  // сначала показать чат, потом прокрутить — скрытый не прокручивается
     $("#msgs").append(wait);
     requestAnimationFrame(() => { $("#msgs").scrollTop = $("#msgs").scrollHeight; });
-    pollJob(pending).then(() => { loadMsgs(); loadWidgets(); refreshMe(); toast(t("a.first.ready")); })
+    pollJob(pending).then(() => { LS.del("bs_job"); loadMsgs(); loadWidgets(); refreshMe(); toast(t("a.first.ready")); })
       .catch((e) => addMsg("assistant", "⚠️ " + e.message))
       .finally(() => { clearInterval(tick); wait.remove(); LS.del("bs_job"); });
   }
