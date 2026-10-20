@@ -7,96 +7,96 @@
 клиента» в каждом контексте (lang_rule).
 """
 
-LANGS = ("en", "de", "uk")
+LANGS = ("en", "de", "ua")
 DEFAULT = "en"
 
 
 def norm(lang):
-    """Старые клиенты заведены с 'ru' — для них ближе всего украинский интерфейс."""
+    """Украинский у нас — 'ua'. Код ISO 'uk' (браузеры) и старые клиенты с 'ru' сводятся к нему."""
     lang = str(lang or "").lower()[:2]
-    if lang in ("ru", "ua"):
-        return "uk"
+    if lang in ("ru", "uk"):
+        return "ua"
     return lang if lang in LANGS else DEFAULT
 
 
 MSG = {
     "too_many": {"en": "Too many attempts — please wait 10 minutes.",
                  "de": "Zu viele Versuche — bitte warte 10 Minuten.",
-                 "uk": "Забагато спроб — зачекай 10 хвилин."},
+                 "ua": "Забагато спроб — зачекай 10 хвилин."},
     "too_many_slug": {"en": "Too many attempts for this name — please wait 15 minutes.",
                       "de": "Zu viele Versuche für diesen Namen — bitte warte 15 Minuten.",
-                      "uk": "Забагато спроб для цього імені — зачекай 15 хвилин."},
+                      "ua": "Забагато спроб для цього імені — зачекай 15 хвилин."},
     "bad_login": {"en": "Wrong login name or PIN", "de": "Login-Name oder PIN falsch",
-                  "uk": "Неправильне ім'я або PIN-код"},
-    "need_login": {"en": "Please log in", "de": "Bitte melde dich an", "uk": "Потрібно увійти"},
+                  "ua": "Неправильне ім'я або PIN-код"},
+    "need_login": {"en": "Please log in", "de": "Bitte melde dich an", "ua": "Потрібно увійти"},
     "signup_closed": {"en": "Sign-up is closed right now. Write to the agency and we'll send you an invitation.",
                       "de": "Die Registrierung ist gerade geschlossen. Schreib der Agentur — du bekommst eine Einladung.",
-                      "uk": "Реєстрацію зараз закрито. Напиши агенції — надішлемо запрошення."},
+                      "ua": "Реєстрацію зараз закрито. Напиши агенції — надішлемо запрошення."},
     "try_again": {"en": "That didn't work, please try again.", "de": "Das hat nicht geklappt, versuch es noch einmal.",
-                  "uk": "Не вийшло, спробуй ще раз."},
+                  "ua": "Не вийшло, спробуй ще раз."},
     "form_stale": {"en": "The form is out of date or was filled in too fast — please reload the page.",
                    "de": "Das Formular ist veraltet oder wurde zu schnell ausgefüllt — bitte lade die Seite neu.",
-                   "uk": "Форма застаріла або заповнена надто швидко — онови сторінку."},
+                   "ua": "Форма застаріла або заповнена надто швидко — онови сторінку."},
     "device_limit": {"en": "Someone has already signed up from this device today. Please try again tomorrow.",
                      "de": "Von diesem Gerät gab es heute schon eine Registrierung. Versuch es morgen wieder.",
-                     "uk": "З цього пристрою сьогодні вже реєструвалися. Спробуй завтра."},
+                     "ua": "З цього пристрою сьогодні вже реєструвалися. Спробуй завтра."},
     "daily_full": {"en": "All places for new members are taken for today — come back tomorrow.",
                    "de": "Für heute sind alle Plätze vergeben — schau morgen wieder vorbei.",
-                   "uk": "На сьогодні місця для нових учасників закінчилися — зазирни завтра."},
+                   "ua": "На сьогодні місця для нових учасників закінчилися — зазирни завтра."},
     "name_short": {"en": "What's your name? At least two characters.",
                    "de": "Wie heißt du? Mindestens zwei Zeichen.",
-                   "uk": "Як тебе звати? Хоча б два символи."},
+                   "ua": "Як тебе звати? Хоча б два символи."},
     "slug_bad": {"en": "Login name: 3–25 Latin letters, digits or hyphens.",
                  "de": "Login-Name: 3–25 lateinische Buchstaben, Ziffern oder Bindestriche.",
-                 "uk": "Ім'я для входу: 3–25 латинських літер, цифр або дефісів."},
+                 "ua": "Ім'я для входу: 3–25 латинських літер, цифр або дефісів."},
     "pin_bad": {"en": "PIN: 4–8 digits, and nothing as simple as 1234 or 1111.",
                 "de": "PIN: 4–8 Ziffern und nicht so einfach wie 1234 oder 1111.",
-                "uk": "PIN-код: 4–8 цифр, і не такий простий, як 1234 чи 1111."},
+                "ua": "PIN-код: 4–8 цифр, і не такий простий, як 1234 чи 1111."},
     "need_agree": {"en": "Please agree to data storage.", "de": "Bitte stimme der Datenspeicherung zu.",
-                   "uk": "Потрібна згода на зберігання даних."},
+                   "ua": "Потрібна згода на зберігання даних."},
     "slug_taken": {"en": "This name is taken — try another one.", "de": "Dieser Name ist vergeben — probier einen anderen.",
-                   "uk": "Це ім'я вже зайняте — спробуй інше."},
-    "job_missing": {"en": "Task not found", "de": "Aufgabe nicht gefunden", "uk": "Завдання не знайдено"},
-    "empty_msg": {"en": "Empty message", "de": "Leere Nachricht", "uk": "Порожнє повідомлення"},
+                   "ua": "Це ім'я вже зайняте — спробуй інше."},
+    "job_missing": {"en": "Task not found", "de": "Aufgabe nicht gefunden", "ua": "Завдання не знайдено"},
+    "empty_msg": {"en": "Empty message", "de": "Leere Nachricht", "ua": "Порожнє повідомлення"},
     "busy": {"en": "The team is still answering your previous message",
              "de": "Das Team beantwortet noch deine letzte Nachricht",
-             "uk": "Команда ще відповідає на попереднє повідомлення"},
+             "ua": "Команда ще відповідає на попереднє повідомлення"},
     "bad_tg": {"en": "This doesn't look like a bot token from @BotFather",
                "de": "Das sieht nicht nach einem Bot-Token von @BotFather aus",
-               "uk": "Це не схоже на токен бота від @BotFather"},
+               "ua": "Це не схоже на токен бота від @BotFather"},
     "too_big": {"en": "Request too large (30 MB limit)", "de": "Anfrage zu groß (Limit 30 MB)",
-                "uk": "Завеликий запит (ліміт 30 МБ)"},
-    "team_error": {"en": "Team error: {e}", "de": "Fehler im Team: {e}", "uk": "Помилка команди: {e}"},
+                "ua": "Завеликий запит (ліміт 30 МБ)"},
+    "team_error": {"en": "Team error: {e}", "de": "Fehler im Team: {e}", "ua": "Помилка команди: {e}"},
     "quota_deep": {"en": "The free version allows {n} deep analyses a day. You can run another one tomorrow — the regular chat keeps working.",
                    "de": "In der kostenlosen Version sind {n} Tiefenanalysen pro Tag möglich. Morgen geht es weiter — der normale Chat funktioniert.",
-                   "uk": "У безкоштовній версії — {n} глибоких аналізи на день. Завтра знову можна, а звичайний чат працює."},
+                   "ua": "У безкоштовній версії — {n} глибоких аналізи на день. Завтра знову можна, а звичайний чат працює."},
     "quota_chat": {"en": "That's today's limit for the free version — {n} team replies. We'll continue tomorrow; everything is saved.",
                    "de": "Das Tageslimit der kostenlosen Version ist erreicht — {n} Antworten des Teams. Morgen geht's weiter, alles ist gespeichert.",
-                   "uk": "На сьогодні ліміт безкоштовної версії — {n} відповідей команди. Завтра продовжимо — усе збережено."},
+                   "ua": "На сьогодні ліміт безкоштовної версії — {n} відповідей команди. Завтра продовжимо — усе збережено."},
     "budget_out": {"en": "The monthly AI budget (${b}) is used up. The platform owner can raise the limit.",
                    "de": "Das monatliche KI-Budget (${b}) ist aufgebraucht. Der Plattform-Betreiber kann das Limit erhöhen.",
-                   "uk": "Місячний бюджет ШІ (${b}) вичерпано. Власник платформи може підняти ліміт."},
+                   "ua": "Місячний бюджет ШІ (${b}) вичерпано. Власник платформи може підняти ліміт."},
     "refused": {"en": "The model declined this request. Try rephrasing the task.",
                 "de": "Das Modell hat diese Anfrage abgelehnt. Formuliere die Aufgabe bitte anders.",
-                "uk": "Модель відхилила це прохання. Спробуй переформулювати завдання."},
-    "empty_reply": {"en": "(empty reply)", "de": "(leere Antwort)", "uk": "(порожня відповідь)"},
+                "ua": "Модель відхилила це прохання. Спробуй переформулювати завдання."},
+    "empty_reply": {"en": "(empty reply)", "de": "(leere Antwort)", "ua": "(порожня відповідь)"},
     "cut": {"en": "_(the reply hit the length limit — ask to continue)_",
             "de": "_(die Antwort hat das Längenlimit erreicht — bitte ums Weiterschreiben)_",
-            "uk": "_(відповідь уперлася в ліміт довжини — попроси продовжити)_"},
-    "team_work": {"en": "Team activity", "de": "Teamarbeit", "uk": "Робота команди"},
+            "ua": "_(відповідь уперлася в ліміт довжини — попроси продовжити)_"},
+    "team_work": {"en": "Team activity", "de": "Teamarbeit", "ua": "Робота команди"},
     "team_work_delta": {"en": "requests in 31 days · subscription", "de": "Anfragen in 31 Tagen · Abo",
-                        "uk": "запитів за 31 день · підписка"},
-    "budget_of": {"en": "of ${b}", "de": "von ${b}", "uk": "з ${b}"},
-    "subscription": {"en": "subscription", "de": "Abo", "uk": "підписка"},
-    "new_widget": {"en": "New widget", "de": "Neues Widget", "uk": "Новий віджет"},
-    "file": {"en": "file", "de": "Datei", "uk": "файл"},
-    "about": {"en": "About me", "de": "Über mich", "uk": "Про мене"},
-    "goal": {"en": "Goal for the next 12 months", "de": "Ziel für die nächsten 12 Monate", "uk": "Мета на 12 місяців"},
-    "links": {"en": "Links", "de": "Links", "uk": "Посилання"},
+                        "ua": "запитів за 31 день · підписка"},
+    "budget_of": {"en": "of ${b}", "de": "von ${b}", "ua": "з ${b}"},
+    "subscription": {"en": "subscription", "de": "Abo", "ua": "підписка"},
+    "new_widget": {"en": "New widget", "de": "Neues Widget", "ua": "Новий віджет"},
+    "file": {"en": "file", "de": "Datei", "ua": "файл"},
+    "about": {"en": "About me", "de": "Über mich", "ua": "Про мене"},
+    "goal": {"en": "Goal for the next 12 months", "de": "Ziel für die nächsten 12 Monate", "ua": "Мета на 12 місяців"},
+    "links": {"en": "Links", "de": "Links", "ua": "Посилання"},
     "first_review": {"en": "Maya, please look at my questionnaire and do a first review",
                      "de": "Maya, schau dir bitte meinen Fragebogen an und mach eine erste Analyse",
-                     "uk": "Майє, подивись мою анкету і зроби перший розбір"},
-    "potential": {"en": "Potential check", "de": "Potenzial-Check", "uk": "Перевірка потенціалу"},
+                     "ua": "Майє, подивись мою анкету і зроби перший розбір"},
+    "potential": {"en": "Potential check", "de": "Potenzial-Check", "ua": "Перевірка потенціалу"},
 }
 
 
@@ -113,7 +113,7 @@ AGENTS = {
     "de": {"maya": ("Maya", "Produzentin"), "ruben": ("Ruben", "Scout"), "hanna": ("Hanna", "Antragsautorin"),
            "konrad": ("Konrad", "Recht"), "noa": ("Noa", "Online-Marketing"), "tarik": ("Tarik", "PR & offline"),
            "iris": ("Iris", "Content & Video"), "ben": ("Ben", "Finanzen")},
-    "uk": {"maya": ("Майя", "Продюсерка"), "ruben": ("Рубен", "Скаут"), "hanna": ("Ганна", "Грантрайтерка"),
+    "ua": {"maya": ("Майя", "Продюсерка"), "ruben": ("Рубен", "Скаут"), "hanna": ("Ганна", "Грантрайтерка"),
            "konrad": ("Конрад", "Юридичний відділ"), "noa": ("Ноа", "Онлайн-маркетинг"), "tarik": ("Тарік", "PR і офлайн"),
            "iris": ("Ірис", "Контент і відео"), "ben": ("Бен", "Фінанси")},
 }
@@ -135,7 +135,7 @@ CRAFTS = {
            "mural": "Murals und Graffiti", "music": "Musik und DJing", "dance": "Tanz und Choreografie",
            "theatre": "Theater und Performance", "film": "Film und Video", "photo": "Fotografie", "design": "Design",
            "fashion": "Mode und Kostüm", "writing": "Literatur und Drehbuch", "other": "kreative Praxis"},
-    "uk": {"animation": "анімація", "illustration": "ілюстрація", "painting": "живопис і графіка",
+    "ua": {"animation": "анімація", "illustration": "ілюстрація", "painting": "живопис і графіка",
            "mural": "мурали та графіті", "music": "музика і DJ", "dance": "танці та хореографія",
            "theatre": "театр і перформанс", "film": "кіно і відео", "photo": "фотографія", "design": "дизайн",
            "fashion": "мода і костюм", "writing": "література і сценарії", "other": "творча практика"},
@@ -168,7 +168,7 @@ BOARDS = {
            "mural": ["Eingang", "Entwurf", "An der Wand", "Fertig"],
            "photo": ["Ideen", "Shooting", "Bearbeitung", "Abgegeben"],
            "_": ["Eingang", "In Arbeit", "Warten auf Antwort", "Fertig"]},
-    "uk": {"animation": ["Ідеї", "Розкадровка", "Анімація", "Здано"],
+    "ua": {"animation": ["Ідеї", "Розкадровка", "Анімація", "Здано"],
            "dance": ["Ідеї", "Постановка", "Репетиції", "Виступи"],
            "theatre": ["Ідеї", "Репетиції", "Прем'єра", "Гастролі"],
            "film": ["Ідеї", "Сценарій", "Зйомка", "Монтаж"],
@@ -192,7 +192,7 @@ LISTS = {
            "mural": "Wettbewerbe, Ausschreibungen und Fristen", "dance": "Wettbewerbe, Festivals und Castings",
            "theatre": "Festivals, Förderungen und Tourneen", "film": "Festivals, Pitches und Förderungen",
            "_": "Fristen und Bewerbungen"},
-    "uk": {"animation": "Фестивалі, пітчинги та дедлайни", "music": "Конкурси, фестивалі та релізи",
+    "ua": {"animation": "Фестивалі, пітчинги та дедлайни", "music": "Конкурси, фестивалі та релізи",
            "mural": "Конкурси, тендери та дедлайни", "dance": "Конкурси, фестивалі та кастинги",
            "theatre": "Фестивалі, гранти та гастролі", "film": "Фестивалі, пітчинги та гранти",
            "_": "Дедлайни та заявки"},
@@ -207,20 +207,20 @@ SEED = {
            "projects": "Projekte", "card": "Maya von deiner Arbeit erzählen", "chart": "Einnahmen pro Monat",
            "series": "Einnahmen", "profile": "Praxisprofil",
            "profile_text": "Wer ich bin, was ich mache, was ich in 12 Monaten erreichen will. Das Team liest diese Notiz vor jeder Antwort."},
-    "uk": {"income": "Дохід за місяць", "apps": "Заявки в роботі", "budget": "Бюджет ШІ на місяць",
+    "ua": {"income": "Дохід за місяць", "apps": "Заявки в роботі", "budget": "Бюджет ШІ на місяць",
            "projects": "Проєкти", "card": "Розповісти Майї про свою практику", "chart": "Дохід за місяцями",
            "series": "Дохід", "profile": "Профіль практики",
            "profile_text": "Хто я, що роблю, чого хочу досягти за 12 місяців. Команда читає цю нотатку перед кожною відповіддю."},
 }
 
-LANG_NAME = {"en": "English", "de": "German (informal “du”)", "uk": "Ukrainian"}
+LANG_NAME = {"en": "English", "de": "German (informal “du”)", "ua": "Ukrainian"}
 
 
 def lang_rule(lang):
     """Правило для агентов: промпты у нас русские, а отвечать нужно на языке клиента."""
     L = norm(lang)
     names = ", ".join(n for n, _ in AGENTS[L].values())
-    extra = " Never answer in Russian." if L == "uk" else ""
+    extra = " Never answer in Russian." if L == "ua" else ""
     return (f"LANGUAGE: the client works in {LANG_NAME[L]}. Write every reply in {LANG_NAME[L]}, whatever language "
             f"these instructions, the profile or earlier messages are in — unless the client clearly switches language "
             f"themselves. Everything you put on the dashboard (titles, cards, list items, notes, KPI captions) and into "
@@ -254,7 +254,7 @@ HINTS = {
            "mural": "„finde Mural-Wettbewerbe in meiner Nähe“ oder „berechne den Preis für eine 40-m²-Wand“",
            "photo": "„wo kann ich meine Fotos verkaufen?“ oder „hilf mir mit dem Preis für ein Shooting“",
            "_": "„finde Förderungen und Wettbewerbe für mich“ oder „hilf mir, eine Preisliste zu erstellen“"},
-    "uk": {"animation": "«знайди фестивалі анімації та пітчинги з дедлайнами на найближчі пів року» або «допоможи порахувати ціну за хвилину анімації»",
+    "ua": {"animation": "«знайди фестивалі анімації та пітчинги з дедлайнами на найближчі пів року» або «допоможи порахувати ціну за хвилину анімації»",
            "illustration": "«де шукати замовлення на дитячі книжки» або «скільки брати за обкладинку»",
            "music": "«склади план релізу на місяць» або «знайди open calls для музикантів»",
            "dance": "«знайди конкурси та кастинги на найближчі місяці» або «допоможи з ціною за постановку номера»",
@@ -286,7 +286,7 @@ def welcome(lang, name, craft, goal):
                 "im Netz nach Chancen für dich und skizzieren die ersten Schritte. Das dauert ein paar Minuten.\n\n"
                 "Alles, was wir finden und beschließen, landet von selbst als Kennzahlen im Tab „Dashboard“ — "
                 f"dort kannst du einfach reinschauen. Gearbeitet wird hier, im Gespräch. Zum Beispiel: {hint}.")
-    if L == "uk":
+    if L == "ua":
         goal_line = f"\n\nТвою мету я записала: «{g}». Рухатимемося до неї крок за кроком." if goal else ""
         return (f"Вітаю, {first}! Я Майя, продюсерка твоєї команди. Я тут для того, щоб у тебе лишався час "
                 "на творчість і на життя, а не на рутину.\n\n"

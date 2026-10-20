@@ -50,36 +50,36 @@ TG = {
               "/team — das Team\n/agent <Name> — direkt an eine:n Spezialist:in schreiben (z. B. /agent konrad)\n"
               "/maya — zurück zu Maya\n/deep <Text> — Tiefenanalyse mit dem stärksten Modell (dauert länger)\n"
               "/budget — KI-Verbrauch diesen Monat",
-        "uk": "Це твоя закулісна команда Backstage. Пиши завдання, питання, цифри — відповідає Майя "
+        "ua": "Це твоя закулісна команда Backstage. Пиши завдання, питання, цифри — відповідає Майя "
               "і за потреби кличе фахівців. Можна надіслати фото або PDF (договір, кошторис, афішу).\n\n"
               "/team — склад команди\n/agent <ім'я> — писати фахівцю напряму (наприклад /agent konrad)\n"
               "/maya — повернутися до Майї\n/deep <текст> — глибокий аналіз найпотужнішою моделлю (довше)\n"
               "/budget — витрати ШІ цього місяця"},
     "need_start": {"en": "Send /start to link this bot to your Backstage.",
                    "de": "Schick /start, um diesen Bot mit deinem Backstage zu verbinden.",
-                   "uk": "Напиши /start, щоб прив'язати цього бота до свого Backstage."},
+                   "ua": "Напиши /start, щоб прив'язати цього бота до свого Backstage."},
     "bound": {"en": "Hi {name}! The bot is now linked to your Backstage.", "de": "Hallo {name}! Der Bot ist jetzt mit deinem Backstage verbunden.",
-              "uk": "Привіт, {name}! Бота прив'язано до твого Backstage."},
+              "ua": "Привіт, {name}! Бота прив'язано до твого Backstage."},
     "budget": {"en": "Spent ${a} of ${b} this month.", "de": "Diesen Monat ${a} von ${b} verbraucht.",
-               "uk": "Витрачено ${a} з ${b} цього місяця."},
+               "ua": "Витрачено ${a} з ${b} цього місяця."},
     "unknown_agent": {"en": "I don't know this agent. /team shows the list.", "de": "Diese:n Agent:in kenne ich nicht. /team zeigt die Liste.",
-                      "uk": "Не знаю такого агента. /team — список."},
+                      "ua": "Не знаю такого агента. /team — список."},
     "now": {"en": "Now writing to: {name}, {role}.", "de": "Du schreibst jetzt an: {name}, {role}.",
-            "uk": "Тепер пишеш: {name}, {role}."},
-    "photo": {"en": "photo.jpg", "de": "foto.jpg", "uk": "фото.jpg"},
+            "ua": "Тепер пишеш: {name}, {role}."},
+    "photo": {"en": "photo.jpg", "de": "foto.jpg", "ua": "фото.jpg"},
     "file_type": {"en": "I can't read this file type yet — send a PDF, a photo or text.",
                   "de": "Diesen Dateityp kann ich noch nicht lesen — schick ein PDF, ein Foto oder Text.",
-                  "uk": "Цей тип файлу поки не читаю: надішли PDF, фото або текст."},
+                  "ua": "Цей тип файлу поки не читаю: надішли PDF, фото або текст."},
     "dl_fail": {"en": "Couldn't download the file, please try again.", "de": "Die Datei ließ sich nicht laden, versuch es noch einmal.",
-                "uk": "Не вдалося завантажити файл, спробуй ще раз."},
+                "ua": "Не вдалося завантажити файл, спробуй ще раз."},
     "voice": {"en": "I can't handle voice messages yet — please type.", "de": "Sprachnachrichten verstehe ich noch nicht — bitte schreib.",
-              "uk": "Голосові поки не розбираю — напиши текстом."},
+              "ua": "Голосові поки не розбираю — напиши текстом."},
     "look": {"en": "Take a look at the attachment and tell me what to do with it.",
              "de": "Schau dir den Anhang an und sag mir, was ich damit machen soll.",
-             "uk": "Подивись вкладення і скажи, що з ним робити."},
-    "consulted": {"en": "asked: ", "de": "hinzugezogen: ", "uk": "покликала: "},
-    "changed": {"en": "dashboard updated", "de": "Dashboard aktualisiert", "uk": "дашборд оновлено"},
-    "stumbled": {"en": "The team stumbled: {e}", "de": "Das Team ist gestolpert: {e}", "uk": "Команда спіткнулася: {e}"},
+             "ua": "Подивись вкладення і скажи, що з ним робити."},
+    "consulted": {"en": "asked: ", "de": "hinzugezogen: ", "ua": "покликала: "},
+    "changed": {"en": "dashboard updated", "de": "Dashboard aktualisiert", "ua": "дашборд оновлено"},
+    "stumbled": {"en": "The team stumbled: {e}", "de": "Das Team ist gestolpert: {e}", "ua": "Команда спіткнулася: {e}"},
 }
 
 

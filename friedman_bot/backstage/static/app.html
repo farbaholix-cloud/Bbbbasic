@@ -167,7 +167,7 @@
   <form method="dialog">
     <h2 data-i="a.set.h"></h2>
     <label data-i="a.set.lang"></label>
-    <select id="setLang"><option value="en">English</option><option value="de">Deutsch</option><option value="uk">Українська</option></select>
+    <select id="setLang"><option value="en">English</option><option value="de">Deutsch</option><option value="ua">Українська</option></select>
     <label data-i="a.set.profile"></label>
     <textarea id="setProfile" rows="6"></textarea>
     <label class="row" style="gap:8px"><input type="checkbox" id="setShare" style="width:auto">
@@ -242,7 +242,7 @@ function renderGrid() {
     g.append(el);
   });
 }
-const num = (v) => (typeof v === "number" ? v.toLocaleString({en: "en-GB", de: "de-DE", uk: "uk-UA"}[BS.lang]) : esc(v ?? "—"));
+const num = (v) => (typeof v === "number" ? v.toLocaleString({en: "en-GB", de: "de-DE", ua: "uk-UA"}[BS.lang]) : esc(v ?? "—"));
 function renderBody(w, b) {
   const d = w.data || {}, c = w.config || {};
   if (w.kind === "kpi") {

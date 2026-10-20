@@ -286,7 +286,7 @@ de: {
   "a.s4": "Das Team gleicht die Funde ab", "a.s5": "Maya stellt die erste Analyse zusammen",
   "a.first.ready": "Die erste Analyse ist fertig",
 },
-uk: {
+ua: {
   "j.title": "Backstage — твоя закулісна команда",
   "j.av": "М", "j.av.maya": "М", "j.av.ruben": "Р", "j.av.hanna": "Г", "j.av.konrad": "К", "j.av.ben": "Б", "j.av.noa": "Н", "j.av.iris": "І",
   "j.lang.back": "Мова",
@@ -430,10 +430,10 @@ uk: {
 };
 
 const BS = (() => {
-  const LANGS = ["en", "de", "uk"];
+  const LANGS = ["en", "de", "ua"];
   const norm = (l) => {
     l = String(l || "").slice(0, 2).toLowerCase();
-    if (l === "ru" || l === "ua") return "uk";  // старые аккаунты и русскоязычные браузеры
+    if (l === "ru" || l === "uk") return "ua";  // код ISO из браузера, старые аккаунты, русскоязычные браузеры
     return LANGS.includes(l) ? l : "en";
   };
   const stored = () => { try { return localStorage.getItem("bs_lang"); } catch { return null; } };
@@ -448,7 +448,7 @@ const BS = (() => {
     root.querySelectorAll("[data-i-html]").forEach(e => { e.innerHTML = t(e.dataset.iHtml); });
     root.querySelectorAll("[data-i-ph]").forEach(e => { e.placeholder = t(e.dataset.iPh); });
     root.querySelectorAll("[data-i-title]").forEach(e => { e.title = t(e.dataset.iTitle); });
-    document.documentElement.lang = lang;
+    document.documentElement.lang = lang === "ua" ? "uk" : lang;  // атрибуту lang нужен код ISO
   }
   function set(l, save = true) {
     lang = norm(l);
