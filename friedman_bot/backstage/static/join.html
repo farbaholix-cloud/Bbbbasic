@@ -9,7 +9,7 @@
 <style>
   :root{--bg:#f7f3ec;--card:#fffdf9;--ink:#1f1d1b;--muted:#6b665e;--faint:#a29c92;--line:#e7e0d4;
     --accent:#e0573a;--accent2:#c9432a;--mark:#ffd86b;--soft:#f1ebe1;color-scheme:light;
-    --maya:#e0573a;--ruben:#2b8a9a;--hanna:#d89a1e;--konrad:#4659c4;--noa:#cc4a80;--tarik:#3c9a68;--iris:#8a5cd0;--ben:#ec7f2b}
+    --maya:#e0573a;--ruben:#2b8a9a;--hanna:#d89a1e;--konrad:#4659c4;--noa:#cc4a80;--tarik:#3c9a68;--iris:#8a5cd0;--ben:#ec7f2b;--chuck:#3d5a6c}
   @media (prefers-color-scheme:dark){:root{--bg:#151412;--card:#1e1c1a;--ink:#f0ece5;--muted:#a8a197;--faint:#79736b;
     --line:#302d29;--accent:#f06a4b;--accent2:#ff8063;--mark:#8a6a14;--soft:#262421;color-scheme:dark}}
   *{box-sizing:border-box}
@@ -48,7 +48,7 @@
     padding:12px 14px;outline:none;transition:border-color .2s,background .2s}
   input:focus,textarea:focus{border-color:var(--accent);background:var(--card)}
   input::placeholder,textarea::placeholder{color:var(--faint)}
-  textarea{resize:vertical;min-height:100px}
+  textarea{resize:vertical;min-height:150px;line-height:1.5}
   .chips{display:flex;flex-wrap:wrap;gap:7px}
   .chip{--c:var(--accent);border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;
     font:inherit;font-size:14px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:7px}
@@ -136,6 +136,7 @@
         <li><i class="av" style="--c:var(--ben)" data-i="j.av.ben"></i><div><b data-i="j.t.ben"></b><span data-i="j.t.ben.r"></span></div></li>
         <li><i class="av" style="--c:var(--noa)" data-i="j.av.noa"></i><div><b data-i="j.t.noa"></b><span data-i="j.t.noa.r"></span></div></li>
         <li><i class="av" style="--c:var(--iris)" data-i="j.av.iris"></i><div><b data-i="j.t.iris"></b><span data-i="j.t.iris.r"></span></div></li>
+        <li><i class="av" style="--c:var(--chuck)" data-i="j.av.chuck"></i><div><b data-i="j.t.chuck"></b><span data-i="j.t.chuck.r"></span></div></li>
       </ul>
       <button class="btn" type="button" data-next><span data-i="j.start"></span> <span>→</span></button>
       <p class="meta" data-i="j.meta0"></p>

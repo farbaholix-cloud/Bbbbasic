@@ -4,6 +4,7 @@
 <meta name="theme-color" content="#f7f3ec">
 <title>Backstage</title>
 <script src="static/i18n.js"></script>
+<script src="static/mail.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/style.css">
@@ -61,6 +62,7 @@
     <button data-p="apps" class="on" data-i="w.tab.apps"></button>
     <button data-p="docs" data-i="w.tab.docs"></button>
     <button data-p="files" data-i="w.tab.files"></button>
+    <button data-p="mail" data-i="w.tab.mail"></button>
   </div>
 
   <!-- Заявки -->
@@ -89,13 +91,19 @@
         <div><label data-i="w.doc.lang"></label><select id="dLang"><option value="en">English</option><option value="de">Deutsch</option><option value="ua">Українська</option></select></div>
       </div>
       <label data-i="w.doc.app"></label><select id="dApp"></select>
-      <label data-i="w.doc.brief"></label><textarea id="dBrief" rows="4"></textarea>
+      <label data-i="w.doc.brief"></label><textarea id="dBrief" rows="8"></textarea>
       <label data-i="w.doc.files"></label><div class="checks" id="dFiles"></div>
       <label class="row" style="gap:8px;color:var(--ink)"><input type="checkbox" id="dStrong" style="width:auto"> <span data-i="w.doc.strong"></span></label>
       <div class="row" style="margin-top:10px"><div class="grow"></div><button class="primary" id="dGo" data-i="w.doc.go"></button></div>
       <div class="wait hidden" id="dWait"></div>
     </div>
     <div class="card box" id="docs"></div>
+  </section>
+
+  <!-- Почта -->
+  <section class="pane" id="p-mail">
+    <p class="intro" data-i="w.mail.p"></p>
+    <div id="mailList" style="display:flex;flex-direction:column;gap:12px"></div>
   </section>
 
   <!-- Материалы -->
@@ -234,6 +242,12 @@ $("#dGo").onclick = async () => {
 };
 
 // ─── материалы ───
+async function loadMail() {
+  const list = await MAIL.load(), box = $("#mailList");
+  box.innerHTML = "";
+  list.forEach(e => { const c = MAIL.card(e.id); if (c) box.append(c); });
+  if (!box.children.length) box.innerHTML = `<p class="empty">${esc(t("w.empty.mail"))}</p>`;
+}
 async function loadFiles() {
   const r = await api("api/files"); FILES = r.files;
   $("#fUsed").textContent = t("w.file.used", {used: (r.used / 1048576).toFixed(1), limit: Math.round(r.limit / 1048576)});
@@ -272,8 +286,8 @@ drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); upload
   $("#dKind").innerHTML = KINDS.map(k => `<option value="${k}">${esc(t("w.k." + k))}</option>`).join("");
   $("#fKind").innerHTML = FKINDS.map(k => `<option value="${k}">${esc(t("w.f." + k))}</option>`).join("");
   $("#dLang").value = ME.lang;
-  await Promise.all([loadApps(), loadDocs(), loadFiles()]);
-  const h = location.hash.slice(1); if (["apps", "docs", "files"].includes(h)) tab(h);
+  await Promise.all([loadApps(), loadDocs(), loadFiles(), loadMail()]);
+  const h = location.hash.slice(1); if (["apps", "docs", "files", "mail"].includes(h)) tab(h);
 })();
 </script>
 </body></html>

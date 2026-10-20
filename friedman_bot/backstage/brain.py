@@ -23,6 +23,7 @@ import re
 import json
 import base64
 import logging
+import time
 from datetime import datetime
 
 try:
@@ -51,7 +52,7 @@ HIST_MSGS = int(os.environ.get("BACKSTAGE_HISTORY_MSGS", "10"))
 HIST_CHARS = int(os.environ.get("BACKSTAGE_HISTORY_CHARS", "1500"))
 # Веб-поиск — самое дорогое: в обычном чате он есть только у тех, чья работа —
 # искать (скаут и грантрайтер); в глубоком анализе — у всей команды.
-CHAT_WEB_AGENTS = set(os.environ.get("BACKSTAGE_CHAT_WEB", "ruben,hanna").split(","))
+CHAT_WEB_AGENTS = set(os.environ.get("BACKSTAGE_CHAT_WEB", "ruben,hanna,tarik,chuck").split(","))
 MAX_ASKS_CHAT = int(os.environ.get("BACKSTAGE_MAX_ASKS_CHAT", "2"))
 MAX_ASKS_DEEP = int(os.environ.get("BACKSTAGE_MAX_ASKS_DEEP", "4"))
 SPECIALIST_ANSWER_CHARS = 3500
@@ -199,6 +200,18 @@ def context_block(c, agent_id, lite=False):
             files = store.list_files(c["id"])[:12]
             if files:
                 lines.append("МАТЕРИАЛЫ КЛИЕНТА (сейф): " + "; ".join(f"{f['name']} [{f['kind']}]" for f in files))
+        if agent_id == "chuck":
+            try:
+                import security
+                rep = security.last_report(c)
+                if security.client_site(c) and (time.time() - rep.get("ts", 0) > 86400):
+                    security.run_client(c, force=True)  # свежий пассивный отчёт перед разговором (без ИИ, секунды)
+                    rep = security.last_report(c)
+                if rep.get("site"):
+                    lines.append(f"ПАССИВНАЯ ПРОВЕРКА САЙТА {rep['site']} ({rep.get('date')}): " + (
+                        "; ".join(i18n.sec_line("en", f) for f in rep.get("findings", [])) or "no findings"))
+            except Exception as e:
+                log.warning("chuck context: %s", e)
         if agent_id in ("ruben", "hanna"):
             # уже найденное радаром: сначала смотри сюда, а не ищи заново (дешевле и быстрее)
             try:
@@ -290,6 +303,19 @@ DASH_TOOLS = [
                     "и контактов клиента), с тегами через запятую.",
      "input_schema": _obj({"title": {"type": "string"}, "body": {"type": "string"},
                            "tags": {"type": "string"}}, ["title", "body"])},
+    {"name": "opportunity_add",
+     "description": "Сохранить найденную в интернете возможность (конкурс, грант, резиденцию, open call, заказ) в общий "
+                    "каталог агентства — её увидят радар и другие клиенты с тем же ремеслом. Только проверенные, с действующей ссылкой.",
+     "input_schema": _obj({"title": {"type": "string"}, "org": {"type": "string"}, "url": {"type": "string"},
+                           "deadline": {"type": "string"}, "amount": {"type": "string"},
+                           "region": {"type": "string", "enum": ["de", "at", "ch", "ua", "eu", "intl"]},
+                           "summary": {"type": "string"}}, ["title", "url"])},
+    {"name": "email_draft",
+     "description": "Подготовить письмо внешнему адресату (фонд, организатор, заказчик, пресса). Письмо НЕ уходит: "
+                    "клиент видит черновик под твоим ответом, правит и сам нажимает «Отправить». Адрес бери с официального "
+                    "сайта (контакты, Impressum); не нашёл — оставь to пустым и скажи об этом. Пиши на языке адресата.",
+     "input_schema": _obj({"to": {"type": "string"}, "subject": {"type": "string"}, "body": {"type": "string"},
+                           "app_id": {"type": "integer"}}, ["subject", "body"])},
     {"name": "app_save",
      "description": "Учёт заявок клиента (вкладка «Заявки» в рабочей папке). Без id — новая заявка, с id — обновить. "
                     "status: idea | preparing | submitted | won | rejected. Заводи, когда клиент решил подаваться.",
@@ -411,6 +437,24 @@ def run_tool(c, agent_id, name, inp, ctx):
     if name == "save_insight":
         iid = store.add_insight(cid, agent_id, inp["title"], inp["body"], inp.get("tags", ""))
         return f"сохранено в базу опыта (id={iid})"
+    if name == "opportunity_add":
+        d = str(inp.get("deadline") or "")
+        if d and (not re.fullmatch(r"\d{4}-\d{2}-\d{2}", d) or d < datetime.now().strftime("%Y-%m-%d")):
+            inp = {**inp, "deadline": ""}
+        crafts = [x for x in (c.get("craft") or "").split(",") if x] or ["other"]
+        oid = store.add_opportunity(inp, crafts[0], inp.get("region") or "intl")
+        for extra in crafts[1:]:
+            store.add_opportunity(inp, extra, inp.get("region") or "intl")
+        store.mark_delivered(cid, [oid])  # клиент уже знает о ней из чата — радар не пришлёт повторно
+        return f"возможность id={oid} в каталоге"
+    if name == "email_draft":
+        to = str(inp.get("to") or "").strip()
+        if to and not re.fullmatch(r"[^@\s,;]+@[^@\s,;]+\.[a-z]{2,}", to, re.I):
+            to = ""
+        eid = store.add_email(cid, agent_id, to, str(inp.get("subject") or ""), str(inp.get("body") or ""),
+                              inp.get("app_id") or 0)
+        ctx.setdefault("emails", []).append(eid)
+        return f"черновик письма id={eid} ждёт согласования клиента (сам не отправляй и не говори, что отправлено)"
     if name == "app_save":
         aid = store.save_app(cid, inp)
         ctx["changed"] = True
@@ -589,8 +633,10 @@ def chat(client_id, agent_id, text, attachments=None, deep=False, display=None):
         model = c.get("model_chat") or MODEL_CHAT
         answer = run_agent(c, agent_id, text, hist, model=model, kind="chat", attachments=attachments, ctx=ctx)
     store.add_message(client_id, agent_id, "assistant", answer,
-                      {"model": model, "consulted": ctx.get("consulted", []), "changed": ctx.get("changed", False)})
-    return {"text": answer, "consulted": ctx.get("consulted", []), "changed": ctx.get("changed", False), "model": model}
+                      {"model": model, "consulted": ctx.get("consulted", []), "changed": ctx.get("changed", False),
+                       "emails": ctx.get("emails", [])})
+    return {"text": answer, "consulted": ctx.get("consulted", []), "changed": ctx.get("changed", False), "model": model,
+            "emails": ctx.get("emails", [])}
 
 
 CRAFTS = {
@@ -630,13 +676,15 @@ actions — изменения дашборда и базы опыта, пуст
 {"type":"kpi_set","widget_id":1,"value":100,"delta":"..."}
 {"type":"table_add_row","widget_id":1,"cells":["...","..."]}
 {"type":"save_insight","title":"...","body":"...","tags":"..."}
+{"type":"opportunity_add","title":"...","org":"...","url":"https://...","deadline":"YYYY-MM-DD","amount":"...","region":"de|at|ch|ua|eu|intl","summary":"одна фраза по-английски"} — найденную и проверенную возможность в общий каталог
+{"type":"email_draft","to":"адрес@организации","subject":"...","body":"полный текст письма с подписью клиента","app_id":0} — письмо внешнему адресату: НЕ отправляется, клиент согласует и отправляет сам
 {"type":"app_save","title":"...","org":"...","url":"...","deadline":"YYYY-MM-DD","status":"idea|preparing|submitted|won|rejected"} — заявка в учёт; с "id" — обновить
 Форматы data: kpi {value, delta}; chart {labels:[...], series:[{name, values:[...]}]}; table {rows:[[...]]};
 board {cards:[{id, col, text}]}; list {items:[{id, text, date, done}]}; note {text}.
 config: kpi {unit, goal}; chart {type: line|bar|pie|doughnut, unit}; table {columns:[...]}; board {columns:[...]}."""
 
 CLI_ASK = """
-Ты можешь поручить задачу специалистам: {"type":"ask","agent":"ruben|hanna|konrad|noa|tarik|iris|ben","task":"всё нужное для задачи"}.
+Ты можешь поручить задачу специалистам: {"type":"ask","agent":"ruben|hanna|konrad|noa|tarik|iris|ben|chuck","task":"всё нужное для задачи"}.
 Если поручаешь — в reply коротко скажи, кого зовёшь; их ответы придут тебе следующим сообщением, и ты сведёшь итог."""
 
 

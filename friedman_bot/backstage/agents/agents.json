@@ -6,5 +6,6 @@
   "noa":    {"name": "Ноа",    "role": "Онлайн-маркетинг",  "emoji": "📈", "color": "#4cc38a", "web": true},
   "tarik":  {"name": "Тарік",  "role": "PR и офлайн",       "emoji": "🤝", "color": "#f07a5a", "web": true},
   "iris":   {"name": "Ірис",   "role": "Контент и видео",   "emoji": "🎥", "color": "#f2c94c", "web": true},
-  "ben":    {"name": "Бен",    "role": "Финансы",           "emoji": "💶", "color": "#9bd16a"}
+  "ben":    {"name": "Бен",    "role": "Финансы",           "emoji": "💶", "color": "#9bd16a"},
+  "chuck":  {"name": "Чак",    "role": "Кибербезопасность", "emoji": "🛡️", "color": "#3d5a6c", "web": true}
 }

@@ -168,7 +168,7 @@ function render(keep = false) {
       return `<div class="q">${lab}<div class="chips">${q.o.map(o =>
         `<button type="button" class="chip${on(o[0])}" data-q="${q.id}" data-v="${esc(o[0])}">${esc(ol(o))}</button>`).join("")}</div></div>`;
     }
-    if (q.type === "text") return `<div class="q">${lab}<textarea id="q_${q.id}" data-q="${q.id}" maxlength="1500" rows="3" placeholder="${esc(t("s.ph"))}">${esc(v || "")}</textarea></div>`;
+    if (q.type === "text") return `<div class="q">${lab}<textarea id="q_${q.id}" data-q="${q.id}" maxlength="3000" rows="6" placeholder="${esc(t("s.ph"))}">${esc(v || "")}</textarea></div>`;
     return `<div class="q">${lab}<input id="q_${q.id}" data-q="${q.id}" maxlength="200" ${q.type === "num" ? 'inputmode="numeric"' : ""} value="${esc(v || "")}" placeholder="${esc(t("s.ph"))}"></div>`;
   }).join("");
   $("#nextLabel").textContent = t(cur === secs.length - 1 ? "s.finish" : "s.next");

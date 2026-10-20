@@ -131,6 +131,19 @@ CREATE TABLE IF NOT EXISTS applications (
     created TEXT NOT NULL,
     updated TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS outbox (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    agent TEXT DEFAULT '',
+    to_addr TEXT DEFAULT '',
+    subject TEXT DEFAULT '',
+    body TEXT DEFAULT '',
+    status TEXT DEFAULT 'draft',       -- draft | sent | manual (открыто в почтовом приложении) | failed | discarded
+    app_id INTEGER DEFAULT 0,
+    error TEXT DEFAULT '',
+    created TEXT NOT NULL,
+    sent_at TEXT DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS notices (
     client_id INTEGER NOT NULL,
     key TEXT NOT NULL,                 -- что уже напомнили: «виджет:пункт:за N дней»
@@ -180,7 +193,7 @@ def init():
             conn.execute("ALTER TABLE clients ADD COLUMN craft TEXT DEFAULT ''")
         if "survey" not in cols:  # подробная анкета: JSON {answers, summary, done, updated}
             conn.execute("ALTER TABLE clients ADD COLUMN survey TEXT DEFAULT ''")
-        for col in ("plan", "plan_until", "stripe_customer", "prefs"):  # тариф (plans.py) и покупатель в Stripe
+        for col in ("plan", "plan_until", "stripe_customer", "prefs", "mail"):  # mail — зашифрованные настройки SMTP  # тариф (plans.py) и покупатель в Stripe
             if col not in cols:
                 conn.execute(f"ALTER TABLE clients ADD COLUMN {col} TEXT DEFAULT ''")
 
@@ -366,6 +379,43 @@ def replace_last_answer(client_id, agent, text, meta_extra=None):
             conn.execute("UPDATE messages SET text=?, meta=? WHERE id=?", (text, json.dumps(meta, ensure_ascii=False), r["id"]))
 
 
+# ─── Исходящие письма (черновик → согласование → отправка) ───────────────────
+
+def add_email(client_id, agent, to_addr, subject, body, app_id=0):
+    with db() as conn:
+        return conn.execute("INSERT INTO outbox (client_id, agent, to_addr, subject, body, app_id, created) "
+                            "VALUES (?,?,?,?,?,?,?)", (client_id, agent, to_addr[:300], subject[:300], body[:20000],
+                                                       int(app_id or 0), now())).lastrowid
+
+
+def list_outbox(client_id, limit=100):
+    with db() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM outbox WHERE client_id=? AND status!='discarded' "
+                                              "ORDER BY CASE status WHEN 'draft' THEN 0 ELSE 1 END, id DESC LIMIT ?",
+                                              (client_id, limit))]
+
+
+def get_email(client_id, eid):
+    with db() as conn:
+        r = conn.execute("SELECT * FROM outbox WHERE id=? AND client_id=?", (eid, client_id)).fetchone()
+    return dict(r) if r else None
+
+
+def update_email(client_id, eid, **f):
+    f = {k: v for k, v in f.items() if k in ("to_addr", "subject", "body", "status", "error", "sent_at")}
+    if f:
+        with db() as conn:
+            conn.execute(f"UPDATE outbox SET {', '.join(k + '=?' for k in f)} WHERE id=? AND client_id=?",
+                         (*f.values(), eid, client_id))
+
+
+def emails_sent_today(client_id):
+    day = datetime.now().strftime("%Y-%m-%d")
+    with db() as conn:
+        return conn.execute("SELECT COUNT(*) FROM outbox WHERE client_id=? AND status IN ('sent','manual') "
+                            "AND substr(sent_at,1,10)=?", (client_id, day)).fetchone()[0]
+
+
 def notice_once(client_id: int, key: str) -> bool:
     """True — если это напоминание ещё не отправлялось (и отмечает его отправленным)."""
     with db() as conn:
@@ -500,12 +550,14 @@ def list_clients():
         d.pop("key_hash", None)
         d["tg_connected"] = bool(d.pop("tg_token", ""))
         d.pop("survey", None)
+        d.pop("mail", None)
         out.append(d)
     return out
 
 
 CLIENT_EDITABLE = {"name", "profile", "lang", "monthly_budget", "model_chat", "model_deep",
-                   "tg_token", "tg_chat_id", "share_insights", "active", "plan", "plan_until", "stripe_customer", "prefs"}
+                   "tg_token", "tg_chat_id", "share_insights", "active", "plan", "plan_until", "stripe_customer", "prefs",
+                   "mail"}
 
 
 def update_client(client_id: int, **fields):
@@ -699,6 +751,7 @@ def restart_client(client_id: int, name: str, profile: str, craft: str, lang: st
         conn.execute("DELETE FROM insights WHERE client_id=? AND shared=0", (client_id,))
         conn.execute("DELETE FROM docs WHERE client_id=?", (client_id,))
         conn.execute("DELETE FROM applications WHERE client_id=?", (client_id,))
+        conn.execute("DELETE FROM outbox WHERE client_id=? AND status='draft'", (client_id,))
         conn.execute("DELETE FROM client_opps WHERE client_id=?", (client_id,))
         conn.execute("UPDATE clients SET name=?, profile=?, craft=?, lang=?, survey='' WHERE id=?",
                      (name, profile, craft, lang, client_id))

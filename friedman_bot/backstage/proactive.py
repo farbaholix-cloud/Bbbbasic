@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 import brain
 import i18n
 import plans
+import security
 import store
 
 log = logging.getLogger("backstage.proactive")
@@ -192,6 +193,23 @@ def reminders(c):
     return len(lines)
 
 
+# ─── Чак: еженедельная пассивная проверка сайта клиента ──────────────────────
+
+def security_check(c, force=False):
+    """Пишем клиенту только когда есть критичное/важное и картина изменилась — без еженедельного спама."""
+    site, findings, changed = security.run_client(c, force=force)
+    serious = [f for f in findings if f["sev"] in ("critical", "important")]
+    if not site or not changed or not serious:
+        return 0
+    L = i18n.norm(c["lang"])
+    rest = len(findings) - len(serious)
+    text = (i18n.sec_text(L, "intro", site=site) + "\n\n" + "\n".join(f"- **{i18n.sec_line(L, f)}**" for f in serious)
+            + (("\n" + i18n.sec_text(L, "more", n=rest)) if rest else "") + "\n\n" + i18n.sec_text(L, "outro"))
+    store.add_message(c["id"], "maya", "assistant", text, {"kind": "security"})
+    tg_send(c, text)
+    return len(serious)
+
+
 # ─── расписание ──────────────────────────────────────────────────────────────
 
 def daily(force=False):
@@ -200,17 +218,19 @@ def daily(force=False):
         return {"busy": True}
     try:
         n_radar = run_radar(force=force)
-        n_dig = n_rem = 0
+        n_dig = n_rem = n_sec = 0
         for c in store.active_clients():
             if not _eligible(c):
                 continue
             try:
                 n_dig += digest(c, force=force)
                 n_rem += reminders(c)
+                n_sec += security_check(c, force=force)
             except Exception as e:  # noqa: BLE001
                 log.error("proactive %s: %s", c["slug"], e)
-        log.info("proactive: радар %d, в подборках %d, напоминаний %d", n_radar, n_dig, n_rem)
-        return {"radar": n_radar, "digest": n_dig, "reminders": n_rem}
+        log.info("proactive: радар %d, в подборках %d, напоминаний %d, предупреждений Чака %d",
+                 n_radar, n_dig, n_rem, n_sec)
+        return {"radar": n_radar, "digest": n_dig, "reminders": n_rem, "security": n_sec}
     finally:
         _lock.release()
 

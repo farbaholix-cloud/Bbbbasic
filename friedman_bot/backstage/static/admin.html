@@ -71,6 +71,13 @@
     </section>
 
     <section class="card">
+      <h2>🛡️ Безопасность — Чак</h2>
+      <p class="small muted">Самопроверка платформы при каждом открытии админки. Сайты клиентов Чак проверяет пассивно раз в неделю и пишет клиенту, только если нашёл важное.</p>
+      <div id="secPlatform"></div>
+      <div id="secClients" class="small" style="margin-top:10px"></div>
+    </section>
+
+    <section class="card">
       <h2>Радар возможностей</h2>
       <p class="small" id="radarInfo"></p>
       <div class="row" style="margin:8px 0"><button id="radarRun">Запустить радар и подборки сейчас</button><span class="small muted" id="radarMsg"></span></div>
@@ -150,6 +157,10 @@ async function load() {
       prompt("Новая персональная ссылка (скопируй и отправь клиенту):", full(r.link));
     }
   };
+  const sec = await api("api/admin/security");
+  const ico = {critical: "🔴", important: "🟠", later: "⚪", ok: "🟢"};
+  $("#secPlatform").innerHTML = sec.platform.map(f => `<p style="margin:6px 0">${ico[f.sev] || ""} ${esc(f.text)}</p>`).join("");
+  $("#secClients").innerHTML = sec.clients.length ? "<b>Сайты клиентов:</b>" + sec.clients.map(c => `<div style="margin-top:6px">${esc(c.client)} — ${esc(c.site)} (${esc(c.date || "")}): ${c.findings.length ? esc(c.findings.join("; ")) : "без замечаний"}</div>`).join("") : "";
   const rd = await api("api/admin/radar");
   $("#radarInfo").innerHTML = `Раз в день (утром) Рубен обновляет общий каталог по связкам «ремесло + страна» активных клиентов — не чаще раза в неделю на связку, не больше 4 поисков в день. Потом каждый активный клиент раз в неделю получает подборку (без затрат на ИИ) и ежедневно — напоминания о дедлайнах.<br>
     Последний прогон: <b>${esc(rd.last_day || "ещё не было")}</b> · ждут обновления: ${rd.due.length ? rd.due.map(d => esc(d.join("+"))).join(", ") : "ничего"} · в каталоге (последние): ${rd.recent.length}`;

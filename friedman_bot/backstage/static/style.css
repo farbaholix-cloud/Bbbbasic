@@ -1,7 +1,7 @@
 :root{
   --bg:#f7f3ec;--panel:#fffdf9;--ink:#1f1d1b;--muted:#6b665e;--line:#e7e0d4;
   --accent:#e0573a;--accent2:#c9432a;--accent-ink:#fff;--soft:#f1ebe1;--ok:#3c9a68;--warn:#d89a1e;--bad:#c4452f;
-  --maya:#e0573a;--ruben:#2b8a9a;--hanna:#d89a1e;--konrad:#4659c4;--noa:#cc4a80;--tarik:#3c9a68;--iris:#8a5cd0;--ben:#ec7f2b;
+  --maya:#e0573a;--ruben:#2b8a9a;--hanna:#d89a1e;--konrad:#4659c4;--noa:#cc4a80;--tarik:#3c9a68;--iris:#8a5cd0;--ben:#ec7f2b;--chuck:#3d5a6c;
   --shadow:0 1px 2px rgba(60,40,20,.05),0 10px 30px -18px rgba(60,40,20,.3);
   --radius:16px;
   color-scheme:light;
@@ -38,3 +38,14 @@ label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:99;font-size:14px}
 .av{flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--c,var(--accent));color:#fff;
   font-family:Fraunces,Georgia,serif;font-style:italic;font-size:13px;line-height:1}
+.mailcard{align-self:stretch;border:1.5px solid var(--tarik);border-radius:16px;padding:12px 14px;background:var(--panel);margin:2px 0}
+.mailcard .mhead{font-weight:600;font-size:14px;margin-bottom:2px}
+.mailcard label{margin:8px 0 3px}
+.mailcard textarea{font:14px/1.5 inherit;min-height:160px}
+.mailcard .mrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.mailcard .mhint{font-size:12px;color:var(--muted);margin:8px 0 0}
+.mailcard .mstate{font-size:13px;margin:8px 0 0;color:var(--muted)}
+.mailcard .mstate.ok{color:var(--ok);font-weight:600}
+.bad{color:var(--bad)}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+@media (max-width:520px){.mgrid{grid-template-columns:1fr}}

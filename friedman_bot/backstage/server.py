@@ -24,6 +24,7 @@ import uuid
 import base64
 import logging
 import threading
+import urllib.parse
 from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -38,6 +39,8 @@ import i18n  # noqa: E402
 import plans  # noqa: E402
 import proactive  # noqa: E402
 import docs  # noqa: E402
+import security  # noqa: E402
+import secret  # noqa: E402
 from i18n import t as T  # noqa: E402
 import brain  # noqa: E402
 
@@ -473,6 +476,71 @@ class Handler(BaseHTTPRequestHandler):
                 log.info("stripe: продление %s → %s", c["slug"], plans.activate(c["id"], c["plan"]))
         return self._json({"received": True})
 
+    def mail_settings(self, cid, L, body):
+        """Подключить почту клиента (SMTP). Перед сохранением — пробный вход, чтобы ошибка
+        была видна сразу, а не при первом письме. Пароль хранится зашифрованным."""
+        if body.get("delete"):
+            store.update_client(cid, mail="")
+            return self._json({"ok": True})
+        cfg = {k: str(body.get(k) or "").strip() for k in ("host", "port", "security", "user", "password", "from_name", "from_addr")}
+        if not cfg["password"]:  # пароль не меняли — берём сохранённый
+            cfg["password"] = mail_config(store.get_client(cid)).get("password", "")
+        cfg["from_addr"] = cfg["from_addr"] or cfg["user"]
+        if not (cfg["host"] and cfg["user"] and cfg["password"] and re.fullmatch(r"[^@\s]+@[^@\s]+", cfg["from_addr"])):
+            raise ValueError(T(L, "mail_incomplete"))
+        try:
+            with smtp_connect(cfg):
+                pass
+        except Exception as e:  # noqa: BLE001
+            return self._err(400, T(L, "mail_login_failed", e=str(e)[:160]))
+        store.update_client(cid, mail=secret.encrypt(json.dumps(cfg)))
+        return self._json({"ok": True})
+
+    def outbox_action(self, cid, L, eid, action, body):
+        e = store.get_email(cid, eid)
+        if not e:
+            return self._err(404, "not found")
+        if e["status"] != "draft":
+            return self._json(e)
+        edits = {k: str(body[k])[:20000] for k in ("to_addr", "subject", "body") if k in body}
+        if edits:
+            store.update_email(cid, eid, **edits)
+            e.update(edits)
+        if action == "/discard":
+            store.update_email(cid, eid, status="discarded")
+            return self._json({"ok": True})
+        if action != "/send":
+            return self._json(store.get_email(cid, eid))
+        to = [a.strip() for a in re.split(r"[,;]", e["to_addr"]) if a.strip()]
+        if not to or len(to) > 3 or not all(re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", a, re.I) for a in to):
+            raise ValueError(T(L, "mail_bad_to"))
+        if store.emails_sent_today(cid) >= MAIL_PER_DAY:
+            return self._err(429, T(L, "mail_limit", n=MAIL_PER_DAY))
+        cfg = mail_config(store.get_client(cid))
+        now = time.strftime("%Y-%m-%dT%H:%M:%S")
+        if not cfg or body.get("manual"):
+            # почта не подключена — письмо откроется в почтовом приложении клиента
+            store.update_email(cid, eid, status="manual", sent_at=now)
+            q = urllib.parse.urlencode({"subject": e["subject"], "body": e["body"]}, quote_via=urllib.parse.quote)
+            return self._json({"ok": True, "mailto": f"mailto:{','.join(to)}?{q}"})
+        from email.message import EmailMessage
+        from email.utils import formataddr, make_msgid
+        msg = EmailMessage()
+        msg["From"] = formataddr((cfg.get("from_name") or "", cfg["from_addr"]))
+        msg["To"] = ", ".join(to)
+        msg["Subject"] = e["subject"]
+        msg["Message-ID"] = make_msgid(domain=cfg["from_addr"].split("@")[-1])
+        msg.set_content(e["body"])
+        try:
+            with smtp_connect(cfg) as s:
+                s.send_message(msg)
+        except Exception as ex:  # noqa: BLE001
+            store.update_email(cid, eid, status="draft", error=str(ex)[:300])
+            return self._err(502, T(L, "mail_send_failed", e=str(ex)[:160]))
+        store.update_email(cid, eid, status="sent", sent_at=now, error="")
+        log.info("mail: client %s → %s", cid, ", ".join(to))
+        return self._json({"ok": True, "sent": True})
+
     def create_doc(self, cid, L, body):
         """Документ по брифу: Ганна (заявки, письма, тексты) или Бен (предложения, сметы).
         Материалы из сейфа идут вложениями; готовый текст сохраняется как документ (DOCX/PDF),
@@ -548,7 +616,8 @@ class Handler(BaseHTTPRequestHandler):
                 "backend": brain.backend(), "demo": False, "fresh": c.get("source") == "signup",
                 "agents": i18n.agents(L, brain.AGENTS), "version": VERSION,
                 "survey_done": bool(_survey(c).get("done")),
-                "plan": plans.status(c), "offers": plans.offers(c), "prefs": proactive.prefs(c)})
+                "plan": plans.status(c), "offers": plans.offers(c), "prefs": proactive.prefs(c),
+                "mail": mail_public(c)})
         if path == "/api/survey":
             sv = _survey(c)
             return self._json({"answers": sv.get("answers") or {}, "done": bool(sv.get("done")), "lang": L,
@@ -591,6 +660,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(store.list_docs(cid))
         if path == "/api/apps":
             return self._json(store.list_apps(cid))
+        if path == "/api/outbox":
+            return self._json({"emails": store.list_outbox(cid), "mail": mail_public(c)})
         if path == "/api/radar":
             w = next((w for w in store.list_widgets(cid) if w["kind"] == "list" and w["config"].get("radar")), None)
             return self._json([i for i in (w["data"].get("items") if w else []) or [] if not i.get("done")])
@@ -640,6 +711,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True})
         if path == "/api/apps":
             return self._json({"id": store.save_app(cid, body)})
+        m = re.fullmatch(r"/api/outbox/(\d+)(/send|/discard)?", path)
+        if m:
+            return self.outbox_action(cid, L, int(m.group(1)), m.group(2), body)
+        if path == "/api/mail":
+            return self.mail_settings(cid, L, body)
         if path == "/api/docs/create":
             return self.create_doc(cid, L, body)
         if path == "/api/messages/clear":
@@ -698,6 +774,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(store.all_insights())
         if path == "/api/admin/usage":
             return self._json(store.usage_summary(None, days=int((q.get("days") or ["31"])[0])))
+        if path == "/api/admin/security":
+            rows = []
+            for c in store.list_clients():
+                rep = security.last_report(c)
+                if rep.get("site"):
+                    rows.append({"client": c["name"], "site": rep["site"], "date": rep.get("date"),
+                                 "findings": [i18n.sec_line("ua", f) for f in rep.get("findings", [])]})
+            return self._json({"platform": security.platform_audit(), "clients": rows})
         if path == "/api/admin/radar":
             return self._json({"recent": store.recent_opportunities(60), "due": proactive.clusters_due(),
                                "last_day": store.meta_get("proactive_day", "")})
@@ -757,6 +841,33 @@ class Handler(BaseHTTPRequestHandler):
 
 
 RESTARTS_PER_DAY = 3
+MAIL_PER_DAY = int(os.environ.get("BACKSTAGE_MAIL_PER_DAY", "20"))
+
+
+def mail_config(c):
+    try:
+        return json.loads(secret.decrypt(c.get("mail") or "")) if c.get("mail") else {}
+    except Exception:
+        return {}
+
+
+def mail_public(c):
+    cfg = mail_config(c)
+    return {"configured": bool(cfg), "from_addr": cfg.get("from_addr", ""), "from_name": cfg.get("from_name", ""),
+            "host": cfg.get("host", ""), "port": cfg.get("port", ""), "security": cfg.get("security", ""),
+            "user": cfg.get("user", "")}
+
+
+def smtp_connect(cfg):
+    import smtplib
+    port = int(cfg.get("port") or 465)
+    if (cfg.get("security") or ("ssl" if port == 465 else "starttls")) == "ssl":
+        s = smtplib.SMTP_SSL(cfg["host"], port, timeout=20, context=ssl.create_default_context())
+    else:
+        s = smtplib.SMTP(cfg["host"], port, timeout=20)
+        s.starttls(context=ssl.create_default_context())
+    s.login(cfg["user"], cfg["password"])
+    return s
 VAULT_LIMIT = int(os.environ.get("BACKSTAGE_VAULT_MB", "150")) * 1024 * 1024
 FILE_KINDS = ("cv", "portfolio", "statement", "bio", "press", "photo", "video", "other")
 

@@ -122,6 +122,16 @@ MSG = {
     "vault_full": {"en": "Your materials folder is full ({n} MB). Delete something first.",
                    "de": "Dein Materialordner ist voll ({n} MB). Lösch zuerst etwas.",
                    "ua": "Тека матеріалів заповнена ({n} МБ). Спершу видали щось."},
+    "mail_incomplete": {"en": "Fill in server, login, password and sender address.", "de": "Bitte Server, Login, Passwort und Absenderadresse ausfüllen.",
+                        "ua": "Заповни сервер, логін, пароль і адресу відправника."},
+    "mail_login_failed": {"en": "Couldn't log in to your mailbox: {e}", "de": "Anmeldung am Postfach fehlgeschlagen: {e}",
+                          "ua": "Не вдалося увійти в поштову скриньку: {e}"},
+    "mail_bad_to": {"en": "Check the recipient address (up to 3, separated by commas).", "de": "Prüf die Empfängeradresse (bis zu 3, mit Komma getrennt).",
+                    "ua": "Перевір адресу отримувача (до 3, через кому)."},
+    "mail_limit": {"en": "Up to {n} emails a day — protection against spam. Try again tomorrow.",
+                   "de": "Bis zu {n} E-Mails pro Tag — Schutz vor Spam. Morgen geht es weiter.",
+                   "ua": "До {n} листів на день — захист від спаму. Спробуй завтра."},
+    "mail_send_failed": {"en": "The email wasn't sent: {e}", "de": "Die E-Mail wurde nicht gesendet: {e}", "ua": "Лист не надіслано: {e}"},
     "restart_limit": {"en": "You can start from scratch up to {n} times a day. Please try again tomorrow.",
                       "de": "Von vorn beginnen geht bis zu {n}-mal am Tag. Versuch es morgen wieder.",
                       "ua": "Почати з нуля можна до {n} разів на день. Спробуй завтра."},
@@ -138,13 +148,13 @@ def t(lang, key, **kw):
 AGENTS = {
     "en": {"maya": ("Maya", "Producer"), "ruben": ("Ruben", "Scout"), "hanna": ("Hanna", "Grant writer"),
            "konrad": ("Konrad", "Legal"), "noa": ("Noa", "Online marketing"), "tarik": ("Tarik", "PR & offline"),
-           "iris": ("Iris", "Content & video"), "ben": ("Ben", "Finance")},
+           "iris": ("Iris", "Content & video"), "ben": ("Ben", "Finance"), "chuck": ("Chuck", "Security")},
     "de": {"maya": ("Maya", "Produzentin"), "ruben": ("Ruben", "Scout"), "hanna": ("Hanna", "Antragsautorin"),
            "konrad": ("Konrad", "Recht"), "noa": ("Noa", "Online-Marketing"), "tarik": ("Tarik", "PR & offline"),
-           "iris": ("Iris", "Content & Video"), "ben": ("Ben", "Finanzen")},
+           "iris": ("Iris", "Content & Video"), "ben": ("Ben", "Finanzen"), "chuck": ("Chuck", "Sicherheit")},
     "ua": {"maya": ("Майя", "Продюсерка"), "ruben": ("Рубен", "Скаут"), "hanna": ("Ганна", "Грантрайтерка"),
            "konrad": ("Конрад", "Юридичний відділ"), "noa": ("Ноа", "Онлайн-маркетинг"), "tarik": ("Тарік", "PR і офлайн"),
-           "iris": ("Ірис", "Контент і відео"), "ben": ("Бен", "Фінанси")},
+           "iris": ("Ірис", "Контент і відео"), "ben": ("Бен", "Фінанси"), "chuck": ("Чак", "Захисник")},
 }
 
 
@@ -242,6 +252,61 @@ SEED = {
            "profile_text": "Хто я, що роблю, чого хочу досягти за 12 місяців. Команда читає цю нотатку перед кожною відповіддю."},
 }
 
+SEC = {
+    "sev": {"critical": ("critical", "kritisch", "критично"), "important": ("important", "wichtig", "важливо"),
+            "later": ("can wait", "kann warten", "можна пізніше")},
+    "cert_expired": ("The website's security certificate has expired — visitors see a warning.",
+                     "Das Sicherheitszertifikat der Website ist abgelaufen — Besucher sehen eine Warnung.",
+                     "Сертифікат безпеки сайту прострочений — відвідувачі бачать попередження."),
+    "cert_soon": ("The certificate expires in {d} days — check that it renews automatically.",
+                  "Das Zertifikat läuft in {d} Tagen ab — prüf, ob es sich automatisch erneuert.",
+                  "Сертифікат спливає через {d} дн. — перевір, чи він оновлюється автоматично."),
+    "cert_invalid": ("The certificate isn't valid for this domain — browsers show a warning.",
+                     "Das Zertifikat ist für diese Domain ungültig — Browser zeigen eine Warnung.",
+                     "Сертифікат не дійсний для цього домену — браузери показують попередження."),
+    "no_https": ("The website doesn't open via HTTPS at all.", "Die Website ist gar nicht per HTTPS erreichbar.",
+                 "Сайт узагалі не відкривається через HTTPS."),
+    "no_redirect": ("http:// doesn't redirect to https:// — some visits stay unencrypted.",
+                    "http:// leitet nicht auf https:// um — manche Besuche bleiben unverschlüsselt.",
+                    "http:// не перенаправляє на https:// — частина відвідувань лишається без шифрування."),
+    "no_hsts": ("No HSTS header: browsers aren't told to always use HTTPS.",
+                "Kein HSTS-Header: Browser werden nicht angewiesen, immer HTTPS zu nutzen.",
+                "Немає заголовка HSTS: браузерам не сказано завжди використовувати HTTPS."),
+    "no_frame": ("The site can be embedded in other pages (no clickjacking protection).",
+                 "Die Seite lässt sich in fremde Seiten einbetten (kein Clickjacking-Schutz).",
+                 "Сайт можна вбудувати в чужі сторінки (немає захисту від clickjacking)."),
+    "no_nosniff": ("Missing X-Content-Type-Options header.", "Header X-Content-Type-Options fehlt.",
+                   "Бракує заголовка X-Content-Type-Options."),
+    "version_header": ("The server reveals its software version ({d}).", "Der Server verrät seine Softwareversion ({d}).",
+                       "Сервер показує версію свого ПЗ ({d})."),
+    "cms_version": ("The site shows its CMS version ({d}) — attackers look for outdated versions. Hide it and keep the CMS updated.",
+                    "Die Seite zeigt ihre CMS-Version ({d}) — Angreifer suchen gezielt nach veralteten Versionen. Verstecken und das CMS aktuell halten.",
+                    "Сайт показує версію CMS ({d}) — зловмисники шукають застарілі версії. Сховай її й оновлюй CMS."),
+    "no_spf": ("Your domain has no SPF record — anyone can send emails pretending to be you.",
+               "Deine Domain hat keinen SPF-Eintrag — jede:r kann E-Mails in deinem Namen verschicken.",
+               "Твій домен не має запису SPF — будь-хто може надсилати листи від твого імені."),
+    "no_dmarc": ("No DMARC record — fake emails from your domain aren't blocked.",
+                 "Kein DMARC-Eintrag — gefälschte E-Mails von deiner Domain werden nicht blockiert.",
+                 "Немає запису DMARC — підроблені листи з твого домену не блокуються."),
+    "intro": ("🛡️ Chuck here — weekly security check of {site}:", "🛡️ Hier ist Chuck — wöchentlicher Sicherheits-Check von {site}:",
+              "🛡️ Це Чак — щотижнева перевірка безпеки {site}:"),
+    "more": ("+ {n} smaller points.", "+ {n} kleinere Punkte.", "+ ще {n} дрібніших пунктів."),
+    "outro": ("Write to me (Chuck) for step-by-step instructions — most fixes take 5–15 minutes.",
+              "Schreib mir (Chuck) für eine Schritt-für-Schritt-Anleitung — das meiste ist in 5–15 Minuten erledigt.",
+              "Напиши мені (Чаку) — дам покрокову інструкцію; більшість виправлень займає 5–15 хвилин."),
+}
+
+
+def sec_line(lang, f):
+    i = LANGS.index(norm(lang))
+    return f"{SEC['sev'][f['sev']][i]}: " + SEC[f["code"]][i].replace("{d}", str(f.get("detail") or ""))
+
+
+def sec_text(lang, key, **kw):
+    s = SEC[key][LANGS.index(norm(lang))]
+    return s.format(**kw) if kw else s
+
+
 DOC_KINDS = {
     "en": {"application": "Application", "letter": "Cover letter", "statement": "Artist statement", "bio": "Short bio",
            "offer": "Commercial offer", "estimate": "Cost estimate", "email": "Email to a client"},
@@ -318,7 +383,7 @@ def welcome(lang, name, craft, goal):
         return (f"Hallo {first}! Ich bin Maya, die Produzentin deines Teams. Ich bin dafür da, dass dir Zeit "
                 "für die Kunst und fürs Leben bleibt — nicht für Routine.\n\n"
                 "Mit mir arbeiten Ruben (findet Chancen), Hanna (schreibt Anträge), Konrad (prüft Verträge), "
-                "Noa und Tarik (Promotion), Iris (Content) und Ben (Finanzen). Du musst nicht jedem einzeln schreiben: "
+                "Noa und Tarik (Promotion), Iris (Content), Ben (Finanzen) und Chuck (Sicherheit). Du musst nicht jedem einzeln schreiben: "
                 "schreib mir, ich verteile die Aufgaben und bringe die Antworten zusammen."
                 f"{goal_line}\n\nIch habe das Team schon zur ersten Analyse deines Fragebogens geholt: Wir suchen "
                 "im Netz nach Chancen für dich und skizzieren die ersten Schritte. Das dauert ein paar Minuten.\n\n"
@@ -329,7 +394,7 @@ def welcome(lang, name, craft, goal):
         return (f"Вітаю, {first}! Я Майя, продюсерка твоєї команди. Я тут для того, щоб у тебе лишався час "
                 "на творчість і на життя, а не на рутину.\n\n"
                 "Зі мною Рубен (шукає можливості), Ганна (пише заявки), Конрад (читає договори), Ноа і Тарік "
-                "(просування), Ірис (контент) і Бен (гроші). Не треба писати кожному: пиши мені, я роздам завдання "
+                "(просування), Ірис (контент), Бен (гроші) і Чак (безпека). Не треба писати кожному: пиши мені, я роздам завдання "
                 "і зберу відповідь."
                 f"{goal_line}\n\nЯ вже покликала їх на перший розбір твоєї анкети: пошукаємо для тебе можливості "
                 "в інтернеті й намітимо перші кроки. Це займе кілька хвилин.\n\n"
@@ -339,7 +404,7 @@ def welcome(lang, name, craft, goal):
     return (f"Hi {first}! I'm Maya, your team's producer. I'm here so that you have time for your art "
             "and for living — not for routine.\n\n"
             "With me are Ruben (finds opportunities), Hanna (writes applications), Konrad (reads contracts), "
-            "Noa and Tarik (promotion), Iris (content) and Ben (money). You don't need to write to each of them: "
+            "Noa and Tarik (promotion), Iris (content), Ben (money) and Chuck (security). You don't need to write to each of them: "
             "write to me, I'll hand out the tasks and bring the answers together."
             f"{goal_line}\n\nI've already called the team for a first review of your questionnaire: we'll look "
             "for opportunities online and outline your first steps. It takes a few minutes.\n\n"
