@@ -342,6 +342,26 @@ def main():
         check("свод собирает страницы", len(pages) >= 1, f"страниц {len(pages)}")
     step("свод", t_svod)
 
+    # ── Backstage: скрипты страниц понятны старым Safari (iOS 10.3+, ES2017) ─────
+    def t_old_safari():
+        import glob
+        import re as _re
+        bad = [(r"\w\?\.[\w\[(]", "?."), (r"\s\?\?[\s=]", "??"), (r"\bcatch\s*\{", "catch {} без переменной"),
+               (r"\{\s*\.\.\.\w", "{...объект}"), (r"\.(?:at|flat|flatMap|replaceAll|matchAll)\(", "новый метод"),
+               (r"Object\.fromEntries", "Object.fromEntries")]
+        found = []
+        for f in glob.glob(os.path.join(HERE, "backstage", "static", "*.*")):
+            if not f.endswith((".js", ".html")):
+                continue
+            src = open(f, encoding="utf-8").read()
+            code = "\n".join(_re.findall(r"<script>(.*?)</script>", src, _re.S)) if f.endswith(".html") else src
+            for pat, what in bad:
+                m = _re.search(pat, code)
+                if m:
+                    found.append(f"{os.path.basename(f)}: {what} «{code[max(0, m.start() - 20):m.end() + 20].strip()}»")
+        check("Backstage: скрипты без синтаксиса новее ES2017 (старые Safari)", not found, "; ".join(found[:3]))
+    step("старые Safari", t_old_safari)
+
     check("боевые базы не тронуты экзаменом",
           [_fingerprint(p) for p in live] == live_before)
     shutil.rmtree(scratch, ignore_errors=True)
