@@ -9704,7 +9704,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.18"  # видимая метка сборки бота
+BOT_VERSION = "09.19"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (
@@ -9720,6 +9720,13 @@ COMMANDS_HELP = (
     "• /update — обновить всё вручную (/update force — без экзамена)\n"
     "• /update_iphone — обновить только дашборд iPhone (боты не перезапускаются)\n"
     "• /update_mac — обновить только Mac-дашборд\n"
+    "• /safe — сейф: полный архив прямо сейчас\n"
+    "\nBackstage (агентство для креативных):\n"
+    "• /backstage — ссылки, админка, состояние, число клиентов\n"
+    "• /bsclients — кто зарегистрировался и что о себе написал\n"
+    "• /backstageclient код Название [бюджет$] — завести клиента вручную\n"
+    "• /backstagedomain домен.de — свой домен (off — отключить)\n"
+    "• /backstagekey — ключ Claude API для Backstage (сообщение с ключом удаляется)\n"
     "\nЮрист:\n"
     "• /juriststatus — диагностика Юриста\n"
     "• /juristrestart — перезапустить Юриста\n"
@@ -9731,6 +9738,20 @@ COMMANDS_HELP = (
     "\nАварийное:\n"
     "• /rollback_import — вернуть базу из бэкапа (откат импорта 09.07)"
 )
+
+
+# То же меню — в кнопке «/» Telegram (описания до 256 знаков)
+MENU_COMMANDS = [
+    ("brief", "Утренняя сводка сейчас"), ("svod", "Свод вводных под печать"), ("ip", "Ссылка на дашборд"),
+    ("status", "Здоровье всей системы"), ("backstage", "Backstage: ссылки, админка, состояние"),
+    ("bsclients", "Backstage: кто зарегистрировался"), ("backstageclient", "Backstage: завести клиента"),
+    ("backstagedomain", "Backstage: свой домен"), ("backstagekey", "Backstage: ключ Claude API"),
+    ("safe", "Сейф: полный архив сейчас"), ("ux", "Как ты пользуешься дашбордом"), ("startpage", "Стартовая вкладка дашборда"),
+    ("siri", "Идеи голосом через Siri"), ("update", "Обновить всё вручную"), ("update_iphone", "Обновить дашборд iPhone"),
+    ("update_mac", "Обновить Mac-дашборд"), ("juriststatus", "Диагностика Юриста"), ("juristrestart", "Перезапустить Юриста"),
+    ("setinvoicedata", "Реквизиты для счетов"), ("wipeinvoicestoday", "Удалить счета за сегодня"),
+    ("rollback_import", "Откат импорта 09.07 из бэкапа"),
+]
 
 
 def _deployed_sha_short():
@@ -9753,6 +9774,11 @@ async def _on_start(app):
                     asyncio.to_thread(_exam_verdict_for, sha), timeout=200)
             except Exception as e:
                 exam = f"не удалось провести: {e}"
+            try:
+                from telegram import BotCommand, BotCommandScopeChat
+                await app.bot.set_my_commands([BotCommand(c, d) for c, d in MENU_COMMANDS], scope=BotCommandScopeChat(cid))
+            except Exception as e:
+                log.error(f"set_my_commands: {e}")
             await app.bot.send_message(
                 cid,
                 f"🚀 Секретарь обновлён и запущен.\n"
