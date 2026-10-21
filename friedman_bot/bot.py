@@ -7232,7 +7232,7 @@ async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"\nАдминка:\n{base}/admin",
         f"Ключ админки (никому не пересылай):\n{env.get('BACKSTAGE_ADMIN_KEY', '— появится после первого запуска')}",
         f"\nИнструкция для клиентов:\n{base}/guide",
-        f"\nКлиентов: {n_clients}",
+        f"\nКлиентов: {n_clients} — кто они и что о себе написали: /bsclients",
         ("Команда работает по ключу Claude API" if env.get("ANTHROPIC_API_KEY")
          else "Команда работает по твоей подписке Claude"),
         f"Регистрация для новых людей: {base}/  (закрыть/открыть — в админке)",
@@ -7243,6 +7243,64 @@ async def cmd_backstage(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if not alive:
         _restart_backstage(d)
     await ctx.bot.send_message(chat_id, "\n".join(lines), disable_web_page_preview=True)
+
+
+def _backstage_clients_report(db_path):
+    """Сводка по клиентам Backstage для владельца: кто, что о себе написал, насколько активен."""
+    con = sqlite3.connect(db_path, timeout=10)
+    con.row_factory = sqlite3.Row
+    cols = {r[1] for r in con.execute("PRAGMA table_info(clients)")}
+    want = [c for c in ("id", "slug", "name", "profile", "lang", "created", "source", "src", "plan", "survey", "active") if c in cols]
+    rows = con.execute(f"SELECT {', '.join(want)} FROM clients ORDER BY id").fetchall()
+    out = []
+    for r in rows:
+        r = dict(r)
+        act = con.execute("SELECT COUNT(*), MAX(created) FROM messages WHERE client_id=? AND role='user' AND agent!='_archive'",
+                          (r["id"],)).fetchone()
+        try:
+            survey = jsonlib.loads(r.get("survey") or "{}").get("done")
+        except Exception:
+            survey = False
+        head = f"👤 {r.get('name') or '—'} ({r.get('slug')}) · {str(r.get('created') or '')[:10]} · {str(r.get('lang') or '').upper()}"
+        tags = [r.get("source") or "admin"]
+        if r.get("src"):
+            tags.append("QR: " + r["src"])
+        if r.get("plan"):
+            tags.append(r["plan"])
+        if survey:
+            tags.append("анкета ✅")
+        if not r.get("active", 1):
+            tags.append("отключён")
+        profile = re.sub(r"\s+", " ", r.get("profile") or "").strip()
+        last = (act[1] or "")[:10]
+        out.append(f"{head}\n{' · '.join(tags)} · сообщений: {act[0]}{(' · последнее ' + last) if last else ''}\n"
+                   f"{profile[:450] + ('…' if len(profile) > 450 else '') if profile else '(профиль пуст)'}")
+    con.close()
+    return out
+
+
+async def cmd_bsclients(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """/bsclients — кто зарегистрирован в Backstage и что о себе написал (только владельцу)."""
+    chat_id = update.effective_chat.id
+    owner = get_chat_id()
+    if not owner or chat_id != owner:
+        return
+    d = os.path.dirname(os.path.abspath(__file__))
+    try:
+        items = _backstage_clients_report(os.path.join(d, "backstage", "backstage.db"))
+    except Exception as e:
+        await ctx.bot.send_message(chat_id, f"Не смог прочитать базу Backstage: {e}")
+        return
+    if not items:
+        await ctx.bot.send_message(chat_id, "В Backstage пока никто не зарегистрирован.")
+        return
+    chunk = f"🎬 Backstage — клиентов: {len(items)}\n"
+    for it in items:  # Telegram режет сообщения длиннее 4096 знаков
+        if len(chunk) + len(it) + 2 > 3900:
+            await ctx.bot.send_message(chat_id, chunk, disable_web_page_preview=True)
+            chunk = ""
+        chunk += "\n" + it + "\n"
+    await ctx.bot.send_message(chat_id, chunk, disable_web_page_preview=True)
 
 
 async def _accept_backstage_key(update: Update, ctx: ContextTypes.DEFAULT_TYPE, key: str):
@@ -9646,7 +9704,7 @@ async def cmd_rollback_import(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ─── main ─────────────────────────────────────────────────────────────────────
 
-BOT_VERSION = "09.17"  # видимая метка сборки бота
+BOT_VERSION = "09.18"  # видимая метка сборки бота
 
 
 COMMANDS_HELP = (
@@ -9746,6 +9804,7 @@ def main():
     app.add_handler(CommandHandler("ip", cmd_ip))
     app.add_handler(CommandHandler("safe", cmd_safe))
     app.add_handler(CommandHandler("backstage", cmd_backstage))
+    app.add_handler(CommandHandler("bsclients", cmd_bsclients))
     app.add_handler(CommandHandler("backstagekey", cmd_backstagekey))
     app.add_handler(CommandHandler("backstagedomain", cmd_backstagedomain))
     app.add_handler(CommandHandler("backstageclient", cmd_backstageclient))
