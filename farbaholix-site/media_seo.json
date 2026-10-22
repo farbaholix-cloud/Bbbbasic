@@ -1,1150 +1,1160 @@
 {
-"logo-badge": {
-"id": 501,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/farbaholix-logo-frankfurt-mural-movement.webp"
-},
-"georgen-strelitzie-wand": {
-"id": 502,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-mural-strelitzien.webp"
-},
-"georgen-strelitzie-detail": {
-"id": 503,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-frankfurt-strelitzie-detail-graffiti.webp"
-},
-"georgen-strassenbahn": {
-"id": 504,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-mauer-sankt-georgen-strassenbahn.webp"
-},
-"georgen-monstera": {
-"id": 505,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wandbild-frankfurt-monstera-graffiti.webp"
-},
-"georgen-kuenstler": {
-"id": 506,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-kuenstler-frankfurt-slavik-bei-der-arbeit.webp"
-},
-"georgen-presse": {
-"id": 948,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-fnp-aus-seiner-spruehdose-kommen-blumen-sankt-georgen.webp"
-},
-"fsv-stadion-fassade": {
-"id": 508,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-stadion-bornheimer-hang.webp"
-},
-"wellenlaenge-panorama": {
-"id": 2414,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/fassadengestaltung-mural-restaurant-wellenlaenge-ruesselsheim.webp"
-},
-"wellenlaenge-interieur": {
-"id": 510,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-restaurant-interieur-wellenlaenge.webp"
-},
-"wellenlaenge-portrait": {
-"id": 511,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-portrait-eingang-restaurant-wellenlaenge.webp"
-},
-"wellenlaenge-welcome": {
-"id": 512,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fotospot-fluegel-graffiti-welcome.webp"
-},
-"wellenlaenge-fassade": {
-"id": 513,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fassaden-mural-restaurant-wellenlaenge-panorama.webp"
-},
-"enso-neu-isenburg": {
-"id": 514,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-neu-isenburg-enso-another-world-is-possible.webp"
-},
-"presse-offenbach-post": {
-"id": 515,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-offenbach-post-titelseite-mural-enso.webp"
-},
-"artist-slavik-v3": {
-"id": 843,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-portrait-graffiti-kuenstler-frankfurt.webp"
-},
-"slavik-portrait": {
-"id": 517,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-graffiti-kuenstler-frankfurt.webp"
-},
-"partner-kunden-logos": {
-"id": 518,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/farbaholix-kunden-partner-logos.webp"
-},
-"slavik-sankt-georgen-monstera": {
-"id": 519,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-slavik-sankt-georgen-monstera.webp"
-},
-"slavik-graffiti-auto": {
-"id": 520,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-graffiti-sportwagen.webp"
-},
-"slavik-atelier": {
-"id": 521,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-atelier-leinwand.webp"
-},
-"newcomers-reception": {
-"id": 522,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/newcomers-reception-frankfurt-roemer-slavik-balabaiev.webp"
-},
-"cansativa-lettering": {
-"id": 523,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-buero-frankfurt-cansativa-lettering.webp"
-},
-"signatur-slavik-dunkel": {
-"id": 526,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-kalligrafie-signatur-v2.png"
-},
-"signatur-slavik-gold": {
-"id": 527,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-kalligrafie-signatur-gold-v2.png"
-},
-"sg-strelitzien": {
-"id": 543,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-strelitzien-mural.webp"
-},
-"sg-monstera": {
-"id": 544,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-frankfurt-monstera-sankt-georgen.webp"
-},
-"sg-blueten": {
-"id": 545,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-blumen-mural-biene-sankt-georgen.webp"
-},
-"presse-op-seite37": {
-"id": 546,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-offenbach-post-luft-kann-man-sehen-und-hoeren-enso.webp"
-},
-"fsv-wappen-flammen": {
-"id": 644,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-wappen-blaue-flammen.webp"
-},
-"fsv-stadion-arena": {
-"id": 645,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-stadion-fassade-psd-bank-arena.webp"
-},
-"fsv-panorama": {
-"id": 682,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-stadion-panorama-fanshop.webp",
-"alt_de": "Panorama der FSV-Frankfurt-Fassade mit Schriftzug „FSV Frankfurt 1899“, Wappen und Fanshop-Anhängern – Graffiti von Farbaholix"
-},
-"fsv-vereinsheim": {
-"id": 683,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-innenraum-wappen-wandgestaltung.webp",
-"alt_de": "Innenraum im FSV-Frankfurt-Stadion mit Wappen, Jahreszahl 1899 und Porträts an der Wand"
-},
-"fsv-immer-weiter": {
-"id": 684,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-immer-weiter-wandschrift-kicker.webp",
-"alt_de": "Wandschrift „Immer weiter“ und Kickertisch im FSV-Frankfurt-Stadion"
-},
-"fsv-caparol": {
-"id": 685,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/caparol-logo-graffiti-fsv-frankfurt.webp",
-"alt_de": "Caparol-Logo wird mit der Sprühdose auf blauen Grund gemalt – Materialpartner beim FSV-Projekt"
-},
-"fsv-gang": {
-"id": 686,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-gang-wirsindfsv-wandgestaltung.webp",
-"alt_de": "Gang im FSV-Frankfurt-Stadion mit Schriftzug #WIRsindFSV und grafischem Muster"
-},
-"fsv-arena-ecke": {
-"id": 687,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/psd-bank-arena-fassade-graffiti-frankfurt.webp",
-"alt_de": "Stadionecke mit Schriftzug #WIRsindFSV – damals PSD Bank Arena, seit 2026 BBBank Arena"
-},
-"fsv-rampe-fussball": {
-"id": 688,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-rampe-rasen-fussball-graffiti.webp",
-"alt_de": "Rampe am FSV-Stadion als Rasen mit Fußball gemalt – Graffiti von Farbaholix"
-},
-"fsv-respekt": {
-"id": 689,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-respekt-mut-leidenschaft-wappen.webp",
-"alt_de": "Gang mit Schriftzug „Respekt · Mut · Leidenschaft“ und Wappen in blauen Flammen im FSV-Stadion"
-},
-"sg-partner": {
-"id": 690,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/montana-colors-caparol-logos-graffiti-sankt-georgen.webp",
-"alt_de": "Logos von Montana Colors und Caparol als Graffiti an der Mauer von Sankt Georgen"
-},
-"sg-caparol-malen": {
-"id": 691,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/caparol-elefant-graffiti-sankt-georgen.webp",
-"alt_de": "Der Caparol-Elefant wird an die Mauer von Sankt Georgen gesprüht"
-},
-"sg-pink": {
-"id": 692,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-pinke-blaetter-mural.webp",
-"alt_de": "Pinkfarbene Blätter als Graffiti-Detail an der Mauer von Sankt Georgen"
-},
-"sg-mensa": {
-"id": 693,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mensa-im-park-mural.webp",
-"alt_de": "Schild „Mensa im Park“ inmitten des Blätter-Murals an der Mauer von Sankt Georgen"
-},
-"sg-bananenblatt": {
-"id": 694,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-frankfurt-bananenblaetter-violette-bluete.webp",
-"alt_de": "Bananenblätter und violette Blüte als Mural in Frankfurt"
-},
-"sg-slavik-monstera": {
-"id": 695,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-spruehdose-monstera-sankt-georgen.webp",
-"alt_de": "Slavik sprüht ein Monstera-Blatt an die Mauer von Sankt Georgen"
-},
-"sg-monstera-2": {
-"id": 696,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/monstera-blatt-graffiti-mauer-frankfurt.webp",
-"alt_de": "Monstera-Blatt als Graffiti an der Campusmauer in Frankfurt"
-},
-"sg-strelitzie-nah": {
-"id": 697,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/strelitzie-graffiti-detail-frankfurt.webp",
-"alt_de": "Strelitzie in Orange und Violett – Graffiti-Detail an der Mauer von Sankt Georgen"
-},
-"sg-slavik-bluete": {
-"id": 698,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-malt-weisse-bluete-mural.webp",
-"alt_de": "Slavik malt eine weiße Blüte an die Mauer von Sankt Georgen"
-},
-"sg-farben": {
-"id": 699,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/montana-spruehdosen-graffiti-sankt-georgen.webp",
-"alt_de": "Sprühdosen von Montana Colors und Skizzen vor dem Mural in Sankt Georgen"
-},
-"sg-mauer-fahnen": {
-"id": 700,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mauer-strelitzien-jubilaeumsfahnen.webp",
-"alt_de": "Campusmauer von Sankt Georgen mit Strelitzien und Jubiläumsfahnen"
-},
-"sg-palme": {
-"id": 701,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/palmblatt-graffiti-sankt-georgen.webp",
-"alt_de": "Palmblätter als Graffiti an der Mauer von Sankt Georgen"
-},
-"sg-lotus": {
-"id": 702,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/lotus-bluete-graffiti-frankfurt.webp",
-"alt_de": "Lotusblüte mit Blättern als Graffiti in Frankfurt"
-},
-"sg-monstera-mauer": {
-"id": 703,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/monstera-mural-campusmauer-sankt-georgen.webp",
-"alt_de": "Großes Monstera-Blatt an der Campusmauer von Sankt Georgen"
-},
-"sg-einblatt": {
-"id": 704,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/einblatt-bluete-mural-sankt-georgen-signatur.webp",
-"alt_de": "Einblatt-Blüte mit Farbaholix-Signatur am Ende der Mauer von Sankt Georgen"
-},
-"sg-abend": {
-"id": 705,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mauer-mural-offenbacher-landstrasse.webp",
-"alt_de": "Die bemalte Mauer von Sankt Georgen im Abendlicht an der Straße"
-},
-"sg-100-jahre": {
-"id": 706,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/100-jahre-sankt-georgen-heute-weiter-denken.webp",
-"alt_de": "Schriftzug „100 Jahre Sankt Georgen – heute weiter denken“ an der Mauer"
-},
-"sg-grundierung": {
-"id": 707,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-grundierung-mauer-sankt-georgen.webp",
-"alt_de": "Slavik grundiert die Mauer von Sankt Georgen mit dem Farbspritzgerät"
-},
-"sg-strasse": {
-"id": 708,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mauer-strassenansicht-mural.webp",
-"alt_de": "Straßenansicht der bemalten Mauer von Sankt Georgen"
-},
-"bb-philokalist": {
-"id": 828,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/schaufenster-graffiti-frankfurt-frau-leben-freiheit-philokalist.webp",
-"alt_de": "Schaufenster-Kalligrafie „Frau, Leben, Freiheit“ im Philokalist Concept Store, Braubachstraße Frankfurt – Farbaholix"
-},
-"bb-salon": {
-"id": 829,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/schaufenster-graffiti-demokratie-lebt-vom-mitmachen-frankfurter-salon.webp",
-"alt_de": "Schaufenster-Graffiti „Demokratie lebt vom Mitmachen“ am Frankfurter Salon, Braubachstraße – Farbaholix"
-},
-"bb-iimori": {
-"id": 830,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/schaufenster-graffiti-willy-brandt-berlin-wird-leben-iimori.webp",
-"alt_de": "Schaufenster-Kalligrafie „Berlin wird leben und die Mauer wird fallen“ (Willy Brandt) an der Iimori Pâtisserie, Braubachstraße – Farbaholix"
-},
-"cansativa-treppenhaus": {
-"id": 904,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-buero-frankfurt-cansativa-timeline-treppenhaus.webp",
-"alt_de": "Firmen-Timeline der Cansativa Group im Treppenhaus, Frankfurt – Wandgestaltung von Farbaholix"
-},
-"cansativa-abkleben": {
-"id": 905,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-timeline-wand-lettering-abkleben.webp",
-"alt_de": "Slavik klebt Buchstaben der Cansativa-Timeline an der Wand ab"
-},
-"cansativa-geruest": {
-"id": 906,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-wandgestaltung-geruest-treppenhaus.webp",
-"alt_de": "Arbeit am Gerüst im Treppenhaus der Cansativa Group, Frankfurt"
-},
-"cansativa-detail": {
-"id": 907,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-lettering-detail-handarbeit.webp",
-"alt_de": "Detailarbeit am Lettering „November 2019 – Moved to the Mörfelden-Walldorf“ bei Cansativa"
-},
-"tile-fassaden": {
-"id": 914,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/murals-fassaden-graffiti-restaurant-wellenlaenge-ruesselsheim.webp"
-},
-"tile-innenraeume": {
-"id": 1101,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-innenraum-billard-mural-frankfurt.webp",
-"alt_de": "Graffiti im Innenraum: Mural mit Filmporträts über dem Billardtisch – Wandgestaltung von Farbaholix"
-},
-"sg-mauer-panorama": {
-"id": 1105,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-blumenmauer-panorama.webp",
-"alt_de": "Sankt Georgen Mural in Frankfurt: die ganze Blumenmauer an der Straße mit Straßenbahngleisen"
-},
-"sg-monstera-detail": {
-"id": 1106,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-monstera-detail.webp",
-"alt_de": "Sankt Georgen Mural: Monstera-Blatt aus der Sprühdose, Detail"
-},
-"sg-monstera-ecke": {
-"id": 1107,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-monstera-perspektive.webp",
-"alt_de": "Sankt Georgen Mural: Monstera am Mauerende neben der Einfahrt, Frankfurt-Sachsenhausen"
-},
-"sg-pinke-bluete": {
-"id": 1108,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-pinke-bluete.webp",
-"alt_de": "Sankt Georgen Mural: pinke tropische Pflanze und Palmblätter an der Campusmauer"
-},
-"sg-hummel": {
-"id": 1109,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-hummel-blueten.webp",
-"alt_de": "Sankt Georgen Mural: Hummel und weiße Blüten, Graffiti in Frankfurt"
-},
-"logo-montana": {
-"id": 1152,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/partner-montana-colors-logo.webp",
-"alt_de": "Montana Colors (MTN) – Partner von Farbaholix"
-},
-"logo-caparol": {
-"id": 1153,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/partner-caparol-logo.webp",
-"alt_de": "Caparol – Partner von Farbaholix"
-},
-"presse-frankfurt-live": {
-"id": 1211,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-frankfurt-schaufenster-graffiti-braubachstrasse-buergermeisterin.webp",
-"alt_de": "Schaufenster „Frau, Leben, Freiheit“ in der Braubachstraße: Bürgermeisterin Nargess Eskandari-Grünberg mit Graffiti-Künstler Viacheslav Balabaiev und den Initiatoren (Foto: Stadt Frankfurt am Main, Holger Menzel)"
-},
-"wl-fassade-seite": {
-"id": 1245,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-restaurant-wellenlaenge-fassade-seite.webp",
-"alt_de": "Restaurant Wandgestaltung Wellenlänge: Fassaden-Mural mit Welle und Taube, Seitenansicht, Rüsselsheim"
-},
-"wl-leiter": {
-"id": 1246,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-kuenstler-leiter-fassade-wellenlaenge.webp",
-"alt_de": "Graffiti-Künstler Slavik auf der Leiter beim Sprühen des Fassaden-Murals, Restaurant Wellenlänge"
-},
-"wl-gastraum-abend": {
-"id": 1247,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-restaurant-wellenlaenge-gastraum-abend.webp",
-"alt_de": "Restaurant Wandgestaltung: violette Ornamente im Gastraum des Restaurants Wellenlänge am Abend"
-},
-"wl-speisekarte": {
-"id": 1248,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/speisekarte-wellenlaenge-portrait-cover.webp",
-"alt_de": "Speisekarte des Restaurants Wellenlänge mit dem Porträt vom Eingangs-Mural auf dem Cover"
-},
-"vid-sg-reel": {
-"id": 1285,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-video-graffiti-frankfurt.mp4",
-"alt_de": "Sankt Georgen Mural im Video: 280 m Mauer, 600 m² Blumen – Graffiti in Frankfurt"
-},
-"vid-sg-reel-poster": {
-"id": 1286,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-video-poster.jpg",
-"alt_de": "Sankt Georgen Mural Video – 280 m Mauer, 600 m² Blumen"
-},
-"vid-sg-bluete": {
-"id": 1287,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-bluete-loop.mp4",
-"alt_de": "Sankt Georgen Mural: Blüten und Schmetterling, Kamerafahrt"
-},
-"vid-sg-bluete-poster": {
-"id": 1288,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/w01-sankt-georgen-bluete-poster.jpg",
-"alt_de": "Sankt Georgen Mural: Schmetterling und Blätter"
-},
-"vid-sg-spruehen": {
-"id": 1289,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-spruehen-loop.mp4",
-"alt_de": "Slavik sprüht ein Blatt freihand, Sankt Georgen Mural"
-},
-"vid-sg-spruehen-poster": {
-"id": 1290,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/w02-sankt-georgen-spruehen-poster.jpg",
-"alt_de": "Slavik sprüht ein Blatt freihand"
-},
-"vid-cansativa": {
-"id": 1322,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-treppenhaus-timeline-video-frankfurt.mp4",
-"alt_de": "Video: Firmen-Timeline der Cansativa Group im Treppenhaus entsteht – Wandgestaltung Farbaholix"
-},
-"vid-cansativa-poster": {
-"id": 1323,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-video-poster.jpg",
-"alt_de": "Cansativa Group Treppenhaus mit Firmen-Timeline"
-},
-"presse-hessenschau": {
-"id": 1562,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-hessenschau-graffiti-kuenstler-viacheslav-balabaiev-fsv.webp",
-"alt_de": "Graffiti-Künstler Viacheslav Balabaiev mit Spraydose am FSV-Stadion Bornheimer Hang in Frankfurt (Foto: hr / hessenschau.de)"
-},
-"plogo-hessenschau": {
-"id": 1554,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/hessenschau-logo.png",
-"alt_de": "Logo hessenschau"
-},
-"plogo-sportschau": {
-"id": 1555,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/sportschau-logo.png",
-"alt_de": "Logo sportschau"
-},
-"plogo-op": {
-"id": 1556,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/offenbach-post-op-online-logo.png",
-"alt_de": "Logo Offenbach-Post / op-online.de"
-},
-"plogo-fnp": {
-"id": 1557,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/frankfurter-neue-presse-logo.png",
-"alt_de": "Logo Frankfurter Neue Presse"
-},
-"plogo-sg": {
-"id": 1558,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/hochschule-sankt-georgen-logo.png",
-"alt_de": "Logo Hochschule Sankt Georgen"
-},
-"plogo-welt": {
-"id": 1559,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/weltexpresso-logo.png",
-"alt_de": "Logo Weltexpresso"
-},
-"plogo-ko": {
-"id": 1560,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/kreis-offenbach-logo.png",
-"alt_de": "Logo Kreis Offenbach"
-},
-"plogo-fl": {
-"id": 1561,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/frankfurt-live-logo.png",
-"alt_de": "Logo Frankfurt Live"
-},
-"vid-fsv-film": {
-"id": 1634,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-stadion-projektfilm-graffiti-frankfurt-komplett.mp4",
-"alt_de": "Projektfilm: Graffiti-Künstler Viacheslav Balabaiev gestaltet das Stadion am Bornheimer Hang des FSV Frankfurt 1899 – vom Grundieren bis zur Übergabe"
-},
-"vid-fsv-film-poster": {
-"id": 1624,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-stadion-projektfilm-poster.webp",
-"alt_de": "FSV-Frankfurt-Wappen in blauen Flammen, Graffiti im Stadion am Bornheimer Hang"
-},
-"vid-wellen": {
-"id": 1644,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wellenlaenge-restaurant-wandgestaltung-video.mp4",
-"alt_de": "Video zum Projekt: Wandgestaltung für das Restaurant Wellenlänge in Rüsselsheim – von der Skizze bis zur fertigen Fassade, Graffiti von Viacheslav Balabaiev"
-},
-"vid-wellen-poster": {
-"id": 1645,
-"url": "https://farbaholix.de/wp-content/uploads/2026/09/wellenlaenge-video-poster.webp",
-"alt_de": "Graffiti-Porträt und Fassade des Restaurants Wellenlänge in Rüsselsheim"
-},
-"presse-fnp": {
-"id": 1655,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/presse-fnp-viacheslav-balabaiev-sankt-georgen-mauer.webp",
-"alt_de": "Graffiti-Künstler Viacheslav Balabaiev mit Spraydosen vor den Strelitzien an der Mauer von Sankt Georgen in Frankfurt (Foto: Bernd Kammerer / Frankfurter Neue Presse)"
-},
-"voice-soehngen": {
-"id": 1696,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/dr-stefan-soehngen-portrait-2.webp",
-"alt_de": "Dr. Stefan Söhngen – Brückenbauer, Netzwerker, Speaker und Autor"
-},
-"smi-2017-06-shipovnik-00": {
-"id": 1700,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-00.webp",
-"alt_de": "День молодёжи 2017, Соборная площадь, Николаев"
-},
-"smi-2017-06-shipovnik-10": {
-"id": 1701,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-10.webp",
-"alt_de": "Граффити-баттл, День молодёжи 2017"
-},
-"smi-2017-06-shipovnik-13": {
-"id": 1702,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-13.webp",
-"alt_de": "Граффити-баттл, День молодёжи 2017"
-},
-"smi-2017-06-shipovnik-17": {
-"id": 1703,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-17.webp",
-"alt_de": "Граффити «Young», День молодёжи 2017"
-},
-"smi-2017-06-shipovnik-21": {
-"id": 1704,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-21.webp",
-"alt_de": "Каллиграффити «Молодость», День молодёжи 2017"
-},
-"smi-2017-06-shipovnik-25": {
-"id": 1705,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-25.webp",
-"alt_de": "Граффити-баттл, День молодёжи 2017"
-},
-"smi-2017-06-shipovnik-29": {
-"id": 1706,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-29.webp",
-"alt_de": "Граффити-баттл, День молодёжи 2017"
-},
-"smi-2019-09-svidok-00": {
-"id": 1707,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2019-09-svidok-00.webp",
-"alt_de": "Граффити «Мы здесь, чтобы творить» у спортшколы «Надежда», Николаев 2019"
-},
-"smi-2019-09-svidok-01": {
-"id": 1708,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2019-09-svidok-01.webp",
-"alt_de": "Площадка будущего скейт-парка, Николаев 2019"
-},
-"smi-2019-09-svidok-02": {
-"id": 1709,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2019-09-svidok-02.webp",
-"alt_de": "Баллончики для граффити «Мы здесь, чтобы творить»"
-},
-"smi-2021-09-vn-chess-00": {
-"id": 1710,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-00.webp",
-"alt_de": "Мурал с кораблями на углу Фалеевской и Набережной, Николаев 2021"
-},
-"smi-2021-09-vn-chess-01": {
-"id": 1711,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-01.webp",
-"alt_de": "Мурал с кораблями, Николаев 2021"
-},
-"smi-2021-09-vn-chess-02": {
-"id": 1712,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-02.webp",
-"alt_de": "Вячеслав Балабаев за работой над муралом, Николаев 2021"
-},
-"smi-2021-09-vn-chess-03": {
-"id": 1713,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-03.webp",
-"alt_de": "Вячеслав Балабаев за работой над муралом, Николаев 2021"
-},
-"smi-2021-09-nikvesti-00": {
-"id": 1714,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-nikvesti-00.webp",
-"alt_de": "Мурал «Миколаїв» с кораблями, 2021"
-},
-"smi-2021-09-ukrinform-00": {
-"id": 1715,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-ukrinform-00.webp",
-"alt_de": "Мурал с кораблями «Миколаїв», 2021"
-},
-"smi-monochronicle-00": {
-"id": 1716,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-00.webp",
-"alt_de": "Hall of Fame «Дормашина», Николаев"
-},
-"smi-monochronicle-01": {
-"id": 1717,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-01.webp",
-"alt_de": "Спорткомплекс «Экватор», Николаев"
-},
-"smi-monochronicle-02": {
-"id": 1718,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-02.webp",
-"alt_de": "Мурал с кораблями, Николаев"
-},
-"smi-monochronicle-03": {
-"id": 1719,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-03.webp",
-"alt_de": "Граффити с супергероями, Николаев"
-},
-"smi-monochronicle-04": {
-"id": 1720,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-04.webp",
-"alt_de": "Граффити BVB"
-},
-"smi-monochronicle-05": {
-"id": 1721,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-05.webp",
-"alt_de": "Интерьер с радужной стеной, Николаев"
-},
-"smi-mykolaiv-future-uk-05": {
-"id": 1722,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-mykolaiv-future-uk-05.webp",
-"alt_de": "Вячеслав Балабаев рисует мурал с кораблями, 2021"
-},
-"smi-mykolaiv-future-uk-06": {
-"id": 1723,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-mykolaiv-future-uk-06.webp",
-"alt_de": "Мурал с фрегатами и шахматными фигурами, Николаев 2021"
-},
-"presse-op-slavik": {
-"id": 1732,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/presse-op-slavik-montana-94-enso.webp",
-"alt_de": "Graffiti-Künstler Viacheslav Balabaiev mit einer Montana-94-Sprühdose am ENSO-Wandbild „Luft“ in Neu-Isenburg"
-},
-"smi-2021-03-novosti-ekvator-00": {
-"id": 1763,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-03-novosti-ekvator-00.webp",
-"alt_de": "Спорткомплекс «Экватор», Николаев: спортзал с росписью стен"
-},
-"smi-2021-03-novosti-ekvator-02": {
-"id": 1764,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-03-novosti-ekvator-02.webp",
-"alt_de": "Спорткомплекс «Экватор», Николаев: зал с росписью"
-},
-"smi-2021-03-novosti-ekvator-03": {
-"id": 1765,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-03-novosti-ekvator-03.webp",
-"alt_de": "Спорткомплекс «Экватор», Николаев: зал единоборств"
-},
-"smi-2021-09-inshe-04": {
-"id": 1766,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-inshe-04.webp",
-"alt_de": "Вячеслав Балабаев на открытии мурала с кораблями, Николаев 2021"
-},
-"smi-2021-09-inshe-03": {
-"id": 1767,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-inshe-03.webp",
-"alt_de": "Шахматная ладья на мурале, Николаев 2021"
-},
-"smi-2021-09-inshe-07": {
-"id": 1768,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-inshe-07.webp",
-"alt_de": "Открытие мурала с кораблями, Николаев 2021"
-},
-"smi-2021-09-vn-opening-03": {
-"id": 1769,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-opening-03.webp",
-"alt_de": "Шахматный король с именем Николая Шелеста на мурале, Николаев 2021"
-},
-"smi-2021-09-vn-opening-04": {
-"id": 1770,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-opening-04.webp",
-"alt_de": "Вячеслав Балабаев у мурала с кораблями, Николаев 2021"
-},
-"smi-2021-09-vn-opening-02": {
-"id": 1771,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-opening-02.webp",
-"alt_de": "Мурал «МрійДій» с кораблями и шахматами, Николаев 2021"
-},
-"smi-2021-09-mf-new-mural-00": {
-"id": 1772,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-mf-new-mural-00.webp",
-"alt_de": "Мурал с кораблями в процессе работы, Николаев 2021"
-},
-"alt-olymp-2013": {
-"id": 1781,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-olymp-2013.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Велопоток на Адмиральской"
-},
-"alt-chempionat-2015": {
-"id": 1794,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-chempionat-2015.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Накануне Дня освобождения в Николаеве дали старт чемпионату Украины по велоспорту"
-},
-"alt-gonka-2016": {
-"id": 1798,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-gonka-2016.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: \"Гонка Победы\": велосипедисты накатали 800 км по николаевскому бездорожью"
-},
-"alt-urban-days-2016": {
-"id": 1799,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-urban-days-2016.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Из бюджета Николаева профинансируют еще 18 соцпроектов. В Корабельном проведут турнир по мини-футболу и Веселые старты"
-},
-"alt-veloden-2017": {
-"id": 1800,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-veloden-2017.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Более тысячи николаевцев «прокатились за свои права» на традиционном ВелоДне"
-},
-"alt-den-molodi-2017": {
-"id": 1802,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-den-molodi-2017.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Граффити, BMX и брейк-данс: николаевцы «отожгли» на Дне молодежи (Фоторепортаж)"
-},
-"alt-active-2017": {
-"id": 1803,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-active-2017.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: В Николаеве определят лучшую женщину-водителя, соберутся на велофорум, а в Корабельном районе пройдет FrendsFestival"
-},
-"alt-veloden-2019": {
-"id": 1805,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-veloden-2019.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Велодень на Соборной площади"
-},
-"alt-skate-vn-2019": {
-"id": 1806,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-skate-vn-2019.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Скейт-парк вместо пустыря"
-},
-"alt-retro-2026": {
-"id": 1807,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-retro-2026.webp",
-"alt_de": "Альтер-Спорт, Миколаїв: Сухий док \"Океану\", скейт-парк і загиблий випускник ліцею: чим запам'яталося 11 вересня у Корабельному"
-},
-"font-manrope-latin": {
-"id": 1819,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/manrope-latin.woff2",
-"alt_de": "Schrift Manrope (OFL)"
-},
-"font-manrope-cyrillic": {
-"id": 1820,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/manrope-cyrillic.woff2",
-"alt_de": ""
-},
-"font-unbounded-latin": {
-"id": 1821,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/unbounded-latin.woff2",
-"alt_de": ""
-},
-"font-unbounded-cyrillic": {
-"id": 1822,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/unbounded-cyrillic.woff2",
-"alt_de": ""
-},
-"font-jetbrains-mono-latin": {
-"id": 1823,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/jetbrains-mono-latin.woff2",
-"alt_de": ""
-},
-"font-jetbrains-mono-cyrillic": {
-"id": 1824,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/jetbrains-mono-cyrillic.woff2",
-"alt_de": ""
-},
-"font-farbaholix-fonts-OFL": {
-"id": 1825,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-fonts-OFL.txt",
-"alt_de": ""
-},
-"vid-hero-mobil": {
-"id": 2020,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-video-mobil.mp4",
-"alt_de": "Farbaholix Graffiti Frankfurt – Video (mobil)"
-},
-"vid-hero-poster": {
-"id": 2021,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-video-poster.webp",
-"alt_de": "Farbaholix Graffiti Frankfurt – Wandgestaltung, Video-Standbild"
-},
-"portfolio-pdf": {
-"id": 2211,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/Farbaholix-Slavik-Portfolio.pdf",
-"alt_de": "Slavik – Portfolio (PDF)"
-},
-"pf-p2_00": {
-"id": 2253,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-black-and-white-portrait-of-a.webp",
-"alt_de": "Schwarz-weißes Frauenporträt mit Afro im Foyer – Farbaholix"
-},
-"pf-p2_02": {
-"id": 2254,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-uv-bear-figure-glowing-in-a.webp",
-"alt_de": "UV-Bärenfigur im Neonlicht einer Lounge – Farbaholix"
-},
-"pf-p2_03": {
-"id": 2255,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-colourful-mural-with-ganesha-and-three.webp",
-"alt_de": "Farbenfrohes Wandbild mit Ganesha und drei Gesichtern – Farbaholix"
-},
-"pf-p2_04": {
-"id": 2256,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-woman-in-a-hat-black-and.webp",
-"alt_de": "Frauenprofil mit Hut, Schwarz-Weiß in einer Billard-Lounge – Farbaholix"
-},
-"pf-p2_07": {
-"id": 2257,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-bar-wall-with-flames-and-a.webp",
-"alt_de": "Barwand mit Flammen und Whiskeyflasche – Farbaholix"
-},
-"pf-p3_04": {
-"id": 2258,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-portrait-of-a-woman-at-the.webp",
-"alt_de": "Frauenporträt am Eingang des Restaurants Wellenlänge – Farbaholix"
-},
-"pf-p3_07": {
-"id": 2259,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-welcome-photo-spot-with-angel-wings.webp",
-"alt_de": "Fotospot „Welcome“ mit Engelsflügeln auf einem Holztor – Farbaholix"
-},
-"pf-p4_00": {
-"id": 2260,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-saxophone-mural-on-a-house-wall.webp",
-"alt_de": "Saxofon-Mural an einer Hauswand: „Wir sind hier, um zu kreieren“ – Farbaholix"
-},
-"pf-p4_01c": {
-"id": 2261,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-3d-illusion-a-rainbow-spring-crawling.webp",
-"alt_de": "3D-Illusion: Regenbogen-Spirale kriecht durch die Wand – Farbaholix"
-},
-"pf-p4_02": {
-"id": 2262,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-bright-green-facade-with-geometric-shapes.webp",
-"alt_de": "Hellgrüne Fassade mit geometrischen Flächen – Farbaholix"
-},
-"pf-p4_03": {
-"id": 2263,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-rainbow-dots-on-a-3d-wall.webp",
-"alt_de": "Kugeln in Regenbogenfarben auf einer 3D-Wandverkleidung – Farbaholix"
-},
-"pf-p4_04": {
-"id": 2264,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-playroom-with-colourful-geometric-planes.webp",
-"alt_de": "Spielraum mit bunten geometrischen Flächen – Farbaholix"
-},
-"pf-p5_01": {
-"id": 2265,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-eagle-emblem-on-the-gable-wall.webp",
-"alt_de": "Adler-Emblem an der Giebelwand eines Wohnhauses – Farbaholix"
-},
-"pf-p5_02": {
-"id": 2266,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-car-workshop-facade-autoservice-in-grey.webp",
-"alt_de": "Autowerkstatt-Fassade „Autoservice“ in Grau und Blau – Farbaholix"
-},
-"pf-p5_07": {
-"id": 2267,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-black-off-roader-on-a-pink.webp",
-"alt_de": "Schwarzer Geländewagen auf rosa-blauem Verlauf – Farbaholix"
-},
-"pf-p5_08": {
-"id": 2268,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-barber-kids-lettering-in-a-childrens.webp",
-"alt_de": "Schriftzug „Barber Kids“ im Kinder-Friseursalon – Farbaholix"
-},
-"pf-p5_09": {
-"id": 2269,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-toy-figure-with-a-giant-spanner.webp",
-"alt_de": "Spielfigur mit Riesenschlüssel in der Reifenwerkstatt – Farbaholix"
-},
-"pf-p6_00": {
-"id": 2270,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-laser-tag-arena-under-uv-light.webp",
-"alt_de": "Lasertag-Arena unter UV-Licht, Gesamtansicht – Farbaholix"
-},
-"pf-p6_01": {
-"id": 2271,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-laser-tag-galaxy-swirls-on-the.webp",
-"alt_de": "Lasertag: Galaxie-Wirbel auf den Trennwänden – Farbaholix"
-},
-"pf-p6_02": {
-"id": 2272,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-laser-tag-glowing-skeleton-and-planets.webp",
-"alt_de": "Lasertag: leuchtendes Skelett und Planeten – Farbaholix"
-},
-"pf-p7_00": {
-"id": 2273,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-say-wow-roller-shutter-with-a.webp",
-"alt_de": "Rolltor „Say wow“ mit Porträt an einer Bar – Farbaholix"
-},
-"pf-p7_01": {
-"id": 2274,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-ray-charles-in-black-and-white.webp",
-"alt_de": "Ray Charles in Schwarz-Weiß mit Noten – Farbaholix"
-},
-"pf-p7_05": {
-"id": 2275,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-lovefamily-park-stage-wall-with-the.webp",
-"alt_de": "Bühnenwand „lovefamily park“ mit Frankfurter Skyline – Farbaholix"
-},
-"pf-p7_06": {
-"id": 2276,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-abstract-waves-of-colour-on-a.webp",
-"alt_de": "Abstrakte Farbwellen an einer Mauer – Farbaholix"
-},
-"pf-p7_07": {
-"id": 2277,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-drones-and-a-robot-vehicle-graffiti.webp",
-"alt_de": "Drohnen und Roboter-Fahrzeug, Graffiti-Wand – Farbaholix"
-},
-"pf-p7_08": {
-"id": 2278,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-portrait-in-a-hat-in-a.webp",
-"alt_de": "Porträt mit Hut in einem Durchgang – Farbaholix"
-},
-"pf-p7_09": {
-"id": 2279,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-cafe-roller-shutter-with-a-strawberry.webp",
-"alt_de": "Rolltor eines Cafés mit Erdbeer-Tartelette – Farbaholix"
-},
-"pf-p7_10": {
-"id": 2280,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-cosmic-wave-of-colour-with-a.webp",
-"alt_de": "Kosmische Farbwelle mit Mond – Farbaholix"
-},
-"pf-p7_11": {
-"id": 2281,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-live-painting-portrait-on-a-large.webp",
-"alt_de": "Live-Painting: Porträt auf großer Leinwand – Farbaholix"
-},
-"pf-p9_01": {
-"id": 2282,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-beach-wall-with-a-wine-glass.webp",
-"alt_de": "Strandmauer mit Weinglas-Motiv „Französischer Boulevard“ – Farbaholix"
-},
-"pf-p9_02": {
-"id": 2283,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-mexican-with-sombrero-and-cactus-cartoon.webp",
-"alt_de": "Mexikaner mit Sombrero und Kaktus, Cartoon-Mural – Farbaholix"
-},
-"pf-p9_03": {
-"id": 2284,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-six-kawaii-characters-sweets-and-fruit.webp",
-"alt_de": "Sechs Kawaii-Figuren: Süßigkeiten und Früchte – Farbaholix"
-},
-"pf-p9_04": {
-"id": 2285,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-chess-pieces-on-a-curved-board.webp",
-"alt_de": "Schachfiguren auf einer gewölbten Brett-Kugel, 3D – Farbaholix"
-},
-"pf-p9_06": {
-"id": 2286,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-goofy-mural-in-a-frame.webp",
-"alt_de": "Goofy-Wandbild im Rahmen – Farbaholix"
-},
-"pf-p9_07": {
-"id": 2287,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-sailing-ship-in-the-moonlight.webp",
-"alt_de": "Segelschiff im Mondlicht – Farbaholix"
-},
-"pf-p14_00": {
-"id": 2288,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-aztec-sun-on-a-ticket-booth.webp",
-"alt_de": "Aztekische Sonne an einem Kassenhäuschen – Farbaholix"
-},
-"pf-p14_02": {
-"id": 2289,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-water-park-facade-banana-republic-panorama.webp",
-"alt_de": "Wasserpark-Fassade „Bananenrepublik“, Panorama – Farbaholix"
-},
-"pf-p15_01": {
-"id": 2290,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-gaming-club-with-beanbags-and-a.webp",
-"alt_de": "Gaming-Club mit Sitzsäcken und Bildschirmwand – Farbaholix"
-},
-"pf-p15_02": {
-"id": 2291,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-hooded-gamer-mural-in-a-gaming.webp",
-"alt_de": "Gamer mit Kapuze, Wandbild im Gaming-Club – Farbaholix"
-},
-"pf-p15_05": {
-"id": 2292,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-gaming-club-under-uv-light-panorama.webp",
-"alt_de": "Gaming-Club unter UV-Licht, Panorama – Farbaholix"
-},
-"pf-p15_06a": {
-"id": 2293,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-red-ceiling-with-a-black-baroque.webp",
-"alt_de": "Rote Decke mit schwarzem Barock-Ornament – Farbaholix"
-},
-"pf-p15_08": {
-"id": 2294,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-playing-card-symbols-on-ceiling-and.webp",
-"alt_de": "Spielkarten-Symbole an Decke und Wand – Farbaholix"
-},
-"pf-p16_00": {
-"id": 2295,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-the-godfather-black-and-white-portrait.webp",
-"alt_de": "Der Pate – Schwarz-Weiß-Porträt – Farbaholix"
-},
-"pf-p16_02": {
-"id": 2296,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-einstein-portrait-on-abstract-greyscale.webp",
-"alt_de": "Einstein-Porträt auf abstrakten Graustufen – Farbaholix"
-},
-"pf-p16_03": {
-"id": 2297,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-firefighter-mural-on-a-facade-mykolaiv.webp",
-"alt_de": "Feuerwehr-Mural an einer Fassade, Mykolajiw – Farbaholix"
-},
-"pf-p16_04": {
-"id": 2298,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-film-noir-figure-by-the-exit.webp",
-"alt_de": "Film-noir-Figur am Ausgang – Farbaholix"
-},
-"pf-p16_06": {
-"id": 2299,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-the-notorious-b-i-g-hip.webp",
-"alt_de": "The Notorious B.I.G. – Hip-Hop-Wand – Farbaholix"
-},
-"pf-p16_07": {
-"id": 2300,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-the-real-hip-hop-is-over.webp",
-"alt_de": "„The real hip hop is over here“ – Wand mit Rap-Legenden – Farbaholix"
-},
-"pf-p16_08": {
-"id": 2301,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-tupac-and-snoop-dogg-hip-hop.webp",
-"alt_de": "Tupac und Snoop Dogg, Hip-Hop-Wand – Farbaholix"
-},
-"pf-p17_00": {
-"id": 2302,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-saxophone-in-black-and-white-the.webp",
-"alt_de": "Saxofon in Schwarz-Weiß, Entstehung des Wandbilds – Farbaholix"
-},
-"pf-p17_02": {
-"id": 2303,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-food-court-with-paint-splashes-ricchi.webp",
-"alt_de": "Food-Court mit Farbspritzern „Ricchi & Poveri“ – Farbaholix"
-},
-"pf-p18_00": {
-"id": 2304,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-cartoon-character-drunk-patrick-on-a.webp",
-"alt_de": "Comicfigur „Drunk Patrick“ auf geometrischem Hintergrund – Farbaholix"
-},
-"pf-p18_01": {
-"id": 2305,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-red-off-roader-on-rough-terrain.webp",
-"alt_de": "Roter Geländewagen im Gelände, realistisch – Farbaholix"
-},
-"pf-p18_02": {
-"id": 2306,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-fitness-mural-athlete-with-dumbbells.webp",
-"alt_de": "Fitness-Mural: Athletin mit Hanteln – Farbaholix"
-},
-"pf-p18_03": {
-"id": 2307,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-pin-up-girl-with-a-spiral.webp",
-"alt_de": "Pin-up mit Spiralhut auf einem Sprungbrett – Farbaholix"
-},
-"pf-p18_04": {
-"id": 2308,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-red-rose-just-beautiful.webp",
-"alt_de": "Rote Rose „Just beautiful“ – Farbaholix"
-},
-"pf-p18_05": {
-"id": 2309,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-lips-and-cherries-on-a-pillar.webp",
-"alt_de": "Lippen und Kirschen an einer Säule – Farbaholix"
-},
-"pf-p18_07": {
-"id": 2310,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-fitness-studio-gate-green-club-with.webp",
-"alt_de": "Tor eines Fitnessstudios „Green Club“ mit Gras – Farbaholix"
-},
-"pf-p19_00": {
-"id": 2311,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-gas-mask-with-glowing-lenses.webp",
-"alt_de": "Gasmaske mit leuchtenden Gläsern – Farbaholix"
-},
-"pf-p19_01": {
-"id": 2312,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-athlete-with-a-sledgehammer-motion-sequence.webp",
-"alt_de": "Athlet mit Vorschlaghammer, Bewegungsphasen – Farbaholix"
-},
-"pf-p19_02": {
-"id": 2313,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-tennis-player-on-the-tennis-land.webp",
-"alt_de": "Tennisspieler an der Fassade von „Tennis Land“ – Farbaholix"
-},
-"pf-p19_04": {
-"id": 2314,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-glowing-cosmic-vortex-under-uv-light.webp",
-"alt_de": "Leuchtender Kosmos-Wirbel unter UV-Licht – Farbaholix"
-},
-"pf-p19_05": {
-"id": 2315,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-superheroine-in-red-blue-and-gold.webp",
-"alt_de": "Superheldin in Rot-Blau-Gold, Mural – Farbaholix"
-},
-"pf-p19_07": {
-"id": 2316,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-dark-knight-superhero-mural.webp",
-"alt_de": "Dunkler Ritter, Superhelden-Mural – Farbaholix"
-},
-"pf-p19_08": {
-"id": 2317,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-classic-gym-with-a-dotted-wave.webp",
-"alt_de": "Fitnessstudio „Classic“ mit Punkte-Welle, Panorama – Farbaholix"
-},
-"pf-p19_09": {
-"id": 2318,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-ukrainian-petrykivka-flowers-on-the-wall.webp",
-"alt_de": "Ukrainische Petrykiwka-Blumen an der Wand – Farbaholix"
-},
-"pf-p20_01a": {
-"id": 2319,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-graffiti-piece-one-love-in-turquoise.webp",
-"alt_de": "Graffiti-Piece „One Love“ in Türkis – Farbaholix"
-},
-"pf-p20_01b": {
-"id": 2320,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-silver-and-red-piece-on-a.webp",
-"alt_de": "Silber-Rot-Piece an einer Ruine – Farbaholix"
-},
-"pf-p20_02d": {
-"id": 2321,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-wildstyle-piece-viacheslav-at-a-hall.webp",
-"alt_de": "Wildstyle-Piece „Viacheslav“ an einer Hall of Fame – Farbaholix"
-},
-"pf-p20_03": {
-"id": 2322,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-bubble-style-piece-in-blue-and.webp",
-"alt_de": "Bubble-Style-Piece in Blau und Lila – Farbaholix"
-},
-"pf-p20_05": {
-"id": 2323,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-wildstyle-in-pink-and-burgundy-under.webp",
-"alt_de": "Wildstyle in Rosa und Weinrot unter einer Brücke – Farbaholix"
-},
-"pf-p20_06": {
-"id": 2324,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-one-love-red-lettering-on-yellow.webp",
-"alt_de": "„One Love“ – Schrift in Rot auf Gelb – Farbaholix"
-},
-"pf-p20_07": {
-"id": 2325,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-calligraphy-in-gothic-letters.webp",
-"alt_de": "Kalligrafie in gotischen Buchstaben – Farbaholix"
-},
-"pf-p20_08": {
-"id": 2326,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-south-bags-logo-lettering.webp",
-"alt_de": "Logo-Lettering „South Bags“ – Farbaholix"
-},
-"pf-p20_09": {
-"id": 2327,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-letter-s-on-canvas.webp",
-"alt_de": "Buchstabe „S“ auf Leinwand – Farbaholix"
-},
-"pf-p20_10": {
-"id": 2328,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-slavik-piece-in-green-at-a.webp",
-"alt_de": "Piece „Slavik“ in Grün an einer Hall of Fame – Farbaholix"
-},
-"pf-p20_11": {
-"id": 2329,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-slavik-wildstyle-in-yellow-and-pink.webp",
-"alt_de": "Wildstyle „Slavik“ in Gelb und Pink, Hamburg 2022 – Farbaholix"
-},
-"newcomers-2026": {
-"id": 2371,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/newcomers-award-2026-kaisersaal-frankfurt-slavik-balabaiev.webp",
-"alt_de": "Slavik bei der Newcomers Reception 2026 im Kaisersaal des Frankfurter Römers"
-},
-"hibiskus-mural": {
-"id": 2372,
-"url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-hibiskus-mural-libelle-garten-scaled.webp",
-"alt_de": "Hibiskus-Mural mit Libelle und Wildblumen an einer Gartenmauer – Farbaholix"
-}
+ "logo-badge": {
+  "id": 501,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/farbaholix-logo-frankfurt-mural-movement.webp"
+ },
+ "georgen-strelitzie-wand": {
+  "id": 502,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-mural-strelitzien.webp"
+ },
+ "georgen-strelitzie-detail": {
+  "id": 503,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-frankfurt-strelitzie-detail-graffiti.webp"
+ },
+ "georgen-strassenbahn": {
+  "id": 504,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-mauer-sankt-georgen-strassenbahn.webp"
+ },
+ "georgen-monstera": {
+  "id": 505,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wandbild-frankfurt-monstera-graffiti.webp"
+ },
+ "georgen-kuenstler": {
+  "id": 506,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-kuenstler-frankfurt-slavik-bei-der-arbeit.webp"
+ },
+ "georgen-presse": {
+  "id": 948,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-fnp-aus-seiner-spruehdose-kommen-blumen-sankt-georgen.webp"
+ },
+ "fsv-stadion-fassade": {
+  "id": 508,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-stadion-bornheimer-hang.webp"
+ },
+ "wellenlaenge-panorama": {
+  "id": 2414,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/fassadengestaltung-mural-restaurant-wellenlaenge-ruesselsheim.webp"
+ },
+ "wellenlaenge-interieur": {
+  "id": 510,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-restaurant-interieur-wellenlaenge.webp"
+ },
+ "wellenlaenge-portrait": {
+  "id": 511,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-portrait-eingang-restaurant-wellenlaenge.webp"
+ },
+ "wellenlaenge-welcome": {
+  "id": 512,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fotospot-fluegel-graffiti-welcome.webp"
+ },
+ "wellenlaenge-fassade": {
+  "id": 513,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fassaden-mural-restaurant-wellenlaenge-panorama.webp"
+ },
+ "enso-neu-isenburg": {
+  "id": 514,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-neu-isenburg-enso-another-world-is-possible.webp"
+ },
+ "presse-offenbach-post": {
+  "id": 515,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-offenbach-post-titelseite-mural-enso.webp"
+ },
+ "artist-slavik-v3": {
+  "id": 843,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-portrait-graffiti-kuenstler-frankfurt.webp"
+ },
+ "slavik-portrait": {
+  "id": 517,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-graffiti-kuenstler-frankfurt.webp"
+ },
+ "partner-kunden-logos": {
+  "id": 518,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/farbaholix-kunden-partner-logos.webp"
+ },
+ "slavik-sankt-georgen-monstera": {
+  "id": 519,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-slavik-sankt-georgen-monstera.webp"
+ },
+ "slavik-graffiti-auto": {
+  "id": 520,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-graffiti-sportwagen.webp"
+ },
+ "slavik-atelier": {
+  "id": 521,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-balabaiev-atelier-leinwand.webp"
+ },
+ "newcomers-reception": {
+  "id": 522,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/newcomers-reception-frankfurt-roemer-slavik-balabaiev.webp"
+ },
+ "cansativa-lettering": {
+  "id": 523,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-buero-frankfurt-cansativa-lettering.webp"
+ },
+ "signatur-slavik-dunkel": {
+  "id": 526,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-kalligrafie-signatur-v2.png"
+ },
+ "signatur-slavik-gold": {
+  "id": 527,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-kalligrafie-signatur-gold-v2.png"
+ },
+ "sg-strelitzien": {
+  "id": 543,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-strelitzien-mural.webp"
+ },
+ "sg-monstera": {
+  "id": 544,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-frankfurt-monstera-sankt-georgen.webp"
+ },
+ "sg-blueten": {
+  "id": 545,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-blumen-mural-biene-sankt-georgen.webp"
+ },
+ "presse-op-seite37": {
+  "id": 546,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-offenbach-post-luft-kann-man-sehen-und-hoeren-enso.webp"
+ },
+ "fsv-wappen-flammen": {
+  "id": 644,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-wappen-blaue-flammen.webp"
+ },
+ "fsv-stadion-arena": {
+  "id": 645,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-stadion-fassade-psd-bank-arena.webp"
+ },
+ "fsv-panorama": {
+  "id": 682,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-fsv-stadion-panorama-fanshop.webp",
+  "alt_de": "Panorama der FSV-Frankfurt-Fassade mit Schriftzug „FSV Frankfurt 1899“, Wappen und Fanshop-Anhängern – Graffiti von Farbaholix"
+ },
+ "fsv-vereinsheim": {
+  "id": 683,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-innenraum-wappen-wandgestaltung.webp",
+  "alt_de": "Innenraum im FSV-Frankfurt-Stadion mit Wappen, Jahreszahl 1899 und Porträts an der Wand"
+ },
+ "fsv-immer-weiter": {
+  "id": 684,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-immer-weiter-wandschrift-kicker.webp",
+  "alt_de": "Wandschrift „Immer weiter“ und Kickertisch im FSV-Frankfurt-Stadion"
+ },
+ "fsv-caparol": {
+  "id": 685,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/caparol-logo-graffiti-fsv-frankfurt.webp",
+  "alt_de": "Caparol-Logo wird mit der Sprühdose auf blauen Grund gemalt – Materialpartner beim FSV-Projekt"
+ },
+ "fsv-gang": {
+  "id": 686,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-gang-wirsindfsv-wandgestaltung.webp",
+  "alt_de": "Gang im FSV-Frankfurt-Stadion mit Schriftzug #WIRsindFSV und grafischem Muster"
+ },
+ "fsv-arena-ecke": {
+  "id": 687,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/psd-bank-arena-fassade-graffiti-frankfurt.webp",
+  "alt_de": "Stadionecke mit Schriftzug #WIRsindFSV – damals PSD Bank Arena, seit 2026 BBBank Arena"
+ },
+ "fsv-rampe-fussball": {
+  "id": 688,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-rampe-rasen-fussball-graffiti.webp",
+  "alt_de": "Rampe am FSV-Stadion als Rasen mit Fußball gemalt – Graffiti von Farbaholix"
+ },
+ "fsv-respekt": {
+  "id": 689,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-frankfurt-respekt-mut-leidenschaft-wappen.webp",
+  "alt_de": "Gang mit Schriftzug „Respekt · Mut · Leidenschaft“ und Wappen in blauen Flammen im FSV-Stadion"
+ },
+ "sg-partner": {
+  "id": 690,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/montana-colors-caparol-logos-graffiti-sankt-georgen.webp",
+  "alt_de": "Logos von Montana Colors und Caparol als Graffiti an der Mauer von Sankt Georgen"
+ },
+ "sg-caparol-malen": {
+  "id": 691,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/caparol-elefant-graffiti-sankt-georgen.webp",
+  "alt_de": "Der Caparol-Elefant wird an die Mauer von Sankt Georgen gesprüht"
+ },
+ "sg-pink": {
+  "id": 692,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-pinke-blaetter-mural.webp",
+  "alt_de": "Pinkfarbene Blätter als Graffiti-Detail an der Mauer von Sankt Georgen"
+ },
+ "sg-mensa": {
+  "id": 693,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mensa-im-park-mural.webp",
+  "alt_de": "Schild „Mensa im Park“ inmitten des Blätter-Murals an der Mauer von Sankt Georgen"
+ },
+ "sg-bananenblatt": {
+  "id": 694,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/mural-frankfurt-bananenblaetter-violette-bluete.webp",
+  "alt_de": "Bananenblätter und violette Blüte als Mural in Frankfurt"
+ },
+ "sg-slavik-monstera": {
+  "id": 695,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-spruehdose-monstera-sankt-georgen.webp",
+  "alt_de": "Slavik sprüht ein Monstera-Blatt an die Mauer von Sankt Georgen"
+ },
+ "sg-monstera-2": {
+  "id": 696,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/monstera-blatt-graffiti-mauer-frankfurt.webp",
+  "alt_de": "Monstera-Blatt als Graffiti an der Campusmauer in Frankfurt"
+ },
+ "sg-strelitzie-nah": {
+  "id": 697,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/strelitzie-graffiti-detail-frankfurt.webp",
+  "alt_de": "Strelitzie in Orange und Violett – Graffiti-Detail an der Mauer von Sankt Georgen"
+ },
+ "sg-slavik-bluete": {
+  "id": 698,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-malt-weisse-bluete-mural.webp",
+  "alt_de": "Slavik malt eine weiße Blüte an die Mauer von Sankt Georgen"
+ },
+ "sg-farben": {
+  "id": 699,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/montana-spruehdosen-graffiti-sankt-georgen.webp",
+  "alt_de": "Sprühdosen von Montana Colors und Skizzen vor dem Mural in Sankt Georgen"
+ },
+ "sg-mauer-fahnen": {
+  "id": 700,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mauer-strelitzien-jubilaeumsfahnen.webp",
+  "alt_de": "Campusmauer von Sankt Georgen mit Strelitzien und Jubiläumsfahnen"
+ },
+ "sg-palme": {
+  "id": 701,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/palmblatt-graffiti-sankt-georgen.webp",
+  "alt_de": "Palmblätter als Graffiti an der Mauer von Sankt Georgen"
+ },
+ "sg-lotus": {
+  "id": 702,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/lotus-bluete-graffiti-frankfurt.webp",
+  "alt_de": "Lotusblüte mit Blättern als Graffiti in Frankfurt"
+ },
+ "sg-monstera-mauer": {
+  "id": 703,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/monstera-mural-campusmauer-sankt-georgen.webp",
+  "alt_de": "Großes Monstera-Blatt an der Campusmauer von Sankt Georgen"
+ },
+ "sg-einblatt": {
+  "id": 704,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/einblatt-bluete-mural-sankt-georgen-signatur.webp",
+  "alt_de": "Einblatt-Blüte mit Farbaholix-Signatur am Ende der Mauer von Sankt Georgen"
+ },
+ "sg-abend": {
+  "id": 705,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mauer-mural-offenbacher-landstrasse.webp",
+  "alt_de": "Die bemalte Mauer von Sankt Georgen im Abendlicht an der Straße"
+ },
+ "sg-100-jahre": {
+  "id": 706,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/100-jahre-sankt-georgen-heute-weiter-denken.webp",
+  "alt_de": "Schriftzug „100 Jahre Sankt Georgen – heute weiter denken“ an der Mauer"
+ },
+ "sg-grundierung": {
+  "id": 707,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/slavik-grundierung-mauer-sankt-georgen.webp",
+  "alt_de": "Slavik grundiert die Mauer von Sankt Georgen mit dem Farbspritzgerät"
+ },
+ "sg-strasse": {
+  "id": 708,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mauer-strassenansicht-mural.webp",
+  "alt_de": "Straßenansicht der bemalten Mauer von Sankt Georgen"
+ },
+ "bb-philokalist": {
+  "id": 828,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/schaufenster-graffiti-frankfurt-frau-leben-freiheit-philokalist.webp",
+  "alt_de": "Schaufenster-Kalligrafie „Frau, Leben, Freiheit“ im Philokalist Concept Store, Braubachstraße Frankfurt – Farbaholix"
+ },
+ "bb-salon": {
+  "id": 829,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/schaufenster-graffiti-demokratie-lebt-vom-mitmachen-frankfurter-salon.webp",
+  "alt_de": "Schaufenster-Graffiti „Demokratie lebt vom Mitmachen“ am Frankfurter Salon, Braubachstraße – Farbaholix"
+ },
+ "bb-iimori": {
+  "id": 830,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/schaufenster-graffiti-willy-brandt-berlin-wird-leben-iimori.webp",
+  "alt_de": "Schaufenster-Kalligrafie „Berlin wird leben und die Mauer wird fallen“ (Willy Brandt) an der Iimori Pâtisserie, Braubachstraße – Farbaholix"
+ },
+ "cansativa-treppenhaus": {
+  "id": 904,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-buero-frankfurt-cansativa-timeline-treppenhaus.webp",
+  "alt_de": "Firmen-Timeline der Cansativa Group im Treppenhaus, Frankfurt – Wandgestaltung von Farbaholix"
+ },
+ "cansativa-abkleben": {
+  "id": 905,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-timeline-wand-lettering-abkleben.webp",
+  "alt_de": "Slavik klebt Buchstaben der Cansativa-Timeline an der Wand ab"
+ },
+ "cansativa-geruest": {
+  "id": 906,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-wandgestaltung-geruest-treppenhaus.webp",
+  "alt_de": "Arbeit am Gerüst im Treppenhaus der Cansativa Group, Frankfurt"
+ },
+ "cansativa-detail": {
+  "id": 907,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-lettering-detail-handarbeit.webp",
+  "alt_de": "Detailarbeit am Lettering „November 2019 – Moved to the Mörfelden-Walldorf“ bei Cansativa"
+ },
+ "tile-fassaden": {
+  "id": 914,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/murals-fassaden-graffiti-restaurant-wellenlaenge-ruesselsheim.webp"
+ },
+ "tile-innenraeume": {
+  "id": 1101,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-innenraum-billard-mural-frankfurt.webp",
+  "alt_de": "Graffiti im Innenraum: Mural mit Filmporträts über dem Billardtisch – Wandgestaltung von Farbaholix"
+ },
+ "sg-mauer-panorama": {
+  "id": 1105,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-blumenmauer-panorama.webp",
+  "alt_de": "Sankt Georgen Mural in Frankfurt: die ganze Blumenmauer an der Straße mit Straßenbahngleisen"
+ },
+ "sg-monstera-detail": {
+  "id": 1106,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-monstera-detail.webp",
+  "alt_de": "Sankt Georgen Mural: Monstera-Blatt aus der Sprühdose, Detail"
+ },
+ "sg-monstera-ecke": {
+  "id": 1107,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-monstera-perspektive.webp",
+  "alt_de": "Sankt Georgen Mural: Monstera am Mauerende neben der Einfahrt, Frankfurt-Sachsenhausen"
+ },
+ "sg-pinke-bluete": {
+  "id": 1108,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-pinke-bluete.webp",
+  "alt_de": "Sankt Georgen Mural: pinke tropische Pflanze und Palmblätter an der Campusmauer"
+ },
+ "sg-hummel": {
+  "id": 1109,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-frankfurt-sankt-georgen-hummel-blueten.webp",
+  "alt_de": "Sankt Georgen Mural: Hummel und weiße Blüten, Graffiti in Frankfurt"
+ },
+ "logo-montana": {
+  "id": 1152,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/partner-montana-colors-logo.webp",
+  "alt_de": "Montana Colors (MTN) – Partner von Farbaholix"
+ },
+ "logo-caparol": {
+  "id": 1153,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/partner-caparol-logo.webp",
+  "alt_de": "Caparol – Partner von Farbaholix"
+ },
+ "presse-frankfurt-live": {
+  "id": 1211,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-frankfurt-schaufenster-graffiti-braubachstrasse-buergermeisterin.webp",
+  "alt_de": "Schaufenster „Frau, Leben, Freiheit“ in der Braubachstraße: Bürgermeisterin Nargess Eskandari-Grünberg mit Graffiti-Künstler Viacheslav Balabaiev und den Initiatoren (Foto: Stadt Frankfurt am Main, Holger Menzel)"
+ },
+ "wl-fassade-seite": {
+  "id": 1245,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-restaurant-wellenlaenge-fassade-seite.webp",
+  "alt_de": "Restaurant Wandgestaltung Wellenlänge: Fassaden-Mural mit Welle und Taube, Seitenansicht, Rüsselsheim"
+ },
+ "wl-leiter": {
+  "id": 1246,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/graffiti-kuenstler-leiter-fassade-wellenlaenge.webp",
+  "alt_de": "Graffiti-Künstler Slavik auf der Leiter beim Sprühen des Fassaden-Murals, Restaurant Wellenlänge"
+ },
+ "wl-gastraum-abend": {
+  "id": 1247,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wandgestaltung-restaurant-wellenlaenge-gastraum-abend.webp",
+  "alt_de": "Restaurant Wandgestaltung: violette Ornamente im Gastraum des Restaurants Wellenlänge am Abend"
+ },
+ "wl-speisekarte": {
+  "id": 1248,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/speisekarte-wellenlaenge-portrait-cover.webp",
+  "alt_de": "Speisekarte des Restaurants Wellenlänge mit dem Porträt vom Eingangs-Mural auf dem Cover"
+ },
+ "vid-sg-reel": {
+  "id": 1285,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-video-graffiti-frankfurt.mp4",
+  "alt_de": "Sankt Georgen Mural im Video: 280 m Mauer, 600 m² Blumen – Graffiti in Frankfurt"
+ },
+ "vid-sg-reel-poster": {
+  "id": 1286,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-video-poster.jpg",
+  "alt_de": "Sankt Georgen Mural Video – 280 m Mauer, 600 m² Blumen"
+ },
+ "vid-sg-bluete": {
+  "id": 1287,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-bluete-loop.mp4",
+  "alt_de": "Sankt Georgen Mural: Blüten und Schmetterling, Kamerafahrt"
+ },
+ "vid-sg-bluete-poster": {
+  "id": 1288,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/w01-sankt-georgen-bluete-poster.jpg",
+  "alt_de": "Sankt Georgen Mural: Schmetterling und Blätter"
+ },
+ "vid-sg-spruehen": {
+  "id": 1289,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sankt-georgen-mural-spruehen-loop.mp4",
+  "alt_de": "Slavik sprüht ein Blatt freihand, Sankt Georgen Mural"
+ },
+ "vid-sg-spruehen-poster": {
+  "id": 1290,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/w02-sankt-georgen-spruehen-poster.jpg",
+  "alt_de": "Slavik sprüht ein Blatt freihand"
+ },
+ "vid-cansativa": {
+  "id": 1322,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-treppenhaus-timeline-video-frankfurt.mp4",
+  "alt_de": "Video: Firmen-Timeline der Cansativa Group im Treppenhaus entsteht – Wandgestaltung Farbaholix"
+ },
+ "vid-cansativa-poster": {
+  "id": 1323,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/cansativa-video-poster.jpg",
+  "alt_de": "Cansativa Group Treppenhaus mit Firmen-Timeline"
+ },
+ "presse-hessenschau": {
+  "id": 1562,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/presse-hessenschau-graffiti-kuenstler-viacheslav-balabaiev-fsv.webp",
+  "alt_de": "Graffiti-Künstler Viacheslav Balabaiev mit Spraydose am FSV-Stadion Bornheimer Hang in Frankfurt (Foto: hr / hessenschau.de)"
+ },
+ "plogo-hessenschau": {
+  "id": 1554,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/hessenschau-logo.png",
+  "alt_de": "Logo hessenschau"
+ },
+ "plogo-sportschau": {
+  "id": 1555,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/sportschau-logo.png",
+  "alt_de": "Logo sportschau"
+ },
+ "plogo-op": {
+  "id": 1556,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/offenbach-post-op-online-logo.png",
+  "alt_de": "Logo Offenbach-Post / op-online.de"
+ },
+ "plogo-fnp": {
+  "id": 1557,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/frankfurter-neue-presse-logo.png",
+  "alt_de": "Logo Frankfurter Neue Presse"
+ },
+ "plogo-sg": {
+  "id": 1558,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/hochschule-sankt-georgen-logo.png",
+  "alt_de": "Logo Hochschule Sankt Georgen"
+ },
+ "plogo-welt": {
+  "id": 1559,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/weltexpresso-logo.png",
+  "alt_de": "Logo Weltexpresso"
+ },
+ "plogo-ko": {
+  "id": 1560,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/kreis-offenbach-logo.png",
+  "alt_de": "Logo Kreis Offenbach"
+ },
+ "plogo-fl": {
+  "id": 1561,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/frankfurt-live-logo.png",
+  "alt_de": "Logo Frankfurt Live"
+ },
+ "vid-fsv-film": {
+  "id": 1634,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-stadion-projektfilm-graffiti-frankfurt-komplett.mp4",
+  "alt_de": "Projektfilm: Graffiti-Künstler Viacheslav Balabaiev gestaltet das Stadion am Bornheimer Hang des FSV Frankfurt 1899 – vom Grundieren bis zur Übergabe"
+ },
+ "vid-fsv-film-poster": {
+  "id": 1624,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/fsv-stadion-projektfilm-poster.webp",
+  "alt_de": "FSV-Frankfurt-Wappen in blauen Flammen, Graffiti im Stadion am Bornheimer Hang"
+ },
+ "vid-wellen": {
+  "id": 1644,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wellenlaenge-restaurant-wandgestaltung-video.mp4",
+  "alt_de": "Video zum Projekt: Wandgestaltung für das Restaurant Wellenlänge in Rüsselsheim – von der Skizze bis zur fertigen Fassade, Graffiti von Viacheslav Balabaiev"
+ },
+ "vid-wellen-poster": {
+  "id": 1645,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/09/wellenlaenge-video-poster.webp",
+  "alt_de": "Graffiti-Porträt und Fassade des Restaurants Wellenlänge in Rüsselsheim"
+ },
+ "presse-fnp": {
+  "id": 1655,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/presse-fnp-viacheslav-balabaiev-sankt-georgen-mauer.webp",
+  "alt_de": "Graffiti-Künstler Viacheslav Balabaiev mit Spraydosen vor den Strelitzien an der Mauer von Sankt Georgen in Frankfurt (Foto: Bernd Kammerer / Frankfurter Neue Presse)"
+ },
+ "voice-soehngen": {
+  "id": 1696,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/dr-stefan-soehngen-portrait-2.webp",
+  "alt_de": "Dr. Stefan Söhngen – Brückenbauer, Netzwerker, Speaker und Autor"
+ },
+ "smi-2017-06-shipovnik-00": {
+  "id": 1700,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-00.webp",
+  "alt_de": "День молодёжи 2017, Соборная площадь, Николаев"
+ },
+ "smi-2017-06-shipovnik-10": {
+  "id": 1701,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-10.webp",
+  "alt_de": "Граффити-баттл, День молодёжи 2017"
+ },
+ "smi-2017-06-shipovnik-13": {
+  "id": 1702,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-13.webp",
+  "alt_de": "Граффити-баттл, День молодёжи 2017"
+ },
+ "smi-2017-06-shipovnik-17": {
+  "id": 1703,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-17.webp",
+  "alt_de": "Граффити «Young», День молодёжи 2017"
+ },
+ "smi-2017-06-shipovnik-21": {
+  "id": 1704,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-21.webp",
+  "alt_de": "Каллиграффити «Молодость», День молодёжи 2017"
+ },
+ "smi-2017-06-shipovnik-25": {
+  "id": 1705,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-25.webp",
+  "alt_de": "Граффити-баттл, День молодёжи 2017"
+ },
+ "smi-2017-06-shipovnik-29": {
+  "id": 1706,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2017-06-shipovnik-29.webp",
+  "alt_de": "Граффити-баттл, День молодёжи 2017"
+ },
+ "smi-2019-09-svidok-00": {
+  "id": 1707,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2019-09-svidok-00.webp",
+  "alt_de": "Граффити «Мы здесь, чтобы творить» у спортшколы «Надежда», Николаев 2019"
+ },
+ "smi-2019-09-svidok-01": {
+  "id": 1708,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2019-09-svidok-01.webp",
+  "alt_de": "Площадка будущего скейт-парка, Николаев 2019"
+ },
+ "smi-2019-09-svidok-02": {
+  "id": 1709,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2019-09-svidok-02.webp",
+  "alt_de": "Баллончики для граффити «Мы здесь, чтобы творить»"
+ },
+ "smi-2021-09-vn-chess-00": {
+  "id": 1710,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-00.webp",
+  "alt_de": "Мурал с кораблями на углу Фалеевской и Набережной, Николаев 2021"
+ },
+ "smi-2021-09-vn-chess-01": {
+  "id": 1711,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-01.webp",
+  "alt_de": "Мурал с кораблями, Николаев 2021"
+ },
+ "smi-2021-09-vn-chess-02": {
+  "id": 1712,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-02.webp",
+  "alt_de": "Вячеслав Балабаев за работой над муралом, Николаев 2021"
+ },
+ "smi-2021-09-vn-chess-03": {
+  "id": 1713,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-chess-03.webp",
+  "alt_de": "Вячеслав Балабаев за работой над муралом, Николаев 2021"
+ },
+ "smi-2021-09-nikvesti-00": {
+  "id": 1714,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-nikvesti-00.webp",
+  "alt_de": "Мурал «Миколаїв» с кораблями, 2021"
+ },
+ "smi-2021-09-ukrinform-00": {
+  "id": 1715,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-ukrinform-00.webp",
+  "alt_de": "Мурал с кораблями «Миколаїв», 2021"
+ },
+ "smi-monochronicle-00": {
+  "id": 1716,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-00.webp",
+  "alt_de": "Hall of Fame «Дормашина», Николаев"
+ },
+ "smi-monochronicle-01": {
+  "id": 1717,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-01.webp",
+  "alt_de": "Спорткомплекс «Экватор», Николаев"
+ },
+ "smi-monochronicle-02": {
+  "id": 1718,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-02.webp",
+  "alt_de": "Мурал с кораблями, Николаев"
+ },
+ "smi-monochronicle-03": {
+  "id": 1719,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-03.webp",
+  "alt_de": "Граффити с супергероями, Николаев"
+ },
+ "smi-monochronicle-04": {
+  "id": 1720,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-04.webp",
+  "alt_de": "Граффити BVB"
+ },
+ "smi-monochronicle-05": {
+  "id": 1721,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-monochronicle-05.webp",
+  "alt_de": "Интерьер с радужной стеной, Николаев"
+ },
+ "smi-mykolaiv-future-uk-05": {
+  "id": 1722,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-mykolaiv-future-uk-05.webp",
+  "alt_de": "Вячеслав Балабаев рисует мурал с кораблями, 2021"
+ },
+ "smi-mykolaiv-future-uk-06": {
+  "id": 1723,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-mykolaiv-future-uk-06.webp",
+  "alt_de": "Мурал с фрегатами и шахматными фигурами, Николаев 2021"
+ },
+ "presse-op-slavik": {
+  "id": 1732,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/presse-op-slavik-montana-94-enso.webp",
+  "alt_de": "Graffiti-Künstler Viacheslav Balabaiev mit einer Montana-94-Sprühdose am ENSO-Wandbild „Luft“ in Neu-Isenburg"
+ },
+ "smi-2021-03-novosti-ekvator-00": {
+  "id": 1763,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-03-novosti-ekvator-00.webp",
+  "alt_de": "Спорткомплекс «Экватор», Николаев: спортзал с росписью стен"
+ },
+ "smi-2021-03-novosti-ekvator-02": {
+  "id": 1764,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-03-novosti-ekvator-02.webp",
+  "alt_de": "Спорткомплекс «Экватор», Николаев: зал с росписью"
+ },
+ "smi-2021-03-novosti-ekvator-03": {
+  "id": 1765,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-03-novosti-ekvator-03.webp",
+  "alt_de": "Спорткомплекс «Экватор», Николаев: зал единоборств"
+ },
+ "smi-2021-09-inshe-04": {
+  "id": 1766,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-inshe-04.webp",
+  "alt_de": "Вячеслав Балабаев на открытии мурала с кораблями, Николаев 2021"
+ },
+ "smi-2021-09-inshe-03": {
+  "id": 1767,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-inshe-03.webp",
+  "alt_de": "Шахматная ладья на мурале, Николаев 2021"
+ },
+ "smi-2021-09-inshe-07": {
+  "id": 1768,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-inshe-07.webp",
+  "alt_de": "Открытие мурала с кораблями, Николаев 2021"
+ },
+ "smi-2021-09-vn-opening-03": {
+  "id": 1769,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-opening-03.webp",
+  "alt_de": "Шахматный король с именем Николая Шелеста на мурале, Николаев 2021"
+ },
+ "smi-2021-09-vn-opening-04": {
+  "id": 1770,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-opening-04.webp",
+  "alt_de": "Вячеслав Балабаев у мурала с кораблями, Николаев 2021"
+ },
+ "smi-2021-09-vn-opening-02": {
+  "id": 1771,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-vn-opening-02.webp",
+  "alt_de": "Мурал «МрійДій» с кораблями и шахматами, Николаев 2021"
+ },
+ "smi-2021-09-mf-new-mural-00": {
+  "id": 1772,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/bvb-archiv-2021-09-mf-new-mural-00.webp",
+  "alt_de": "Мурал с кораблями в процессе работы, Николаев 2021"
+ },
+ "alt-olymp-2013": {
+  "id": 1781,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-olymp-2013.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Велопоток на Адмиральской"
+ },
+ "alt-chempionat-2015": {
+  "id": 1794,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-chempionat-2015.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Накануне Дня освобождения в Николаеве дали старт чемпионату Украины по велоспорту"
+ },
+ "alt-gonka-2016": {
+  "id": 1798,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-gonka-2016.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: \"Гонка Победы\": велосипедисты накатали 800 км по николаевскому бездорожью"
+ },
+ "alt-urban-days-2016": {
+  "id": 1799,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-urban-days-2016.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Из бюджета Николаева профинансируют еще 18 соцпроектов. В Корабельном проведут турнир по мини-футболу и Веселые старты"
+ },
+ "alt-veloden-2017": {
+  "id": 1800,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-veloden-2017.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Более тысячи николаевцев «прокатились за свои права» на традиционном ВелоДне"
+ },
+ "alt-den-molodi-2017": {
+  "id": 1802,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-den-molodi-2017.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Граффити, BMX и брейк-данс: николаевцы «отожгли» на Дне молодежи (Фоторепортаж)"
+ },
+ "alt-active-2017": {
+  "id": 1803,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-active-2017.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: В Николаеве определят лучшую женщину-водителя, соберутся на велофорум, а в Корабельном районе пройдет FrendsFestival"
+ },
+ "alt-veloden-2019": {
+  "id": 1805,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-veloden-2019.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Велодень на Соборной площади"
+ },
+ "alt-skate-vn-2019": {
+  "id": 1806,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-skate-vn-2019.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Скейт-парк вместо пустыря"
+ },
+ "alt-retro-2026": {
+  "id": 1807,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/altersport-archiv-retro-2026.webp",
+  "alt_de": "Альтер-Спорт, Миколаїв: Сухий док \"Океану\", скейт-парк і загиблий випускник ліцею: чим запам'яталося 11 вересня у Корабельному"
+ },
+ "font-manrope-latin": {
+  "id": 1819,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/manrope-latin.woff2",
+  "alt_de": "Schrift Manrope (OFL)"
+ },
+ "font-manrope-cyrillic": {
+  "id": 1820,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/manrope-cyrillic.woff2",
+  "alt_de": ""
+ },
+ "font-unbounded-latin": {
+  "id": 1821,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/unbounded-latin.woff2",
+  "alt_de": ""
+ },
+ "font-unbounded-cyrillic": {
+  "id": 1822,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/unbounded-cyrillic.woff2",
+  "alt_de": ""
+ },
+ "font-jetbrains-mono-latin": {
+  "id": 1823,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/jetbrains-mono-latin.woff2",
+  "alt_de": ""
+ },
+ "font-jetbrains-mono-cyrillic": {
+  "id": 1824,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/jetbrains-mono-cyrillic.woff2",
+  "alt_de": ""
+ },
+ "font-farbaholix-fonts-OFL": {
+  "id": 1825,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-fonts-OFL.txt",
+  "alt_de": ""
+ },
+ "vid-hero-mobil": {
+  "id": 2020,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-video-mobil.mp4",
+  "alt_de": "Farbaholix Graffiti Frankfurt – Video (mobil)"
+ },
+ "vid-hero-poster": {
+  "id": 2021,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/farbaholix-video-poster.webp",
+  "alt_de": "Farbaholix Graffiti Frankfurt – Wandgestaltung, Video-Standbild"
+ },
+ "portfolio-pdf": {
+  "id": 2211,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/Farbaholix-Slavik-Portfolio.pdf",
+  "alt_de": "Slavik – Portfolio (PDF)"
+ },
+ "pf-p2_00": {
+  "id": 2253,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-black-and-white-portrait-of-a.webp",
+  "alt_de": "Schwarz-weißes Frauenporträt mit Afro im Foyer – Farbaholix"
+ },
+ "pf-p2_02": {
+  "id": 2254,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-uv-bear-figure-glowing-in-a.webp",
+  "alt_de": "UV-Bärenfigur im Neonlicht einer Lounge – Farbaholix"
+ },
+ "pf-p2_03": {
+  "id": 2255,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-colourful-mural-with-ganesha-and-three.webp",
+  "alt_de": "Farbenfrohes Wandbild mit Ganesha und drei Gesichtern – Farbaholix"
+ },
+ "pf-p2_04": {
+  "id": 2256,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-woman-in-a-hat-black-and.webp",
+  "alt_de": "Frauenprofil mit Hut, Schwarz-Weiß in einer Billard-Lounge – Farbaholix"
+ },
+ "pf-p2_07": {
+  "id": 2257,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-bar-wall-with-flames-and-a.webp",
+  "alt_de": "Barwand mit Flammen und Whiskeyflasche – Farbaholix"
+ },
+ "pf-p3_04": {
+  "id": 2258,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-portrait-of-a-woman-at-the.webp",
+  "alt_de": "Frauenporträt am Eingang des Restaurants Wellenlänge – Farbaholix"
+ },
+ "pf-p3_07": {
+  "id": 2259,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-welcome-photo-spot-with-angel-wings.webp",
+  "alt_de": "Fotospot „Welcome“ mit Engelsflügeln auf einem Holztor – Farbaholix"
+ },
+ "pf-p4_00": {
+  "id": 2260,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-saxophone-mural-on-a-house-wall.webp",
+  "alt_de": "Saxofon-Mural an einer Hauswand: „Wir sind hier, um zu kreieren“ – Farbaholix"
+ },
+ "pf-p4_01c": {
+  "id": 2261,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-3d-illusion-a-rainbow-spring-crawling.webp",
+  "alt_de": "3D-Illusion: Regenbogen-Spirale kriecht durch die Wand – Farbaholix"
+ },
+ "pf-p4_02": {
+  "id": 2262,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-bright-green-facade-with-geometric-shapes.webp",
+  "alt_de": "Hellgrüne Fassade mit geometrischen Flächen – Farbaholix"
+ },
+ "pf-p4_03": {
+  "id": 2263,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-rainbow-dots-on-a-3d-wall.webp",
+  "alt_de": "Kugeln in Regenbogenfarben auf einer 3D-Wandverkleidung – Farbaholix"
+ },
+ "pf-p4_04": {
+  "id": 2264,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-playroom-with-colourful-geometric-planes.webp",
+  "alt_de": "Spielraum mit bunten geometrischen Flächen – Farbaholix"
+ },
+ "pf-p5_01": {
+  "id": 2265,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-eagle-emblem-on-the-gable-wall.webp",
+  "alt_de": "Adler-Emblem an der Giebelwand eines Wohnhauses – Farbaholix"
+ },
+ "pf-p5_02": {
+  "id": 2266,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-car-workshop-facade-autoservice-in-grey.webp",
+  "alt_de": "Autowerkstatt-Fassade „Autoservice“ in Grau und Blau – Farbaholix"
+ },
+ "pf-p5_07": {
+  "id": 2267,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-black-off-roader-on-a-pink.webp",
+  "alt_de": "Schwarzer Geländewagen auf rosa-blauem Verlauf – Farbaholix"
+ },
+ "pf-p5_08": {
+  "id": 2268,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-barber-kids-lettering-in-a-childrens.webp",
+  "alt_de": "Schriftzug „Barber Kids“ im Kinder-Friseursalon – Farbaholix"
+ },
+ "pf-p5_09": {
+  "id": 2269,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-toy-figure-with-a-giant-spanner.webp",
+  "alt_de": "Spielfigur mit Riesenschlüssel in der Reifenwerkstatt – Farbaholix"
+ },
+ "pf-p6_00": {
+  "id": 2270,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-laser-tag-arena-under-uv-light.webp",
+  "alt_de": "Lasertag-Arena unter UV-Licht, Gesamtansicht – Farbaholix"
+ },
+ "pf-p6_01": {
+  "id": 2271,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-laser-tag-galaxy-swirls-on-the.webp",
+  "alt_de": "Lasertag: Galaxie-Wirbel auf den Trennwänden – Farbaholix"
+ },
+ "pf-p6_02": {
+  "id": 2272,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-laser-tag-glowing-skeleton-and-planets.webp",
+  "alt_de": "Lasertag: leuchtendes Skelett und Planeten – Farbaholix"
+ },
+ "pf-p7_00": {
+  "id": 2273,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-say-wow-roller-shutter-with-a.webp",
+  "alt_de": "Rolltor „Say wow“ mit Porträt an einer Bar – Farbaholix"
+ },
+ "pf-p7_01": {
+  "id": 2274,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-ray-charles-in-black-and-white.webp",
+  "alt_de": "Ray Charles in Schwarz-Weiß mit Noten – Farbaholix"
+ },
+ "pf-p7_05": {
+  "id": 2275,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-lovefamily-park-stage-wall-with-the.webp",
+  "alt_de": "Bühnenwand „lovefamily park“ mit Frankfurter Skyline – Farbaholix"
+ },
+ "pf-p7_06": {
+  "id": 2276,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-abstract-waves-of-colour-on-a.webp",
+  "alt_de": "Abstrakte Farbwellen an einer Mauer – Farbaholix"
+ },
+ "pf-p7_07": {
+  "id": 2277,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-drones-and-a-robot-vehicle-graffiti.webp",
+  "alt_de": "Drohnen und Roboter-Fahrzeug, Graffiti-Wand – Farbaholix"
+ },
+ "pf-p7_08": {
+  "id": 2278,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-portrait-in-a-hat-in-a.webp",
+  "alt_de": "Porträt mit Hut in einem Durchgang – Farbaholix"
+ },
+ "pf-p7_09": {
+  "id": 2279,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-cafe-roller-shutter-with-a-strawberry.webp",
+  "alt_de": "Rolltor eines Cafés mit Erdbeer-Tartelette – Farbaholix"
+ },
+ "pf-p7_10": {
+  "id": 2280,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-cosmic-wave-of-colour-with-a.webp",
+  "alt_de": "Kosmische Farbwelle mit Mond – Farbaholix"
+ },
+ "pf-p7_11": {
+  "id": 2281,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-live-painting-portrait-on-a-large.webp",
+  "alt_de": "Live-Painting: Porträt auf großer Leinwand – Farbaholix"
+ },
+ "pf-p9_01": {
+  "id": 2282,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-beach-wall-with-a-wine-glass.webp",
+  "alt_de": "Strandmauer mit Weinglas-Motiv „Französischer Boulevard“ – Farbaholix"
+ },
+ "pf-p9_02": {
+  "id": 2283,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-mexican-with-sombrero-and-cactus-cartoon.webp",
+  "alt_de": "Mexikaner mit Sombrero und Kaktus, Cartoon-Mural – Farbaholix"
+ },
+ "pf-p9_03": {
+  "id": 2284,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-six-kawaii-characters-sweets-and-fruit.webp",
+  "alt_de": "Sechs Kawaii-Figuren: Süßigkeiten und Früchte – Farbaholix"
+ },
+ "pf-p9_04": {
+  "id": 2285,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-chess-pieces-on-a-curved-board.webp",
+  "alt_de": "Schachfiguren auf einer gewölbten Brett-Kugel, 3D – Farbaholix"
+ },
+ "pf-p9_06": {
+  "id": 2286,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-goofy-mural-in-a-frame.webp",
+  "alt_de": "Goofy-Wandbild im Rahmen – Farbaholix"
+ },
+ "pf-p9_07": {
+  "id": 2287,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-sailing-ship-in-the-moonlight.webp",
+  "alt_de": "Segelschiff im Mondlicht – Farbaholix"
+ },
+ "pf-p14_00": {
+  "id": 2288,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-aztec-sun-on-a-ticket-booth.webp",
+  "alt_de": "Aztekische Sonne an einem Kassenhäuschen – Farbaholix"
+ },
+ "pf-p14_02": {
+  "id": 2289,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-water-park-facade-banana-republic-panorama.webp",
+  "alt_de": "Wasserpark-Fassade „Bananenrepublik“, Panorama – Farbaholix"
+ },
+ "pf-p15_01": {
+  "id": 2290,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-gaming-club-with-beanbags-and-a.webp",
+  "alt_de": "Gaming-Club mit Sitzsäcken und Bildschirmwand – Farbaholix"
+ },
+ "pf-p15_02": {
+  "id": 2291,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-hooded-gamer-mural-in-a-gaming.webp",
+  "alt_de": "Gamer mit Kapuze, Wandbild im Gaming-Club – Farbaholix"
+ },
+ "pf-p15_05": {
+  "id": 2292,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-gaming-club-under-uv-light-panorama.webp",
+  "alt_de": "Gaming-Club unter UV-Licht, Panorama – Farbaholix"
+ },
+ "pf-p15_06a": {
+  "id": 2293,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-red-ceiling-with-a-black-baroque.webp",
+  "alt_de": "Rote Decke mit schwarzem Barock-Ornament – Farbaholix"
+ },
+ "pf-p15_08": {
+  "id": 2294,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-playing-card-symbols-on-ceiling-and.webp",
+  "alt_de": "Spielkarten-Symbole an Decke und Wand – Farbaholix"
+ },
+ "pf-p16_00": {
+  "id": 2295,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-the-godfather-black-and-white-portrait.webp",
+  "alt_de": "Der Pate – Schwarz-Weiß-Porträt – Farbaholix"
+ },
+ "pf-p16_02": {
+  "id": 2296,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-einstein-portrait-on-abstract-greyscale.webp",
+  "alt_de": "Einstein-Porträt auf abstrakten Graustufen – Farbaholix"
+ },
+ "pf-p16_03": {
+  "id": 2297,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-firefighter-mural-on-a-facade-mykolaiv.webp",
+  "alt_de": "Feuerwehr-Mural an einer Fassade, Mykolajiw – Farbaholix"
+ },
+ "pf-p16_04": {
+  "id": 2298,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-film-noir-figure-by-the-exit.webp",
+  "alt_de": "Film-noir-Figur am Ausgang – Farbaholix"
+ },
+ "pf-p16_06": {
+  "id": 2299,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-the-notorious-b-i-g-hip.webp",
+  "alt_de": "The Notorious B.I.G. – Hip-Hop-Wand – Farbaholix"
+ },
+ "pf-p16_07": {
+  "id": 2300,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-the-real-hip-hop-is-over.webp",
+  "alt_de": "„The real hip hop is over here“ – Wand mit Rap-Legenden – Farbaholix"
+ },
+ "pf-p16_08": {
+  "id": 2301,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-tupac-and-snoop-dogg-hip-hop.webp",
+  "alt_de": "Tupac und Snoop Dogg, Hip-Hop-Wand – Farbaholix"
+ },
+ "pf-p17_00": {
+  "id": 2302,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-saxophone-in-black-and-white-the.webp",
+  "alt_de": "Saxofon in Schwarz-Weiß, Entstehung des Wandbilds – Farbaholix"
+ },
+ "pf-p17_02": {
+  "id": 2303,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-food-court-with-paint-splashes-ricchi.webp",
+  "alt_de": "Food-Court mit Farbspritzern „Ricchi & Poveri“ – Farbaholix"
+ },
+ "pf-p18_00": {
+  "id": 2304,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-cartoon-character-drunk-patrick-on-a.webp",
+  "alt_de": "Comicfigur „Drunk Patrick“ auf geometrischem Hintergrund – Farbaholix"
+ },
+ "pf-p18_01": {
+  "id": 2305,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-red-off-roader-on-rough-terrain.webp",
+  "alt_de": "Roter Geländewagen im Gelände, realistisch – Farbaholix"
+ },
+ "pf-p18_02": {
+  "id": 2306,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-fitness-mural-athlete-with-dumbbells.webp",
+  "alt_de": "Fitness-Mural: Athletin mit Hanteln – Farbaholix"
+ },
+ "pf-p18_03": {
+  "id": 2307,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-pin-up-girl-with-a-spiral.webp",
+  "alt_de": "Pin-up mit Spiralhut auf einem Sprungbrett – Farbaholix"
+ },
+ "pf-p18_04": {
+  "id": 2308,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-red-rose-just-beautiful.webp",
+  "alt_de": "Rote Rose „Just beautiful“ – Farbaholix"
+ },
+ "pf-p18_05": {
+  "id": 2309,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-lips-and-cherries-on-a-pillar.webp",
+  "alt_de": "Lippen und Kirschen an einer Säule – Farbaholix"
+ },
+ "pf-p18_07": {
+  "id": 2310,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-fitness-studio-gate-green-club-with.webp",
+  "alt_de": "Tor eines Fitnessstudios „Green Club“ mit Gras – Farbaholix"
+ },
+ "pf-p19_00": {
+  "id": 2311,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-gas-mask-with-glowing-lenses.webp",
+  "alt_de": "Gasmaske mit leuchtenden Gläsern – Farbaholix"
+ },
+ "pf-p19_01": {
+  "id": 2312,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-athlete-with-a-sledgehammer-motion-sequence.webp",
+  "alt_de": "Athlet mit Vorschlaghammer, Bewegungsphasen – Farbaholix"
+ },
+ "pf-p19_02": {
+  "id": 2313,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-tennis-player-on-the-tennis-land.webp",
+  "alt_de": "Tennisspieler an der Fassade von „Tennis Land“ – Farbaholix"
+ },
+ "pf-p19_04": {
+  "id": 2314,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-glowing-cosmic-vortex-under-uv-light.webp",
+  "alt_de": "Leuchtender Kosmos-Wirbel unter UV-Licht – Farbaholix"
+ },
+ "pf-p19_05": {
+  "id": 2315,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-superheroine-in-red-blue-and-gold.webp",
+  "alt_de": "Superheldin in Rot-Blau-Gold, Mural – Farbaholix"
+ },
+ "pf-p19_07": {
+  "id": 2316,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-dark-knight-superhero-mural.webp",
+  "alt_de": "Dunkler Ritter, Superhelden-Mural – Farbaholix"
+ },
+ "pf-p19_08": {
+  "id": 2317,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-classic-gym-with-a-dotted-wave.webp",
+  "alt_de": "Fitnessstudio „Classic“ mit Punkte-Welle, Panorama – Farbaholix"
+ },
+ "pf-p19_09": {
+  "id": 2318,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-ukrainian-petrykivka-flowers-on-the-wall.webp",
+  "alt_de": "Ukrainische Petrykiwka-Blumen an der Wand – Farbaholix"
+ },
+ "pf-p20_01a": {
+  "id": 2319,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-graffiti-piece-one-love-in-turquoise.webp",
+  "alt_de": "Graffiti-Piece „One Love“ in Türkis – Farbaholix"
+ },
+ "pf-p20_01b": {
+  "id": 2320,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-silver-and-red-piece-on-a.webp",
+  "alt_de": "Silber-Rot-Piece an einer Ruine – Farbaholix"
+ },
+ "pf-p20_02d": {
+  "id": 2321,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-wildstyle-piece-viacheslav-at-a-hall.webp",
+  "alt_de": "Wildstyle-Piece „Viacheslav“ an einer Hall of Fame – Farbaholix"
+ },
+ "pf-p20_03": {
+  "id": 2322,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-bubble-style-piece-in-blue-and.webp",
+  "alt_de": "Bubble-Style-Piece in Blau und Lila – Farbaholix"
+ },
+ "pf-p20_05": {
+  "id": 2323,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-wildstyle-in-pink-and-burgundy-under.webp",
+  "alt_de": "Wildstyle in Rosa und Weinrot unter einer Brücke – Farbaholix"
+ },
+ "pf-p20_06": {
+  "id": 2324,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-one-love-red-lettering-on-yellow.webp",
+  "alt_de": "„One Love“ – Schrift in Rot auf Gelb – Farbaholix"
+ },
+ "pf-p20_07": {
+  "id": 2325,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-calligraphy-in-gothic-letters.webp",
+  "alt_de": "Kalligrafie in gotischen Buchstaben – Farbaholix"
+ },
+ "pf-p20_08": {
+  "id": 2326,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-south-bags-logo-lettering.webp",
+  "alt_de": "Logo-Lettering „South Bags“ – Farbaholix"
+ },
+ "pf-p20_09": {
+  "id": 2327,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-letter-s-on-canvas.webp",
+  "alt_de": "Buchstabe „S“ auf Leinwand – Farbaholix"
+ },
+ "pf-p20_10": {
+  "id": 2328,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-slavik-piece-in-green-at-a.webp",
+  "alt_de": "Piece „Slavik“ in Grün an einer Hall of Fame – Farbaholix"
+ },
+ "pf-p20_11": {
+  "id": 2329,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-farbaholix-slavik-wildstyle-in-yellow-and-pink.webp",
+  "alt_de": "Wildstyle „Slavik“ in Gelb und Pink, Hamburg 2022 – Farbaholix"
+ },
+ "newcomers-2026": {
+  "id": 2371,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/newcomers-award-2026-kaisersaal-frankfurt-slavik-balabaiev.webp",
+  "alt_de": "Slavik bei der Newcomers Reception 2026 im Kaisersaal des Frankfurter Römers"
+ },
+ "hibiskus-mural": {
+  "id": 2372,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/graffiti-frankfurt-hibiskus-mural-libelle-garten-scaled.webp",
+  "alt_de": "Hibiskus-Mural mit Libelle und Wildblumen an einer Gartenmauer – Farbaholix"
+ },
+ "shift-leinwand-detail": {
+  "id": 2457,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/kalligrafie-leinwand-shift-summit-farbaholix.webp",
+  "alt_de": "Kalligrafie-Leinwand für die Benefiz-Auktion beim SHIFT Summit – Farbaholix und Wolodymyr Wlastin"
+ },
+ "shift-zeichen": {
+  "id": 2458,
+  "url": "https://farbaholix.de/wp-content/uploads/2026/10/zeichen-farbaholix-relationing-shift-summit.webp",
+  "alt_de": "Zeichen auf der Leinwand beim SHIFT Summit: Monogramm Farbaholix, Logo Relationing"
+ }
 }
