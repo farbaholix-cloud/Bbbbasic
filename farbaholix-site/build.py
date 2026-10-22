@@ -11,6 +11,7 @@ from calc_texts import CALC
 from cases import CASE_PAGES, CAP, UI
 from workshops import WS, WS_PHOTOS
 from portfolio_works import PF
+import shift as SH
 GMETA = json.load(open('gallery_meta.json'))
 GFOCUS = json.load(open('gallery_focus.json'))   # object-position per thumb (faces / people / saliency, manual fixes)
 from gallery import GALLERY, CATS, CAT, EXTRA as _EXTRA_ALL, HIDE_EXTRA, HIDE_OLD
@@ -25,11 +26,11 @@ def img(key):  # new image under its SEO file name
     return MEDIA[key]['url']
 
 LANGS = {k: importlib.import_module('lang_' + k).L for k in ('de', 'en', 'uk')}
-PAGES = ('home', 'projects', 'opening', 'workshops', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach', 'wellen', 'smi', 'altersport')
+PAGES = ('home', 'projects', 'opening', 'workshops', 'about', 'magazine', 'calc', 'fsv', 'georgen', 'braubach', 'wellen', 'smi', 'altersport', 'shift')
 URL = {  # WordPress slugs; the home pages are the Polylang front pages
-    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse', wellen='projekte/restaurant-wandgestaltung-wellenlaenge', smi='smi-bvb', altersport='altersport', workshops='graffiti-workshop'),
-    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse', wellen='projects/restaurant-mural-wellenlaenge', smi='smi-bvb-en', altersport='altersport-en', workshops='workshops'),
-    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse', wellen='proiekty/restoran-wellenlange', smi='smi-bvb-uk', altersport='altersport-uk', workshops='vorkshopy'),
+    'de': dict(home='startseite', projects='projekte', opening='eroeffnungspaket', about='ueber-slavik', magazine='magazin', calc='preisrechner', fsv='projekte/fsv-frankfurt-stadion', georgen='projekte/sankt-georgen-mural', braubach='projekte/schaufenster-graffiti-braubachstrasse', wellen='projekte/restaurant-wandgestaltung-wellenlaenge', smi='smi-bvb', altersport='altersport', workshops='graffiti-workshop', shift='shift-summit'),
+    'en': dict(home='home-en', projects='projects', opening='opening-package', about='about-slavik', magazine='magazine', calc='price-calculator', fsv='projects/fsv-frankfurt-stadium', georgen='projects/sankt-georgen-mural-100-years', braubach='projects/window-graffiti-braubachstrasse', wellen='projects/restaurant-mural-wellenlaenge', smi='smi-bvb-en', altersport='altersport-en', workshops='workshops', shift='shift-summit-en'),
+    'uk': dict(home='holovna', projects='proiekty', opening='paket-vidkryttia', about='pro-slavika', magazine='zhurnal', calc='kalkuliator', fsv='proiekty/stadion-fsv-frankfurt', georgen='proiekty/mural-sankt-georgen', braubach='proiekty/graffiti-vitryny-braubachstrasse', wellen='proiekty/restoran-wellenlange', smi='smi-bvb-uk', altersport='altersport-uk', workshops='vorkshopy', shift='shift-summit-uk'),
 }
 LANG_PATH = dict(de='', en='en/', uk='uk/')
 def url(k, page):
@@ -519,6 +520,33 @@ def page_workshops(k):
                           {'@type': 'FAQPage', 'mainEntity': [{'@type': 'Question', 'name': q, 'acceptedAnswer': {'@type': 'Answer', 'text': a}} for q, a in W['faq']]}]
     return '\n'.join(o), graph
 
+def page_shift(k):
+    """SHIFT Summit 2026: announcement "heute" (later the report under the same URL)."""
+    L = LANGS[k]; S = SH.UI[k]; o = chrome_top(k, 'shift', True)
+    o.append('<div class="fx-lit fx-lit-page" id="fxLit"><section class="fx-sec fx-page-head"><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead fx-lead-left">%s</p><a class="fx-btn" href="#auktion">%s →</a></section>' % (
+        e(S['kicker']), e(S['h1']), e(S['lead']), e(S['auction_t'])))
+    o.append('<section class="fx-sec"><dl class="fx-facts-table">%s</dl></section>' % ''.join('<div><dt>%s</dt><dd>%s</dd></div>' % (e(a), e(b)) for a, b in S['facts']))
+    o.append('<section class="fx-sec fx-text" id="auktion"><h2>%s</h2>%s</section>' % (e(S['auction_t']), ''.join('<p>%s</p>' % e(p) for p in S['auction'])))
+    photos = [key for key in SH.PHOTOS if key in MEDIA]
+    if photos:
+        o.append('<section class="fx-sec"><h2>%s</h2>%s</section>' % (e(S['photos_t']), ''.join(
+            '<figure class="fx-photo fx-photo-pano"><a class="fx-lb" data-lb="shift" href="%s" data-cap="%s"><img loading="lazy" src="%s" alt="%s"></a><figcaption>%s</figcaption></figure>' % (
+                img(key), e(S['caps'][key]), img(key), e(S['caps'][key] + ' – Farbaholix, SHIFT Summit'), e(S['caps'][key])) for key in photos)))
+    o.append('<section class="fx-sec fx-text" id="kalligrafie"><h2>%s</h2><p>%s</p></section>' % (e(S['calli_t']), e(S['calli_lead'])))
+    o.append('<section class="fx-sec"><ol class="fx-steps">%s</ol></section>' % ''.join('<li><b>%s</b><span>%s</span></li>' % (e(a), e(b)) for a, b in S['steps']))
+    o.append('<section class="fx-sec fx-text" id="danke"><h2>%s</h2>%s<p><a href="%s" target="_blank" rel="noopener">%s ↗</a></p></section>' % (
+        e(S['thanks_t']), ''.join('<p>%s</p>' % e(p) for p in S['thanks']), SH.RELATIONING_URL, e(S['thanks_link'])))
+    o.append('<section class="fx-sec fx-text"><h2>%s</h2><p>%s</p><p><a href="%s" target="_blank" rel="noopener">%s ↗</a></p><p><i>%s</i></p></section></div>' % (
+        e(S['about_t']), e(S['about']), SH.SHIFT_URL, e(S['about_link']), e(S['report'])))
+    o.append(contact_open(k))
+    place = {'@type': 'Place', 'name': 'Goldbach Kirchner raumconcepte', 'address': {'@type': 'PostalAddress', 'addressLocality': 'Geiselbach', 'addressCountry': 'DE'}}
+    graph = ld_base(k) + [breadcrumb(k, S['crumb'], 'shift'),
+                          {'@type': 'Event', 'name': S['h1'], 'description': S['lead'], 'startDate': SH.AUCTION_ISO, 'eventStatus': 'https://schema.org/EventScheduled',
+                           'eventAttendanceMode': 'https://schema.org/OfflineEventAttendanceMode', 'location': place, 'url': url(k, 'shift'),
+                           'performer': {'@id': SITE + '#farbaholix'}, 'superEvent': {'@type': 'Event', 'name': 'SHIFT Summit 2026', 'startDate': SH.DATE_ISO, 'url': SH.SHIFT_URL, 'location': place},
+                           'image': [img(key) for key in photos] or [img('logo-badge')]}]
+    return '\n'.join(o), graph
+
 def page_about(k):
     L = LANGS[k]; o = chrome_top(k, 'about', True)
     o.append('<div class="fx-lit fx-lit-page" id="fxLit"><section class="fx-sec fx-page-head fx-about-head"><img class="fx-portrait" src="%s" alt="%s" fetchpriority="high"><div><p class="fx-tagline">%s</p><h1>%s</h1><p class="fx-lead fx-lead-left">%s</p>%s</div></section>' % (
@@ -727,7 +755,7 @@ def page_altersportarchiv():
     o.append('</div>')
     return '\n'.join(o), []
 
-BUILDERS = dict(workshops=lambda k: page_workshops(k), smi=page_smi, altersport=page_altersport, wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
+BUILDERS = dict(shift=lambda k: page_shift(k), workshops=lambda k: page_workshops(k), smi=page_smi, altersport=page_altersport, wellen=lambda k: page_case(k, 'wellen'), braubach=lambda k: page_case(k, 'braubach'), fsv=lambda k: page_case(k, 'fsv'), georgen=lambda k: page_case(k, 'georgen'), calc=page_calc, home=page_home, projects=page_projects, opening=page_opening, about=page_about, magazine=page_magazine)
 
 FONT_BASE = MEDIA['font-unbounded-latin']['url'].rsplit('/', 1)[0]
 

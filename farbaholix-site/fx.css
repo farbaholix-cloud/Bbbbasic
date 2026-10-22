@@ -123,6 +123,8 @@ html, body { margin: 0; background: var(--fx-brown); }
 .fx-meta { font-size: .78rem; letter-spacing: .02em; color: var(--fx-muted); }
 .fx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 14px; }
 .fx-photo-sm { margin: 0; }
+.fx.lights-on .fx-lit .fx-text a { color: #8a5a00; }
+.fx-photo-pano img { aspect-ratio: auto; height: auto; }   /* wide shots (canvas, signs): never cropped */
 .fx-photo-sm img { aspect-ratio: 1; border-radius: 8px; }
 .fx-photo-sm figcaption { font-size: .75rem; padding-top: 10px; line-height: 1.4; }
 .fx-lit .fx-sec h2 { text-transform: none; font-weight: 700; letter-spacing: -.02em; font-size: clamp(1.7rem, 6vw, 2.6rem); }
